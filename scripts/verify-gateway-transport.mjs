@@ -64,23 +64,23 @@ function withDeadline(promise, ms, label) {
 function nextFrame(socket, channel, predicate, label, ms = 8000) {
   return withDeadline(
     new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        channel.offMessage && channel.offMessage(handler);
-        reject(new Error(`timeout waiting for ${label}`));
-      }, ms);
+      const prevOnMessage = channel.onMessage;
+      const done = (fn, value) => {
+        channel.onMessage = prevOnMessage;
+        clearTimeout(timer);
+        fn(value);
+      };
+      const timer = setTimeout(() => done(reject, new Error(`timeout waiting for ${label}`)), ms);
       const handler = (event, payload) => {
         const frame = { type: event, ...(payload && typeof payload === 'object' ? payload : {}) };
         seen.push(frame);
-        if (predicate(frame)) {
-          clearTimeout(timer);
-          channel.offMessage(handler);
-          resolve(frame);
-        }
+        if (predicate(frame)) done(resolve, frame);
       };
       const seen = [];
-      channel.onMessage = ((orig) => (event, payload, next) => {
+      void seen;
+      channel.onMessage = ((orig) => (event, payload, ref, joinRef) => {
         handler(event, payload);
-        return orig(event, payload, next);
+        return orig(event, payload, ref, joinRef);
       })(channel.onMessage);
       void socket;
     }),
@@ -182,19 +182,21 @@ try {
   channel.push('hello', { guestId: 'guest_verify_gateway', nickname: 'Verifier' });
   const w = await welcome;
   assertEq(w.player.id, 'guest_verify_gateway', 'welcome.player.id is the hello guestId');
-  assertOk(Array.isArray(w.prices), 'welcome carries Node-owned prices');
+  assertOk(w.prices && typeof w.prices === 'object' && !Array.isArray(w.prices), 'welcome carries Node-owned prices');
   console.log('ok  hello → welcome relayed (player.id matches token/hello identity)');
 
-  // 4. desiredRoom: join market → roster contains us.
+  // 4. desiredRoom: join market → the joiner receives the room roster
+  // (an empty room means an empty players array — that IS the ack).
   const roster = nextFrame(
     socket,
     channel,
-    (f) => f.type === 'presence_update' && f.players?.some((p) => p.id === 'guest_verify_gateway'),
+    (f) => f.type === 'presence_update' && Array.isArray(f.players),
     'presence_update roster',
   );
   channel.push('join_room', { roomId: 'market' });
-  await roster;
-  console.log('ok  join_room → presence_update roster includes self');
+  const r = await roster;
+  assertEq(r.players.length, 0, 'empty market roster on first join');
+  console.log('ok  join_room → presence_update roster delivered to the joiner');
 
   // 5. ping terminated at the gateway (pong with echoed t).
   const pong = nextFrame(socket, channel, (f) => f.type === 'pong', 'pong');
@@ -240,14 +242,17 @@ try {
   const roster2 = nextFrame(
     conn2.socket,
     conn2.channel,
-    (f) => f.type === 'presence_update' && f.players?.some((p3) => p3.id === 'guest_verify_gateway'),
-    'roster after reconnect',
+    (f) => f.type === 'presence_update' && Array.isArray(f.players) && f.players.some((p3) => p3.id === 'guest_verify_gateway'),
+    'roster after reconnect (movement flush carries self)',
+    15000,
   );
   conn2.channel.push('join_room', { roomId: 'market' });
+  // Joining marks nothing dirty; a movement makes the room flush include us.
+  conn2.channel.push('movement', { x: 1.5, z: 0.5, rotY: 0, walking: true, sitting: false, airborne: false });
   const r2 = await roster2;
   const selfCount = r2.players.filter((p4) => p4.id === 'guest_verify_gateway').length;
   assertEq(selfCount, 1, 'no ghost duplicate of self in roster');
-  console.log('ok  reconnect: fresh welcome, roster clean (newest-wins, no ghosts)');
+  console.log('ok  reconnect: fresh welcome, roster has exactly one self (newest-wins, no ghosts)');
 
   conn2.socket.disconnect();
   console.log('\nP2 GATE PASS: full Phoenix→Node relay verified end to end.');
