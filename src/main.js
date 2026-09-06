@@ -103,6 +103,9 @@ const chatPanel = new ChatPanel(net, {
 // self-registers THEATER_STATE, and owns its own DOM (overlay, modals, and
 // the footer controls button).
 const theaterUI = new TheaterScreenUI(net);
+// The cinema view's "Stand up" button hands the request to the game: the
+// player must actually leave the chair, not just the big screen.
+theaterUI.onStandUpRequest = () => standUp();
 
 // Local player avatar & Kiln companion
 const player = createGardenerAvatar(net.guestId, net.nickname);
@@ -336,16 +339,27 @@ function setRoom(roomId) {
   target = null;
   marker.visible = false;
   remotePlayers.clear();
+  // Leaving the room (or re-entering it) always drops cinema view; standing
+  // is handled by the travel paths that call standUp() first.
+  theaterUI.setWatchMode(false);
   // Records the desired room on the network client: sent immediately while
   // connected, and replayed from onopen (including after reconnects) when
   // the socket is not open yet, as during page load.
   net.joinRoom(roomId);
   theaterUI.setRoomActive(roomId === ROOMS.THEATER);
+  // Cinema view is the theater's default presentation: walking in starts
+  // the big screen. Esc, movement, or the watch bar steps back out.
+  if (roomId === ROOMS.THEATER) theaterUI.setWatchMode(true);
 }
 
-// Default to market court, or garden if ?room=garden is present
+// New gardeners wake up in The Orpheum, in cinema view — the shared screen
+// is the city's living room. ?room=<id> (e.g. ?room=market, ?room=garden)
+// overrides for deep links.
 const initialRoomParam = new URLSearchParams(window.location.search).get('room');
-setRoom(initialRoomParam === 'garden' ? ROOMS.gardenFor(net.guestId) : ROOMS.MARKET);
+let initialRoom = ROOMS.THEATER;
+if (initialRoomParam === 'garden') initialRoom = ROOMS.gardenFor(net.guestId);
+else if (initialRoomParam) initialRoom = initialRoomParam;
+setRoom(initialRoom);
 
 // --- NETWORK PACKET HANDLERS ---
 net.on(MSG_TYPES.WELCOME, (msg) => {
@@ -584,8 +598,7 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
 // --- INTERACTION LOGIC ---
 // Sitting: the player snaps into a chair facing the screen (-z), legs folded.
 // Any movement key, walk-click, E, or travel stands them up again.
-function sitOn(seatItem) {
-  if (seated) return;
+function sitOn(seatItem) {  if (seated) return;
   seated = { x: seatItem.x, z: seatItem.z + 0.55, rotY: Math.PI };
   player.position.set(seated.x, 0, seated.z);
   player.rotation.y = seated.rotY;
@@ -594,6 +607,9 @@ function sitOn(seatItem) {
   marker.visible = false;
   net.sendMovement(player.position.x, player.position.z, player.rotation.y, false, true);
   toast('Take a Seat', 'You settle into the velvet. Press E or a movement key to stand.', 'THE ORPHEUM');
+  // Cinema view: big stage, chat beside it, HUD out of the way.
+  theaterUI.setSeated(true);
+  theaterUI.setWatchMode(true);
 }
 
 function standUp() {
@@ -602,6 +618,8 @@ function standUp() {
   player.position.y = 0;
   player.userData.legs.forEach(leg => { leg.rotation.x = 0; });
   net.sendMovement(player.position.x, player.position.z, player.rotation.y, false, false);
+  theaterUI.setSeated(false);
+  theaterUI.setWatchMode(false);
 }
 
 function interact() {
@@ -890,7 +908,11 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyM') ui.openMarket();
   if (e.code === 'KeyV') net.sendEmote('wave');
   if (e.code === 'KeyC') $('camera').click();
-  if (e.code === 'Escape' && !paused) toggleSettings();
+  if (e.code === 'Escape' && !paused) {
+    // In cinema view, Escape returns to the game first; settings needs a second press.
+    if (theaterUI.isWatching()) theaterUI.setWatchMode(false);
+    else toggleSettings();
+  }
 });
 
 window.addEventListener('keyup', (e) => keys.delete(e.code));
@@ -900,6 +922,7 @@ window.addEventListener('blur', () => keys.clear());
 renderer.domElement.addEventListener('pointerdown', (e) => {
   if (paused) return;
   if (seated) standUp();
+  else if (theaterUI.isWatching()) theaterUI.setWatchMode(false); // click-to-walk leaves cinema view
   ray.setFromCamera(new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), camera);
   if (ray.ray.intersectPlane(plane, hit)) {
     const clamped = clampClickTarget(currentBounds, hit.x, hit.z);
@@ -976,12 +999,14 @@ function frame(now) {
     if (keys.has('KeyA') || keys.has('ArrowLeft')) moveX--;
     if (keys.has('KeyD') || keys.has('ArrowRight')) moveX++;
 
-    // Any movement key stands a seated player up; zero the input for this
-    // frame so they don't slide-teleport out of the chair.
+    // Any movement key stands a seated player up — or, when watching without
+    // sitting, steps out of cinema view so the walk begins immediately.
     if (seated && (moveX || moveZ)) {
       standUp();
       moveX = 0;
       moveZ = 0;
+    } else if (!seated && (moveX || moveZ) && theaterUI.isWatching()) {
+      theaterUI.setWatchMode(false);
     }
 
     let dir = new THREE.Vector3(moveX, 0, moveZ);

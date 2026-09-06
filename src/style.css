@@ -1199,3 +1199,90 @@ kbd {
   letter-spacing: 0.4px;
   white-space: nowrap;
 }
+
+/* ===== Theater cinema view (seated watching) =====
+   body.theater-watching reflows the screen overlay into a large stage,
+   docks the town chat beside it, hides the roaming HUD, and adds a watch
+   bar for now-playing + controls + stand up. Everything is scoped under
+   the body class and fully reversible on exit. */
+
+#theater-watchbar {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  background: #142325ee;
+  border: 1px solid #a99c6f75;
+  border-radius: 4px 4px 14px 4px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 40px #0009;
+  max-width: min(52vw, 560px);
+}
+#theater-watchbar[hidden] { display: none; }
+.theater-watchbar-title {
+  font: 600 13px 'DM Sans', sans-serif;
+  color: #e8d8b5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.theater-watchbar-state { color: #cbb886; }
+#theater-watchbar button {
+  font: bold 10px 'Space Mono', monospace;
+  letter-spacing: 0.5px;
+  color: #d8cba0;
+  background: #1d3033;
+  border: 1px solid #6c7e7588;
+  border-radius: 3px;
+  padding: 6px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#theater-watchbar button:hover { border-color: #c6b47a99; color: #efe3bd; }
+
+body.theater-watching #theater-screen {
+  position: fixed;
+  left: 3vw;
+  top: 50%;
+  translate: 0 -50%;
+  width: calc(94vw - var(--theater-chat-gutter, 0px));
+  max-width: none;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  max-height: 86vh;
+  border-radius: 6px;
+  box-shadow: 0 30px 120px #000d, 0 0 0 1px #a99c6f40;
+}
+
+/* Stow the roaming HUD while watching; the watch bar + chat carry the UI. */
+body.theater-watching header,
+body.theater-watching .map,
+body.theater-watching .companion,
+body.theater-watching footer,
+body.theater-watching #interact,
+body.theater-watching .mill-panel,
+body.theater-watching #toast,
+body.theater-watching .vignette { display: none !important; }
+
+/* Dock the town chat full-height beside the stage (chat owns its own
+   styles; these overrides only apply while watching). */
+body.theater-watching #chat-panel {
+  top: 12px !important;
+  bottom: 12px !important;
+  right: 12px !important;
+  height: auto !important;
+  max-height: none !important;
+  z-index: 61;
+  box-shadow: 0 20px 80px #000c;
+}
+/* Let the message log stretch so the entry box sits at the bottom of the
+   docked panel instead of floating mid-way under a fixed-height log. */
+body.theater-watching #chat-log {
+  flex: 1 1 auto;
+  height: auto !important;
+  max-height: none !important;
+}
