@@ -13,7 +13,7 @@
 
 - [x] 2.1 All contract limits enforced before allocation (1 MiB, 16 sections, 100k rows, lengths vs remaining bytes, enum validation, trailing-byte rejection).
 - [x] 2.2 Bounded rejection contract: decoders return status, never throw into game code; store stays usable after a rejected frame.
-- [ ] 2.3 Fuzz-style test: deterministic mutation corpus (truncate/flip/overflow/bad-enum) over valid frames across all decoders.
+- [x] 2.3 Fuzz-style test: deterministic mutation corpus (truncate/flip/overflow/bad-enum) over valid frames across all decoders.
 
 ## 3. Semantics tests (`tests/realtime/`)
 

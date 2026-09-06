@@ -3,10 +3,11 @@
 // §8 fuzzing mandate). Every mutation comes from a fixed-seed PRNG or an
 // exact field patch, so any failure reproduces by re-running this file.
 // Covers every decoder: readHeader/readSections, readSectionColumns (all
-// mask encodings), readSpawnSection, readStringTable, deserializeRoaring,
-// applyFrame end-to-end (including the chunk accumulator), and the tolerant
-// negotiation parsers. Writers (writeFrame & co) are out of scope: they
-// validate their own callers, not hostile wire input.
+// mask encodings incl. DELTA_VARINT), readSpawnSection, readStringTable,
+// decodeVarintIds, deserializeRoaring, applyFrame end-to-end (including the
+// chunk accumulator), and the tolerant negotiation parsers. Writers
+// (writeFrame & co) are out of scope: they validate their own callers, not
+// hostile wire input.
 // Run: node --test tests/realtime/
 // (Also bridged into `npm test` via tests/realtime.test.js.)
 
@@ -17,7 +18,7 @@ import { applyFrame } from '../../shared/realtime/applyFrame.js';
 import { writeFrame, writeChunkedFrames } from '../../shared/realtime/writer.js';
 import { readHeader, readSections } from '../../shared/realtime/frame.js';
 import {
-  readSectionColumns, readSpawnSection, readStringTable,
+  readSectionColumns, readSpawnSection, readStringTable, decodeVarintIds, encodeVarintIds,
 } from '../../shared/realtime/encoders.js';
 import { serializeRoaring, deserializeRoaring } from '../../shared/realtime/roaring.js';
 import { parseHelloRt, parseWelcomeRt } from '../../shared/realtime/negotiation.js';
@@ -71,8 +72,19 @@ function seedDelta(encoding) {
 }
 
 // DESPAWN rides a bare mask read by applyFrame's private maskIds — give both
-// mask encodings their own seeds so the sweeps reach that reader too.
+// writer-supported mask encodings their own seeds so the sweeps reach that
+// reader too. DELTA_VARINT despawn has no writer path yet, so that seed is
+// hand-built: one id (102) as an absolute single-byte varint.
 function seedDeltaDespawn(encoding) {
+  if (encoding === ENCODING.DELTA_VARINT) {
+    const bytes = cat(bareHeader(FRAME_TYPE.DELTA), sectionHeader(SECTION.DESPAWN, encoding, 1, 1), new Uint8Array([102]));
+    // bareHeader zeroes the sequence fields; match the writer-built seeds
+    // (frameSequence 8 against the seed snapshot's committed baseline 7).
+    const v = new DataView(bytes.buffer);
+    v.setUint32(16, 8, true);
+    v.setUint32(20, 7, true);
+    return bytes;
+  }
   const r = writeFrame({
     frameType: FRAME_TYPE.DELTA, roomEpoch: 0, serverTick: 2,
     frameSequence: 8, baselineSequence: 7,
@@ -204,7 +216,8 @@ test('fuzz: seed corpus is valid, applies cleanly, and is deterministic', () => 
   // Deltas need the snapshot's committed baseline (7) before they apply, and
   // each applied delta advances the session — so each gets a fresh replay.
   for (const bytes of [seedDelta(ENCODING.SORTED_IDS), seedDelta(ENCODING.ROARING), seedDelta(ENCODING.BITSET),
-    seedDeltaDespawn(ENCODING.SORTED_IDS), seedDeltaDespawn(ENCODING.ROARING)]) {
+    seedDelta(ENCODING.DELTA_VARINT),
+    seedDeltaDespawn(ENCODING.SORTED_IDS), seedDeltaDespawn(ENCODING.ROARING), seedDeltaDespawn(ENCODING.DELTA_VARINT)]) {
     const store = newStore();
     const session = { epoch: 0, frameSequence: 0 };
     assert.equal(applyBounded(store, seedSnapshot(), session, 'seed snapshot').kind, 'applied');
@@ -230,8 +243,10 @@ test('fuzz: truncation sweep over every seed frame stays bounded, store recovers
     ['delta-sorted', seedDelta(ENCODING.SORTED_IDS)],
     ['delta-roaring', seedDelta(ENCODING.ROARING)],
     ['delta-bitset', seedDelta(ENCODING.BITSET)],
+    ['delta-varint', seedDelta(ENCODING.DELTA_VARINT)],
     ['despawn-sorted', seedDeltaDespawn(ENCODING.SORTED_IDS)],
     ['despawn-roaring', seedDeltaDespawn(ENCODING.ROARING)],
+    ['despawn-varint', seedDeltaDespawn(ENCODING.DELTA_VARINT)],
   ];
   for (const [name, seed] of seeds) {
     const store = newStore();
@@ -248,8 +263,10 @@ test('fuzz: seeded bit flips and header byte inversions stay bounded, store reco
     ['delta-sorted', seedDelta(ENCODING.SORTED_IDS)],
     ['delta-roaring', seedDelta(ENCODING.ROARING)],
     ['delta-bitset', seedDelta(ENCODING.BITSET)],
+    ['delta-varint', seedDelta(ENCODING.DELTA_VARINT)],
     ['despawn-sorted', seedDeltaDespawn(ENCODING.SORTED_IDS)],
     ['despawn-roaring', seedDeltaDespawn(ENCODING.ROARING)],
+    ['despawn-varint', seedDeltaDespawn(ENCODING.DELTA_VARINT)],
   ];
   for (const [name, seed] of seeds) {
     const rng = mulberry32(0x414c5254 ^ name.length);
@@ -454,12 +471,43 @@ test('fuzz: roaring decoder survives mutated payloads and enforces container lim
   assert.equal(r.reason, 'roaring_expansion_over_limit');
 });
 
+test('fuzz: varint id decoder survives mutated streams and enforces stream rules', () => {
+  // Multi-container gaps exercise multi-byte LEB128 deltas.
+  const stream = encodeVarintIds(Uint32Array.from([1, 2, 3, 70000, 131072, 6553605]));
+  const count = 6;
+  const shape = (r, note) => {
+    if (r.ok === false) assert.equal(typeof r.reason, 'string', note);
+    else if (r.ok === true) {
+      assert.ok(r.ids instanceof Uint32Array && r.ids.length === count, note);
+      assert.equal(typeof r.consumed, 'number', note);
+    } else assert.fail(`varint result missing ok flag on ${note}`);
+    return r;
+  };
+  const rng = mulberry32(0x7a2b1e);
+  for (const bytes of [...truncations(stream), ...bitFlips(stream, rng, 120)]) {
+    shape(decodeVarintIds(bytes, count), `varint mutant len=${bytes.length}`);
+  }
+  // An empty stream for zero rows is legal; wrong row counts are count errors
+  // at the section layer, not here.
+  assert.ok(decodeVarintIds(new Uint8Array(0), 0).ok);
+  // Overlong continuation (shift past 28) must be rejected exactly.
+  let r = shape(decodeVarintIds(new Uint8Array([0x80, 0x80, 0x80, 0x80, 0x80, 0x01]), 1), 'overlong');
+  assert.equal(r.reason, 'varint_overlong');
+  // A zero gap makes the cumulative stream non-ascending.
+  r = shape(decodeVarintIds(new Uint8Array([5, 0]), 2), 'unsorted');
+  assert.equal(r.reason, 'varint_unsorted');
+  // A stream shorter than `count` rows truncates.
+  r = shape(decodeVarintIds(new Uint8Array([5]), 2), 'truncated');
+  assert.equal(r.reason, 'varint_truncated');
+});
+
 test('fuzz: raw readers hold the bounded contract across the whole corpus', () => {
   const snap = seedSnapshot();
   const rng = mulberry32(0xfee0c0de);
   const corpus = [
     ...truncations(snap),
     ...truncations(seedDelta(ENCODING.ROARING)),
+    ...truncations(seedDelta(ENCODING.DELTA_VARINT)),
     ...bitFlips(snap, rng, 25),
     ...headerByteSweep(snap),
     bareHeader(255),
