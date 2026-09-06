@@ -93,6 +93,13 @@ scene.add(particles);
 const net = new NetworkClient();
 const remotePlayers = new RemotePlayersManager(scene);
 
+// Realtime binary fast path — flag-gated and default-off (rt flags in
+// src/realtime/flags.js); with no flags the wire call is a no-op and the
+// game is byte-identical to the legacy path. See add-realtime-live-wiring.
+import('./realtime/wire.js').then(({ wireRealtime }) => {
+  wireRealtime({ net, remotePlayers });
+}).catch(() => { /* module unavailable: legacy path */ });
+
 let activeTool = 'hands'; // 'hands' | 'hoe' | 'seed' | 'water' | 'harvest'
 let activeSeedIndex = 0;
 const seedKeys = CROP_LIST.map(c => c.id);
