@@ -1210,7 +1210,8 @@ kbd {
   position: fixed;
   top: 14px;
   left: 14px;
-  z-index: 60;
+  /* Above the docked chat (61): the way out of a seat must never be covered. */
+  z-index: 70;
   display: flex;
   align-items: center;
   gap: 10px;
