@@ -28,10 +28,12 @@ export const THEATER_LIMITS = {
   URL_MAX: 2048,
   TITLE_MAX: 120,
   QUEUE_MAX: 50,
+  RESOLVE_MAX: 100, // playlist import: most videos a single resolve may carry
 };
 
 export const KIND_LABELS = {
   youtube: 'YouTube',
+  youtubePlaylist: 'YouTube playlist',
   vimeo: 'Vimeo',
   file: 'Video file',
   hls: 'Live stream (HLS)',
@@ -98,8 +100,16 @@ export function classifySource(rawUrl) {
       m = path.match(/^\/(?:shorts|embed|live|v)\/([\w-]{6,})/);
       if (m) videoId = m[1];
     }
-    if (videoId) return { kind: 'youtube', url, videoId };
-    return null; // YouTube page without a video id (channels, playlists)
+    // Playlist context: `list=` names a playlist. Watch links stay playable
+    // videos and carry the list as extra context (the client offers to
+    // import it); a playlist link with no video id is an import target.
+    const listParam = parsed.searchParams.get('list');
+    const listId = listParam && /^[\w-]{12,}$/.test(listParam) ? listParam : null;
+    if (videoId) {
+      return listId ? { kind: 'youtube', url, videoId, listId } : { kind: 'youtube', url, videoId };
+    }
+    if (listId) return { kind: 'youtubePlaylist', listId, url };
+    return null; // YouTube page without a video id or playlist (channels…)
   }
 
   if (host === 'vimeo.com' || host === 'www.vimeo.com' || host === 'player.vimeo.com') {
@@ -189,7 +199,9 @@ function advance(state, actor, nowMs) {
 /**
  * Apply a validated-or-not action to the theater state. Returns
  * `{ state, error? }` where `error` is a stable reason string the caller
- * can translate. Never mutates the input state.
+ * can translate; batch imports (`addMany`) also carry a
+ * `report: { queued, skipped, didNotFit }` on success. Never mutates the
+ * input state.
  */
 export function applyTheaterAction(prevState, action, actor, nowMs = Date.now()) {
   const state = {
@@ -204,6 +216,9 @@ export function applyTheaterAction(prevState, action, actor, nowMs = Date.now())
   if (op === 'add') {
     const classified = classifySource(action.url);
     if (!classified) return ack('invalid_url');
+    // Playlists are not playable items: they arrive only through the
+    // resolve→preview→addMany import flow, never as a single bill entry.
+    if (classified.kind === 'youtubePlaylist') return ack('use_import');
     // Torrents arrive only through the resolve→pick flow: the magnet names
     // the torrent, the pick names the file. No pick, no bill entry.
     let pick = null;
@@ -219,6 +234,38 @@ export function applyTheaterAction(prevState, action, actor, nowMs = Date.now())
     if (state.queue.length >= THEATER_LIMITS.QUEUE_MAX) return ack('queue_full');
     state.queue.push(item);
     return ack(null);
+  }
+
+  if (op === 'addMany') {
+    // Playlist import: one atomic batch. Every URL is re-classified here —
+    // titles and kinds from the client are never trusted — unplayable
+    // entries are skipped, and the queue cap truncates honestly. The whole
+    // batch lands in one state write, so the room sees one snapshot.
+    const items = Array.isArray(action.items) ? action.items : null;
+    if (!items || !items.length || items.length > THEATER_LIMITS.RESOLVE_MAX) return ack('invalid_action');
+    const report = { queued: 0, skipped: 0, didNotFit: 0 };
+    for (const entry of items) {
+      const classified = classifySource(entry?.url);
+      if (!classified || classified.kind === 'youtubePlaylist') {
+        report.skipped++;
+        continue;
+      }
+      if (!state.now) {
+        state.now = startNow(makeItem(classified, entry.title, actor, nowMs), actor, nowMs);
+        report.queued++;
+        continue;
+      }
+      if (state.queue.length >= THEATER_LIMITS.QUEUE_MAX) {
+        report.didNotFit++;
+        continue;
+      }
+      state.queue.push(makeItem(classified, entry.title, actor, nowMs));
+      report.queued++;
+    }
+    if (!report.queued) {
+      return ack(report.didNotFit ? 'queue_full' : 'invalid_action');
+    }
+    return { state, error: null, report };
   }
 
   if (op === 'remove') {
@@ -311,6 +358,7 @@ export function applyTheaterAction(prevState, action, actor, nowMs = Date.now())
     // resolving play the same thing.
     const classified = classifySource(action.url);
     if (!classified) return ack('invalid_url');
+    if (classified.kind === 'youtubePlaylist') return ack('use_import');
     let pick = null;
     if (classified.kind === 'torrent') {
       pick = sanitizeTorrentPick(action);
@@ -341,6 +389,12 @@ export function theaterErrorText(reason) {
     case 'invalid_position': return 'That timestamp does not make sense.';
     case 'seek_unsupported': return 'Live channels cannot be rewound.';
     case 'invalid_action': return 'The projector does not understand that request.';
+    case 'use_import': return 'That link is a whole playlist \u2014 import it and its videos come to the reel together.';
+    case 'is_mix': return 'Radio mixes never end, so the projector cannot pin them down \u2014 add the video itself instead.';
+    case 'playlist_not_public': return 'That playlist is private or no longer exists \u2014 the projector can only read public playlists.';
+    case 'playlist_unreadable': return 'The projector could not read that playlist just now. Give it a moment and try again.';
+    case 'resolve_in_flight': return 'Hold on \u2014 one playlist is still being read.';
+    case 'resolve_cooldown': return 'Give the projector a breath \u2014 try that playlist again in a moment.';
     default: return 'The projector ignores that.';
   }
 }
@@ -440,7 +494,10 @@ export function normalizeTheaterState(raw, nowMs = Date.now()) {
 
   if (raw.now && typeof raw.now === 'object') {
     const classified = classifySource(raw.now.url);
-    const pick = classified ? pickFor(raw.now, classified) : null;
+    // Playlist links are import targets, not playable state: dropped.
+    const pick = classified && classified.kind !== 'youtubePlaylist'
+      ? pickFor(raw.now, classified)
+      : null;
     if (classified && pick !== null) {
       state.now = {
         id: typeof raw.now.id === 'string' ? raw.now.id : newItemId(nowMs),
@@ -464,7 +521,7 @@ export function normalizeTheaterState(raw, nowMs = Date.now()) {
       if (state.queue.length >= THEATER_LIMITS.QUEUE_MAX) break;
       if (!entry || typeof entry !== 'object') continue;
       const classified = classifySource(entry.url);
-      if (!classified) continue;
+      if (!classified || classified.kind === 'youtubePlaylist') continue;
       const pick = pickFor(entry, classified);
       if (pick === null) continue;
       state.queue.push({

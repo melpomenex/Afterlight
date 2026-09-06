@@ -89,12 +89,14 @@ Open **http://localhost:5173** in one or more browser windows. You wake up insid
 | <kbd>I</kbd> | Open Satchel / Inventory |
 | <kbd>M</kbd> | Open Market Exchange Board |
 | <kbd>T</kbd> / **Travel** | Open District Navigator (17 biomes & areas) |
-| <kbd>V</kbd> | Wave emote to other gardeners |
+| Hold <kbd>V</kbd> | Emote wheel: move the pointer outward, release V to perform. Center / Esc cancels. 1–6 or arrows select; Enter confirms. Click **Emotes** for touch / click selection. |
 | <kbd>G</kbd> | In The Orpheum: open the projection booth (screen controls, IPTV lists, channel guide) |
 | <kbd>Enter</kbd> / <kbd>/</kbd> | Open town chat (type & <kbd>Enter</kbd> to send, <kbd>Esc</kbd> to return to the game) |
 | <kbd>C</kbd> | Cycle camera views: three isometric angles, then first person |
 | Mouse Wheel | Zoom in / out (isometric views only) |
 | <kbd>Escape</kbd> | Journal & Settings (in cinema view: return to the game first) |
+
+**Emotes.** Wave, Rust shuffle, Cheer, Much love, Bow, and Shrug animate your character for nearby players. Movement or jumping ends the pose. The wheel stops your walk target; it never pauses other players. Emotes also work seated, and leaving cinema view to choose keeps your seat.
 
 **First person.** The fourth camera view puts you at street level. Your own avatar steps out of sight (Kiln and everyone else stay put), WASD moves relative to where you look, and dragging on the world turns your view — a plain click still walks, and a drag never does. Sit in a theater seat in first person to watch the shared screen from your own chair; your view choice is local and resets to the default angle on reload.
 

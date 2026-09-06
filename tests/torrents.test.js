@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -237,11 +238,12 @@ test('parseRange handles full, open-ended, suffix, and rejects malformed ranges'
 
 // --- TorrentManager with a stub engine ---
 
-/** A webtorrent-shaped stub whose add() immediately "completes". */
+/** A webtorrent-shaped stub whose add() emits the torrent's ready event. */
 function stubClientFactory(torrentDef) {
   return () => ({
-    add(magnetUri, opts, cb) {
-      const torrent = {
+    add(magnetUri, opts) {
+      const torrent = new EventEmitter();
+      Object.assign(torrent, {
         info: { name: torrentDef.name },
         name: torrentDef.name,
         numPeers: 2,
@@ -265,8 +267,9 @@ function stubClientFactory(torrentDef) {
             return fs.createReadStream(torrentDef.fixture, range);
           },
         })),
-      };
-      queueMicrotask(() => cb(null, torrent));
+      });
+      queueMicrotask(() => torrent.emit('ready')); // v3 API: events, not a callback
+      return torrent;
     },
     on() {},
     destroy(done) {

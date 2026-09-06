@@ -51,6 +51,8 @@ const SYNC_SEEK_THRESHOLD_SEC = 1.5;
 const DRIFT_CHECK_INTERVAL_MS = 2000;
 const SDK_TIMEOUT_MS = 8000;
 const YT_UNSTARTED_GRACE_MS = 3000;
+const PLAYLIST_RESOLVE_TIMEOUT_MS = 20_000; // server fetch timeout + grace
+const PLAYLIST_PREVIEW_ROWS = 5; // titles shown before "… and N more"
 const IPTV_LISTS_KEY = 'afterlight-iptv-lists';
 const IPTV_LISTS_MAX = 12;
 const IPTV_CHANNELS_MAX = 5000;
@@ -345,6 +347,12 @@ export class TheaterScreenUI {
     this.torrentPick = null; // { magnet, name, playNow } while the picker is open
     this.torrentStatuses = new Map();
 
+    // YouTube playlist import: resolve in flight, the open mixed-link
+    // choice, and the confirmed-once preview (same lifecycle as torrents).
+    this.playlistPending = null; // { requestId, playNow, timer }
+    this.playlistChoice = null; // { classified, playNow } while the choice is open
+    this.playlistPreview = null; // { title, videos, playNow } while the preview is open
+
     this.overlayW = OVERLAY_BASE; // Untransformed overlay rect (CSS px)
     this.overlayH = OVERLAY_BASE;
 
@@ -368,6 +376,8 @@ export class TheaterScreenUI {
       net.on(MSG_TYPES.EPG_SCHEDULE, (msg) => this.applyEpgSchedule(msg));
       net.on(MSG_TYPES.TORRENT_FILES, (msg) => this.applyTorrentFiles(msg));
       net.on(MSG_TYPES.TORRENT_STATE, (msg) => this.applyTorrentStatus(msg));
+      net.on(MSG_TYPES.THEATER_PLAYLIST_RESOLVED, (msg) => this.applyPlaylistResolved(msg));
+      net.on(MSG_TYPES.THEATER_IMPORT_RESULT, (msg) => this.applyImportResult(msg));
     }
   }
 
@@ -383,6 +393,11 @@ export class TheaterScreenUI {
       this.cancelTorrentResolve();
       this.torrentPick = null;
       this.torrentStatuses.clear();
+      this.cancelPlaylistResolve();
+      this.playlistChoice = null;
+      this.playlistPreview = null;
+      if (this.dom?.playlistDialog?.open) this.dom.playlistDialog.close();
+      if (this.dom?.playlistChoiceDialog?.open) this.dom.playlistChoiceDialog.close();
       this.setOverlayState('idle');
     } else if (this.state?.now) {
       // Rebuild playback from the retained snapshot.
@@ -1160,6 +1175,7 @@ export class TheaterScreenUI {
     this.buildControlsDialog();
     this.buildGuideDialog();
     this.buildTorrentDialog();
+    this.buildPlaylistDialogs();
   }
 
   buildControlsDialog() {
@@ -1173,7 +1189,7 @@ export class TheaterScreenUI {
 
       <div class="panel theater-now-panel" id="theater-now-panel"></div>
 
-      <label class="micro" for="theater-url-input">ADD BY URL (YOUTUBE · VIMEO · .MP4 · .M3U8 · MAGNET)</label>
+      <label class="micro" for="theater-url-input">ADD BY URL (YOUTUBE · PLAYLIST · VIMEO · .MP4 · .M3U8 · MAGNET)</label>
       <div class="theater-add-row">
         <input type="text" id="theater-url-input" maxlength="${THEATER_LIMITS.URL_MAX}"
           placeholder="Paste a video, stream, or magnet link…" autocomplete="off" spellcheck="false">
@@ -1276,6 +1292,9 @@ export class TheaterScreenUI {
         this.onAddClicked(false);
       }
     });
+    // Live recognition: pasting a playlist link tells the player what Add
+    // will do before they press it.
+    this.dom.urlInput.addEventListener('input', () => this.recognizeAddInput());
 
     this.dom.btnToggle.addEventListener('click', () => {
       const now = this.state?.now;
@@ -1399,6 +1418,76 @@ export class TheaterScreenUI {
     this.dom.torrentDialog = dialog;
   }
 
+  /**
+   * Playlist import dialogs: the mixed-link choice ("import the playlist"
+   * vs "add just this video") and the preview-and-confirm gate. Nothing is
+   * shared until the confirm button; closing either dialog leaves the bill
+   * exactly as it was.
+   */
+  buildPlaylistDialogs() {
+    const choice = document.createElement('dialog');
+    choice.id = 'theater-playlist-choice';
+    choice.className = 'game-modal';
+    choice.innerHTML = `
+      <div class="micro modal-header-tag">THE ORPHEUM · PLAYLIST IMPORT</div>
+      <h2>A video and a playlist</h2>
+      <p class="modal-sub" id="theater-playlist-choice-sub">That link carries both a video and a playlist. Which should come to the reel?</p>
+      <div class="modal-footer">
+        <button type="button" id="theater-playlist-choice-import" class="btn-secondary">Import the playlist</button>
+        <button type="button" id="theater-playlist-choice-video" class="btn-secondary">Add just this video</button>
+      </div>
+    `;
+    document.body.append(choice);
+    choice.addEventListener('cancel', (e) => {
+      e.preventDefault();
+      this.playlistChoice = null;
+      choice.close();
+    });
+    choice.querySelector('#theater-playlist-choice-import').addEventListener('click', () => {
+      const pending = this.playlistChoice;
+      this.playlistChoice = null;
+      choice.close();
+      if (!pending) return;
+      this.dom.urlInput.value = '';
+      this.beginPlaylistResolve(pending.classified.listId, pending.playNow);
+    });
+    choice.querySelector('#theater-playlist-choice-video').addEventListener('click', () => {
+      const pending = this.playlistChoice;
+      this.playlistChoice = null;
+      choice.close();
+      if (!pending) return;
+      this.dom.urlInput.value = '';
+      this.addSingleVideo(pending.classified, pending.playNow);
+    });
+    this.dom.playlistChoiceDialog = choice;
+
+    const dialog = document.createElement('dialog');
+    dialog.id = 'theater-playlist-dialog';
+    dialog.className = 'game-modal';
+    dialog.innerHTML = `
+      <div class="micro modal-header-tag">THE ORPHEUM · PLAYLIST IMPORT</div>
+      <h2 id="theater-playlist-name">A playlist</h2>
+      <p class="modal-sub" id="theater-playlist-sub"></p>
+      <div id="theater-playlist-videos" class="theater-playlist-videos"></div>
+      <div class="modal-footer">
+        <button type="button" id="theater-playlist-confirm" class="btn-secondary">Add to the queue</button>
+        <button type="button" id="theater-playlist-cancel" class="btn-secondary">Never mind</button>
+      </div>
+    `;
+    document.body.append(dialog);
+    dialog.addEventListener('cancel', (e) => {
+      e.preventDefault();
+      this.playlistPreview = null;
+      dialog.close();
+    });
+    dialog.querySelector('#theater-playlist-cancel').addEventListener('click', () => {
+      this.playlistPreview = null;
+      dialog.close();
+    });
+    dialog.querySelector('#theater-playlist-confirm').addEventListener('click', () => this.confirmPlaylistImport());
+    this.dom.playlistDialog = dialog;
+  }
+
   // --- Controls dialog rendering ---
 
   nudgeSeek(deltaSec) {
@@ -1453,6 +1542,137 @@ export class TheaterScreenUI {
     }
   }
 
+  // --- YouTube playlist import (resolve → preview → confirm → addMany) ---
+
+  /** Live status-line recognition for playlist and mixed links. */
+  recognizeAddInput() {
+    const input = this.dom?.urlInput;
+    const classified = classifySource((input?.value || '').trim());
+    if (classified?.kind === 'youtubePlaylist') {
+      this.setAddStatus('A YouTube playlist — Add reads it and queues its videos together.');
+    } else if (classified?.kind === 'youtube' && classified.listId) {
+      this.setAddStatus('A YouTube video that belongs to a playlist — Add will ask which one you want.');
+    }
+  }
+
+  /**
+   * Ask the server to read a public playlist. Mirrors the torrent resolve:
+   * one request in flight, a grace timeout, and the answer opens the
+   * preview instead of touching the shared bill.
+   */
+  beginPlaylistResolve(listId, playNow) {
+    if (!this.net?.send) {
+      this.setAddStatus('Multiplayer is offline — playlists cannot be imported right now.', true);
+      return;
+    }
+    if (this.playlistPending) {
+      this.setAddStatus(theaterErrorText('resolve_in_flight'), true);
+      return;
+    }
+    const requestId = `plreq_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+    const timer = setTimeout(() => {
+      if (this.playlistPending?.requestId !== requestId) return;
+      this.playlistPending = null;
+      this.setAddStatus('That playlist took too long to read. Try again in a moment.', true);
+    }, PLAYLIST_RESOLVE_TIMEOUT_MS);
+    this.playlistPending = { requestId, playNow, timer };
+    this.setAddStatus('Reading the playlist…');
+    if (typeof this.net.sendPlaylistResolve === 'function') this.net.sendPlaylistResolve(requestId, listId);
+    else this.net.send(MSG_TYPES.THEATER_PLAYLIST_RESOLVE, { requestId, listId });
+  }
+
+  /** A pending resolve is answered or abandoned; the shared bill is untouched. */
+  cancelPlaylistResolve() {
+    if (this.playlistPending?.timer) clearTimeout(this.playlistPending.timer);
+    this.playlistPending = null;
+  }
+
+  /** The resolve reply opens the preview; stale replies are ignored. */
+  applyPlaylistResolved(msg) {
+    const pending = this.playlistPending;
+    if (!pending || !msg || String(msg.requestId || '') !== pending.requestId) return;
+    clearTimeout(pending.timer);
+    this.playlistPending = null;
+    if (!this.roomActive) return; // left the theater while resolving
+    const videos = (Array.isArray(msg.videos) ? msg.videos : []).filter(
+      (v) => v && typeof v.videoId === 'string' && /^[\w-]{6,}$/.test(v.videoId),
+    );
+    if (!videos.length) {
+      this.setAddStatus('That playlist had no videos the projector could read.', true);
+      return;
+    }
+    this.setAddStatus('');
+    this.openPlaylistPreview(String(msg.title || 'A YouTube playlist'), videos, pending.playNow);
+  }
+
+  /** How many videos one addMany can still place (first may take the screen). */
+  importCapacity() {
+    if (!this.state) return THEATER_LIMITS.QUEUE_MAX;
+    const free = Math.max(0, THEATER_LIMITS.QUEUE_MAX - (this.state.queue?.length || 0));
+    return free + (this.state.now ? 0 : 1);
+  }
+
+  /** Preview the resolved videos; only the confirm button shares anything. */
+  openPlaylistPreview(title, videos, playNow) {
+    const dialog = this.dom?.playlistDialog;
+    if (!dialog) return;
+    this.playlistPreview = { title, videos, playNow };
+    dialog.querySelector('#theater-playlist-name').textContent = title;
+    const fitCount = Math.min(this.importCapacity(), videos.length);
+    dialog.querySelector('#theater-playlist-sub').textContent =
+      `${videos.length} video${videos.length === 1 ? '' : 's'} resolved — ` +
+      (fitCount >= videos.length
+        ? 'they all fit on the reel right now.'
+        : `the reel can take ${fitCount} more right now; the rest would be left off.`);
+    const host = dialog.querySelector('#theater-playlist-videos');
+    host.innerHTML = '';
+    for (const video of videos.slice(0, PLAYLIST_PREVIEW_ROWS)) {
+      const row = document.createElement('div');
+      row.className = 'theater-playlist-video';
+      row.textContent = video.title || 'Untitled video';
+      host.append(row);
+    }
+    if (videos.length > PLAYLIST_PREVIEW_ROWS) {
+      const more = document.createElement('div');
+      more.className = 'theater-playlist-video theater-playlist-more';
+      more.textContent = `… and ${videos.length - PLAYLIST_PREVIEW_ROWS} more`;
+      host.append(more);
+    }
+    const confirm = dialog.querySelector('#theater-playlist-confirm');
+    confirm.textContent = fitCount > 0
+      ? `Add ${fitCount} video${fitCount === 1 ? '' : 's'} to the reel`
+      : 'The reel is full';
+    confirm.disabled = fitCount === 0;
+    if (!dialog.open) dialog.showModal();
+  }
+
+  /** Confirm the preview: one batch op, one broadcast, honest outcome. */
+  confirmPlaylistImport() {
+    const preview = this.playlistPreview;
+    this.playlistPreview = null;
+    const dialog = this.dom?.playlistDialog;
+    if (dialog?.open) dialog.close();
+    if (!preview?.videos?.length) return;
+    const items = preview.videos.map((video) => ({
+      url: `https://www.youtube.com/watch?v=${encodeURIComponent(video.videoId)}`,
+      title: video.title || '',
+    }));
+    this.sendQueue({ op: 'addMany', items });
+    this.setAddStatus(`Pinning ${items.length} videos from "${preview.title}" to the reel…`);
+  }
+
+  /** The directed import result: exactly what landed on the reel. */
+  applyImportResult(msg) {
+    const queued = Math.max(0, Number(msg?.queued) || 0);
+    const skipped = Math.max(0, Number(msg?.skipped) || 0);
+    const didNotFit = Math.max(0, Number(msg?.didNotFit) || 0);
+    if (!queued && !skipped && !didNotFit) return;
+    const parts = [`Queued ${queued} video${queued === 1 ? '' : 's'}`];
+    if (didNotFit) parts.push(`${didNotFit} didn't fit — the reel is full`);
+    if (skipped) parts.push(`${skipped} skipped`);
+    this.setAddStatus(`${parts.join(' · ')}.`);
+  }
+
   onAddClicked(playNow) {
     const input = this.dom?.urlInput;
     const url = (input?.value || '').trim();
@@ -1468,6 +1688,32 @@ export class TheaterScreenUI {
       this.beginTorrentResolve(classified.url, playNow);
       return;
     }
+    if (classified.kind === 'youtubePlaylist') {
+      // Playlists are imported, not queued: resolve, preview, confirm.
+      input.value = '';
+      this.beginPlaylistResolve(classified.listId, playNow);
+      return;
+    }
+    if (classified.kind === 'youtube' && classified.listId) {
+      // Video + playlist in one link: ask which one is wanted (input kept
+      // until the choice so it survives a dismissed dialog).
+      this.openPlaylistChoice(classified, playNow);
+      return;
+    }
+    this.addSingleVideo(classified, playNow);
+    input.value = '';
+  }
+
+  /** The mixed-link chooser: import the whole playlist or play just the video. */
+  openPlaylistChoice(classified, playNow) {
+    const dialog = this.dom?.playlistChoiceDialog;
+    if (!dialog) return;
+    this.playlistChoice = { classified, playNow };
+    if (!dialog.open) dialog.showModal();
+  }
+
+  /** Plain single-video path shared by the input and the mixed-link choice. */
+  addSingleVideo(classified, playNow) {
     this.setAddStatus('');
     if (playNow) {
       // Start this URL on the shared screen right now, replacing whatever
@@ -1476,7 +1722,6 @@ export class TheaterScreenUI {
     } else {
       this.sendQueue({ op: 'add', url: classified.url });
     }
-    input.value = '';
   }
 
   // --- Torrent streaming (magnet → resolve → pick → shared bill) ---

@@ -1,3 +1,4 @@
+import { isEmote, EMOTE_DURATION } from '../../shared/emotes.js';
 import * as THREE from 'three';
 import { generatePlayerPalette } from '../../shared/identity.js';
 import { JUMP_TAKEOFF_SPEED, JUMP_GRAVITY } from '../jump.js';
@@ -140,16 +141,21 @@ export function createGardenerAvatar(playerId, nickname = 'Gardener') {
   group.add(hatBand);
 
   // 6. Arms & Hands
+  const arms = [];
   for (const ax of [-0.38, 0.38]) {
+    const arm = new THREE.Group();
+    arm.position.set(ax, 1.2, 0);
+    group.add(arm);
+    arms.push(arm);
     const sleeve = new THREE.Mesh(boxGeo, coatMat);
-    sleeve.position.set(ax, 0.96, 0);
+    sleeve.position.set(0, -0.24, 0);
     sleeve.scale.set(0.14, 0.5, 0.2);
-    group.add(sleeve);
+    arm.add(sleeve);
 
     const glove = new THREE.Mesh(boxGeo, leatherMat);
-    glove.position.set(ax, 0.66, 0);
+    glove.position.set(0, -0.54, 0);
     glove.scale.set(0.13, 0.16, 0.18);
-    group.add(glove);
+    arm.add(glove);
   }
 
   // 7. Watering Can prop (attached to right hand)
@@ -193,10 +199,18 @@ export function createGardenerAvatar(playerId, nickname = 'Gardener') {
   const nameSprite = createNicknameSprite(nickname);
   group.add(nameSprite);
 
+  // Pose the visual rig without changing collision, facing, or the name tag.
+  const rig = new THREE.Group();
+  for (const child of [...group.children]) if (child !== nameSprite) rig.add(child);
+  group.add(rig);
+
   group.userData = {
     playerId,
     nickname,
     legs,
+    arms,
+    rig,
+    emote: null,
     canGroup,
     nameSprite,
     setWateringCan(visible) {
@@ -282,6 +296,7 @@ export class RemotePlayersManager {
       while (diff > Math.PI) diff -= Math.PI * 2;
       avatar.rotation.y += diff * lerpRate;
 
+      if (walking || airborne) stopEmote(avatar);
       if (airborne) entry.hopT = Math.min(entry.hopT + dt, HOP_FLAG_TIMEOUT);
 
       // Animate pose: seated players fold their legs and stay put; the
@@ -309,6 +324,7 @@ export class RemotePlayersManager {
           leg.rotation.x *= 0.8;
         });
       }
+      updateEmote(avatar, dt);
     }
   }
 }
@@ -352,4 +368,54 @@ export function createKilnCompanion() {
   g.userData.legs = legs;
   g.castShadow = true;
   return g;
+}
+
+
+export function startEmote(avatar, id) {
+  if (!avatar || !isEmote(id)) return;
+  stopEmote(avatar);
+  avatar.userData.emote = { id, elapsed: 0 };
+}
+export function stopEmote(avatar) {
+  const data = avatar?.userData;
+  if (!data?.rig) return;
+  data.emote = null;
+  data.rig.rotation.set(0, 0, 0);
+  data.rig.position.set(0, 0, 0);
+  data.arms.forEach(arm => arm.rotation.set(0, 0, 0));
+}
+export function updateEmote(avatar, dt) {
+  const data = avatar.userData, state = data.emote;
+  if (!state) return;
+  state.elapsed += dt;
+  const t = state.elapsed;
+  if (t >= EMOTE_DURATION) { stopEmote(avatar); return; }
+  const ease = Math.min(1, t / .25, (EMOTE_DURATION - t) / .4);
+  const [left, right] = data.arms;
+  data.rig.rotation.set(0, 0, 0);
+  data.rig.position.set(0, 0, 0);
+  left.rotation.set(0, 0, 0); right.rotation.set(0, 0, 0);
+  switch (state.id) {
+    case 'wave': right.rotation.z = (2.5 + Math.sin(t * 13) * .35) * ease; break;
+    case 'dance':
+      data.rig.rotation.z = Math.sin(t * 7) * .16 * ease;
+      data.rig.rotation.y = Math.sin(t * 4) * .4 * ease;
+      left.rotation.x = Math.sin(t * 7) * .9 * ease;
+      right.rotation.x = -left.rotation.x;
+      left.rotation.z = -.65 * ease; right.rotation.z = .65 * ease; break;
+    case 'cheer':
+      left.rotation.z = -2.6 * ease; right.rotation.z = 2.6 * ease;
+      data.rig.position.y = Math.abs(Math.sin(t * 7)) * .12 * ease; break;
+    case 'heart':
+      left.rotation.x = right.rotation.x = -1.2 * ease;
+      left.rotation.z = .65 * ease; right.rotation.z = -.65 * ease;
+      data.rig.rotation.z = Math.sin(t * 3) * .1 * ease; break;
+    case 'bow':
+      data.rig.rotation.x = Math.sin(Math.min(1, t / EMOTE_DURATION) * Math.PI) * .55;
+      right.rotation.x = -1 * ease; right.rotation.z = -.6 * ease; break;
+    case 'shrug':
+      left.rotation.z = -1.15 * ease; right.rotation.z = 1.15 * ease;
+      left.rotation.x = right.rotation.x = -.5 * ease;
+      data.rig.rotation.z = Math.sin(t * 3) * .13 * ease; break;
+  }
 }

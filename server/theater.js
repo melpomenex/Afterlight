@@ -21,15 +21,17 @@ export class TheaterManager {
   }
 
   /**
-   * Apply a validated-or-not action. Returns `{ success, reason? }`;
+   * Apply a validated-or-not action. Returns `{ success, reason?, report? }`;
    * accepted actions are persisted and the caller broadcasts the new
-   * snapshot to the theater room, rejected ones change nothing.
+   * snapshot to the theater room, rejected ones change nothing. Batch
+   * imports (`addMany`) carry the reducer's honest
+   * `report: { queued, skipped, didNotFit }` for the actor.
    */
   applyAction(actor, action) {
-    const { state, error } = applyTheaterAction(this.state, action, actor, Date.now());
+    const { state, error, report } = applyTheaterAction(this.state, action, actor, Date.now());
     if (error) return { success: false, reason: error };
     this.state = state;
     this.storage.saveTheater(state);
-    return { success: true };
+    return report ? { success: true, report } : { success: true };
   }
 }

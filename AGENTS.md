@@ -402,3 +402,7 @@ Before handing back a feature, ask yourself:
 - Have I updated README and, if architecture changed, this guide?
 
 Then provide a short user-facing response with the result and controls. Keep detailed engineering guidance here rather than overwhelming the player with implementation notes.
+
+## Emote wheel
+
+Hold V opens `src/ui/emoteWheel.js`: clockwise six-way selection, center dead zone, release to commit; Escape, blur, resize, and state changes cancel. The Emotes button opens click/touch selection; 1–6 and arrow keys select, Enter confirms. The capture-phase handler consumes wheel input before gameplay shortcuts. `shared/emotes.js` owns the allow-list and sector math. `src/render/avatars.js` poses a visual rig and shoulder pivots through the existing frame loop, leaving collision position and nickname tags untouched. Emotes are transient room broadcasts, validated and rate-limited on the server, played immediately locally, and ignored on self echo. Movement/jumping cancel poses; seated legs remain folded. No emote data is persisted.

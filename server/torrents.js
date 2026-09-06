@@ -74,6 +74,8 @@ export class TorrentManager {
     this.clientFactory = clientFactory;
     this.client = null;          // lazy webtorrent client (or injected stub)
     this.engineBroken = false;   // module import failed; every call answers unavailable
+    // infohash -> Promise<torrent>: concurrent ensureTorrent calls share one add
+    this.pendingAdds = new Map();
     // infohash -> { infohash, magnet, torrent, name, lastServedMs, addedMs }
     this.entries = new Map();
     this.sweepStartup();
@@ -200,12 +202,32 @@ export class TorrentManager {
   /**
    * Ensure a torrent object is active for `infohash`, adding it if needed
    * and waiting for metadata. Rejects { reason } on timeout/failure.
+   * Concurrent callers for the same infohash share one add.
    */
-  ensureTorrent(magnetUri, infohash, timeoutMs) {
+  async ensureTorrent(magnetUri, infohash, timeoutMs) {
     const existing = this.entries.get(infohash);
-    if (existing?.torrent) return Promise.resolve(existing.torrent);
+    if (existing?.torrent) return existing.torrent;
     const client = this.client;
     if (!client) return Promise.reject({ reason: 'engine_unavailable' });
+    if (this.pendingAdds.has(infohash)) return this.pendingAdds.get(infohash);
+
+    // Already hot in the client (e.g. re-streaming after a bookkeeping gap)?
+    // v3's client.get is async; undefined stubs simply fall through.
+    try {
+      const hot = await client.get?.(infohash);
+      if (hot) {
+        const entry = existing || {
+          infohash, magnet: magnetUri, torrent: hot, name: hot.name || null,
+          lastServedMs: 0, addedMs: Date.now(),
+        };
+        entry.torrent = hot;
+        this.entries.set(infohash, entry);
+        return hot;
+      }
+    } catch {}
+    // Another caller may have finished an add while we awaited get().
+    if (this.entries.get(infohash)?.torrent) return this.entries.get(infohash).torrent;
+    if (this.pendingAdds.has(infohash)) return this.pendingAdds.get(infohash);
 
     const entry = existing || {
       infohash, magnet: magnetUri, torrent: null, name: null,
@@ -213,28 +235,39 @@ export class TorrentManager {
     };
     this.entries.set(infohash, entry);
 
-    return new Promise((resolve, reject) => {
-      let settled = false;
+    const promise = new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
-        if (settled) return;
-        settled = true;
+        cleanup();
         reject({ reason: 'resolve_timeout' });
       }, Math.max(1000, timeoutMs));
 
-      const finish = (err, torrent) => {
-        if (settled) return;
-        settled = true;
+      const cleanup = () => {
         clearTimeout(timer);
-        if (err) reject({ reason: 'resolve_failed' });
-        else resolve(torrent);
+        torrent.removeListener('ready', onReady);
+        torrent.removeListener('error', onError);
+        this.pendingAdds.delete(infohash);
       };
 
-      try {
-        client.add(magnetUri, { path: path.join(this.cacheDir, infohash) }, finish);
-      } catch (err) {
-        finish(err);
-      }
+      // webtorrent v3: add() returns the torrent synchronously and reports
+      // readiness/failure via its own events — there is no error-first
+      // callback (that was the v2 API).
+      const torrent = client.add(magnetUri, { path: path.join(this.cacheDir, infohash) });
+      const onReady = () => {
+        cleanup();
+        entry.torrent = torrent;
+        resolve(torrent);
+      };
+      const onError = (err) => {
+        cleanup();
+        entry.torrent = null;
+        console.warn(`TorrentManager: torrent ${infohash.slice(0, 8)} failed:`, err?.message || err);
+        reject({ reason: 'resolve_failed' });
+      };
+      torrent.once('ready', onReady);
+      torrent.once('error', onError);
     });
+    this.pendingAdds.set(infohash, promise);
+    return promise;
   }
 
   /**
