@@ -1074,6 +1074,44 @@ kbd {
 }
 .theater-queue-row button:hover { border-color: #cdb98299; }
 .theater-empty { font-size: 11px; color: #768680; padding: 6px 2px; }
+/* Torrent file picker (resolve → pick flow) */
+.theater-torrent-files {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 10px 0 4px;
+}
+.theater-torrent-file {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  text-align: left;
+  background: #142223c0;
+  border: 1px solid #6b7d7440;
+  border-radius: 3px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #e8e7d9;
+  cursor: pointer;
+}
+.theater-torrent-file:hover { border-color: #cdb98299; background: #1b2d2ec0; }
+.theater-torrent-file .theater-torrent-file-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.theater-torrent-file .theater-torrent-file-meta {
+  font: 8px 'Space Mono', monospace;
+  color: #93a49a;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.theater-torrent-status { margin-top: 4px; color: #c8b98a; }
+/* end torrent */
 .theater-transport { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
 .theater-transport button:disabled { opacity: 0.4; cursor: default; }
 .theater-volume-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
@@ -1171,6 +1209,7 @@ kbd {
 .theater-channel-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap; /* schedule text wraps to its own line under the name */
   gap: 10px;
   background: #142223c0;
   border: 1px solid #6b7d7440;
@@ -1204,6 +1243,20 @@ kbd {
   padding: 2px 6px;
   border-radius: 2px;
   letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+/* Shared channel library + program guide (EPG) */
+.theater-iptv-intro { margin: 2px 0 4px; color: #97a8a0; line-height: 1.5; }
+.theater-epg-hint { color: #8fa098; line-height: 1.5; margin: 2px 0 0; }
+.theater-guide-epg { margin: 10px 0 0; color: #93a89c; }
+.theater-iptv-saved select optgroup { background: #122122; color: #9fb3a8; font-style: normal; }
+.theater-channel-row .theater-channel-epg {
+  flex-basis: 100%;
+  font: 10px 'Space Mono', monospace;
+  color: #a8bcab;
+  letter-spacing: 0.2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -1294,3 +1347,8 @@ body.theater-watching #chat-log {
   height: auto !important;
   max-height: none !important;
 }
+
+/* --- SETTINGS: footstep volume --- */
+#settings-dialog label { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+#settings-dialog input[type="range"] { flex: 1; accent-color: #c9a86a; }
+#settings-dialog #footsteps-value { min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }

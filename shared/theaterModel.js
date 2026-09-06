@@ -9,16 +9,20 @@
  * State shape:
  *   {
  *     now: null | {
- *       id, kind: 'youtube'|'vimeo'|'file'|'hls', url, title,
+ *       id, kind: 'youtube'|'vimeo'|'file'|'hls'|'torrent', url, title,
  *       playing: boolean,
  *       positionSec: number,   // position valid AT updatedAt
  *       updatedAt: number,     // server Date.now() of last timeline write
  *       by: string,            // who last controlled/queued it
  *       queuedBy: string,      // who put it in the queue (carried on advance)
+ *       // torrent items only — the resolve→pick outcome (see torrentModel):
+ *       fileIndex: number, filePath: string, fileBytes: number,
  *     },
- *     queue: [ { id, kind, url, title, queuedBy } ],
+ *     queue: [ { id, kind, url, title, queuedBy, (torrent pick fields) } ],
  *   }
  */
+
+import { isVideoFile, parseMagnet, sanitizeTorrentPick, torrentTitle } from './torrentModel.js';
 
 export const THEATER_LIMITS = {
   URL_MAX: 2048,
@@ -31,6 +35,7 @@ export const KIND_LABELS = {
   vimeo: 'Vimeo',
   file: 'Video file',
   hls: 'Live stream (HLS)',
+  torrent: 'Torrent stream',
 };
 
 export function defaultTitle(kind) {
@@ -39,6 +44,7 @@ export function defaultTitle(kind) {
     case 'vimeo': return 'A Vimeo video';
     case 'hls': return 'Live channel';
     case 'file': return 'A video link';
+    case 'torrent': return 'A torrent stream';
     default: return 'Something to watch';
   }
 }
@@ -64,6 +70,12 @@ export function classifySource(rawUrl) {
   } catch {
     return null;
   }
+
+  // Magnet links are instructions to the server-side torrent engine, never
+  // media a browser loads; they carry a chosen-file pick as extra fields.
+  const magnet = parseMagnet(url);
+  if (magnet) return { kind: 'torrent', url: magnet.url, infohash: magnet.infohash };
+
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
 
   const host = parsed.hostname.toLowerCase();
@@ -125,7 +137,7 @@ function cleanText(value, max = THEATER_LIMITS.TITLE_MAX) {
   return value.replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-function makeItem(classified, title, queuedBy, nowMs) {
+function makeItem(classified, title, queuedBy, nowMs, pick = null) {
   return {
     id: newItemId(nowMs),
     kind: classified.kind,
@@ -133,6 +145,10 @@ function makeItem(classified, title, queuedBy, nowMs) {
     videoId: classified.videoId || null,
     title: cleanText(title) || defaultTitle(classified.kind),
     queuedBy: cleanText(queuedBy, 40) || 'Someone',
+    // Torrent items carry their chosen file; other kinds keep nulls.
+    ...(classified.kind === 'torrent'
+      ? { infohash: classified.infohash, fileIndex: pick.fileIndex, filePath: pick.filePath, fileBytes: pick.fileBytes }
+      : {}),
   };
 }
 
@@ -143,6 +159,9 @@ function startNow(item, actor, nowMs) {
     url: item.url,
     videoId: item.videoId || null,
     title: item.title,
+    ...(item.kind === 'torrent'
+      ? { infohash: item.infohash, fileIndex: item.fileIndex, filePath: item.filePath, fileBytes: item.fileBytes }
+      : {}),
     playing: true,
     positionSec: 0,
     updatedAt: nowMs,
@@ -185,7 +204,14 @@ export function applyTheaterAction(prevState, action, actor, nowMs = Date.now())
   if (op === 'add') {
     const classified = classifySource(action.url);
     if (!classified) return ack('invalid_url');
-    const item = makeItem(classified, action.title, actor, nowMs);
+    // Torrents arrive only through the resolve→pick flow: the magnet names
+    // the torrent, the pick names the file. No pick, no bill entry.
+    let pick = null;
+    if (classified.kind === 'torrent') {
+      pick = sanitizeTorrentPick(action);
+      if (!pick || !isVideoFile(pick.filePath)) return ack('no_file_chosen');
+    }
+    const item = makeItem(classified, action.title, actor, nowMs, pick);
     if (!state.now) {
       state.now = startNow(item, actor, nowMs);
       return ack(null);
@@ -216,6 +242,9 @@ export function applyTheaterAction(prevState, action, actor, nowMs = Date.now())
       state.queue.unshift({
         id: current.id, kind: current.kind, url: current.url,
         videoId: current.videoId || null, title: current.title, queuedBy: current.queuedBy,
+        ...(current.kind === 'torrent'
+          ? { infohash: current.infohash, fileIndex: current.fileIndex, filePath: current.filePath, fileBytes: current.fileBytes }
+          : {}),
       });
     }
     state.now = startNow(item, actor, nowMs);
@@ -277,11 +306,21 @@ export function applyTheaterAction(prevState, action, actor, nowMs = Date.now())
   }
 
   if (op === 'channel') {
-    // IPTV flip: the selection carries the resolved stream URL so viewers
-    // who never imported the originating list play the same channel.
+    // IPTV flip / torrent play-now: the payload carries the resolved details
+    // (stream URL, or magnet + chosen file) so viewers who never did the
+    // resolving play the same thing.
     const classified = classifySource(action.url);
     if (!classified) return ack('invalid_url');
-    const item = makeItem(classified, cleanText(action.title) || 'Live channel', actor, nowMs);
+    let pick = null;
+    if (classified.kind === 'torrent') {
+      pick = sanitizeTorrentPick(action);
+      if (!pick || !isVideoFile(pick.filePath)) return ack('no_file_chosen');
+    }
+    const item = makeItem(
+      classified,
+      cleanText(action.title) || (classified.kind === 'torrent' ? torrentTitle(action.torrentName, pick.filePath) : ''),
+      actor, nowMs, pick,
+    );
     state.now = startNow(item, actor, nowMs);
     return ack(null);
   }
@@ -293,6 +332,7 @@ export function applyTheaterAction(prevState, action, actor, nowMs = Date.now())
 export function theaterErrorText(reason) {
   switch (reason) {
     case 'invalid_url': return 'That link is not something the projector can play. Try YouTube, Vimeo, a direct video file, or an .m3u8 stream.';
+    case 'no_file_chosen': return 'Pick a file from that torrent first \u2014 paste the magnet and choose from its file list.';
     case 'url_too_long': return 'That link is far too long to pin to the marquee.';
     case 'queue_full': return 'The queue reel is full. Remove something first.';
     case 'item_not_found': return 'That item is no longer on the bill.';
@@ -309,20 +349,19 @@ export function theaterErrorText(reason) {
 // parser is shared so tests can pin its tolerance rules) ---
 
 function parseExtInf(line) {
-  // #EXTINF:-1 tvg-name="Channel" group-title="News" tvg-logo="http..",Display Name
+  // #EXTINF:-1 tvg-id="Channel.tv" tvg-name="Channel" group-title="News" tvg-logo="http..",Display Name
   const body = line.slice(line.indexOf(':') + 1);
   const commaIdx = body.lastIndexOf(',');
   const attrsPart = commaIdx === -1 ? body : body.slice(0, commaIdx);
   const name = commaIdx === -1 ? '' : body.slice(commaIdx + 1).trim();
-  const attr = (key) => {
-    const m = attrsPart.match(new RegExp(`${key}="([^"]*)"`), 'i');
-    return m ? m[1].trim() : null;
-  };
-  const out = { name: name || null, group: null, logo: null };
+  const out = { name: name || null, group: null, logo: null, tvgId: null };
   const groupName = attrsPart.match(/group-title="([^"]*)"/i);
   if (groupName) out.group = groupName[1].trim() || null;
   const logoUrl = attrsPart.match(/tvg-logo="([^"]*)"/i);
   if (logoUrl) out.logo = logoUrl[1].trim() || null;
+  // tvg-id keys EPG matching (program guide); additive and optional.
+  const tvgId = attrsPart.match(/tvg-id="([^"]*)"/i);
+  if (tvgId) out.tvgId = tvgId[1].trim() || null;
   const tvgName = attrsPart.match(/tvg-name="([^"]*)"/i);
   if (!out.name && tvgName) out.name = tvgName[1].trim() || null;
   return out;
@@ -331,9 +370,9 @@ function parseExtInf(line) {
 /**
  * Parse M3U/M3U8 playlist text into channel entries. Tolerant by contract:
  * malformed #EXTINF blocks and non-http entries are skipped and counted,
- * never fatal. Returns { entries: [{url, name, group, logo}], skipped,
+ * never fatal. Returns { entries: [{url, name, group, logo, tvgId}], skipped,
  * recognized } — `recognized` is false when the text does not look like a
- * playlist at all.
+ * playlist at all. `tvgId` keys program-guide matching and may be null.
  */
 export function parseM3U(text) {
   const entries = [];
@@ -369,6 +408,7 @@ export function parseM3U(text) {
       name: cleanText(pending?.name) || `Channel ${channelIdx}`,
       group: pending?.group || null,
       logo: pending?.logo || null,
+      tvgId: pending?.tvgId ? cleanText(pending.tvgId) : null,
     });
     pending = null;
   }
@@ -384,15 +424,31 @@ export function normalizeTheaterState(raw, nowMs = Date.now()) {
   const state = createTheaterState();
   if (!raw || typeof raw !== 'object') return state;
 
+  // Torrent items keep their chosen-file pick; a missing/corrupt pick means
+  // the item can never play, so it is dropped rather than stranded.
+  const pickFor = (entry, classified) => {
+    if (classified.kind !== 'torrent') return {};
+    const pick = sanitizeTorrentPick(entry);
+    if (!pick || !isVideoFile(pick.filePath)) return null;
+    return {
+      infohash: classified.infohash,
+      fileIndex: pick.fileIndex,
+      filePath: pick.filePath,
+      fileBytes: pick.fileBytes,
+    };
+  };
+
   if (raw.now && typeof raw.now === 'object') {
     const classified = classifySource(raw.now.url);
-    if (classified) {
+    const pick = classified ? pickFor(raw.now, classified) : null;
+    if (classified && pick !== null) {
       state.now = {
         id: typeof raw.now.id === 'string' ? raw.now.id : newItemId(nowMs),
         kind: classified.kind,
         url: classified.url,
         videoId: classified.videoId || null,
         title: cleanText(raw.now.title) || defaultTitle(classified.kind),
+        ...pick,
         playing: raw.now.playing !== false,
         positionSec: Number.isFinite(Number(raw.now.positionSec)) && Number(raw.now.positionSec) >= 0
           ? Number(raw.now.positionSec) : 0,
@@ -409,12 +465,15 @@ export function normalizeTheaterState(raw, nowMs = Date.now()) {
       if (!entry || typeof entry !== 'object') continue;
       const classified = classifySource(entry.url);
       if (!classified) continue;
+      const pick = pickFor(entry, classified);
+      if (pick === null) continue;
       state.queue.push({
         id: typeof entry.id === 'string' ? entry.id : newItemId(nowMs),
         kind: classified.kind,
         url: classified.url,
         videoId: classified.videoId || null,
         title: cleanText(entry.title) || defaultTitle(classified.kind),
+        ...pick,
         queuedBy: cleanText(entry.queuedBy, 40) || 'Someone',
       });
     }

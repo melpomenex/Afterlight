@@ -9,8 +9,14 @@
  *   - the shared-clock sync driven by THEATER_STATE snapshots
  *     (serverNow-based; local drift corrections only, never messages),
  *   - the projection-booth controls dialog (queue, transport, volume),
- *   - IPTV: M3U import (paste / file / URL), localStorage saved lists,
- *     channel guide dialog and prev/next flipping.
+ *   - IPTV: a room-SHARED, server-persisted channel library — playlists
+ *     uploaded over HTTP (paste / file / URL) are parsed and broadcast by
+ *     the server so everyone in the theater can browse the guide, tune,
+ *     and flip without importing anything; personal localStorage lists
+ *     remain as a private fallback and can be pushed to the library —
+ *   - a program guide (EPG): uploaded XMLTV files (plain or .gz) persist
+ *     on the server and power now/next display in the guide via bounded
+ *     epg_lookup polling, matched by tvg-id or display name.
  *
  * Import-safe under Node: nothing touches `document`/`window` at module top
  * level; the constructor builds DOM only when a DOM exists, so the test
@@ -19,15 +25,26 @@
 
 import { MSG_TYPES } from '../../shared/protocol.js';
 import {
+  IPTV_LIMITS,
+  iptvErrorText,
+  sanitizeChannels,
+  serializeM3U,
+} from '../../shared/iptvModel.js';
+import {
   KIND_LABELS,
   THEATER_LIMITS,
   buildEmbedUrl,
   classifySource,
   defaultTitle,
   effectivePositionSec,
-  parseM3U,
   theaterErrorText,
 } from '../../shared/theaterModel.js';
+import {
+  TORRENT_LIMITS,
+  normalizeTorrentStatus,
+  torrentErrorText,
+  torrentTitle,
+} from '../../shared/torrentModel.js';
 
 const OVERLAY_BASE = 100; // CSS px side of the untransformed overlay square
 const SYNC_SEEK_THRESHOLD_SEC = 1.5;
@@ -37,6 +54,7 @@ const YT_UNSTARTED_GRACE_MS = 3000;
 const IPTV_LISTS_KEY = 'afterlight-iptv-lists';
 const IPTV_LISTS_MAX = 12;
 const IPTV_CHANNELS_MAX = 5000;
+const EPG_REFRESH_INTERVAL_MS = 60_000; // now/next refresh while the guide is open
 
 // --- Pure exported helpers (unit-tested under Node) ---
 
@@ -308,13 +326,25 @@ export class TheaterScreenUI {
     this.onStandUpRequest = null;
     this.seatedInWorld = false; // labels the watch bar's leave action
 
-    // IPTV (client-local)
-    this.savedLists = [];
+    // IPTV: shared (server) library + personal (localStorage) lists.
+    this.savedLists = []; // personal lists, localStorage-backed
+    this.sharedCatalog = { lists: [], epg: null }; // IPTV_STATE metadata
+    this.sharedChannels = new Map(); // listId -> channels, pulled on demand
+    this.pendingFlip = 0; // flip requested while a shared list was loading
+    this.epgSchedule = new Map(); // guide key -> { now, next }
+    this.epgTimer = null; // refresh interval while the guide dialog is open
     this.activeListId = null;
     this.activeChannelIndex = -1;
     this.guideCountry = 'All'; // Guide navigation: country first…
     this.guideCategory = 'All'; // …then categories within that country
     this.guideListId = null;
+
+    // Torrent: magnet resolve in flight + latest swarm statuses
+    // (infohash -> normalized status from TORRENT_STATE broadcasts).
+    this.torrentPending = null; // { requestId, magnet, playNow, timer }
+    this.torrentPick = null; // { magnet, name, playNow } while the picker is open
+    this.torrentStatuses = new Map();
+
     this.overlayW = OVERLAY_BASE; // Untransformed overlay rect (CSS px)
     this.overlayH = OVERLAY_BASE;
 
@@ -333,6 +363,11 @@ export class TheaterScreenUI {
     // applyState is idempotent so redundant snapshots are harmless).
     if (net && typeof net.on === 'function') {
       net.on(MSG_TYPES.THEATER_STATE, (msg) => this.applyState(msg?.theater, msg?.serverNow || Date.now()));
+      net.on(MSG_TYPES.IPTV_STATE, (msg) => this.applyIptvState(msg?.iptv));
+      net.on(MSG_TYPES.IPTV_LIST, (msg) => this.applySharedList(msg));
+      net.on(MSG_TYPES.EPG_SCHEDULE, (msg) => this.applyEpgSchedule(msg));
+      net.on(MSG_TYPES.TORRENT_FILES, (msg) => this.applyTorrentFiles(msg));
+      net.on(MSG_TYPES.TORRENT_STATE, (msg) => this.applyTorrentStatus(msg));
     }
   }
 
@@ -345,6 +380,9 @@ export class TheaterScreenUI {
       this.teardownEngine();
       this.loadedItemId = null; // force a reload path on reactivation
       this.awaitingGesture = false;
+      this.cancelTorrentResolve();
+      this.torrentPick = null;
+      this.torrentStatuses.clear();
       this.setOverlayState('idle');
     } else if (this.state?.now) {
       // Rebuild playback from the retained snapshot.
@@ -513,7 +551,7 @@ export class TheaterScreenUI {
     bar.innerHTML = `
       <span class="theater-watchbar-title" id="theater-watchbar-title">The Orpheum</span>
       <span class="theater-watchbar-state micro" id="theater-watchbar-state"></span>
-      <button type="button" id="theater-watchbar-controls" title="Open the projection booth">▣ Booth</button>
+      <button type="button" id="theater-watchbar-controls" title="Open the projection booth (G)">▣ Booth</button>
       <button type="button" id="theater-watchbar-leave" title="Stand up and return to the game (Esc)">⤺ Stand up</button>
     `;
     document.body.append(bar);
@@ -558,6 +596,10 @@ export class TheaterScreenUI {
     if (!this.dom?.guideDialog) return;
     this.renderGuide();
     if (!this.dom.guideDialog.open) this.dom.guideDialog.showModal();
+    // Keep "now" honest while the guide sits open: refresh schedules on
+    // open and on an interval until the dialog closes.
+    this.requestEpgSchedule();
+    this.startEpgRefresh();
   }
 
   // --- Shared clock ---
@@ -632,6 +674,11 @@ export class TheaterScreenUI {
         break;
       case 'hls':
         this.startFileEngine(now, token, true);
+        break;
+      case 'torrent':
+        // Same <video> engine, but the bytes come from the game server's
+        // Range-capable torrent endpoint; the shared clock is unchanged.
+        this.startFileEngine(now, token, false);
         break;
       case 'youtube':
         this.startYouTubeEngine(now, token);
@@ -719,7 +766,7 @@ export class TheaterScreenUI {
     else video.addEventListener('loadedmetadata', begin, { once: true });
 
     if (isHls) this.attachHls(video, item, engine, token);
-    else video.src = item.url;
+    else video.src = item.kind === 'torrent' ? this.torrentStreamUrl(item) : item.url;
   }
 
   /** Lazy-import hls.js; fall back to native HLS (Safari) without it. */
@@ -1002,7 +1049,10 @@ export class TheaterScreenUI {
     if (this.overlayState === 'idle') {
       text = 'The screen sleeps — open the Screen controls to queue something';
     } else if (this.overlayState === 'loading') {
-      text = now ? `Warming up the projector… ${now.title}` : 'Warming up the projector…';
+      const waiting = now?.kind === 'torrent' ? this.torrentStatusText(now.infohash) : '';
+      text = waiting
+        ? `${waiting} — ${now.title}`
+        : now ? `Warming up the projector… ${now.title}` : 'Warming up the projector…';
     } else if (this.overlayState === 'error') {
       text = `Couldn't play: ${this.errorTitle || now?.title || 'unknown item'}`;
     } else {
@@ -1098,6 +1148,7 @@ export class TheaterScreenUI {
     btn.type = 'button';
     btn.id = 'theater-controls-btn';
     btn.textContent = '▣ Screen';
+    btn.title = 'Screen controls (G)';
     btn.hidden = true;
     btn.addEventListener('click', () => this.openControls());
     const host = document.querySelector('footer .actions') || document.body;
@@ -1108,6 +1159,7 @@ export class TheaterScreenUI {
   buildDialogs() {
     this.buildControlsDialog();
     this.buildGuideDialog();
+    this.buildTorrentDialog();
   }
 
   buildControlsDialog() {
@@ -1121,10 +1173,10 @@ export class TheaterScreenUI {
 
       <div class="panel theater-now-panel" id="theater-now-panel"></div>
 
-      <label class="micro" for="theater-url-input">ADD BY URL (YOUTUBE · VIMEO · .MP4 · .M3U8)</label>
+      <label class="micro" for="theater-url-input">ADD BY URL (YOUTUBE · VIMEO · .MP4 · .M3U8 · MAGNET)</label>
       <div class="theater-add-row">
         <input type="text" id="theater-url-input" maxlength="${THEATER_LIMITS.URL_MAX}"
-          placeholder="Paste a video or stream link…" autocomplete="off" spellcheck="false">
+          placeholder="Paste a video, stream, or magnet link…" autocomplete="off" spellcheck="false">
         <button type="button" id="theater-btn-add" class="btn-secondary">Add to queue</button>
         <button type="button" id="theater-btn-play-url" class="action-btn">Play now</button>
       </div>
@@ -1148,10 +1200,12 @@ export class TheaterScreenUI {
 
       <div class="iptv-section">
         <div class="micro modal-header-tag">IPTV &amp; CHANNELS</div>
+        <p class="theater-iptv-intro micro">Playlists added here are filed in the theater's shared library — everyone in the auditorium can browse the guide, tune, and flip, with no import of their own.</p>
         <div class="theater-iptv-saved">
-          <select id="theater-iptv-select" aria-label="Saved IPTV lists"></select>
+          <select id="theater-iptv-select" aria-label="Channel lists"></select>
           <button type="button" id="theater-btn-open-guide" class="action-btn">Open guide</button>
-          <button type="button" id="theater-btn-delete-list" class="btn-secondary">Delete list</button>
+          <button type="button" id="theater-btn-push-list" class="btn-secondary" hidden>Add to theater</button>
+          <button type="button" id="theater-btn-delete-list" class="btn-secondary">Remove list</button>
         </div>
         <div class="theater-iptv-flip">
           <button type="button" id="theater-btn-prev" class="btn-secondary">◂ Prev</button>
@@ -1171,8 +1225,14 @@ export class TheaterScreenUI {
             <input type="text" id="theater-iptv-url" placeholder="http://example.com/playlist.m3u8" autocomplete="off" spellcheck="false">
             <button type="button" id="theater-btn-import-url" class="btn-secondary">Fetch</button>
           </div>
+          <div class="theater-iptv-import">
+            <label class="micro" for="theater-epg-file">PROGRAM GUIDE · .EPG / .XML (XMLTV, PLAIN OR .GZ)</label>
+            <input type="file" id="theater-epg-file" accept=".epg,.xml,.xmltv,.gz">
+            <p class="micro theater-epg-hint">A guide gives the whole room “now / next” in the channel guide. Uploading a new guide replaces the current one and never interrupts the screen.</p>
+          </div>
         </div>
         <p class="theater-status-line" id="theater-iptv-status" hidden></p>
+        <p class="theater-status-line" id="theater-epg-status" hidden></p>
       </div>
 
       <div class="modal-footer">
@@ -1199,9 +1259,12 @@ export class TheaterScreenUI {
     this.dom.iptvSelect = dialog.querySelector('#theater-iptv-select');
     this.dom.iptvCurrent = dialog.querySelector('#theater-iptv-current');
     this.dom.iptvStatus = dialog.querySelector('#theater-iptv-status');
+    this.dom.iptvPush = dialog.querySelector('#theater-btn-push-list');
     this.dom.iptvPaste = dialog.querySelector('#theater-iptv-paste');
     this.dom.iptvFile = dialog.querySelector('#theater-iptv-file');
     this.dom.iptvUrl = dialog.querySelector('#theater-iptv-url');
+    this.dom.epgFile = dialog.querySelector('#theater-epg-file');
+    this.dom.epgStatus = dialog.querySelector('#theater-epg-status');
 
     dialog.querySelector('#close-theater-dialog').addEventListener('click', () => dialog.close());
 
@@ -1237,10 +1300,11 @@ export class TheaterScreenUI {
     });
     dialog.querySelector('#theater-btn-open-guide').addEventListener('click', () => this.openGuide());
     dialog.querySelector('#theater-btn-delete-list').addEventListener('click', () => this.deleteActiveList());
+    this.dom.iptvPush.addEventListener('click', () => this.pushActivePersonalList());
     dialog.querySelector('#theater-btn-prev').addEventListener('click', () => this.flipChannel(-1));
     dialog.querySelector('#theater-btn-next').addEventListener('click', () => this.flipChannel(1));
     dialog.querySelector('#theater-btn-import-paste').addEventListener('click', () => {
-      this.importPlaylistText(this.dom.iptvPaste.value, null);
+      this.uploadPlaylistText(this.dom.iptvPaste.value, null);
       this.dom.iptvPaste.value = '';
     });
     this.dom.iptvFile.addEventListener('change', () => {
@@ -1249,6 +1313,11 @@ export class TheaterScreenUI {
       this.importPlaylistFile(file);
     });
     dialog.querySelector('#theater-btn-import-url').addEventListener('click', () => this.importPlaylistUrl());
+    this.dom.epgFile.addEventListener('change', () => {
+      const file = this.dom.epgFile.files?.[0];
+      this.dom.epgFile.value = '';
+      this.uploadEpgFile(file);
+    });
   }
 
   buildGuideDialog() {
@@ -1268,6 +1337,7 @@ export class TheaterScreenUI {
         <select id="theater-guide-country" aria-label="Filter channels by country"></select>
       </label>
       <div id="theater-guide-groups" class="theater-chip-row" hidden></div>
+      <p class="micro theater-guide-epg" id="theater-guide-epg"></p>
       <div id="theater-guide-list" class="theater-guide-list"></div>
       <div class="modal-footer">
         <button type="button" id="close-theater-guide" class="btn-secondary">Close guide →</button>
@@ -1278,9 +1348,11 @@ export class TheaterScreenUI {
       e.preventDefault();
       dialog.close();
     });
+    dialog.addEventListener('close', () => this.stopEpgRefresh());
     this.dom.guideDialog = dialog;
     this.dom.guideTitle = dialog.querySelector('#theater-guide-title');
     this.dom.guideCount = dialog.querySelector('#theater-guide-count');
+    this.dom.guideEpg = dialog.querySelector('#theater-guide-epg');
     this.dom.guideCountryRow = dialog.querySelector('.theater-guide-country');
     this.dom.guideCountrySelect = dialog.querySelector('#theater-guide-country');
     this.dom.guideGroups = dialog.querySelector('#theater-guide-groups');
@@ -1294,6 +1366,37 @@ export class TheaterScreenUI {
     dialog.querySelector('#theater-guide-prev').addEventListener('click', () => this.flipChannel(-1));
     dialog.querySelector('#theater-guide-next').addEventListener('click', () => this.flipChannel(1));
     dialog.querySelector('#close-theater-guide').addEventListener('click', () => dialog.close());
+  }
+
+  /**
+   * Torrent file picker: shown after the server resolves a pasted magnet.
+   * Picking starts/queues that one file for the room; cancelling leaves
+   * the shared bill exactly as it was.
+   */
+  buildTorrentDialog() {
+    const dialog = document.createElement('dialog');
+    dialog.id = 'theater-torrent-dialog';
+    dialog.className = 'game-modal';
+    dialog.innerHTML = `
+      <div class="micro modal-header-tag">THE ORPHEUM · TORRENT REEL</div>
+      <h2 id="theater-torrent-name">Torrent</h2>
+      <p class="modal-sub">The reel holds several films. Pick which one plays for the whole auditorium — only video files are listed.</p>
+      <div id="theater-torrent-files" class="theater-torrent-files"></div>
+      <div class="modal-footer">
+        <button type="button" id="theater-torrent-cancel" class="btn-secondary">Never mind</button>
+      </div>
+    `;
+    document.body.append(dialog);
+    dialog.addEventListener('cancel', (e) => {
+      e.preventDefault();
+      this.torrentPick = null;
+      dialog.close();
+    });
+    dialog.querySelector('#theater-torrent-cancel').addEventListener('click', () => {
+      this.torrentPick = null;
+      dialog.close();
+    });
+    this.dom.torrentDialog = dialog;
   }
 
   // --- Controls dialog rendering ---
@@ -1321,12 +1424,48 @@ export class TheaterScreenUI {
     el.classList.toggle('is-error', !!isError);
   }
 
+  setEpgStatus(text, isError = false) {
+    const el = this.dom?.epgStatus;
+    if (!el) return;
+    el.hidden = !text;
+    el.textContent = text || '';
+    el.classList.toggle('is-error', !!isError);
+  }
+
+  /** Upload an XMLTV guide file (plain or .gz); a success replaces the active guide. */
+  async uploadEpgFile(file) {
+    if (!file) return;
+    if (!this.net?.uploadEpg) {
+      this.setEpgStatus('Multiplayer is offline — the theater cannot store guides right now.', true);
+      return;
+    }
+    this.setEpgStatus('Uploading the program guide…');
+    try {
+      const res = await this.net.uploadEpg(file, file.name.replace(/\.(epg|xml|xmltv|gz)$/i, ''));
+      const summary = res.epg || {};
+      this.setEpgStatus(
+        `Guide active: ${summary.name || 'Program guide'} — ${summary.channels || 0} channels with listings` +
+        `${res.truncated ? ' (the file was larger than the guide shelf, so it was trimmed)' : ''}. ` +
+        'Everyone in the auditorium now sees now/next in the guide.',
+      );
+    } catch (err) {
+      this.setEpgStatus(err.message || 'Could not upload that guide.', true);
+    }
+  }
+
   onAddClicked(playNow) {
     const input = this.dom?.urlInput;
     const url = (input?.value || '').trim();
     const classified = classifySource(url);
     if (!classified) {
       this.setAddStatus(theaterErrorText('invalid_url'), true);
+      return;
+    }
+    if (classified.kind === 'torrent') {
+      // Magnets never go straight to the bill: resolve first, then the
+      // paster picks the file (torrents often carry several videos).
+      input.value = '';
+      this.beginTorrentResolve(classified.url, playNow);
       return;
     }
     this.setAddStatus('');
@@ -1338,6 +1477,156 @@ export class TheaterScreenUI {
       this.sendQueue({ op: 'add', url: classified.url });
     }
     input.value = '';
+  }
+
+  // --- Torrent streaming (magnet → resolve → pick → shared bill) ---
+
+  /** Game-server URL of a torrent item's stream endpoint (Range-capable). */
+  torrentStreamUrl(item) {
+    const base = typeof this.net?.apiBase === 'string' ? this.net.apiBase.replace(/\/+$/, '') : '';
+    return `${base}/api/theater/torrent/${item.infohash}/${item.fileIndex}`;
+  }
+
+  beginTorrentResolve(magnet, playNow) {
+    if (!this.net?.send) {
+      this.setAddStatus('Multiplayer is offline — the torrent reel is unreachable.', true);
+      return;
+    }
+    if (this.torrentPending) {
+      this.setAddStatus('Hold on — one torrent is still being looked up.', true);
+      return;
+    }
+    const requestId = `treq_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+    const timer = setTimeout(() => {
+      if (this.torrentPending?.requestId !== requestId) return;
+      this.torrentPending = null;
+      this.setAddStatus(torrentErrorText('resolve_timeout'), true);
+    }, TORRENT_LIMITS.RESOLVE_TIMEOUT_MS + 5000); // grace over the server's own timeout
+    this.torrentPending = { requestId, magnet, playNow, timer };
+    this.setAddStatus('Reaching the swarm for that torrent…');
+    if (typeof this.net.sendTorrentResolve === 'function') this.net.sendTorrentResolve(requestId, magnet);
+    else this.net.send(MSG_TYPES.TORRENT_RESOLVE, { requestId, magnet });
+  }
+
+  /** A pending resolve is answered or abandoned; the shared bill is untouched. */
+  cancelTorrentResolve() {
+    if (this.torrentPending?.timer) clearTimeout(this.torrentPending.timer);
+    this.torrentPending = null;
+  }
+
+  applyTorrentFiles(msg) {
+    const pending = this.torrentPending;
+    if (!pending || !msg || String(msg.requestId || '') !== pending.requestId) return;
+    clearTimeout(pending.timer);
+    this.torrentPending = null;
+    if (!this.roomActive) return; // left the theater while resolving
+    const files = Array.isArray(msg.files) ? msg.files : [];
+    if (!files.length) {
+      this.setAddStatus('That torrent has no video files the projector can play.', true);
+      return;
+    }
+    this.setAddStatus('');
+    this.openTorrentPicker(String(msg.name || 'Unnamed torrent'), files, pending.magnet, pending.playNow);
+  }
+
+  /** Show the resolved file list; nothing is shared until a file is picked. */
+  openTorrentPicker(name, files, magnet, playNow) {
+    const dialog = this.dom?.torrentDialog;
+    if (!dialog) return;
+    this.torrentPick = { magnet, name, playNow };
+    dialog.querySelector('#theater-torrent-name').textContent = name;
+    const host = dialog.querySelector('#theater-torrent-files');
+    host.innerHTML = '';
+    for (const file of files) {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'theater-torrent-file';
+      const label = document.createElement('span');
+      label.className = 'theater-torrent-file-path';
+      label.textContent = file.path;
+      const meta = document.createElement('span');
+      meta.className = 'theater-torrent-file-meta';
+      meta.textContent = this.formatBytes(file.bytes);
+      if (!file.playable) {
+        const tag = document.createElement('span');
+        tag.className = 'theater-kind-tag';
+        tag.textContent = 'may not play';
+        meta.append(' · ', tag);
+      }
+      row.append(label, meta);
+      row.addEventListener('click', () => {
+        dialog.close();
+        this.sendTorrentPick(file);
+      });
+      host.append(row);
+    }
+    if (!dialog.open) dialog.showModal();
+  }
+
+  /** Push the picked file onto the shared bill (queue, or play immediately). */
+  sendTorrentPick(file) {
+    const pick = this.torrentPick;
+    this.torrentPick = null;
+    if (!pick) return;
+    const payload = {
+      url: pick.magnet,
+      title: torrentTitle(pick.name, file.path),
+      torrentName: pick.name,
+      fileIndex: file.index,
+      filePath: file.path,
+      fileBytes: file.bytes,
+    };
+    if (pick.playNow) {
+      // theater_channel is the immediate-start op; it carries pick fields.
+      this.net?.send?.(MSG_TYPES.THEATER_CHANNEL, payload);
+      this.setAddStatus(`Starting “${payload.title}” on the screen…`);
+    } else {
+      this.sendQueue({ op: 'add', ...payload });
+      this.setAddStatus(`“${payload.title}” is on the reel — it starts for everyone.`);
+    }
+  }
+
+  /** Swarm status text for a torrent item, or '' when nothing fresh is known. */
+  torrentStatusText(infohash) {
+    const status = this.torrentStatuses.get(infohash);
+    if (!status) return '';
+    if (status.ready && status.progress >= 1) return '';
+    if (!status.ready) {
+      return status.peers > 0 || status.progress > 0
+        ? `Fetching reels… ${Math.round(status.progress * 100)}% · ${status.peers} peer${status.peers === 1 ? '' : 's'}`
+        : 'Reaching the swarm…';
+    }
+    return `Downloading… ${Math.round(status.progress * 100)}% · ${status.peers} peer${status.peers === 1 ? '' : 's'}`;
+  }
+
+  applyTorrentStatus(msg) {
+    const items = Array.isArray(msg?.items) ? msg.items : [];
+    if (items.length) {
+      // Rebuild from the latest broadcast so stale entries expire.
+      const fresh = new Map();
+      for (const raw of items) {
+        const status = normalizeTorrentStatus(raw);
+        if (status) fresh.set(status.infohash, status);
+      }
+      this.torrentStatuses = fresh;
+    }
+    // Keep the loading caption live while a torrent warms up.
+    const now = this.state?.now;
+    if (now?.kind === 'torrent' && this.overlayState === 'loading') this.renderCaption();
+    if (this.dom?.controlsDialog?.open) this.renderControls();
+  }
+
+  formatBytes(bytes) {
+    const n = Number(bytes);
+    if (!Number.isFinite(n) || n <= 0) return 'unknown size';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let value = n;
+    let unit = 0;
+    while (value >= 1000 && unit < units.length - 1) {
+      value /= 1000;
+      unit += 1;
+    }
+    return `${value >= 100 || unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
   }
 
   renderControls() {
@@ -1365,6 +1654,15 @@ export class TheaterScreenUI {
       by.className = 'micro theater-now-by';
       by.textContent = `queued/changed by ${now.queuedBy || now.by || 'Someone'}`;
       panel.append(head, by);
+      if (now.kind === 'torrent') {
+        const status = this.torrentStatusText(now.infohash);
+        if (status) {
+          const line = document.createElement('div');
+          line.className = 'micro theater-torrent-status';
+          line.textContent = status;
+          panel.append(line);
+        }
+      }
     } else {
       const empty = document.createElement('div');
       empty.className = 'theater-empty';
@@ -1419,10 +1717,32 @@ export class TheaterScreenUI {
     this.renderIptvSection();
   }
 
-  // --- IPTV ---
+  // --- IPTV: shared library + personal lists ---
 
+  /**
+   * Metadata for the active list — a shared theater list (channels may not
+   * be pulled yet) or a personal one (channels included).
+   */
+  getActiveListMeta() {
+    const shared = (this.sharedCatalog?.lists || []).find((l) => l.id === this.activeListId);
+    if (shared) return { ...shared, shared: true };
+    const personal = this.savedLists.find((l) => l.id === this.activeListId);
+    return personal ? { ...personal, shared: false } : null;
+  }
+
+  /** The active list with its channels; shared lists need a pulled cache. */
   getActiveList() {
-    return this.savedLists.find((l) => l.id === this.activeListId) || null;
+    const meta = this.getActiveListMeta();
+    if (!meta) return null;
+    if (!meta.shared) return meta;
+    return {
+      id: meta.id,
+      name: meta.name,
+      addedBy: meta.addedBy,
+      shared: true,
+      channelCount: meta.channelCount,
+      channels: this.sharedChannels.get(meta.id) || null,
+    };
   }
 
   loadSavedLists() {
@@ -1440,71 +1760,101 @@ export class TheaterScreenUI {
     } catch {}
   }
 
-  renderIptvSection() {
-    if (!this.dom?.iptvSelect) return;
-    const select = this.dom.iptvSelect;
-    select.innerHTML = '';
-    if (!this.savedLists.length) {
-      const opt = document.createElement('option');
-      opt.value = '';
-      opt.textContent = 'No saved lists — import one below';
-      select.append(opt);
-      select.disabled = true;
-      this.activeListId = null;
-    } else {
-      select.disabled = false;
-      for (const list of this.savedLists) {
-        const opt = document.createElement('option');
-        opt.value = list.id;
-        opt.textContent = `${list.name} (${list.channels.length})`;
-        select.append(opt);
-      }
-      if (!this.getActiveList()) {
-        this.activeListId = this.savedLists[0].id;
-        this.activeChannelIndex = -1;
-      }
-      select.value = this.activeListId;
-    }
-    const list = this.getActiveList();
-    const channel = list?.channels?.[this.activeChannelIndex];
-    this.dom.iptvCurrent.textContent = channel
-      ? `Tuned: ${channel.name}`
-      : this.state?.now
-        ? `On screen: ${this.state.now.title}`
-        : 'No channel tuned';
-  }
+  // --- Shared library state from the server ---
 
-  importPlaylistText(text, name) {
-    const parsed = parseM3U(text);
-    if (!parsed.recognized) {
-      this.setIptvStatus('That does not look like an M3U/M3U8 playlist — it should start with #EXTM3U or contain channel URLs, one per line.', true);
-      return;
-    }
-    if (!parsed.entries.length) {
-      this.setIptvStatus(`0 channels loaded (${parsed.skipped} lines skipped).`, true);
-      return;
-    }
-    const list = {
-      id: `iptv_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-      name: name || `Imported ${new Date().toLocaleDateString()}`,
-      savedAt: Date.now(),
-      channels: parsed.entries,
+  /** Apply an IPTV_STATE catalog snapshot (list metadata + guide summary). */
+  applyIptvState(iptv) {
+    const lists = (Array.isArray(iptv?.lists) ? iptv.lists : [])
+      .filter((l) => l && typeof l.id === 'string')
+      .map((l) => ({
+        id: l.id,
+        name: typeof l.name === 'string' && l.name ? l.name : 'Untitled list',
+        addedBy: typeof l.addedBy === 'string' && l.addedBy ? l.addedBy : 'Someone',
+        channelCount: Number(l.channelCount) || 0,
+      }));
+    const epgRaw = iptv?.epg && typeof iptv.epg === 'object' ? iptv.epg : null;
+    this.sharedCatalog = {
+      lists,
+      epg: epgRaw
+        ? {
+            name: typeof epgRaw.name === 'string' && epgRaw.name ? epgRaw.name : 'Program guide',
+            updatedAt: Number(epgRaw.updatedAt) || 0,
+            // The catalog summary counts channels carrying schedule data.
+            channelCount: Number(epgRaw.channels) || 0,
+            programmes: Number(epgRaw.programmes) || 0,
+          }
+        : null,
     };
-    this.savedLists = sanitizeSavedLists([list, ...this.savedLists], Date.now());
-    this.saveSavedLists();
-    this.activeListId = list.id;
-    this.activeChannelIndex = -1;
-    this.renderIptvSection();
-    this.setIptvStatus(`${parsed.entries.length} channels loaded (${parsed.skipped} lines skipped).`);
+    // Forget channel caches for lists that no longer exist.
+    for (const id of [...this.sharedChannels.keys()]) {
+      if (!lists.some((l) => l.id === id)) this.sharedChannels.delete(id);
+    }
+    if (this.activeListId && !this.getActiveListMeta()) {
+      this.activeListId = lists[0]?.id || this.savedLists[0]?.id || null;
+      this.activeChannelIndex = -1;
+    }
+    if (this.dom?.iptvSelect) this.renderIptvSection();
+    if (this.dom?.guideDialog?.open) this.renderGuide();
+    if (this.dom?.controlsDialog?.open) this.renderControls();
   }
 
-  importPlaylistFile(file) {
+  /** Apply an on-demand IPTV_LIST reply (channels of one shared list). */
+  applySharedList(msg) {
+    const listId = String(msg?.listId || '');
+    const channels = sanitizeChannels(msg?.channels, IPTV_LIMITS.CHANNELS_MAX);
+    if (!listId || !channels.length) return;
+    this.sharedChannels.set(listId, channels);
+    // A flip that arrived while the list was loading resumes here.
+    if (this.pendingFlip && listId === this.activeListId) {
+      const delta = this.pendingFlip;
+      this.pendingFlip = 0;
+      this.flipChannel(delta);
+      return;
+    }
+    if (this.dom?.guideDialog?.open && this.guideListId === listId) this.renderGuide();
+    if (this.dom?.controlsDialog?.open) this.renderIptvSection();
+  }
+
+  requestSharedChannels(listId) {
+    if (!listId || this.sharedChannels.has(listId)) return;
+    if (typeof this.net?.sendIptvListGet === 'function') this.net.sendIptvListGet(listId);
+    else this.net?.send?.(MSG_TYPES.IPTV_LIST_GET, { listId });
+  }
+
+  // --- Uploads (HTTP) ---
+
+  /** Upload playlist text to the shared library; the server parses it. */
+  async uploadPlaylistText(text, name) {
+    if (!text || !text.trim()) {
+      this.setIptvStatus('Nothing to add — paste playlist text or choose a file first.', true);
+      return;
+    }
+    if (!this.net?.uploadPlaylistText) {
+      this.setIptvStatus('Multiplayer is offline — the theater cannot store lists right now.', true);
+      return;
+    }
+    if (text.length > IPTV_LIMITS.LIST_TEXT_MAX) {
+      this.setIptvStatus(iptvErrorText('text_too_large'), true);
+      return;
+    }
+    this.setIptvStatus('Adding to the theater library…');
+    try {
+      const res = await this.net.uploadPlaylistText(text, name, this.net.nickname);
+      this.setIptvStatus(
+        `"${res.list.name}" added to the theater library — ${res.list.channelCount} channels for everyone in the auditorium.`,
+      );
+    } catch (err) {
+      this.setIptvStatus(err.message || 'The theater could not accept that playlist.', true);
+    }
+  }
+
+  async importPlaylistFile(file) {
     if (!file) return;
     try {
       const reader = new FileReader();
       reader.onload = () => {
         const name = file.name.replace(/\.(m3u8?|txt)$/i, '');
-        this.importPlaylistText(String(reader.result || ''), name);
+        this.uploadPlaylistText(String(reader.result || ''), name);
       };
       reader.onerror = () => this.setIptvStatus('Could not read that file.', true);
       reader.readAsText(file);
@@ -1519,45 +1869,119 @@ export class TheaterScreenUI {
       this.setIptvStatus('Enter an http(s) URL pointing at an .m3u / .m3u8 playlist.', true);
       return;
     }
-    this.setIptvStatus('Fetching playlist…');
-    let name = 'Imported list';
+    if (!this.net?.importPlaylistFromUrl) {
+      this.setIptvStatus('Multiplayer is offline — the theater cannot fetch lists right now.', true);
+      return;
+    }
+    this.setIptvStatus('Fetching the playlist for the whole auditorium…');
     try {
-      name = new URL(url).hostname;
-    } catch {}
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text();
-      this.importPlaylistText(text, name);
-    } catch {
+      const res = await this.net.importPlaylistFromUrl(url, null, this.net.nickname);
       this.setIptvStatus(
-        'Could not fetch that playlist — many hosts do not allow direct browser access (CORS). Download it and use paste or file import instead.',
-        true,
+        `"${res.list.name}" added to the theater library — ${res.list.channelCount} channels for everyone in the auditorium.`,
       );
+    } catch (err) {
+      this.setIptvStatus(err.message || 'Could not fetch that playlist.', true);
     }
   }
 
-  deleteActiveList() {
-    const list = this.getActiveList();
-    if (!list) {
-      this.setIptvStatus('Select a saved list to delete.', true);
+  /** Push the active personal list into the shared library (anyone can then browse it). */
+  async pushActivePersonalList() {
+    const meta = this.getActiveListMeta();
+    if (!meta || meta.shared) {
+      this.setIptvStatus('Select one of your own lists to add it to the theater library.', true);
       return;
     }
-    this.savedLists = this.savedLists.filter((l) => l.id !== list.id);
+    const text = serializeM3U(meta.channels);
+    await this.uploadPlaylistText(text, meta.name);
+  }
+
+  deleteActiveList() {
+    const meta = this.getActiveListMeta();
+    if (!meta) {
+      this.setIptvStatus('Select a list to remove.', true);
+      return;
+    }
+    if (meta.shared) {
+      // Communal library: anyone present may remove a shared list. The
+      // server announces the new catalog; playback is untouched.
+      if (typeof this.net?.sendIptvListRemove === 'function') this.net.sendIptvListRemove(meta.id);
+      else this.net?.send?.(MSG_TYPES.IPTV_LIST_REMOVE, { listId: meta.id });
+      this.setIptvStatus(`Removing "${meta.name}" from the theater library…`);
+      return;
+    }
+    this.savedLists = this.savedLists.filter((l) => l.id !== meta.id);
     this.saveSavedLists();
-    if (this.activeListId === list.id) {
-      this.activeListId = this.savedLists[0]?.id || null;
+    if (this.activeListId === meta.id) {
+      this.activeListId = this.getActiveListMeta() ? this.activeListId : ((this.sharedCatalog?.lists?.[0]?.id) || this.savedLists[0]?.id || null);
       this.activeChannelIndex = -1;
     }
     this.renderIptvSection();
-    this.setIptvStatus(`Deleted "${list.name}".`);
+    this.setIptvStatus(`Deleted "${meta.name}" from your saved lists.`);
+  }
+
+  renderIptvSection() {
+    if (!this.dom?.iptvSelect) return;
+    const select = this.dom.iptvSelect;
+    const shared = this.sharedCatalog?.lists || [];
+    const personal = this.savedLists;
+    select.innerHTML = '';
+
+    if (!shared.length && !personal.length) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'No channel lists yet — add one below';
+      select.append(opt);
+      select.disabled = true;
+      this.activeListId = null;
+    } else {
+      select.disabled = false;
+      if (shared.length) {
+        const group = document.createElement('optgroup');
+        group.label = 'Theater library — everyone can browse';
+        for (const list of shared) {
+          const opt = document.createElement('option');
+          opt.value = list.id;
+          opt.textContent = `${list.name} (${list.channelCount})`;
+          group.append(opt);
+        }
+        select.append(group);
+      }
+      if (personal.length) {
+        const group = document.createElement('optgroup');
+        group.label = 'Your lists — private until added';
+        for (const list of personal) {
+          const opt = document.createElement('option');
+          opt.value = list.id;
+          opt.textContent = `${list.name} (${list.channels.length})`;
+          group.append(opt);
+        }
+        select.append(group);
+      }
+      if (!this.getActiveListMeta()) {
+        this.activeListId = shared[0]?.id || personal[0].id;
+        this.activeChannelIndex = -1;
+      }
+      select.value = this.activeListId;
+      const meta = this.getActiveListMeta();
+      if (meta?.shared) this.requestSharedChannels(meta.id);
+    }
+
+    const list = this.getActiveList();
+    const channel = list?.channels?.[this.activeChannelIndex];
+    this.dom.iptvCurrent.textContent = channel
+      ? `Tuned: ${channel.name}`
+      : this.state?.now
+        ? `On screen: ${this.state.now.title}`
+        : 'No channel tuned';
+    // "Add to theater" only makes sense for a private list.
+    if (this.dom.iptvPush) this.dom.iptvPush.hidden = !(list && !list.shared);
   }
 
   /** Remember where a now-playing URL sits in the active list so flipping continues from it. */
   rememberChannelFor(url) {
     if (!url) return;
     const list = this.getActiveList();
-    if (!list) return;
+    if (!list?.channels) return;
     const idx = list.channels.findIndex((c) => c.url === url);
     if (idx !== -1) this.activeChannelIndex = idx;
   }
@@ -1565,8 +1989,16 @@ export class TheaterScreenUI {
   /** Flip to the previous/next channel of the active list; prompts if none. */
   flipChannel(delta) {
     const list = this.getActiveList();
-    if (!list || !list.channels.length) {
-      this.setIptvStatus('No IPTV list loaded — import one below (paste text, file, or URL) to start flipping.', true);
+    if (!list || !list.channels || !list.channels.length) {
+      if (list?.shared) {
+        // Shared list whose channels have not arrived yet: pull them, then
+        // resume the flip when IPTV_LIST lands.
+        this.pendingFlip = delta;
+        this.requestSharedChannels(list.id);
+        this.setIptvStatus('Fetching the theater channel list…');
+        return;
+      }
+      this.setIptvStatus('No channel list available — add a playlist to the theater library (paste text, file, or URL) to start flipping.', true);
       this.openControls(); // the prompt lives in the booth
       return;
     }
@@ -1591,26 +2023,121 @@ export class TheaterScreenUI {
 
   // --- Channel guide dialog ---
 
+  /** Guide key for a channel: tvg-id when present, else the display name. */
+  channelKey(channel) {
+    return (channel?.tvgId || channel?.name || '').trim();
+  }
+
+  /** Local-time "HH:MM" for a guide timestamp. */
+  formatGuideTime(ms) {
+    if (!Number.isFinite(ms)) return '';
+    try {
+      return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  }
+
+  /** Now/next text for a channel from the schedule cache ('' when none). */
+  scheduleTextFor(channel) {
+    const entry = this.epgSchedule.get(this.channelKey(channel));
+    if (!entry) return null;
+    const parts = [];
+    if (entry.now) {
+      parts.push(`Now ${this.formatGuideTime(entry.now.start)}–${this.formatGuideTime(entry.now.stop)} · ${entry.now.title}`);
+    }
+    if (entry.next) {
+      parts.push(`Next ${this.formatGuideTime(entry.next.start)} · ${entry.next.title}`);
+    }
+    return parts.join('   ·   ') || null;
+  }
+
+  /** Ask the server for now/next of the guide's visible channels (bounded). */
+  requestEpgSchedule() {
+    if (!this.dom?.guideDialog?.open || !this.sharedCatalog?.epg) return;
+    const list = this.getActiveList();
+    if (!list?.channels) return;
+    const keys = [];
+    const seen = new Set();
+    for (const channel of list.channels) {
+      if (!channelMatchesGuide(channel, this.guideCountry, this.guideCategory)) continue;
+      const key = this.channelKey(channel);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      keys.push(key);
+      if (keys.length >= IPTV_LIMITS.EPG_LOOKUP_MAX) break;
+    }
+    if (!keys.length) return;
+    if (typeof this.net?.sendEpgLookup === 'function') this.net.sendEpgLookup(keys);
+    else this.net?.send?.(MSG_TYPES.EPG_LOOKUP, { keys });
+  }
+
+  startEpgRefresh() {
+    this.stopEpgRefresh();
+    this.epgTimer = setInterval(() => {
+      if (!this.dom?.guideDialog?.open) {
+        this.stopEpgRefresh();
+        return;
+      }
+      this.requestEpgSchedule();
+    }, EPG_REFRESH_INTERVAL_MS);
+  }
+
+  stopEpgRefresh() {
+    if (this.epgTimer) {
+      clearInterval(this.epgTimer);
+      this.epgTimer = null;
+    }
+  }
+
+  /** Apply an EPG_SCHEDULE reply: cache and update open guide rows in place. */
+  applyEpgSchedule(msg) {
+    const entries = Array.isArray(msg?.entries) ? msg.entries : [];
+    for (const entry of entries) {
+      if (typeof entry?.key !== 'string') continue;
+      this.epgSchedule.set(entry.key, { now: entry.now || null, next: entry.next || null });
+    }
+    // Update the open guide's rows in place (no re-render: keeps scroll).
+    if (!this.dom?.guideDialog?.open || !entries.length) return;
+    this.dom.guideList.querySelectorAll('[data-epg-key]').forEach((el) => {
+      const channel = this.channelByKey?.get(el.dataset.epgKey);
+      const text = channel ? this.scheduleTextFor(channel) : null;
+      if (text !== null) el.textContent = text;
+    });
+  }
+
   renderGuide() {
     if (!this.dom?.guideDialog) return;
+    const meta = this.getActiveListMeta();
     const list = this.getActiveList();
 
-    if (this.guideListId !== (list?.id || null)) {
-      this.guideListId = list?.id || null;
+    if (this.guideListId !== (meta?.id || null)) {
+      this.guideListId = meta?.id || null;
       this.guideCountry = 'All';
       this.guideCategory = 'All';
     }
-    this.dom.guideTitle.textContent = list ? list.name : 'Channel Guide';
+    this.dom.guideTitle.textContent = meta ? `${meta.name}${meta.shared ? ' · theater library' : ' · your list'}` : 'Channel Guide';
+    // Guide status: what schedule data, if any, is backing these rows.
+    const epg = this.sharedCatalog?.epg;
+    this.dom.guideEpg.textContent = epg
+      ? `Program guide: ${epg.name} — ${epg.channelCount} channels with listings${meta?.shared ? '' : ' (matching may be limited on private lists)'}`
+      : 'No program guide uploaded — rows show channels only.';
+
+    // Shared lists pull their channels on first open.
+    if (meta?.shared && !list?.channels) {
+      this.requestSharedChannels(meta.id);
+    }
 
     // Country -> category navigation: pick a country of origin first, then
     // narrow by the categories that country actually offers. Lists without
     // any groups fall back to the flat channel list.
-    const facets = guideFacets(list?.channels);
+    const channels = list?.channels || [];
+    const facets = guideFacets(channels);
     const hasGroups = facets.countries.length > 0;
     this.dom.guideCountryRow.hidden = !hasGroups;
     this.dom.guideGroups.hidden = true;
     let filtering = false;
-    if (list && hasGroups) {
+    if (list?.channels && hasGroups) {
       if (!facets.countries.includes(this.guideCountry)) this.guideCountry = 'All';
       const select = this.dom.guideCountrySelect;
       select.innerHTML = '';
@@ -1637,6 +2164,7 @@ export class TheaterScreenUI {
           chip.addEventListener('click', () => {
             this.guideCategory = value;
             this.renderGuide();
+            this.requestEpgSchedule();
           });
           chipRow.append(chip);
         }
@@ -1646,11 +2174,20 @@ export class TheaterScreenUI {
 
     const listEl = this.dom.guideList;
     listEl.innerHTML = '';
-    if (!list || !list.channels.length) {
+    this.channelByKey = new Map();
+    if (!meta) {
       this.dom.guideCount.textContent = 'No list loaded';
       const empty = document.createElement('div');
       empty.className = 'theater-empty';
-      empty.textContent = 'No IPTV list yet — open the Screen controls and import one (paste text, upload a file, or fetch a URL).';
+      empty.textContent = 'The theater has no channel lists yet — open the Screen controls and add a playlist (paste text, upload a file, or fetch a URL). Everyone here will be able to browse it.';
+      listEl.append(empty);
+      return;
+    }
+    if (!list?.channels) {
+      this.dom.guideCount.textContent = 'Fetching the theater channel list…';
+      const empty = document.createElement('div');
+      empty.className = 'theater-empty';
+      empty.textContent = 'Fetching the theater channel list…';
       listEl.append(empty);
       return;
     }
@@ -1659,6 +2196,8 @@ export class TheaterScreenUI {
     list.channels.forEach((channel, index) => {
       if (!channelMatchesGuide(channel, this.guideCountry, this.guideCategory)) return;
       shown += 1;
+      const key = this.channelKey(channel);
+      this.channelByKey.set(key, channel);
       const row = document.createElement('div');
       row.className = `theater-channel-row ${index === this.activeChannelIndex ? 'current' : ''}`;
       if (channel.logo && /^https?:\/\//i.test(channel.logo)) {
@@ -1681,6 +2220,13 @@ export class TheaterScreenUI {
         tag.textContent = channel.group;
         row.append(tag);
       }
+      if (this.sharedCatalog?.epg) {
+        const schedule = document.createElement('span');
+        schedule.className = 'theater-channel-epg';
+        schedule.dataset.epgKey = key;
+        schedule.textContent = this.scheduleTextFor(channel) || '';
+        row.append(schedule);
+      }
       row.addEventListener('click', () => {
         this.tuneChannel(list, index);
         this.dom.guideDialog.close();
@@ -1693,6 +2239,8 @@ export class TheaterScreenUI {
       empty.textContent = 'No channels match this country and category.';
       listEl.append(empty);
     }
-    this.dom.guideCount.textContent = `${list.channels.length} channels · showing ${shown}${this.state?.now ? ` · on screen: ${this.state.now.title}` : ''}`;
+    const source = meta.shared ? `theater library` : `your lists`;
+    this.dom.guideCount.textContent = `${list.channels.length} channels · showing ${shown}${this.state?.now ? ` · on screen: ${this.state.now.title}` : ''} · ${source}`;
+    this.requestEpgSchedule();
   }
 }

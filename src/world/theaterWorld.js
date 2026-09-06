@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 // The Orpheum auditorium. Large forms first: screen wall, proscenium, seat
 // rows, projector booth; small props stay sparse. Everything emissive or
@@ -64,30 +65,120 @@ export function buildTheaterScenery(ctx) {
     studs.forEach((s, i) => { s.material.emissiveIntensity = done ? 1.7 + Math.sin(time * 2 + i) * .3 : .15; });
   });
 
-  // --- Seating: three rows of 16 with aisles at |x| ~ 3.5 plus outer flanks ---
-  const center = [-2.75, -1.65, -0.55, 0.55, 1.65, 2.75];
-  const sides = [3.9, 5.0, 6.1, 7.2, 8.3];
+  // Reusable detailed parts: batch by geometry/material, including curved
+  // upholstery, so a full house costs a handful of draw calls.
+  const parts = new Map();
+  const velvet = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: .96, metalness: 0 });
+  const metal = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: .38, metalness: .65 });
+  const rounded = new RoundedBoxGeometry(1, 1, 1, 3, .12);
+  const cylinder = new THREE.CylinderGeometry(1, 1, 1, 16);
+  const ring = new THREE.TorusGeometry(1, .18, 8, 20);
+  const kernel = new THREE.IcosahedronGeometry(1, 1);
+  function part(geo, mat, x, y, z, w, h, d, color, rx = 0) {
+    let batch = parts.get(geo);
+    if (!batch) parts.set(geo, batch = new Map());
+    if (!batch.has(mat)) batch.set(mat, []);
+    const transform = new THREE.Object3D();
+    transform.position.set(x, y, z); transform.scale.set(w, h, d);
+    transform.rotation.x = rx; transform.updateMatrix();
+    batch.get(mat).push({ matrix: transform.matrix.clone(), color: new THREE.Color(color) });
+  }
+  const cushion = (x, y, z, w, h, d, color, rx = 0) => part(rounded, velvet, x, y, z, w, h, d, color, rx);
+  const center = [-2.75, -1.65, -.55, .55, 1.65, 2.75];
+  const sides = [3.9, 5, 6.1, 7.2, 8.15];
   const rowXs = [...center, ...sides, ...sides.map(v => -v)];
-  for (const [z, n] of [[0.3, 1], [2.5, 2], [4.7, 3]]) {
-    for (const x of rowXs) {
-      block(x, z, .55, .6);
-      box(x, .22, z, .52, .12, .5, '#63212c');
-      box(x, .56, z + .26, .52, .62, .1, '#6b2733');
-      for (const dx of [-.19, .19]) box(x + dx, .07, z, .07, .14, .07, colors.dark);
-      items.push({ type: 'seat', x, z, title: 'Take a seat', sub: `Row ${n} · The Orpheum` });
+  for (const [z, n] of [[.3, 1], [2.5, 2], [4.7, 3]]) {
+    for (const [i, x] of rowXs.entries()) {
+      // Outer envelope matches collision; front dismount stays clear.
+      block(x, z, .76, .62);
+      const red = i % 3 === 0 ? '#702c3b' : '#602333';
+      cushion(x, .48, z - .02, .58, .22, .59, red);
+      cushion(x, .89, z + .24, .65, .92, .19, '#29282d', -.10);
+      cushion(x, .91, z + .13, .57, .79, .18, red, -.10);
+      cushion(x, 1.20, z + .09, .49, .22, .13, '#823748', -.10);
+      // Padded vertical channels give the upholstery depth at eye level.
+      for (const dx of [-.16, 0, .16]) cushion(x + dx, .86, z + .025, .135, .40, .055, red, -.10);
+      box(x, .19, z + .08, .13, .29, .22, '#262b30');
+      cushion(x, .17, z + .06, .47, .055, .39, '#303238');
+      for (const dx of [-.34, .34]) {
+        box(x + dx, .42, z + .06, .06, .49, .30, '#272b30');
+        cushion(x + dx, .70, z, .10, .12, .65, '#29272d');
+        part(ring, metal, x + dx, .77, z - .20, .055, .055, .055, '#ae8953', Math.PI / 2);
+        part(cylinder, metal, x + dx, .743, z - .20, .042, .045, .042, '#151b20');
+      }
+      // Brass identification plaque on the back, visible from the next row.
+      box(x, 1.08, z + .36, .14, .065, .02, colors.brass);
+      items.push({ type: 'seat', x, z, title: 'Take a seat', sub: `Row ${n} · Seat ${i + 1} · The Orpheum` });
     }
   }
 
-  // --- Supporting props: poster cases, concession counter, carpet ---
-  for (const [z, tint] of [[-5, '#c9a86a'], [5, '#8fa8b0']]) {
-    box(11.5, 2.1, z, .16, 2, 1.3, colors.dark);
-    glow(11.4, 2.1, z, .05, 1.6, 1.05, tint, .35);
+  // Burgundy fitted carpet and gold borders cover the outdoor paving.
+  box(0, .145, 2.7, 18.6, .025, 8.5, '#34212c');
+  box(0, .145, 8, 18.6, .025, 2, '#502b35');
+  for (const x of [-9.15, 9.15]) box(x, .165, 3.9, .045, .02, 12, colors.brass);
+  for (const z of [-1.35, 1.4, 3.6, 5.85]) {
+    box(0, .165, z, 18.3, .02, .035, '#98754e');
+    for (const x of [-8.95, 8.95]) glow(x, .20, z, .12, .05, .22, '#ffca7a', .65);
   }
-  box(-7.5, .5, 9.2, 3.4, 1, 1.4, '#4a3830'); block(-7.5, 9.2, 3.4, 1.4);
-  box(-7.5, 1.05, 9.2, 3.6, .12, 1.6, '#8a7057');
-  glow(-7.5, 1.35, 9.2, 1.8, .12, .5, '#ffca7a', .5);
-  const carpet = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 3), new THREE.MeshStandardMaterial({ color: '#6e2430', transparent: true, opacity: .92, roughness: .9 }));
-  carpet.rotation.x = -Math.PI / 2; carpet.position.set(0, .16, 7.1); group.add(carpet);
+
+  // Low side paneling preserves isometric visibility; acoustic ribs and
+  // sconces give the street-level view a recognizable auditorium interior.
+  for (const side of [-1, 1]) for (const z of [-4.5, 2.8, 6.4]) {
+    box(side * 11.65, 1.65, z, .25, 3.05, 2.3, '#302e38');
+    for (let dz = -.9; dz <= .9; dz += .3) box(side * 11.49, 1.6, z + dz, .12, 2.8, .06, '#765447');
+    box(side * 11.38, 1.9, z, .18, .65, .4, colors.brass);
+    glow(side * 11.25, 1.9, z, .12, .45, .24, '#ffcc89', .8);
+    cushion(side * 11.25, 3.0, z, .4, .62, .48, '#20262b');
+    for (let y = 2.8; y < 3.25; y += .08) box(side * 11.02, y, z, .025, .025, .36, '#44494b');
+  }
+
+  // Concessions: paneled walnut counter, striped popcorn cabinet, brass
+  // kettle, a lit warming bed, paper cartons, soda fountain and snack trays.
+  box(-6.6, .65, 9.2, 5.1, 1.05, 1.2, '#48342e'); block(-6.6, 9.2, 5.1, 1.2);
+  box(-6.6, 1.21, 9.2, 5.3, .13, 1.4, '#c0a983');
+  for (const x of [-8.5, -7.5, -6.5, -5.5, -4.5]) {
+    box(x, .65, 8.58, .78, .74, .04, '#6c493a');
+    box(x, .99, 8.54, .64, .025, .03, colors.brass);
+  }
+  const px = -8;
+  cushion(px, 1.38, 9.2, 1.2, .23, .94, '#8a3036');
+  cushion(px, 2.60, 9.2, 1.35, .24, 1.04, '#8a3036');
+  glow(px, 2.44, 9.2, 1.02, .035, .73, '#ffcf7b', .8);
+  for (const dx of [-.54, .54]) for (const dz of [-.4, .4]) box(px + dx, 1.99, 9.2 + dz, .055, 1.08, .055, colors.brass);
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(1.04, .97, .79), new THREE.MeshStandardMaterial({ color: '#d5e1dc', transparent: true, opacity: .10, roughness: .12, depthWrite: false }));
+  glass.position.set(px, 1.98, 9.2); group.add(glass);
+  part(cylinder, metal, px, 2.16, 9.2, .30, .25, .30, '#ad885b');
+  part(cylinder, metal, px, 2.32, 9.2, .34, .06, .34, '#d1b17b');
+  box(px, 2.4, 9.2, .04, .14, .04, '#45454a');
+  for (let i = 0; i < 150; i++) {
+    const x = px + Math.sin(i * 43.7) * .46, z = 9.2 + Math.cos(i * 17.3) * .33;
+    part(kernel, velvet, x, 1.55 + (i % 5) * .026, z, .047, .043, .044, i % 3 ? '#efcd83' : '#fff0b9');
+  }
+  for (let i = 0; i < 9; i++) box(px - .52 + i * .13, 2.61, 8.67, .055, .17, .02, '#e9d6ae');
+  for (const x of [-6.9, -6.45, -6]) {
+    cushion(x, 1.48, 9.0, .29, .42, .29, '#ecdbb5');
+    for (const dx of [-.09, .03]) box(x + dx, 1.48, 8.848, .035, .37, .014, '#a13d40');
+    for (let i = 0; i < 9; i++) part(kernel, velvet, x + Math.sin(i * 5) * .10, 1.71, 9 + Math.cos(i * 4) * .10, .046, .04, .045, '#ffe4a0');
+  }
+  cushion(-4.8, 1.73, 9.35, .88, .94, .65, '#283a3c');
+  for (const [i, color] of ['#a95140', '#bd9a4e', '#528482'].entries()) {
+    glow(-5.07 + i * .27, 1.91, 9.01, .19, .25, .025, color, .25);
+    box(-5.07 + i * .27, 1.64, 8.97, .05, .15, .12, colors.brass);
+  }
+  box(-4.8, 1.31, 8.93, .88, .06, .32, '#848680');
+  // Waste bin and a ticket pedestal at the rear, outside the cross aisle.
+  cushion(7.8, .66, 8.8, .76, 1.02, .76, '#2e4141'); block(7.8, 8.8, .76, .76);
+  cushion(7.8, 1.21, 8.8, .81, .15, .81, '#ab926a');
+  box(7.8, 1.30, 8.8, .43, .025, .38, '#111d24');
+  box(4.6, .72, 9.15, 1.1, 1.16, .68, '#604339'); block(4.6, 9.15, 1.1, .68);
+  box(4.6, 1.34, 9.15, 1.2, .10, .8, colors.brass);
+  for (let i = 0; i < 5; i++) box(4.6 + i * .03, 1.41 + i * .025, 9.15, .52, .018, .3, '#dac9a1');
+
+  for (const [geo, materials] of parts) for (const [mat, instances] of materials) {
+    const mesh = new THREE.InstancedMesh(geo, mat, instances.length);
+    instances.forEach((p, i) => { mesh.setMatrixAt(i, p.matrix); mesh.setColorAt(i, p.color); });
+    mesh.castShadow = mesh.receiveShadow = true; group.add(mesh);
+  }
 
   // The screen itself as an interactable (controls live in theaterScreen.js).
   items.push({ type: 'theater_screen', x: 0, z: -5.9, title: 'Screen controls', sub: 'Press E to run the picture' });

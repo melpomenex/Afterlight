@@ -74,9 +74,11 @@ Open **http://localhost:5173** in one or more browser windows. You wake up insid
 
 | Key / Action | Function |
 | --- | --- |
-| <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> / Arrows | Move gardener relative to camera |
+| <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> / Arrows | Move gardener relative to camera (in first person: relative to your view) |
 | Click / Tap ground | Walk to location |
+| Drag on the world | Turn your view (first person only) |
 | <kbd>Shift</kbd> | Run |
+| <kbd>Space</kbd> | Jump — hold it to bunny hop: chained hops keep your momentum and build speed (up to ~1.5× run) as long as the chain lasts. Obstacles still block mid-air. |
 | <kbd>1</kbd> | Hands / Inspect tool |
 | <kbd>2</kbd> | Hoe (Till soil) |
 | <kbd>3</kbd> | Seeds (Cycle active seed) |
@@ -88,10 +90,17 @@ Open **http://localhost:5173** in one or more browser windows. You wake up insid
 | <kbd>M</kbd> | Open Market Exchange Board |
 | <kbd>T</kbd> / **Travel** | Open District Navigator (17 biomes & areas) |
 | <kbd>V</kbd> | Wave emote to other gardeners |
+| <kbd>G</kbd> | In The Orpheum: open the projection booth (screen controls, IPTV lists, channel guide) |
 | <kbd>Enter</kbd> / <kbd>/</kbd> | Open town chat (type & <kbd>Enter</kbd> to send, <kbd>Esc</kbd> to return to the game) |
-| <kbd>C</kbd> | Cycle 3 camera angles |
-| Mouse Wheel | Zoom in / out |
+| <kbd>C</kbd> | Cycle camera views: three isometric angles, then first person |
+| Mouse Wheel | Zoom in / out (isometric views only) |
 | <kbd>Escape</kbd> | Journal & Settings (in cinema view: return to the game first) |
+
+**First person.** The fourth camera view puts you at street level. Your own avatar steps out of sight (Kiln and everyone else stay put), WASD moves relative to where you look, and dragging on the world turns your view — a plain click still walks, and a drag never does. Sit in a theater seat in first person to watch the shared screen from your own chair; your view choice is local and resets to the default angle on reload.
+
+**Sound.** The **♫ Sound** footer toggle starts the ambience and effects (everything is synthesized in the browser — no audio downloads). Footsteps follow your walking and running cadence; their volume lives in **Settings** (<kbd>Esc</kbd> → Footsteps) and is remembered per browser.
+
+**Bunny hopping.** Landing while <kbd>Space</kbd> is still held relaunches you instantly, preserving the speed you carried into the air and adding a little more each clean hop, up to a cap. Break the chain — release Space, stop moving, sit, travel, or pause — and you're back to normal walk/run speed. Kiln keeps pattering along on the ground and catches up when you stop.
 
 ### Town Chat & IRC
 
@@ -154,24 +163,36 @@ Travel between districts seamlessly via physical east/west gateway conduits or b
 
 At the far east end of the line sits **The Orpheum** (`theater`), a grand old cinema where everyone in the room watches one shared screen — and where every player wakes up. What plays there plays for **everyone at once**: one player queues a film or flips an IPTV channel and the whole auditorium sees it.
 
+The auditorium has rounded burgundy seats with padded headrests, armrests and cup holders, carpeted aisles, acoustic wall panels and speakers. At the back, a walnut concession counter holds a glass popcorn warmer and soda fountain. These furnishings are scenery; seat and projector controls work as before.
+
 ### Watching
 
 - **Cinema view is the default here.** Spawning in (or walking into) The Orpheum starts the big-screen presentation: stage + docked chat, HUD aside. <kbd>Esc</kbd>, any movement key, a walk-click, or the watch bar's **⤺** action steps you back into the aisles without losing your spot — walk out the gates to play, come back and the picture is waiting.
 - **Take a seat** — press <kbd>E</kbd> at any chair to settle in; the watch bar becomes **⤺ Stand up**. Standing up is one action, always reachable.
-- **Run the projector** — the **▣ Booth** button (or interacting with the screen) opens the projection booth: queue, transport controls, IPTV, and volume. Anyone in the auditorium may run it; there is no host.
+- **Run the projector** — press <kbd>G</kbd>, use the **▣ Booth** button, or interact with the screen to open the projection booth: queue, transport controls, IPTV, and volume. Works from the aisles and from your cinema seat. Anyone in the auditorium may run it; there is no host.
 - **Restore the projector** (landmark) to light the marquee and aisle lamps for good. It's a flourish — the screen plays with or without it.
 
 ### What the screen plays
 
 - **YouTube** videos (watch links, `youtu.be`, Shorts), **Vimeo** videos
 - **Direct video files** (`.mp4`, `.webm`, …) and **HLS streams** (`.m3u8`)
-- **IPTV**: import M3U/M3U8 playlists by pasting text, uploading a file, or fetching a URL; browse channels in the **guide** (with group filters), flip with **◂ / ▸**, and save your lists in the browser for later.
+- **Torrent magnets** (`magnet:?xt=urn:btih:…`) — see below
+- **IPTV**: import M3U/M3U8 playlists by pasting text, uploading a file, or fetching a URL; browse channels in the **guide** — pick a **country** from the dropdown first, then narrow by that country's **categories** — flip with **◂ / ▸**, and save your lists in the browser for later.
+
+### Torrent night (magnet links)
+
+Paste a magnet link in the booth and the projector resolves it for you: the game server reaches the swarm, lists the torrent's video files, and **you pick which one plays** — only then does it start (or queue) for the whole room. Torrents often carry several films or episodes, so nothing goes on the screen until a file is chosen; closing the picker leaves the bill untouched.
+
+- While the swarm is reached you'll see live progress ("Reaching the swarm…", percent, peers) instead of a bare spinner; seeking works even in partially downloaded files, because the server streams your chosen file with byte-range support.
+- Files browsers usually can't decode (MKV, AVI) are listed with a *may not play* note; MP4/WebM and friends are offered first. There's no transcoding.
+- Torrent items on the bill survive reloads and server restarts — downloaded data is cached under `data/torrents/` (size-capped at ~4 GB, least-recently-used eviction; both tunable with `TORRENT_CACHE_DIR` and `TORRENT_CACHE_MAX_BYTES`), and the whole folder is safe to delete.
+- **You are responsible for what you stream.** Magnets play through the server operator's connection, so only point the projector at content you have the right to watch and share.
 
 Queue behavior: items added while something plays line up in the queue and auto-advance when a film ends (dead links are skipped with a notice). The now-playing state and queue live on the server — they survive reloads and restarts, and latecomers join mid-picture at the right moment. Playback is drift-corrected to a shared clock, so pausing or seeking moves everyone together.
 
 ### Good to know
 
-- Only `http(s)` links can be pinned to the screen; YouTube/Vimeo play through their official embeds, everything else as a plain video stream.
+- Only `http(s)` links and magnet links can be pinned to the screen; YouTube/Vimeo play through their official embeds, magnets resolve through the server's torrent engine (above), and everything else plays as a plain video stream.
 - Some public IPTV lists are hosted without CORS headers — the direct **Fetch** may be refused by your browser. Paste the playlist text or upload the file instead; that always works.
 - Streams their hosts remove or region-block will show a notice and skip ahead. Live channels can't be rewound.
 - Whether other players can *hear* a video depends on each browser's autoplay rules; a "Tap to start" badge appears if the browser needs a click first. Volume is local.

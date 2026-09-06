@@ -42,9 +42,11 @@ For documentation-only changes, inspect and validate the documentation; do not r
 | `index.html` | Canvas, base HUD, companion panel, interaction card, settings dialog, initial loading overlay. |
 | `src/style.css` | Full-window presentation, typography, translucent panels, responsive layouts, district selector styles. |
 | `src/main.js` | Renderer, lighting, original courtyard geometry, actors, global state, input, collision, interaction dispatch, travel, HUD updates, audio, save/load, animation loop. |
+| `src/cameraControl.js` | Pure camera-mode math: four-view cycle, per-view movement basis (view-relative in first person), pitch clamps, pointer drag/click classification. No renderer dependencies; covered by `tests/camera.test.js`. |
+| `src/jump.js` | Pure jump/bunny-hop math: vertical arc, hold-to-rehop chains, momentum scalar with per-hop gain and cap, reset rules. No renderer or network dependencies; covered by `tests/jump.test.js`. |
 | `src/districts.js` | District definitions, exploration-save normalization, procedural builders for the three added districts. |
 | `src/world/theaterWorld.js` | The Orpheum builder: auditorium, seats (obstacles + `seat` items), screen mesh + world-space `screenQuad`, marquee/projector restoration visuals. Registered in `DISTRICT_BUILDERS`. |
-| `src/ui/theaterScreen.js` | Theater screen UI: DOM overlay homography-anchored to the in-world screen, playback engines (video/HLS/YouTube/Vimeo), shared-clock sync, booth/guide dialogs, IPTV import + localStorage lists, cinema view (`body.theater-watching`). |
+| `src/ui/theaterScreen.js` | Theater screen UI: DOM overlay homography-anchored to the in-world screen (sized to the projected quad with the screen's world aspect so media stays crisp and unsquashed), playback engines (video/HLS/YouTube/Vimeo), shared-clock sync, booth/guide dialogs (country → category IPTV navigation), IPTV import + localStorage lists, cinema view (`body.theater-watching`). |
 | `server/theater.js`, `shared/theaterModel.js` | Theater room state: thin server manager + pure reducer/URL-classifier/M3U parser/timeline math (all rules live in the shared model). |
 | `tests/districts.test.js` | Node tests for exploration-save normalization and approximate navigational reachability in the new districts. |
 | `README.md` | Running the project and playing the game; update when controls or player-facing features change. |
@@ -114,14 +116,23 @@ Travel currently resets position to an entrance, not the precise point of depart
 
 ### Input and frame loop
 
-- WASD and arrow keys move relative to the selected camera angle.
-- Shift runs. E interacts. C cycles three views. M opens Districts.
-- Clicking/tapping the ground casts a ray onto the horizontal plane at y=0.
-- Mouse wheel changes orthographic zoom within bounds.
-- Escape opens settings; native dialog cancellation closes dialogs through explicit handlers.
+- WASD and arrow keys move relative to the selected camera angle (in first person: relative to the view yaw).
+- Shift runs. E interacts. C cycles four views (three isometric angles, then first person). M opens Districts.
+- Space jumps. Holding Space bunny hops: each landing with Space held relaunches on the same frame, preserving horizontal momentum plus a small gain, capped at ~1.5× run speed. Jump/bhop rules live in `src/jump.js` (pure, covered by `tests/jump.test.js`); `main.js` feeds it grounded/input facts each frame and applies the returned y and speed scalar. Collision is unchanged: obstacles and bounds block mid-air.
+- Pressing on the ground starts a gesture: released below the drag threshold it walks exactly like the old click; a drag instead turns the view (first person only). Gesture rules live in `src/cameraControl.js`.
+- Mouse wheel changes orthographic zoom within bounds (no effect in first person).
+- Escape opens settings; in cinema view it returns to the game first. Native dialog cancellation closes dialogs through explicit handlers.
 - Settings and Districts pause gameplay and clear held movement keys.
 - Losing window focus clears held keys.
 - The frame loop caps delta time and animates legs, companion movement, collectibles, particles, active district visuals, and the camera.
+
+### Jump state hygiene
+
+Jump momentum is session-local and resets at every path that clears held keys: `standUp()`, `sitOn()`, `setRoom()`, pause toggles (settings/districts), chat-input focus, and window blur, all through `clearJumpMomentum()` in `main.js`. Landing without Space held resets inside `stepJump()`. While airborne the jump state owns the avatar's y (tucked legs); the grounded walk bob is untouched. Presence carries an additive `airborne` flag (relayed by `server/world.js` like `sitting`, never persisted); `RemotePlayersManager` animates a standardized hop parabola from the flag and treats missing flags as grounded. Kiln stays ground-bound.
+
+### Active camera and first person
+
+`main.js` holds two cameras — the original orthographic one for the three isometric modes and a perspective one for first person — and routes every consumer through a single `activeCamera` reference: the composer's `RenderPass.camera`, the click raycast, `resize()`, the follow logic, and the theater `screenQuad` projection. When touching any of those, use `activeCamera`, not a specific camera, or the view modes drift apart. First person is mode 3 in the `cameraMode` cycle: the frame loop places the perspective camera at the player's eye height (lowered while seated), `player.visible` is false for the owner's avatar only, movement rotates through `moveBasis()`, and entering the mode seeds the yaw from the avatar's facing (camera and avatar facing conventions differ by π). Camera mode, yaw, and pitch are session-local presentation state: never saved, never synced.
 
 Keep input methods equivalent where possible: interaction works through E and the on-screen button; travel works through gates and the Districts selector. Do not break keyboard play after the user clicks a button. Do not hijack typing in inputs/selects. Keep keyboard focus indicators visible.
 
@@ -212,7 +223,7 @@ Make completion idempotent: pressing E repeatedly must not duplicate rewards or 
 
 ## 6. Collision, navigation, and camera gotchas
 
-Current movement is flat, rectangle-based, and deliberately simple. There is no navmesh, gravity, ramp elevation, or general pathfinding.
+Current movement is flat, rectangle-based, and deliberately simple. There is no navmesh, ramp elevation, or general pathfinding. Jumping adds temporary vertical motion only: while airborne, `isWalkable()` and world bounds still gate every x/z step exactly as grounded, nothing can be cleared or stood on, and landing always restores grounded handling. Do not make jumps clear obstacles without implementing height-aware collision and reworking the reachability tests.
 
 Exact current contracts:
 

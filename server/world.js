@@ -87,7 +87,7 @@ export class WorldManager {
     });
   }
 
-  updateMovement(playerId, { x, z, rotY, walking, sitting }) {
+  updateMovement(playerId, { x, z, rotY, walking, sitting, airborne }) {
     const session = this.clients.get(playerId);
     if (!session) return;
 
@@ -105,6 +105,8 @@ export class WorldManager {
     session.walking = !!walking;
     // Theater seats: additive presence flag, no persistence.
     session.sitting = !!sitting;
+    // Jumping: additive presence flag like sitting — relayed, never stored.
+    session.airborne = !!airborne;
     session.moved = true;
     this.dirtyMovementRooms.add(session.currentRoom);
   }
@@ -125,6 +127,7 @@ export class WorldManager {
             rotY: s.rotY,
             walking: s.walking,
             sitting: !!s.sitting,
+            airborne: !!s.airborne,
           });
           s.moved = false;
         }
