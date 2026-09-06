@@ -110,10 +110,10 @@ defmodule Afterlight.Parity.Reference.Torrent do
   defp normalize_infohash(raw, url) do
     cond do
       Regex.match?(@hex_re, raw) ->
-        %{url: url, infohash: String.downcase(raw)}
+        %{"url" => url, "infohash" => String.downcase(raw)}
 
       Regex.match?(@base32_re, raw) ->
-        %{url: url, infohash: base32_to_hex(String.upcase(raw))}
+        %{"url" => url, "infohash" => base32_to_hex(String.upcase(raw))}
 
       true ->
         nil
@@ -275,7 +275,7 @@ defmodule Afterlight.Parity.Reference.Torrent do
     suffix = parse_digits(raw_end)
 
     if is_integer(suffix) and suffix > 0 do
-      %{start: max(0, total - suffix), end: total - 1}
+      %{"start" => max(0, total - suffix), "end" => total - 1}
     else
       nil
     end
@@ -286,11 +286,11 @@ defmodule Afterlight.Parity.Reference.Torrent do
 
     if is_integer(start) and start >= 0 and start < total do
       if raw_end == "" do
-        %{start: start, end: total - 1}
+        %{"start" => start, "end" => total - 1}
       else
         case parse_digits(raw_end) do
           end_ when is_integer(end_) and end_ >= start ->
-            %{start: start, end: min(end_, total - 1)}
+            %{"start" => start, "end" => min(end_, total - 1)}
 
           _ ->
             nil

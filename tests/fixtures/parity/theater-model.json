@@ -9,6 +9,7 @@
       ],
       "expected": {
         "kind": "youtube",
+        "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         "videoId": "dQw4w9WgXcQ"
       }
     },
@@ -20,6 +21,7 @@
       ],
       "expected": {
         "kind": "youtube",
+        "url": "https://youtube.com/watch?v=abc12345678",
         "videoId": "abc12345678"
       }
     },
@@ -29,7 +31,11 @@
       "args": [
         "http://youtube.com/watch?v=shortid1"
       ],
-      "expected": null
+      "expected": {
+        "kind": "youtube",
+        "url": "http://youtube.com/watch?v=shortid1",
+        "videoId": "shortid1"
+      }
     },
     {
       "id": "classify/https_m.youtube.com_watch_v_abcdefghijk",
@@ -39,6 +45,7 @@
       ],
       "expected": {
         "kind": "youtube",
+        "url": "https://m.youtube.com/watch?v=abcdefghijk",
         "videoId": "abcdefghijk"
       }
     },
@@ -49,9 +56,9 @@
         "https://www.youtube.com/watch?v=abc&list=PL1234567890"
       ],
       "expected": {
-        "kind": "youtube",
-        "videoId": "abc",
-        "listId": "PL1234567890"
+        "kind": "youtubePlaylist",
+        "listId": "PL1234567890",
+        "url": "https://www.youtube.com/watch?v=abc&list=PL1234567890"
       }
     },
     {
@@ -62,6 +69,7 @@
       ],
       "expected": {
         "kind": "youtube",
+        "url": "https://youtu.be/dQw4w9WgXcQ",
         "videoId": "dQw4w9WgXcQ"
       }
     },
@@ -73,6 +81,7 @@
       ],
       "expected": {
         "kind": "youtube",
+        "url": "https://www.youtube.com/shorts/abcdefghijk",
         "videoId": "abcdefghijk"
       }
     },
@@ -82,10 +91,7 @@
       "args": [
         "HTTPS://WWW.YOUTUBE.COM/WATCH?V=dQw4w9WgXcQ"
       ],
-      "expected": {
-        "kind": "youtube",
-        "videoId": "dQw4w9WgXcQ"
-      }
+      "expected": null
     },
     {
       "id": "classify/https_www.youtube.com_watch_vi_dQw4w9WgX",
@@ -102,7 +108,9 @@
         "https://vimeo.com/123456789"
       ],
       "expected": {
-        "kind": "vimeo"
+        "kind": "vimeo",
+        "url": "https://vimeo.com/123456789",
+        "videoId": "123456789"
       }
     },
     {
@@ -111,7 +119,11 @@
       "args": [
         "https://vimeo.com/12345678"
       ],
-      "expected": null
+      "expected": {
+        "kind": "vimeo",
+        "url": "https://vimeo.com/12345678",
+        "videoId": "12345678"
+      }
     },
     {
       "id": "classify/https_vimeo.com_123456789012",
@@ -119,7 +131,11 @@
       "args": [
         "https://vimeo.com/123456789012"
       ],
-      "expected": null
+      "expected": {
+        "kind": "vimeo",
+        "url": "https://vimeo.com/123456789012",
+        "videoId": "123456789012"
+      }
     },
     {
       "id": "classify/https_www.vimeo.com_123456789",
@@ -128,7 +144,9 @@
         "https://www.vimeo.com/123456789"
       ],
       "expected": {
-        "kind": "vimeo"
+        "kind": "vimeo",
+        "url": "https://www.vimeo.com/123456789",
+        "videoId": "123456789"
       }
     },
     {
@@ -154,7 +172,8 @@
         "https://example.com/media/clip.mp4"
       ],
       "expected": {
-        "kind": "file"
+        "kind": "file",
+        "url": "https://example.com/media/clip.mp4"
       }
     },
     {
@@ -164,7 +183,8 @@
         "https://example.com/media/clip.MP4?token=x"
       ],
       "expected": {
-        "kind": "file"
+        "kind": "file",
+        "url": "https://example.com/media/clip.MP4?token=x"
       }
     },
     {
@@ -174,7 +194,8 @@
         "https://example.com/media/clip.webm"
       ],
       "expected": {
-        "kind": "file"
+        "kind": "file",
+        "url": "https://example.com/media/clip.webm"
       }
     },
     {
@@ -184,7 +205,8 @@
         "https://example.com/media/clip.ogv"
       ],
       "expected": {
-        "kind": "file"
+        "kind": "file",
+        "url": "https://example.com/media/clip.ogv"
       }
     },
     {
@@ -210,7 +232,8 @@
         "https://example.com/stream/index.m3u8"
       ],
       "expected": {
-        "kind": "hls"
+        "kind": "hls",
+        "url": "https://example.com/stream/index.m3u8"
       }
     },
     {
@@ -220,7 +243,8 @@
         "https://example.com/stream/index.M3U8"
       ],
       "expected": {
-        "kind": "hls"
+        "kind": "hls",
+        "url": "https://example.com/stream/index.M3U8"
       }
     },
     {
@@ -239,6 +263,7 @@
       ],
       "expected": {
         "kind": "torrent",
+        "url": "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Sintel",
         "infohash": "0123456789abcdef0123456789abcdef01234567"
       }
     },
@@ -248,10 +273,7 @@
       "args": [
         "magnet:?xt=urn:btih:MFRGGDFCMYTDE2LQGJTGKNBZGY4TQNJRGUZTANJZMU3DKOBVGY3A====&dn=x"
       ],
-      "expected": {
-        "kind": "torrent",
-        "infohash": "31472420a066a10ecb72230bb8cc536c1449c47b"
-      }
+      "expected": null
     },
     {
       "id": "classify/magnet_xt_urn_btih_0123456789ABCDEF012345",
@@ -261,6 +283,7 @@
       ],
       "expected": {
         "kind": "torrent",
+        "url": "magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567&dn=x",
         "infohash": "0123456789abcdef0123456789abcdef01234567"
       }
     },
@@ -288,7 +311,8 @@
       ],
       "expected": {
         "kind": "youtubePlaylist",
-        "listId": "PL1234567890abcdef"
+        "listId": "PL1234567890abcdef",
+        "url": "https://www.youtube.com/playlist?list=PL1234567890abcdef"
       }
     },
     {
@@ -299,7 +323,8 @@
       ],
       "expected": {
         "kind": "youtubePlaylist",
-        "listId": "RD1234567890"
+        "listId": "RD1234567890",
+        "url": "https://www.youtube.com/playlist?list=RD1234567890"
       }
     },
     {
@@ -318,6 +343,7 @@
       ],
       "expected": {
         "kind": "youtube",
+        "url": "https://www.youtube.com/watch?v=abc12345678&list=RDabcdef123456",
         "videoId": "abc12345678",
         "listId": "RDabcdef123456"
       }
@@ -369,7 +395,8 @@
         "https://例え.jp/clip.mp4"
       ],
       "expected": {
-        "kind": "file"
+        "kind": "file",
+        "url": "https://例え.jp/clip.mp4"
       }
     },
     {

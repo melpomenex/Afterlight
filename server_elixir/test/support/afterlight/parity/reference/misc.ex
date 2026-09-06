@@ -148,6 +148,7 @@ defmodule Afterlight.Parity.Reference.Misc do
 
   def run_case_fn("newNodesManager", [], _now_ms) do
     state = %{"storage" => %{"state" => %{"nodes" => %{}}}, "depletions" => %{}}
+    Process.put({__MODULE__, :state_key}, :nodes_mgr)
     Process.put({__MODULE__, :nodes_mgr}, state)
     state
   end
@@ -181,6 +182,7 @@ defmodule Afterlight.Parity.Reference.Misc do
   def run_case_fn("newMachinesManager", [], _now_ms) do
     mill = default_mill()
     state = %{"storage" => %{"state" => %{"machines" => %{"mill" => mill}}}, "mill" => mill}
+    Process.put({__MODULE__, :state_key}, :machines_mgr)
     Process.put({__MODULE__, :machines_mgr}, state)
     state
   end

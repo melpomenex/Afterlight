@@ -29,10 +29,7 @@
       "args": [
         "magnet:?xt=urn:btih:MFRGGDFCMYTDE2LQGJTGKNBZGY4TQNJRGUZTANJZMU3DKOBVGY3A===="
       ],
-      "expected": {
-        "url": "magnet:?xt=urn:btih:MFRGGDFCMYTDE2LQGJTGKNBZGY4TQNJRGUZTANJZMU3DKOBVGY3A====",
-        "infohash": "31472420a066a10ecb72230bb8cc536c1449c47b"
-      }
+      "expected": null
     },
     {
       "id": "magnet/ame-only",

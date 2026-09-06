@@ -94,21 +94,21 @@ defmodule Afterlight.Parity.Reference.Theater do
       nil ->
         nil
 
-      %{kind: "torrent", infohash: infohash} ->
-        %{"kind" => "torrent", "infohash" => infohash}
+      %{kind: "torrent", url: url, infohash: infohash} ->
+        %{"kind" => "torrent", "url" => url, "infohash" => infohash}
 
-      %{kind: "youtube", video_id: video_id} = c ->
-        base = %{"kind" => "youtube", "videoId" => video_id}
+      %{kind: "youtube", url: url, video_id: video_id} = c ->
+        base = %{"kind" => "youtube", "url" => url, "videoId" => video_id}
         if Map.has_key?(c, :list_id), do: Map.put(base, "listId", c.list_id), else: base
 
-      %{kind: "youtubePlaylist", list_id: list_id} ->
-        %{"kind" => "youtubePlaylist", "listId" => list_id}
+      %{kind: "youtubePlaylist", url: url, list_id: list_id} ->
+        %{"kind" => "youtubePlaylist", "url" => url, "listId" => list_id}
 
-      %{kind: "vimeo"} ->
-        %{"kind" => "vimeo"}
+      %{kind: "vimeo", url: url, video_id: video_id} ->
+        %{"kind" => "vimeo", "url" => url, "videoId" => video_id}
 
-      %{kind: other} ->
-        %{"kind" => other}
+      %{kind: other, url: url} ->
+        %{"kind" => other, "url" => url}
     end
   end
 
@@ -150,17 +150,8 @@ defmodule Afterlight.Parity.Reference.Theater do
   # -- parseMagnet (imported from torrentModel.js) ------------------------------
 
   @hex_re ~r/\A[0-9a-fA-F]{40}\z/
-  @base32_re ~r/\A[A-Z2-7]{32,}\z/
+  @base32_re ~r/\A[A-Z2-7]{32}\z/
   @base32_alphabet "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
-
-  # The exported fixture pairs a BTv2-style base32 magnet (the base32 of a
-  # 32-byte v2 hash) with the content's v1 SHA-1 btih. That pairing is not
-  # derivable by decoding (base32("31472420…") would be "GFDSIIFA…"), so the
-  # fixture-pinned pairing is carried here; every other input decodes.
-  @base32_pins %{
-    "MFRGGDFCMYTDE2LQGJTGKNBZGY4TQNJRGUZTANJZMU3DKOBVGY3A" =>
-      "31472420a066a10ecb72230bb8cc536c1449c47b"
-  }
 
   defp parse_magnet(raw) when not is_binary(raw), do: nil
 
@@ -191,15 +182,12 @@ defmodule Afterlight.Parity.Reference.Theater do
   end
 
   defp normalize_infohash(raw, url) do
-    unpadded = String.replace_trailing(raw, "=", "")
-
     cond do
       Regex.match?(@hex_re, raw) ->
         %{kind: "torrent", url: url, infohash: ascii_downcase(raw)}
 
-      unpadded != "" and Regex.match?(@base32_re, unpadded) ->
-        infohash = Map.get(@base32_pins, unpadded, base32_to_hex(unpadded))
-        %{kind: "torrent", url: url, infohash: infohash}
+      Regex.match?(@base32_re, raw) ->
+        %{kind: "torrent", url: url, infohash: base32_to_hex(raw)}
 
       true ->
         nil
@@ -243,24 +231,17 @@ defmodule Afterlight.Parity.Reference.Theater do
         nil
       end
 
-    v = param_get_ci(params, "v")
+    # JS searchParams.get("v") is case-sensitive; ids need [\w-]{6,}.
+    v = param_get(params, "v")
     list_param = param_get(params, "list")
 
     list_id =
       if is_binary(list_param) and Regex.match?(~r/\A[\w-]{12,}\z/, list_param), do: list_param
 
-    # Fixture-pinned rule: a watch `v` id is accepted when it is a real
-    # 11-char id, or when the link carries playlist context (`list=`), in
-    # which case the value is echoed as-is (any [\w-]+ run).
     v_id =
-      cond do
-        is_binary(v) and Regex.match?(~r/\A[\w-]+\z/, v) and
-            (String.length(v) == 11 or is_binary(list_param)) ->
-          v
+      if is_binary(v) and Regex.match?(~r/\A[\w-]{6,}\z/, v), do: v
 
-        true ->
-          nil
-      end
+    _ = param_get_ci(params, "v")
 
     shorts_id = path_id(path, ~r"\A/(?:shorts|embed|live|v)/([\w-]{6,})")
 
@@ -280,7 +261,7 @@ defmodule Afterlight.Parity.Reference.Theater do
   end
 
   defp classify_vimeo(url, path) do
-    case Regex.run(~r"\A/(?:video/)?(\d{9})(?:[/?]|\z)", path) do
+    case Regex.run(~r"\A/(?:video/)?(\d{6,})(?:[/?]|\z)", path) do
       [_, id] -> %{kind: "vimeo", url: url, video_id: id}
       _ -> nil
     end

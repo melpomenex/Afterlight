@@ -72,8 +72,11 @@ function build() {
     ['', null],
     ['https://例え.jp/clip.mp4', { kind: 'file' }],
   ];
-  for (const [url, expected] of urls) {
-    cases.push(recordCall({ id: `classify/${url.slice(0, 42).replace(/[^\w.-]+/g, '_')}`, fn: classifySource, args: [url], expected }));
+  // Expected values are RECORDED from the real JS (never hand-authored):
+  // parity fixtures must pin what the implementation does, not what we
+  // assumed it does.
+  for (const [url] of urls) {
+    cases.push(recordCall({ id: `classify/${url.slice(0, 42).replace(/[^\w.-]+/g, '_')}`, fn: classifySource, args: [url] }));
   }
 
   // ------------------------------------------------------------------
