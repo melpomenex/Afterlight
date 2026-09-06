@@ -60,9 +60,12 @@ export class RealtimePipeline {
     if (msg.type === 'ready') {
       this._ready = true;
       clearTimeout(this._stallTimer);
+      // size the worker's store before any frames flow
+      this.worker.postMessage({ type: 'config', maxSlots: this._maxSlots ?? 8192 });
     } else if (msg.type === 'pack') {
       clearTimeout(this._stallTimer);
       this._stallTimer = setTimeout(() => this._fallback('worker-stall'), STALL_MS);
+      this.handlers.onPack?.(msg.pack);
       this.consumer.consume(msg.pack);
       // return the row buffers for pooling (ownership transfer back)
       const buffers = PACK_FIELDS.map((f) => msg.pack[f].buffer);

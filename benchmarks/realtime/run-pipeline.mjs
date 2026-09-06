@@ -7,19 +7,29 @@
 
 import { makeWorld, stepWorld, worldToJsonUpdate } from './lib/fixtures.mjs';
 import { timeIt, heapDelta, writeResults, markdownTable, env } from './lib/measure.mjs';
-import { writeFrame } from '../../shared/realtime/writer.js';
+import { writeFrame, writeChunkedFrames } from '../../shared/realtime/writer.js';
 import { FRAME_TYPE, ENCODING } from '../../shared/realtime/constants.js';
 import { PipelineCore, createPack } from '../../src/realtime/worker/core.js';
 import { PackConsumer } from '../../src/realtime/consumer.js';
 
-// Populations up to 10k: a 50k boot snapshot (spawn rows + dense transforms)
-// exceeds the 1 MiB contract cap — chunked joins are a documented v1 need
-// (results/wasm.md finding #4), so the pipeline bench measures where a
-// contract-legal session can actually boot in one frame.
-const POPULATIONS = [50, 200, 1000, 5000, 10000];
+// 50k rides again: joins use writeChunkedFrames (contract v0 amendment), so
+// populations no single frame can carry boot legally.
+const POPULATIONS = [50, 200, 1000, 5000, 10000, 50000];
 const FRACTION = 0.1;
 const SOAK_N = 10000;
 const SOAK_TICKS = 600;
+
+function bootFrames(ids) {
+  // Boot from the fixture world's actual (gap-y) id space so every delta row
+  // addresses a real entity — otherwise unknown-id skipping fakes speedups.
+  const spawn = Array.from(ids, (id, i) => ({ id, archetype: 0, variant: 0, x: 0, y: 0, z: 0, yaw: 0 }));
+  const r = writeChunkedFrames({
+    frameType: FRAME_TYPE.FULL_SNAPSHOT, roomEpoch: 0, serverTick: 0,
+    frameSequence: 1, baselineSequence: 1, spawn,
+  });
+  if (!r.ok) throw new Error(r.reason);
+  return r.frames;
+}
 
 function buildScenario(n) {
   const world = makeWorld(n, 42);
@@ -60,7 +70,7 @@ function pipelineTick(core, consumer, frameBytes, pack, index, baseline) {
 
 const crossover = [];
 for (const n of POPULATIONS) {
-  const { changed, jsonText, frameBytes } = buildScenario(n);
+  const { changed, jsonText, frameBytes, world } = buildScenario(n);
   const sinkA = () => {};
   const legacy = timeIt(() => legacyTick(jsonText, sinkA));
   const legacyAlloc = heapDelta(() => legacyTick(jsonText, sinkA));
@@ -69,15 +79,8 @@ for (const n of POPULATIONS) {
   const consumer = new PackConsumer({ onEntry: () => {} });
   const pack = createPack(1024);
   const index = new Map();
-  // baseline: snapshot apply (frame 0 establishes entities)
-  const boot = writeFrame({
-    frameType: FRAME_TYPE.FULL_SNAPSHOT, roomEpoch: 0, serverTick: 0,
-    frameSequence: 1, baselineSequence: 1,
-    spawn: Array.from({ length: n }, (_, i) => ({ id: i + 1, archetype: 0, variant: 0, x: 0, y: 0, z: 0, yaw: 0 })),
-    transform: { encoding: ENCODING.DENSE, count: n, columns: { x: new Float32Array(n), y: new Float32Array(n), z: new Float32Array(n), yaw: new Float32Array(n) } },
-  });
-  if (!boot.ok) throw new Error(boot.reason);
-  core.applyFrame(boot.bytes, createPack(1024), new Map());
+  // baseline: chunked snapshot join establishes entities
+  for (const bytes of bootFrames(world.ids)) core.applyFrame(bytes, createPack(1024), new Map());
 
   const pipeline = timeIt(() => pipelineTick(core, consumer, frameBytes, pack, index, 1));
   const pipelineAlloc = heapDelta(() => pipelineTick(core, consumer, frameBytes, pack, index, 1));
@@ -92,18 +95,12 @@ for (const n of POPULATIONS) {
 
 // 600-tick soak: allocations/tick must stay flat (first-100 vs last-100 mean).
 const soak = (() => {
-  const { frameBytes } = buildScenario(SOAK_N);
+  const { frameBytes, world } = buildScenario(SOAK_N);
   const core = new PipelineCore({ maxSlots: SOAK_N + 16 });
   const consumer = new PackConsumer({ onEntry: () => {} });
   const pack = createPack(1024);
   const index = new Map();
-  const boot = writeFrame({
-    frameType: FRAME_TYPE.FULL_SNAPSHOT, roomEpoch: 0, serverTick: 0,
-    frameSequence: 1, baselineSequence: 1,
-    spawn: Array.from({ length: SOAK_N }, (_, i) => ({ id: i + 1, archetype: 0, variant: 0, x: 0, y: 0, z: 0, yaw: 0 })),
-    transform: { encoding: ENCODING.DENSE, count: SOAK_N, columns: { x: new Float32Array(SOAK_N), y: new Float32Array(SOAK_N), z: new Float32Array(SOAK_N), yaw: new Float32Array(SOAK_N) } },
-  });
-  core.applyFrame(boot.bytes, createPack(1024), new Map());
+  for (const bytes of bootFrames(world.ids)) core.applyFrame(bytes, createPack(1024), new Map());
   const perTick = [];
   for (let t = 0; t < SOAK_TICKS; t++) {
     const d = heapDelta(() => pipelineTick(core, consumer, frameBytes, pack, index, 1));
@@ -139,7 +136,7 @@ const md = [
   '',
   'Note: the Web Worker boundary (structured-clone transfer of packs) is a browser-only cost; this table measures each path’s main-thread cost. Worker-mode main-thread cost is the pipeline column minus decode (done off-thread) plus one pack copy.',
   'Negative allocation cells are GC noise in heapDelta at µs-scale work (documented in the mask study); treat sub-1000-entity allocation deltas as unmeasurable, not negative.',
-  'Crossover: JSON wins below ~1,000 entities; the pipeline wins from ~1,000 up (1.03× at 1k → 1.87× at 10k on this run) — matching the mask-study threshold and justifying realtime_worker defaults for large rooms only.',
+  'Crossover (honest id-space run): JSON wins through 10k changed rows/tick (0.99x — effectively tied); the pipeline wins once per-tick row counts are large (1.53x at 50k). The stronger worker justification at scale is off-threading: worker-mode main-thread cost drops to the pack consume alone.',
 ].join('\n');
 const { writeFileSync } = await import('node:fs');
 writeFileSync(new URL('./results/pipeline.md', import.meta.url), md + '\n');
