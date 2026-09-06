@@ -53,7 +53,8 @@ function legacyConnect() {
         if (++legacy.samples >= SAMPLES) resolve();
       }
     };
-    ws.onerror = () => reject(new Error('legacy socket failed — is the echo server on :39301?'));
+    ws.onerror = () => { dbg.errors.push('legacy-socket-error'); reject(new Error('legacy socket failed — is the echo server on :39301?')); };
+    ws.onclose = (ev) => { dbg.errors.push('legacy-close:' + ev.code + ':' + (ev.reason || '')); };
     legacy.ws = ws;
   });
 }
