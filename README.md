@@ -30,7 +30,7 @@ Open **http://localhost:5173** in one or more browser windows. When multiple pla
 
 ### 3. Production Build & Tests
 
-- `npm test`: Runs the automated test suite (crop growth, quality grades, NPC pricing, double-auction order book, persistence, and multi-client presence).
+- `npm test`: Runs the automated test suite (crop growth, quality grades, NPC pricing, double-auction order book, persistence, multi-client presence, gather nodes, machine restoration, milling, flour contracts, and sprinkler simulation).
 - `npm run build`: Bundles the client for production into `dist/`.
 - `npm run preview`: Serves the production build.
 
@@ -38,7 +38,7 @@ Open **http://localhost:5173** in one or more browser windows. When multiple pla
 
 ## Core Gameplay Loop
 
-**Prepare → Plant → Tend → Harvest → Pack → Sell / Trade → Reinvest → Expand**
+**Prepare → Plant → Tend → Harvest → Gather → Craft → Pack → Sell / Trade → Reinvest → Expand**
 
 1. **Your Market Garden**:
    - Travel through the eastern gate of the Market Court (or click **Travel**) to enter your personal, server-persisted garden plot.
@@ -57,6 +57,17 @@ Open **http://localhost:5173** in one or more browser windows. When multiple pla
    - **Town Seed Merchant**: Buy seed packets with your earnings.
    - **Restaurant & Café Noticeboard**: Deliver high-grade produce to fulfill town contracts for bonus coins, reputation, and XP.
 
+3. **Gathering in the Outer Districts**:
+   - Material caches grow in three of the explorable biomes: **Copper Scrap** in the Rustfall Foundry, **Trestle Timber** at the Overgrown Trestle, and **Glass Shards** in the Glacial Glasshouse.
+   - Walk up to a glowing cache and press <kbd>E</kbd> to gather one unit into your server-side satchel. The cache is visibly stripped bare for everyone in the district and regrows after a few real minutes — even across server restarts.
+
+4. **The Great Mill & Machine Shop** (Market Court, southeast corner):
+   - The court's communal machine starts **broken**. Any gardener can contribute copper, timber, and glass at the mill or its workbench (<kbd>E</kbd>); restoration progress is shown on a HUD panel for everyone present.
+   - Once the community delivers all materials, the mill is **restored permanently** (server-persisted) — its sails turn, and a celebration greets the whole court.
+   - A restored mill grinds **wheat into flour** (<kbd>E</kbd> at the mill, or use the workbench dialog): one grain for one bag, deducted and credited server-side.
+   - **Flour** trades like produce: instant-sell it on the Market Exchange Board (it keeps no quality grade), and watch the Restaurant Noticeboard — **flour contracts** only rotate in while the mill is restored.
+   - **Sprinkler kits** are crafted at the workbench from copper and glass. Select the Sprinkler tool (<kbd>6</kbd>), stand at a bed to preview its coverage (the bed plus its orthogonal neighbors glow), and press <kbd>E</kbd> to place. Placed sprinklers water their beds automatically in the server simulation, so covered soil stays moist while you are away (up to 3 per garden).
+
 ---
 
 ## Controls
@@ -71,7 +82,8 @@ Open **http://localhost:5173** in one or more browser windows. When multiple pla
 | <kbd>3</kbd> | Seeds (Cycle active seed) |
 | <kbd>4</kbd> | Watering Can (Equip can & water beds) |
 | <kbd>5</kbd> | Harvest Shears |
-| <kbd>E</kbd> | Contextual interact with nearest bed, stall, or gate |
+| <kbd>6</kbd> | Sprinkler Kit (Place on a bed to auto-water it + neighbors) |
+| <kbd>E</kbd> | Contextual interact with nearest bed, stall, gather node, the Great Mill, or gate |
 | <kbd>I</kbd> | Open Satchel / Inventory |
 | <kbd>M</kbd> | Open Market Exchange Board |
 | <kbd>T</kbd> / **Travel** | Open District Navigator (16 biomes & areas) |
@@ -92,6 +104,7 @@ Each biome features:
 - **Field Notes**: Poetic lore plaques and journals offering quiet environmental storytelling.
 - **Landmark Restoration**: Interactive landmarks that awaken sectors permanently, updating persistent save data (`afterlight-save`) and lighting indicators.
 - **Minimap Schematics**: Custom vector floor plan radar schematics on the local HUD.
+- **Material Caches** (in the Foundry, Trestle, and Glasshouse): server-owned gather nodes that deplete on harvest and regrow on a timer, feeding the Market Court's machine shop.
 
 ### The 16 Districts & Biomes:
 1. **The Rain Court** (`court`): Wet stone and warm windows where the journey began.
@@ -117,7 +130,7 @@ Travel between districts seamlessly via physical east/west gateway conduits or b
 
 ## Architecture & Server Authority
 
-- **Server-Authoritative**: The Node.js server maintains authoritative state for coin balances, inventory quantities, crop maturation, moisture decay, order books, and contract fulfillment.
+- **Server-Authoritative**: The Node.js server maintains authoritative state for coin balances, inventory quantities, gathered materials, gather-node depletion and respawn, the Great Mill's restoration state, sprinkler fixtures, crop maturation, moisture decay, order books, and contract fulfillment. The client only renders server state; items are never granted client-side.
 - **Client Interpolation**: Remote gardeners transmit movement at ~10 Hz and interpolate smoothly without jitter.
 - **Durable Persistence**: Server state is saved atomically to `data/game-state.json` and survives restarts.
 - **Guest Identity**: Players receive an automatic persistent guest UUID and atmospheric nickname (e.g. `MossyRadish42`, `AmberCarrot24`), which can be customized at any time.

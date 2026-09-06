@@ -10,8 +10,10 @@ import { buildGardenWorld } from './world/gardenWorld.js';
 import { districts, buildDistrict, readExploration } from './districts.js';
 import { getBoundsForRoom, isWalkable, clampClickTarget, projectToMinimap } from './world/bounds.js';
 import { UIManager } from './ui/marketModal.js';
+import { ChatPanel } from './ui/chatPanel.js';
 import { MSG_TYPES, ROOMS } from '../shared/protocol.js';
 import { CROPS, CROP_LIST, GROWTH_STAGES } from '../shared/crops.js';
+import { MILL_REQUIREMENT } from '../shared/materials.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -85,6 +87,14 @@ const ui = new UIManager(net, {
       activeSeedIndex = seedKeys.indexOf(seedCropId);
       $('active-seed-label').textContent = CROPS[seedCropId]?.name || seedCropId;
     }
+  },
+});
+
+// Town chat: panel + input. While the input holds focus the game must not
+// react to typing, so focus changes clear any held movement keys.
+const chatPanel = new ChatPanel(net, {
+  onFocusChange: (typing) => {
+    if (typing) keys.clear();
   },
 });
 
@@ -195,6 +205,10 @@ function getOrCreateDistrictWorld(distId) {
 
   scene.add(world.group);
   districtWorlds.set(distId, world);
+  // Apply any gather-node state already received for this district.
+  if (nodeStatesByDistrict.has(distId)) {
+    world.setNodeStates?.(nodeStatesByDistrict.get(distId));
+  }
   return world;
 }
 
@@ -228,6 +242,18 @@ let currentRoomId = ROOMS.MARKET;
 let currentWorld = marketWorld;
 let currentBounds = getBoundsForRoom('market');
 let currentGardenBeds = null;
+
+// Gathering & crafting state mirrored from the server; the client only
+// renders what the server reports and never grants items locally.
+const nodeStatesByDistrict = new Map(); // districtId -> NODE_STATE node array
+let machineState = {
+  mill: {
+    status: 'broken',
+    required: { ...MILL_REQUIREMENT },
+    contributed: { copper: 0, timber: 0, glass: 0 },
+    restoredAt: null,
+  },
+};
 
 function setRoom(roomId) {
   currentRoomId = roomId;
@@ -300,6 +326,9 @@ function setRoom(roomId) {
   target = null;
   marker.visible = false;
   remotePlayers.clear();
+  // Records the desired room on the network client: sent immediately while
+  // connected, and replayed from onopen (including after reconnects) when
+  // the socket is not open yet, as during page load.
   net.joinRoom(roomId);
 }
 
@@ -346,6 +375,7 @@ net.on(MSG_TYPES.PRESENCE_UPDATE, (msg) => {
 
 net.on(MSG_TYPES.GARDEN_STATE, (msg) => {
   currentGardenBeds = msg.beds;
+  gardenWorld.setFixtures?.(msg.fixtures || []);
   gardenWorld.update(0, msg.beds);
 });
 
@@ -354,6 +384,9 @@ net.on(MSG_TYPES.INVENTORY_STATE, (msg) => {
     ui.updatePlayerHUD(msg.player);
     ui.updateInventoryView(msg.player);
     ui.updateMarketView();
+    // Keep the machine shop dialog (contribution buttons, sprinkler craft)
+    // in step with the server-owned inventory.
+    ui.updateMachineShopView();
   }
 });
 
@@ -364,6 +397,26 @@ net.on(MSG_TYPES.MARKET_UPDATE, (msg) => {
 
 net.on(MSG_TYPES.CONTRACT_UPDATE, (msg) => {
   if (msg.contracts) ui.updateContractsView(msg.contracts);
+});
+
+net.on(MSG_TYPES.NODE_STATE, (msg) => {
+  if (!msg.roomId || !Array.isArray(msg.nodes)) return;
+  nodeStatesByDistrict.set(msg.roomId, msg.nodes);
+  districtWorlds.get(msg.roomId)?.setNodeStates?.(msg.nodes);
+});
+
+net.on(MSG_TYPES.MACHINE_UPDATE, (msg) => {
+  if (!msg.machines?.mill) return;
+  const previousStatus = machineState?.mill?.status;
+  machineState = msg.machines;
+  ui.updateMachineShopView(machineState);
+  marketWorld.setMachineState?.(machineState);
+  updateMillPanel();
+  // Celebrate the community restoration with everyone present in the court.
+  if (previousStatus === 'broken' && machineState.mill.status === 'restored') {
+    chime([523, 659, 784, 1046]);
+    toast('The Great Mill Restored', 'The sails turn above the court. Wheat becomes flour for everyone.', 'RESTORATION COMPLETE');
+  }
 });
 
 net.on(MSG_TYPES.TRADE_FILLED, (msg) => {
@@ -379,16 +432,56 @@ net.on(MSG_TYPES.WEATHER_UPDATE, (msg) => {
 net.on(MSG_TYPES.ACTION_RESULT, (msg) => {
   if (msg.success) {
     chime([440, 554]);
-    toast("Garden", msg.message);
+    toast(msg.title || 'Garden', msg.message);
   } else if (msg.message) {
-    toast("Notice", msg.message);
+    toast(msg.title || 'Notice', msg.message);
   }
 });
+
+// --- MILL PROGRESS PANEL (persistent HUD, market court only) ---
+let millPanelRoom = null;
+function updateMillPanel() {
+  const panel = $('mill-panel');
+  if (!panel) return;
+  const inCourt = currentRoomId === ROOMS.MARKET;
+  panel.style.display = inCourt ? 'block' : 'none';
+  millPanelRoom = currentRoomId;
+  if (!inCourt) return;
+
+  const mill = machineState?.mill;
+  const statusTag = $('mill-status-tag');
+  const lines = $('mill-progress-lines');
+  if (!mill) return;
+
+  if (mill.status === 'restored') {
+    statusTag.textContent = 'RESTORED';
+    statusTag.className = 'mill-tag restored';
+    lines.innerHTML = '<div class="mill-line">✦ The sails are turning. It grinds wheat into flour for everyone.</div>';
+    return;
+  }
+
+  statusTag.textContent = 'BROKEN';
+  statusTag.className = 'mill-tag broken';
+  let totalDone = 0, totalNeed = 0;
+  let html = '';
+  for (const [materialId, need] of Object.entries(mill.required || {})) {
+    const done = Math.min(mill.contributed?.[materialId] || 0, need);
+    totalDone += done;
+    totalNeed += need;
+    html += `<div class="mill-line"><span>${materialId}</span><b>${done}/${need}</b></div>`;
+  }
+  html = `<div class="mill-line mill-total"><span>restoration</span><b>${totalDone}/${totalNeed}</b></div>` + html;
+  lines.innerHTML = html;
+}
 
 net.on(MSG_TYPES.EMOTE_BROADCAST, (msg) => {
   toast("Emote", `${msg.nickname} waves warmly! 👋`);
   chime([659, 880]);
 });
+
+// Town chat packets; the ChatPanel registered its own handlers at setup and
+// flips to online again on WELCOME (e.g. after a reconnect).
+net.on(MSG_TYPES.WELCOME, () => chatPanel.setConnected(true));
 
 function updateWeatherDisplay(weather) {
   const icon = weather === 'rain' ? '☔' : weather === 'drizzle' ? '☂' : '☼';
@@ -453,6 +546,7 @@ function setTool(toolName) {
     seed: `Tool: Seeds (${CROPS[seedKeys[activeSeedIndex]].name}) · Plant in tilled beds`,
     water: 'Tool: Watering Can · Replenish soil moisture',
     harvest: 'Tool: Harvest Shears · Collect mature produce',
+    sprinkler: 'Tool: Sprinkler Kit · Press E on a bed to place (waters it + neighbors)',
   };
   $('hud-tool-hint').textContent = toolHints[toolName] || toolName;
 }
@@ -531,6 +625,35 @@ function interact() {
     return;
   }
 
+  // Material gather nodes (server-validated harvest; the client never grants)
+  if (nearest.type === 'material_node') {
+    net.send(MSG_TYPES.NODE_HARVEST, {
+      actionId: `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      nodeId: nearest.nodeId,
+    });
+    return;
+  }
+
+  // The Great Mill: restored mills grind wheat on E; broken mills open the
+  // machine shop so nearby materials can be contributed.
+  if (nearest.type === 'mill') {
+    if (machineState?.mill?.status === 'restored') {
+      net.send(MSG_TYPES.MACHINE_MILL, {
+        actionId: `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        quantity: 1,
+      });
+    } else {
+      ui.openMachineShop();
+    }
+    return;
+  }
+
+  // Machine shop workbench: contributions & sprinkler crafting
+  if (nearest.type === 'machine_bench') {
+    ui.openMachineShop();
+    return;
+  }
+
   // Garden Bed Interaction
   if (nearest.type === 'bed') {
     const bedIndex = nearest.bedIndex;
@@ -551,6 +674,10 @@ function interact() {
     }
     if (activeTool === 'harvest') {
       net.sendGardenAction('harvest', bedIndex);
+      return;
+    }
+    if (activeTool === 'sprinkler') {
+      net.sendGardenAction('place_sprinkler', bedIndex);
       return;
     }
 
@@ -682,8 +809,15 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
-  if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].includes(e.code)) {
-    const map = { Digit1: 'hands', Digit2: 'hoe', Digit3: 'seed', Digit4: 'water', Digit5: 'harvest' };
+  // Enter (or /) opens the town chat input — unless a dialog is up.
+  if ((e.code === 'Enter' || e.code === 'Slash') && !document.querySelector('dialog[open]')) {
+    e.preventDefault();
+    chatPanel.focusInput(e.code === 'Slash' ? '/' : '');
+    return;
+  }
+
+  if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6'].includes(e.code)) {
+    const map = { Digit1: 'hands', Digit2: 'hoe', Digit3: 'seed', Digit4: 'water', Digit5: 'harvest', Digit6: 'sprinkler' };
     setTool(map[e.code]);
     return;
   }
@@ -863,6 +997,16 @@ function frame(now) {
         $('action-sub').textContent = currentRoomId === ROOMS.MARKET ? "Explore stalls or travel to outer districts" : "Approach beds to till, plant, water, and harvest";
       }
       $('interact').style.borderColor = '#9faa9240';
+    }
+
+    // Sprinkler coverage preview while aiming at a bed with tool 6
+    currentWorld.previewCoverage?.(
+      activeTool === 'sprinkler' && nearest?.type === 'bed' ? nearest.bedIndex : null
+    );
+
+    // Refresh the mill panel when the room changed (machine updates refresh it directly)
+    if (currentRoomId !== millPanelRoom) {
+      updateMillPanel();
     }
 
     // Update Minimap

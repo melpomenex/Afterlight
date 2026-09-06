@@ -4,6 +4,10 @@ import path from 'node:path';
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'game-state.json');
 
+function isPlainObject(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
 export class Storage {
   constructor(filePath = DATA_FILE) {
     this.filePath = filePath;
@@ -27,6 +31,10 @@ export class Storage {
             orders: parsed.orders || [],
             trades: parsed.trades || [],
             marketMultipliers: parsed.marketMultipliers || {},
+            // Additive fields (crafting/gathering loop); default on read so
+            // pre-existing state files load unchanged.
+            nodes: isPlainObject(parsed.nodes) ? parsed.nodes : {},
+            machines: isPlainObject(parsed.machines) ? parsed.machines : {},
           };
         }
       }
@@ -40,6 +48,8 @@ export class Storage {
       orders: [],
       trades: [],
       marketMultipliers: {},
+      nodes: {},
+      machines: {},
     };
   }
 
@@ -56,12 +66,33 @@ export class Storage {
     }
   }
 
+  /**
+   * Additive player defaults, applied on every read: gathered materials and
+   * crafted-but-unplaced sprinkler kits. Old players without these fields
+   * load cleanly; corrupt fields are repaired to safe values.
+   */
+  normalizePlayer(player) {
+    if (!player) return player;
+    if (!isPlainObject(player.materials)) player.materials = {};
+    for (const key of Object.keys(player.materials)) {
+      const count = Number(player.materials[key]);
+      if (!Number.isFinite(count) || count <= 0) delete player.materials[key];
+      else player.materials[key] = Math.floor(count);
+    }
+    if (!isPlainObject(player.inventory)) player.inventory = {};
+    const sprinklers = Number(player.inventory.sprinklers);
+    player.inventory.sprinklers = Number.isFinite(sprinklers) && sprinklers > 0 ? Math.floor(sprinklers) : 0;
+    return player;
+  }
+
   getPlayer(id) {
-    return this.state.players[id] || null;
+    const player = this.state.players[id] || null;
+    return player ? this.normalizePlayer(player) : null;
   }
 
   savePlayer(player) {
     if (!player || !player.id) return;
+    this.normalizePlayer(player);
     this.state.players[player.id] = player;
     this.save();
   }

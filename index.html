@@ -40,6 +40,11 @@
     <div class="micro map-bottom" id="map-label">• MARKET COURT <span>01</span></div>
   </aside>
 
+  <aside class="mill-panel panel" id="mill-panel">
+    <div class="micro">⚒ THE GREAT MILL <span id="mill-status-tag" class="mill-tag broken">BROKEN</span></div>
+    <div id="mill-progress-lines" class="mill-lines"></div>
+  </aside>
+
   <div id="toast" class="panel toast">
     <span class="toast-icon">♧</span>
     <div>
@@ -73,6 +78,23 @@
     <span>→</span>
   </button>
 
+  <section class="chat-panel panel" id="chat-panel">
+    <button id="chat-toggle" class="chat-toggle" aria-expanded="true" aria-controls="chat-log">
+      <span class="micro">TOWN CHANNEL <span class="chat-channel">#afterlight</span></span>
+      <span class="chat-toggle-right">
+        <span id="chat-unread" class="chat-unread" hidden aria-label="unread messages"></span>
+        <span class="chat-chevron" aria-hidden="true">▾</span>
+      </span>
+    </button>
+    <div id="chat-log" class="chat-log" role="log" aria-label="Town channel messages" aria-live="polite"></div>
+    <form id="chat-form" class="chat-form">
+      <label class="visually-hidden" for="chat-input">Message the town channel</label>
+      <input id="chat-input" type="text" maxlength="600" autocomplete="off" spellcheck="false"
+             placeholder="Say hello… (Enter to chat, Esc to release)" disabled>
+      <button type="submit" id="chat-send" class="chat-send" aria-label="Send message" disabled>➤</button>
+    </form>
+  </section>
+
   <footer>
     <div class="tool-belt" id="tool-belt">
       <button class="tool-btn active" data-tool="hands"><kbd>1</kbd> Hands</button>
@@ -80,6 +102,7 @@
       <button class="tool-btn" data-tool="seed"><kbd>3</kbd> Seeds: <b id="active-seed-label">Radish</b></button>
       <button class="tool-btn" data-tool="water"><kbd>4</kbd> Water Can</button>
       <button class="tool-btn" data-tool="harvest"><kbd>5</kbd> Harvest</button>
+      <button class="tool-btn" data-tool="sprinkler"><kbd>6</kbd> Sprinkler</button>
     </div>
 
     <div class="actions">
@@ -97,11 +120,12 @@
     <div class="micro">SETTINGS & HELP</div>
     <h2>Market Gardener's Journal</h2>
     <p>
-      • <b>1–5</b>: Select tools (Hands, Hoe, Seeds, Water Can, Harvest)<br>
+      • <b>1–6</b>: Select tools (Hands, Hoe, Seeds, Water Can, Harvest, Sprinkler)<br>
       • <b>WASD / Click</b>: Move gardener<br>
-      • <b>E</b>: Interact with beds, market stalls, and gateways<br>
-      • <b>I</b>: Satchel & harvests &nbsp;|&nbsp; <b>M</b>: Market Exchange<br>
-      • <b>V</b>: Wave emote to nearby players
+      • <b>E</b>: Interact with beds, stalls, gather nodes, the Great Mill, and gateways<br>
+      • <b>I</b>: Satchel & materials &nbsp;|&nbsp; <b>M</b>: Market Exchange<br>
+      • <b>V</b>: Wave emote to nearby players<br>
+      • <b>Enter</b>: Town chat — <b>/msg name text</b> whispers, <b>/me</b> acts, <b>Esc</b> returns to the garden
     </p>
     <label>Atmosphere <input id="atmosphere" type="checkbox" checked> Drifting mist & rain</label>
     <label>Render quality 

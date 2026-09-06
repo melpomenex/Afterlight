@@ -187,6 +187,95 @@ export function buildMarketWorld() {
     sub: 'Press E to venture into the ancient city biomes',
   });
 
+  // --- THE GREAT MILL & MACHINE SHOP (southeast, against the south wall) ---
+  // The mill is the court's machine-shop landmark: broken until the community
+  // restores it, then it grinds wheat into flour for everyone. It changes
+  // visual state at runtime, so it lives under a dynamic subgroup that the
+  // static instanced batch below never touches (AGENTS.md §7).
+  const millDynamic = new THREE.Group();
+  millDynamic.name = 'dynamic';
+  group.add(millDynamic);
+  const millState = { restored: false };
+
+  const millX = 3, millZ = 7.6;
+  // Round stone tower base (always present)
+  box(millX, 1.6, millZ, 2.6, 3.2, 2.6, mat('#5a5f58', 0.75, 0.12), millDynamic);
+  box(millX, 3.3, millZ, 2.9, 0.28, 2.9, mat('#6d7268'), millDynamic);
+  box(millX, 0.35, millZ, 3.0, 0.7, 3.0, mat('#454a44'), millDynamic);
+  block(millX, millZ, 2.6, 2.6);
+  // Mill doorway facing the court
+  box(millX, 0.75, millZ - 1.32, 0.9, 1.5, 0.12, mat('#2c2620'), millDynamic);
+  const millDoorGlow = glow(millX, 1.0, millZ - 1.36, 0.7, 1.0, 0.05, '#e0a865', 0.4);
+  millDynamic.add(millDoorGlow);
+
+  // Broken state: shattered cap and a collapsed sail arm
+  const brokenGroup = new THREE.Group();
+  millDynamic.add(brokenGroup);
+  const brokenCap = box(millX, 3.8, millZ, 2.2, 0.5, 2.2, mat('#4a3b2b'), brokenGroup);
+  brokenCap.rotation.z = 0.28;
+  const fallenArm = box(millX - 1.9, 0.5, millZ - 1.7, 2.4, 0.16, 0.22, mat('#6b5845'), brokenGroup);
+  fallenArm.rotation.z = 0.1;
+  // Leaning millstone awaiting reassembly
+  const leanStone = box(millX + 1.75, 0.55, millZ - 1.5, 1.0, 1.0, 0.35, mat('#7d827a'), brokenGroup);
+  leanStone.rotation.z = 0.35;
+
+  // Restored state: proper cap, four sails on a hub, warm working glow
+  const restoredGroup = new THREE.Group();
+  millDynamic.add(restoredGroup);
+  box(millX, 3.85, millZ, 2.5, 0.55, 2.5, mat('#63513a'), restoredGroup);
+  box(millX, 4.25, millZ, 1.4, 0.35, 1.4, mat('#54452f'), restoredGroup);
+  const hub = new THREE.Group();
+  hub.position.set(millX, 3.6, millZ - 1.42);
+  restoredGroup.add(hub);
+  box(millX, 3.6, millZ - 1.35, 0.5, 0.5, 0.4, mat('#8a744f'), hub);
+  for (let i = 0; i < 4; i++) {
+    const sail = box(0, 0, 0, 2.3, 0.5, 0.08, mat('#a08a5f', 0.7), hub);
+    sail.position.set(Math.cos(i * Math.PI / 2) * 1.35, Math.sin(i * Math.PI / 2) * 1.35, -0.18);
+    sail.rotation.z = i * Math.PI / 2;
+  }
+  const millLantern = glow(millX + 1.0, 1.9, millZ - 1.36, 0.2, 0.3, 0.08, '#ffcb79', 1.4);
+  restoredGroup.add(millLantern);
+  const workGlow = glow(millX, 1.05, millZ - 1.38, 0.8, 0.5, 0.05, '#f0b060', 0.8);
+  restoredGroup.add(workGlow);
+
+  items.push({
+    type: 'mill',
+    x: millX,
+    z: 5.6,
+    title: 'The Great Mill (broken)',
+    sub: 'Press E to help restore it with materials',
+  });
+
+  // Machine shop workbench beside the mill: contributions & tool crafting
+  const benchX = 5.8, benchZ = 7.4;
+  box(benchX, 0.55, benchZ, 1.5, 0.9, 1.1, mat('#4a3b2b'), millDynamic);
+  box(benchX, 1.05, benchZ, 1.6, 0.12, 1.2, mat('#5f4d36'), millDynamic);
+  block(benchX, benchZ, 1.5, 1.1);
+  box(benchX - 0.35, 1.25, benchZ, 0.5, 0.3, 0.5, mat('#7d827a'), millDynamic);
+  box(benchX + 0.4, 1.22, benchZ - 0.15, 0.3, 0.24, 0.3, mat('#c07840'), millDynamic);
+  items.push({
+    type: 'machine_bench',
+    x: benchX,
+    z: 6.2,
+    title: 'Machine Shop Workbench',
+    sub: 'Press E to contribute materials & craft garden tools',
+  });
+
+  function setMachineState(machines) {
+    const restored = machines?.mill?.status === 'restored';
+    millState.restored = restored;
+    brokenGroup.visible = !restored;
+    restoredGroup.visible = restored;
+    const millItem = items.find(item => item.type === 'mill');
+    if (millItem) {
+      millItem.title = restored ? 'The Great Mill' : 'The Great Mill (broken)';
+      millItem.sub = restored
+        ? 'Press E to mill wheat into flour'
+        : 'Press E to help restore it with materials';
+    }
+  }
+  setMachineState(null);
+
   // Batch static geometry
   const statics = group.children.filter(o => o.isMesh && o.geometry === boxGeo && !o.material.transparent && o.material.emissive?.getHex() === 0);
   const batch = new THREE.InstancedMesh(boxGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.62, metalness: 0.2 }), statics.length);
@@ -202,7 +291,10 @@ export function buildMarketWorld() {
 
   function update(time) {
     animated.forEach(fn => fn(time));
+    if (millState.restored) {
+      hub.rotation.z = time * 0.55;
+    }
   }
 
-  return { group, obstacles, items, update };
+  return { group, obstacles, items, update, setMachineState };
 }

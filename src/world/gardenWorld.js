@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { renderCropVisual } from '../render/plants.js';
 import { GROWTH_STAGES } from '../../shared/crops.js';
+import { sprinklerCoverage } from '../../shared/gardenModel.js';
+import { SPRINKLER } from '../../shared/materials.js';
 
 const boxGeo = new THREE.BoxGeometry(1, 1, 1);
 const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 8);
@@ -194,6 +196,77 @@ export function buildGardenWorld() {
   group.add(tub);
   lamp(washX - 0.8, 2.4, washZ);
 
+  // --- SPRINKLER FIXTURES & COVERAGE PREVIEW ---
+  // Placed sprinklers are server state (garden fixtures); the client only
+  // renders them. Coverage rings are five pre-created meshes, shown/hidden
+  // in place while aiming — no per-frame allocation.
+  const coverageRings = [];
+  const ringGeo = new THREE.RingGeometry(0.62, 0.72, 24);
+  for (let i = 0; i < 5; i++) {
+    const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({
+      color: '#7fd0e8', side: THREE.DoubleSide, transparent: true, opacity: 0.55,
+    }));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.3;
+    ring.visible = false;
+    group.add(ring);
+    coverageRings.push(ring);
+  }
+
+  function previewCoverage(bedIndex) {
+    const indices = Number.isInteger(bedIndex) && bedIndex >= 0
+      ? sprinklerCoverage(bedIndex).filter(idx => bedVisuals[idx])
+      : [];
+    coverageRings.forEach((ring, i) => {
+      const idx = indices[i];
+      if (idx === undefined) {
+        ring.visible = false;
+        return;
+      }
+      const visual = bedVisuals[idx];
+      ring.position.set(visual.x, 0.3, visual.z);
+      ring.visible = true;
+    });
+  }
+
+  function setFixtures(fixtures) {
+    const placed = new Map((fixtures || []).map(f => [f.bedIndex, f]));
+    for (const visual of bedVisuals) {
+      const fixture = placed.get(visual.bedIndex);
+      if (fixture && !visual.fixtureGroup) {
+        const fixtureGroup = new THREE.Group();
+        fixtureGroup.position.set(visual.x, 0.42, visual.z);
+        const stand = new THREE.Mesh(boxGeo, mat('#8a6844', 0.6, 0.3));
+        stand.scale.set(0.1, 0.55, 0.1);
+        stand.position.y = 0.27;
+        stand.castShadow = true;
+        fixtureGroup.add(stand);
+        const armMat = mat('#b0784a', 0.5, 0.5);
+        for (const [ax, az] of [[0.24, 0], [-0.24, 0], [0, 0.24], [0, -0.24]]) {
+          const arm = new THREE.Mesh(boxGeo, armMat);
+          arm.scale.set(0.34, 0.07, 0.07);
+          arm.position.set(ax * 0.9, 0.52, az * 0.9);
+          arm.rotation.y = az !== 0 ? Math.PI / 2 : 0;
+          fixtureGroup.add(arm);
+        }
+        const globe = new THREE.Mesh(boxGeo, new THREE.MeshStandardMaterial({
+          color: '#aedff2', emissive: '#7fd0e8', emissiveIntensity: 0.9,
+          transparent: true, opacity: 0.85, roughness: 0.2, metalness: 0.1,
+        }));
+        globe.scale.setScalar(0.16);
+        globe.position.y = 0.62;
+        fixtureGroup.add(globe);
+        visual.fixtureGroup = fixtureGroup;
+        visual.fixtureGlobe = globe;
+        group.add(fixtureGroup);
+      } else if (!fixture && visual.fixtureGroup) {
+        group.remove(visual.fixtureGroup);
+        visual.fixtureGroup = null;
+        visual.fixtureGlobe = null;
+      }
+    }
+  }
+
   // Batch static scenery
   const statics = group.children.filter(o => o.isMesh && o.geometry === boxGeo && !o.material.transparent && !o.material.emissive?.getHex());
   const batch = new THREE.InstancedMesh(boxGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.65, metalness: 0.15 }), statics.length);
@@ -213,6 +286,12 @@ export function buildGardenWorld() {
     for (const visual of bedVisuals) {
       const bed = bedsData[visual.bedIndex];
       if (!bed) continue;
+
+      // Idle sprinkle animation on placed fixtures
+      if (visual.fixtureGlobe) {
+        visual.fixtureGlobe.rotation.y = time * 1.2 + visual.bedIndex;
+        visual.fixtureGlobe.position.y = 0.62 + Math.sin(time * 3 + visual.bedIndex) * 0.03;
+      }
 
       // 1. Update soil color based on preparation & moisture
       const soilMat = visual.soilMesh.material;
@@ -235,5 +314,5 @@ export function buildGardenWorld() {
     }
   }
 
-  return { group, obstacles, items, bedVisuals, update };
+  return { group, obstacles, items, bedVisuals, update, setFixtures, previewCoverage };
 }
