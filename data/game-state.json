@@ -20,7 +20,7 @@
         "sprinklers": 0
       },
       "currentRoom": "market",
-      "lastSeen": 1788695035756,
+      "lastSeen": 1788699027199,
       "materials": {
         "copper": 2
       }
@@ -128,7 +128,7 @@
         "sprinklers": 1
       },
       "currentRoom": "market",
-      "lastSeen": 1788695056862,
+      "lastSeen": 1788699183925,
       "materials": {}
     },
     "guest_c1tlwqkzd_mtpnblwp": {
@@ -150,7 +150,51 @@
         "sprinklers": 0
       },
       "currentRoom": "market",
-      "lastSeen": 1788695008006,
+      "lastSeen": 1788696627288,
+      "materials": {}
+    },
+    "guest_probe_xy": {
+      "id": "guest_probe_xy",
+      "nickname": "ProbeBot",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788695693047,
+      "materials": {}
+    },
+    "guest_probe_iso": {
+      "id": "guest_probe_iso",
+      "nickname": "IsoProbe",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788695800160,
       "materials": {}
     }
   },
@@ -163,7 +207,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0,
+          "moisture": 1,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -176,7 +220,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0,
+          "moisture": 1,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -189,7 +233,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0,
+          "moisture": 1,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -202,7 +246,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0,
+          "moisture": 1,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -215,7 +259,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0,
+          "moisture": 1,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -228,7 +272,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0,
+          "moisture": 1,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -241,7 +285,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0,
+          "moisture": 1,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -254,7 +298,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0,
+          "moisture": 1,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -267,7 +311,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0,
+          "moisture": 1,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -280,7 +324,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0,
+          "moisture": 1,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -293,7 +337,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0,
+          "moisture": 1,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -306,7 +350,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0,
+          "moisture": 1,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
