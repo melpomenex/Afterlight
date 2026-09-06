@@ -1,0 +1,136 @@
+{
+  "env": {
+    "node": "v22.22.1",
+    "exposedGc": true,
+    "cpus": 24,
+    "date": "2026-09-06T23:30:01.326Z"
+  },
+  "fraction": 0.1,
+  "rows": [
+    {
+      "n": 200,
+      "changed": 20,
+      "sorted": {
+        "bytes": 548,
+        "encodeUs": 0.0304,
+        "decodeUs": 0.0009,
+        "allocBytes": -6456
+      },
+      "varint": {
+        "bytes": 430,
+        "encodeUs": 0.0358,
+        "decodeUs": 0.0009,
+        "allocBytes": -144
+      },
+      "roaring": {
+        "bytes": 500,
+        "encodeUs": 0.0367,
+        "decodeUs": 0.0009,
+        "allocBytes": -320
+      },
+      "varintVsSortedBytes": 0.785,
+      "varintVsSortedDecode": 1,
+      "roaringVsVarintBytes": 1.163
+    },
+    {
+      "n": 1000,
+      "changed": 100,
+      "sorted": {
+        "bytes": 2548,
+        "encodeUs": 0.1004,
+        "decodeUs": 0.0009,
+        "allocBytes": -432
+      },
+      "varint": {
+        "bytes": 1960,
+        "encodeUs": 0.1132,
+        "decodeUs": 0.0008,
+        "allocBytes": 288
+      },
+      "roaring": {
+        "bytes": 2180,
+        "encodeUs": 0.1003,
+        "decodeUs": 0.0015,
+        "allocBytes": 360
+      },
+      "varintVsSortedBytes": 0.769,
+      "varintVsSortedDecode": 1.13,
+      "roaringVsVarintBytes": 1.112
+    },
+    {
+      "n": 5000,
+      "changed": 500,
+      "sorted": {
+        "bytes": 12548,
+        "encodeUs": 0.4897,
+        "decodeUs": 0.0009,
+        "allocBytes": -440
+      },
+      "varint": {
+        "bytes": 9576,
+        "encodeUs": 0.5092,
+        "decodeUs": 0.0009,
+        "allocBytes": -8
+      },
+      "roaring": {
+        "bytes": 10580,
+        "encodeUs": 0.5431,
+        "decodeUs": 0.0009,
+        "allocBytes": 744
+      },
+      "varintVsSortedBytes": 0.763,
+      "varintVsSortedDecode": 1,
+      "roaringVsVarintBytes": 1.105
+    },
+    {
+      "n": 10000,
+      "changed": 1000,
+      "sorted": {
+        "bytes": 25048,
+        "encodeUs": 1.1121,
+        "decodeUs": 0.0008,
+        "allocBytes": -456
+      },
+      "varint": {
+        "bytes": 19084,
+        "encodeUs": 1.1447,
+        "decodeUs": 0.0009,
+        "allocBytes": -8
+      },
+      "roaring": {
+        "bytes": 21080,
+        "encodeUs": 1.1317,
+        "decodeUs": 0.0008,
+        "allocBytes": -160
+      },
+      "varintVsSortedBytes": 0.762,
+      "varintVsSortedDecode": 0.89,
+      "roaringVsVarintBytes": 1.105
+    },
+    {
+      "n": 50000,
+      "changed": 5000,
+      "sorted": {
+        "bytes": 125048,
+        "encodeUs": 7.1761,
+        "decodeUs": 0.0009,
+        "allocBytes": -400
+      },
+      "varint": {
+        "bytes": 95296,
+        "encodeUs": 7.4817,
+        "decodeUs": 0.0008,
+        "allocBytes": -176
+      },
+      "roaring": {
+        "bytes": 105112,
+        "encodeUs": 6.8404,
+        "decodeUs": 0.0008,
+        "allocBytes": -216
+      },
+      "varintVsSortedBytes": 0.762,
+      "varintVsSortedDecode": 1.13,
+      "roaringVsVarintBytes": 1.103
+    }
+  ]
+}

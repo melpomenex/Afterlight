@@ -7,6 +7,55 @@ import {
 } from './constants.js';
 import { serializeRoaring, deserializeRoaring } from './roaring.js';
 
+// ---- varint ids (DELTA_VARINT, v1) ----------------------------------------
+// Delta + LEB128 over strictly ascending ids: first id absolute, then gaps.
+// Max 5 bytes per id (u32). Wins frame bytes vs SORTED_IDS (~3 B/row) and vs
+// ROARING in the mid regime (measured: results/varint.*) at the cost of a
+// byte-wise decode — still microseconds at 10 Hz tick scale.
+
+export function encodeVarintIds(sortedIds) {
+  const out = new Uint8Array(sortedIds.length * 5);
+  let o = 0;
+  let prev = 0;
+  for (let i = 0; i < sortedIds.length; i++) {
+    let d = (sortedIds[i] - prev) >>> 0;
+    prev = sortedIds[i];
+    for (;;) {
+      if (d < 0x80) {
+        out[o++] = d;
+        break;
+      }
+      out[o++] = (d & 0x7f) | 0x80;
+      d >>>= 7;
+    }
+  }
+  return out.subarray(0, o);
+}
+
+export function decodeVarintIds(bytes, count) {
+  const ids = new Uint32Array(count);
+  let p = 0;
+  let prev = 0;
+  for (let i = 0; i < count; i++) {
+    let d = 0;
+    let shift = 0;
+    for (;;) {
+      if (p >= bytes.length) return { ok: false, reason: 'varint_truncated' };
+      const b = bytes[p++];
+      d += (b & 0x7f) * 2 ** shift; // Number math: 5-byte u32 deltas exceed 31-bit shifts
+      if ((b & 0x80) === 0) break;
+      shift += 7;
+      if (shift > 28) return { ok: false, reason: 'varint_overlong' };
+    }
+    prev = (prev + d) >>> 0;
+    ids[i] = prev;
+  }
+  for (let i = 1; i < count; i++) {
+    if (ids[i] <= ids[i - 1]) return { ok: false, reason: 'varint_unsorted' };
+  }
+  return { ok: true, ids, consumed: p };
+}
+
 // ---- writers ---------------------------------------------------------------
 
 // columns: {name: TypedArray|number[]} aligned to ids (or to dense rows).
@@ -65,6 +114,14 @@ function maskSize(encoding, ids, rows, maxId) {
     const buf = new Uint8Array(len);
     for (let i = 0; i < rows; i++) buf[ids[i] >> 3] |= 1 << (ids[i] & 7);
     return { len, write(out) { out.set(buf, 12); } };
+  }
+  if (encoding === ENCODING.DELTA_VARINT) {
+    if (!ids || ids.length < rows) return { ok: false, reason: 'ids_missing' };
+    const ser = encodeVarintIds(ids);
+    return {
+      len: ser.length,
+      write(out) { out.set(ser, 12); },
+    };
   }
   return { ok: false, reason: 'unsupported_write_encoding' };
 }
@@ -147,6 +204,11 @@ export function readSectionColumns(bytes, sec) {
     const r = deserializeRoaring(bytes.subarray(off, off + maskLen));
     if (!r.ok) return r;
     if (r.ids.length !== sec.count) return { ok: false, reason: 'roaring_count_mismatch' };
+    ids = r.ids;
+    off += maskLen;
+  } else if (sec.encoding === ENCODING.DELTA_VARINT) {
+    const r = decodeVarintIds(bytes.subarray(off, off + maskLen), sec.count);
+    if (!r.ok) return r;
     ids = r.ids;
     off += maskLen;
   } else if (sec.encoding === ENCODING.BITSET) {

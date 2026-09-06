@@ -156,7 +156,9 @@ export function deserializeRoaring(bytes) {
       if (card <= ARRAY_MAX) {
         for (let i = 0; i < card; i++) push(base + view.getUint16(dOff + i * 2, true));
       } else {
-        for (let w = 0; w < 1024; w++) {
+        // A bitmap container is 8 KiB = 2048 u32 words = 65536 bits; reading
+        // fewer silently drops ids ≥ 32768 in the container.
+        for (let w = 0; w < 2048; w++) {
           const word = view.getUint32(dOff + w * 4, true);
           if (word) for (let b = 0; b < 32; b++) if (word & (1 << b)) push(base + w * 32 + b);
         }

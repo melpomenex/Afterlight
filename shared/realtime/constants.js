@@ -35,6 +35,9 @@ export const ENCODING = {
   ROARING: 2,
   BITSET: 3,
   ARROW_RECORD_BATCH: 4,
+  // v1 candidate, promoted after the mask study measured it winning frame
+  // bytes in the sparse/mid regimes (results/varint.*): delta + LEB128.
+  DELTA_VARINT: 5,
 };
 
 // Component field layouts (contract §2). Order matters: columns are written

@@ -4,7 +4,7 @@
 
 import { readHeader, readSections } from './frame.js';
 import {
-  readSectionColumns, readSpawnSection, readStringTable,
+  readSectionColumns, readSpawnSection, readStringTable, decodeVarintIds,
 } from './encoders.js';
 import { deserializeRoaring } from './roaring.js';
 import { FRAME_TYPE, SECTION, ENCODING } from './constants.js';
@@ -179,6 +179,12 @@ function maskIds(bytes, sec) {
     const r = deserializeRoaring(bytes.subarray(sec.payloadOffset, sec.payloadOffset + sec.payloadLen));
     if (!r.ok) return r;
     if (r.ids.length !== sec.count) return { ok: false, reason: 'roaring_count_mismatch' };
+    return { ok: true, ids: r.ids };
+  }
+  if (sec.encoding === ENCODING.DELTA_VARINT) {
+    const r = decodeVarintIds(bytes.subarray(sec.payloadOffset, sec.payloadOffset + sec.payloadLen), sec.count);
+    if (!r.ok) return r;
+    if (r.ids.length !== sec.count) return { ok: false, reason: 'varint_count_mismatch' };
     return { ok: true, ids: r.ids };
   }
   return { ok: false, reason: 'unsupported_despawn_encoding' };

@@ -173,7 +173,7 @@ setInterval(() => {
         }
       }
     } else {
-      const enc = shape.transformEncoding === 'ROARING' ? ENCODING.ROARING : ENCODING.SORTED_IDS;
+      const enc = { SORTED_IDS: ENCODING.SORTED_IDS, ROARING: ENCODING.ROARING, DELTA_VARINT: ENCODING.DELTA_VARINT }[shape.transformEncoding] ?? ENCODING.SORTED_IDS;
       const f = writeFrame({
         frameType: FRAME_TYPE.DELTA, roomEpoch: 1, serverTick: tick,
         frameSequence, baselineSequence: frameSequence - 1,
