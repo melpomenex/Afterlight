@@ -20,7 +20,7 @@
         "sprinklers": 0
       },
       "currentRoom": "market",
-      "lastSeen": 1788690921317,
+      "lastSeen": 1788695035756,
       "materials": {
         "copper": 2
       }
@@ -104,7 +104,7 @@
         "sprinklers": 0
       },
       "currentRoom": "market",
-      "lastSeen": 1788690924066,
+      "lastSeen": 1788695008003,
       "materials": {}
     },
     "guest_do7zmx77d_mtpn6yfp": {
@@ -128,7 +128,7 @@
         "sprinklers": 1
       },
       "currentRoom": "market",
-      "lastSeen": 1788691492030,
+      "lastSeen": 1788695056862,
       "materials": {}
     },
     "guest_c1tlwqkzd_mtpnblwp": {
@@ -150,7 +150,7 @@
         "sprinklers": 0
       },
       "currentRoom": "market",
-      "lastSeen": 1788691463372,
+      "lastSeen": 1788695008006,
       "materials": {}
     }
   },
@@ -163,7 +163,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0.8149999999999998,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -176,7 +176,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0.8149999999999998,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -189,7 +189,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0.8149999999999998,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -202,7 +202,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0.8149999999999998,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -215,7 +215,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0.8149999999999998,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -228,7 +228,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0.8149999999999998,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -241,7 +241,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0.8149999999999998,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -254,7 +254,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0.8149999999999998,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -267,7 +267,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0.8149999999999998,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -280,7 +280,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0.8149999999999998,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -293,7 +293,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0.8149999999999998,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -306,7 +306,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 0.8149999999999998,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -345,5 +345,9 @@
       },
       "restoredAt": 1788690743903
     }
+  },
+  "theater": {
+    "now": null,
+    "queue": []
   }
 }
