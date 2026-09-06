@@ -226,6 +226,7 @@ export class RemotePlayersManager {
         targetZ: data.z ?? 0,
         targetRotY: data.rotY ?? 0,
         walking: !!data.walking,
+        sitting: !!data.sitting,
       };
       this.players.set(data.id, entry);
     } else {
@@ -233,6 +234,7 @@ export class RemotePlayersManager {
       entry.targetZ = data.z;
       entry.targetRotY = data.rotY;
       entry.walking = !!data.walking;
+      entry.sitting = !!data.sitting;
       if (data.nickname && data.nickname !== entry.avatar.userData.nickname) {
         entry.avatar.userData.updateNickname(data.nickname);
       }
@@ -257,7 +259,7 @@ export class RemotePlayersManager {
   update(dt, time) {
     const lerpRate = Math.min(1.0, dt * 12);
     for (const entry of this.players.values()) {
-      const { avatar, targetX, targetZ, targetRotY, walking } = entry;
+      const { avatar, targetX, targetZ, targetRotY, walking, sitting } = entry;
       // Interpolate position
       avatar.position.x += (targetX - avatar.position.x) * lerpRate;
       avatar.position.z += (targetZ - avatar.position.z) * lerpRate;
@@ -268,8 +270,13 @@ export class RemotePlayersManager {
       while (diff > Math.PI) diff -= Math.PI * 2;
       avatar.rotation.y += diff * lerpRate;
 
-      // Animate walking
-      if (walking) {
+      // Animate pose: seated players fold their legs and stay put.
+      if (sitting) {
+        avatar.position.y = 0;
+        avatar.userData.legs.forEach(leg => {
+          leg.rotation.x = -1.35;
+        });
+      } else if (walking) {
         avatar.position.y = Math.sin(time * 12) * 0.025;
         avatar.userData.legs.forEach((leg, i) => {
           leg.rotation.x = Math.sin(time * 12 + i * Math.PI) * 0.45;

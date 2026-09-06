@@ -11,6 +11,7 @@ import { districts, buildDistrict, readExploration } from './districts.js';
 import { getBoundsForRoom, isWalkable, clampClickTarget, projectToMinimap } from './world/bounds.js';
 import { UIManager } from './ui/marketModal.js';
 import { ChatPanel } from './ui/chatPanel.js';
+import { TheaterScreenUI } from './ui/theaterScreen.js';
 import { MSG_TYPES, ROOMS } from '../shared/protocol.js';
 import { CROPS, CROP_LIST, GROWTH_STAGES } from '../shared/crops.js';
 import { MILL_REQUIREMENT } from '../shared/materials.js';
@@ -98,6 +99,11 @@ const chatPanel = new ChatPanel(net, {
   },
 });
 
+// Theater screen overlay: anchors shared playback to the in-world screen,
+// self-registers THEATER_STATE, and owns its own DOM (overlay, modals, and
+// the footer controls button).
+const theaterUI = new TheaterScreenUI(net);
+
 // Local player avatar & Kiln companion
 const player = createGardenerAvatar(net.guestId, net.nickname);
 player.position.set(0, 0, 3);
@@ -155,6 +161,7 @@ const mapPaths = {
   delta: 'M24 24H130V96H24Z M24 45C55 40 85 75 130 55 M24 75C60 70 90 90 130 85 M70 24V96',
   archives: 'M24 24H130V96H24Z M35 35H115 M35 50H115 M35 65H115 M35 80H115 M75 24V96',
   'kiln-terrace': 'M24 24H130V96H24Z M45 35H105V85H45Z M75 45A15 15 0 1 0 75 75A15 15 0 1 0 75 45 M24 60H45 M105 60H130',
+  theater: 'M24 24H130V96H24Z M42 34H112 M42 38H112 M34 52H62 M70 52H120 M34 68H62 M70 68H120 M34 84H120',
 };
 
 function getOrCreateDistrictWorld(distId) {
@@ -215,6 +222,7 @@ function getOrCreateDistrictWorld(distId) {
 // State & interaction variables
 let nearest = null;
 let target = null;
+let seated = null; // { x, z, rotY } while the player sits in a theater seat
 let paused = false;
 let t = 0;
 let toastTimer = null;
@@ -256,6 +264,8 @@ let machineState = {
 };
 
 function setRoom(roomId) {
+  // Leaving a room (or re-spawning inside one) always stands the player up.
+  standUp();
   currentRoomId = roomId;
   const isGarden = ROOMS.isGarden(roomId);
   const isMarket = roomId === ROOMS.MARKET;
@@ -330,6 +340,7 @@ function setRoom(roomId) {
   // connected, and replayed from onopen (including after reconnects) when
   // the socket is not open yet, as during page load.
   net.joinRoom(roomId);
+  theaterUI.setRoomActive(roomId === ROOMS.THEATER);
 }
 
 // Default to market court, or garden if ?room=garden is present
@@ -348,6 +359,7 @@ net.on(MSG_TYPES.WELCOME, (msg) => {
   if (msg.prices) ui.updateMarketView(msg.prices);
   if (msg.orderBook) ui.updateMarketView(null, msg.orderBook);
   if (msg.contracts) ui.updateContractsView(msg.contracts);
+  if (msg.theater) theaterUI.applyState(msg.theater, msg.serverNow || Date.now());
 });
 
 net.on(MSG_TYPES.PRESENCE_JOIN, (msg) => {
@@ -403,6 +415,12 @@ net.on(MSG_TYPES.NODE_STATE, (msg) => {
   if (!msg.roomId || !Array.isArray(msg.nodes)) return;
   nodeStatesByDistrict.set(msg.roomId, msg.nodes);
   districtWorlds.get(msg.roomId)?.setNodeStates?.(msg.nodes);
+});
+
+// Theater snapshots arrive on WELCOME and on every applied change; the
+// overlay also registers its own handler internally.
+net.on(MSG_TYPES.THEATER_STATE, (msg) => {
+  if (msg.theater) theaterUI.applyState(msg.theater, msg.serverNow || Date.now());
 });
 
 net.on(MSG_TYPES.MACHINE_UPDATE, (msg) => {
@@ -564,8 +582,37 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
 });
 
 // --- INTERACTION LOGIC ---
+// Sitting: the player snaps into a chair facing the screen (-z), legs folded.
+// Any movement key, walk-click, E, or travel stands them up again.
+function sitOn(seatItem) {
+  if (seated) return;
+  seated = { x: seatItem.x, z: seatItem.z + 0.55, rotY: Math.PI };
+  player.position.set(seated.x, 0, seated.z);
+  player.rotation.y = seated.rotY;
+  player.userData.legs.forEach(leg => { leg.rotation.x = -1.35; });
+  target = null;
+  marker.visible = false;
+  net.sendMovement(player.position.x, player.position.z, player.rotation.y, false, true);
+  toast('Take a Seat', 'You settle into the velvet. Press E or a movement key to stand.', 'THE ORPHEUM');
+}
+
+function standUp() {
+  if (!seated) return;
+  seated = null;
+  player.position.y = 0;
+  player.userData.legs.forEach(leg => { leg.rotation.x = 0; });
+  net.sendMovement(player.position.x, player.position.z, player.rotation.y, false, false);
+}
+
 function interact() {
   if (paused) return;
+
+  // E while seated always stands up, regardless of what else is nearby.
+  if (seated) {
+    standUp();
+    return;
+  }
+
   if (!nearest) {
     toast("No Target Nearby", "Approach a garden bed, market stall, or gateway to interact.");
     return;
@@ -608,6 +655,16 @@ function interact() {
   // Field Note Reading
   if (nearest.type === 'field-note') {
     toast(nearest.sub, nearest.body, 'FIELD NOTE');
+    return;
+  }
+
+  // Theater seating & the shared screen
+  if (nearest.type === 'seat') {
+    sitOn(nearest);
+    return;
+  }
+  if (nearest.type === 'theater_screen') {
+    theaterUI.openControls();
     return;
   }
 
@@ -842,6 +899,7 @@ window.addEventListener('blur', () => keys.clear());
 // --- POINTER / CLICK TO WALK ---
 renderer.domElement.addEventListener('pointerdown', (e) => {
   if (paused) return;
+  if (seated) standUp();
   ray.setFromCamera(new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), camera);
   if (ray.ray.intersectPlane(plane, hit)) {
     const clamped = clampClickTarget(currentBounds, hit.x, hit.z);
@@ -918,6 +976,14 @@ function frame(now) {
     if (keys.has('KeyA') || keys.has('ArrowLeft')) moveX--;
     if (keys.has('KeyD') || keys.has('ArrowRight')) moveX++;
 
+    // Any movement key stands a seated player up; zero the input for this
+    // frame so they don't slide-teleport out of the chair.
+    if (seated && (moveX || moveZ)) {
+      standUp();
+      moveX = 0;
+      moveZ = 0;
+    }
+
     let dir = new THREE.Vector3(moveX, 0, moveZ);
     if (dir.lengthSq() > 0) {
       target = null;
@@ -934,14 +1000,15 @@ function frame(now) {
     }
 
     dir.normalize().multiplyScalar(dt * (keys.has('ShiftLeft') || keys.has('ShiftRight') ? 5.0 : 2.8));
-    const moved = move(player, dir.x, dir.z, dt);
+    const moved = seated ? false : move(player, dir.x, dir.z, dt);
     if (target && !moved) {
       target = null;
       marker.visible = false;
     }
 
-    // Transmit position to multiplayer server
-    net.sendMovement(player.position.x, player.position.z, player.rotation.y, moved);
+    // Transmit position to multiplayer server (sitting rides along so remote
+    // players render the seated pose)
+    net.sendMovement(player.position.x, player.position.z, player.rotation.y, moved, !!seated);
 
     // Companion Kiln follower movement
     const follow = new THREE.Vector3().subVectors(player.position, kiln.position);
@@ -1024,6 +1091,20 @@ function frame(now) {
   camera.lookAt(look);
 
   composer.render();
+
+  // Anchor the theater screen overlay to the in-world screen: project the
+  // quad's corners with the freshly updated camera each frame.
+  if (currentRoomId === ROOMS.THEATER && currentWorld?.screenQuad) {
+    const pts = currentWorld.screenQuad.map(v => {
+      const p = v.clone().project(camera);
+      return { x: (p.x * 0.5 + 0.5) * innerWidth, y: (-p.y * 0.5 + 0.5) * innerHeight, z: p.z };
+    });
+    const visible = pts.every(p => p.z > -1 && p.z < 1)
+      && pts.every(p => p.x > -innerWidth && p.x < innerWidth * 2 && p.y > -innerHeight && p.y < innerHeight * 2);
+    theaterUI.updateScreenQuad(visible ? pts.map(({ x, y }) => ({ x, y })) : null);
+  } else {
+    theaterUI.updateScreenQuad(null);
+  }
 }
 
 requestAnimationFrame(frame);

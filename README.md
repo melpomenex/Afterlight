@@ -30,7 +30,7 @@ Open **http://localhost:5173** in one or more browser windows. When multiple pla
 
 ### 3. Production Build & Tests
 
-- `npm test`: Runs the automated test suite (crop growth, quality grades, NPC pricing, double-auction order book, persistence, multi-client presence, gather nodes, machine restoration, milling, flour contracts, and sprinkler simulation).
+- `npm test`: Runs the automated test suite (crop growth, quality grades, NPC pricing, double-auction order book, persistence, multi-client presence, gather nodes, machine restoration, milling, flour contracts, sprinkler simulation, and the embedded IRC relay/bridge over real sockets).
 - `npm run build`: Bundles the client for production into `dist/`.
 - `npm run preview`: Serves the production build.
 
@@ -88,9 +88,30 @@ Open **http://localhost:5173** in one or more browser windows. When multiple pla
 | <kbd>M</kbd> | Open Market Exchange Board |
 | <kbd>T</kbd> / **Travel** | Open District Navigator (16 biomes & areas) |
 | <kbd>V</kbd> | Wave emote to other gardeners |
+| <kbd>Enter</kbd> / <kbd>/</kbd> | Open town chat (type & <kbd>Enter</kbd> to send, <kbd>Esc</kbd> to return to the game) |
 | <kbd>C</kbd> | Cycle 3 camera angles |
 | Mouse Wheel | Zoom in / out |
 | <kbd>Escape</kbd> | Journal & Settings |
+
+### Town Chat & IRC
+
+The Market Court shares a live **town channel** (`#afterlight`) panel in the lower-right HUD:
+
+- Press <kbd>Enter</kbd> (or <kbd>/</kbd>) to speak; press <kbd>Esc</kbd> to hand the keyboard back to the gardener. Typing never moves your robot.
+- `/msg <name> <text>` whispers directly to another player or an IRC user/bot by nickname; `/me <action>` sends an action line; `/help` lists commands.
+- When the panel is collapsed, a small unread counter shows what you missed; recent history is delivered on connect.
+- The panel scales with your display on wide screens, and can be resized: drag the corner grip on its top-left edge, focus the grip and use the arrow keys, or double-click it to reset. Your size is remembered.
+- **Self-hosted IRC**: the game server embeds a real IRC server on port **6667** (configurable). Connect from any IRC client (IRSSI, WeeChat, HexChat, mIRC, …) or bot:
+
+```sh
+irssi -c localhost -p 6667 -n KilnBot
+# then: /join #afterlight
+```
+
+  - Online players hold their nicknames on the relay, so bots cannot impersonate them; if a player's name collides with an IRC client's, the player gets a derived handle like `Kiln_` (announced in their chat panel).
+  - Players see IRC users join/part as system lines, and CTCP actions (`/me`) arrive as styled action lines.
+  - Optional environment variables: `IRC_PORT` (default `6667`; `0` = ephemeral), `IRC_DISABLED=1` (in-game chat only, no IRC door), `IRC_OPER_NAME` / `IRC_OPER_PASS` (IRC operator login), `IRC_TOPIC`.
+  - Deployment note: hosted builds often only expose HTTPS/WebSocket. For external bots to reach the relay, forward or tunnel the IRC port yourself (e.g. via SSH or your tunnel of choice); in-game chat needs no external access.
 
 ---
 

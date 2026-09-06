@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { normalizeTheaterState } from '../shared/theaterModel.js';
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'game-state.json');
@@ -35,6 +36,9 @@ export class Storage {
             // pre-existing state files load unchanged.
             nodes: isPlainObject(parsed.nodes) ? parsed.nodes : {},
             machines: isPlainObject(parsed.machines) ? parsed.machines : {},
+            // Additive field (theater district); normalized on read so a
+            // corrupt or missing section defaults to an idle screen.
+            theater: normalizeTheaterState(parsed.theater),
           };
         }
       }
@@ -50,6 +54,7 @@ export class Storage {
       marketMultipliers: {},
       nodes: {},
       machines: {},
+      theater: normalizeTheaterState(undefined),
     };
   }
 
@@ -104,6 +109,15 @@ export class Storage {
   saveGarden(playerId, gardenData) {
     if (!playerId) return;
     this.state.gardens[playerId] = gardenData;
+    this.save();
+  }
+
+  getTheater() {
+    return this.state.theater;
+  }
+
+  saveTheater(theater) {
+    this.state.theater = theater;
     this.save();
   }
 }
