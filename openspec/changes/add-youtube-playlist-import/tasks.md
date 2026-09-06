@@ -27,7 +27,7 @@
 
 ## 5. Verification and docs
 
-- [ ] 5.1 Run `npm test` and resolve failures; run `npm run build` and resolve actual errors.
-- [ ] 5.2 Verify in the browser against the running dev server: paste a real public playlist link → recognition text → preview with correct count/title → confirm → videos appear on the shared reel with titles for all room members; mixed link shows the choice and both branches work; cancel leaves the queue untouched; an over-cap playlist truncates with an honest summary; a mix link (`list=RD…`) is declined while its video can still be queued; gibberish/channel links still produce the old unsupported-link error.
-- [ ] 5.3 Confirm no regressions: single video URLs (YouTube/Vimeo/.mp4/.m3u8), torrent resolve flow, IPTV import/guide, theater persistence across reload (imported queue items survive restart as ordinary entries), and movement/controls in the theater.
-- [ ] 5.4 Update `README.md` player-facing theater section (playlist import paste flow), and AGENTS.md theater bullets if the mechanism summary warrants it.
+- [x] 5.1 Run `npm test` and resolve failures; run `npm run build` and resolve actual errors.
+- [x] 5.2 Verify in the browser against the running dev server: paste a real public playlist link → recognition text → preview with correct count/title → confirm → videos appear on the shared reel with titles for all room members; mixed link shows the choice and both branches work; cancel leaves the queue untouched; an over-cap playlist truncates with an honest summary; a mix link (`list=RD…`) is declined while its video can still be queued; gibberish/channel links still produce the old unsupported-link error.
+- [x] 5.3 Confirm no regressions: single video URLs (YouTube/Vimeo/.mp4/.m3u8), torrent resolve flow, IPTV import/guide, theater persistence across reload (imported queue items survive restart as ordinary entries), and movement/controls in the theater.
+- [x] 5.4 Update `README.md` player-facing theater section (playlist import paste flow), and AGENTS.md theater bullets if the mechanism summary warrants it.

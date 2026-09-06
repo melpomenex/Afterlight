@@ -177,6 +177,7 @@ The auditorium has rounded burgundy seats with padded headrests, armrests and cu
 ### What the screen plays
 
 - **YouTube** videos (watch links, `youtu.be`, Shorts), **Vimeo** videos
+- **YouTube playlists** (`youtube.com/playlist?list=…`) — see "Playlist night" below
 - **Direct video files** (`.mp4`, `.webm`, …) and **HLS streams** (`.m3u8`)
 - **Torrent magnets** (`magnet:?xt=urn:btih:…`) — see below
 - **IPTV**: add M3U/M3U8 playlists by pasting text, uploading a file, or fetching a URL — they land in the theater's **shared library**, so everyone in the room can browse them (see below). Browse channels in the **guide** — pick a **country** from the dropdown first, then narrow by that country's **categories** — and flip with **◂ / ▸**.
@@ -190,6 +191,14 @@ Playlists and the program guide are **uploads that persist on the game server** 
 - **Personal lists stay personal.** Lists saved in your browser remain a private fallback; select one and press **Add to theater** to share it with the room.
 - **Communal shelves.** Anyone in the auditorium may remove a shared list; removing one never interrupts what's playing. The library and guide survive server restarts (`data/iptv.json`, `data/epg.json`; delete those files to reset). Generous size caps apply (24 lists, 20,000 channels each, 64 MB guides).
 - Try it with a big real-world playlist and guide — e.g. the files in `~/Code/iptv/out/` (`master.m3u8` ≈ 12k channels, `guide.epg.gz` ≈ 56k programmes).
+
+### Playlist night (YouTube playlists)
+
+Paste a playlist link in the booth and the projector reads it for you: the game server fetches the public playlist and shows you a **preview** — title, video count, the first few titles — and one button brings its videos to the reel **together, in playlist order**, for the whole room. Nothing is shared until you confirm; closing the preview leaves the bill untouched.
+
+- A link that carries **both a video and a playlist** (`watch?v=…&list=…`) asks every time: **Import the playlist** or **Add just this video**.
+- The reel fills what it can: if the queue can't take everything, you're told exactly how many were queued and how many didn't fit.
+- **Radio mixes never end**, so mix links (`list=RD…`) can't be imported — the video in the link can still be added. Private or deleted playlists are declined with a clear message.
 
 ### Torrent night (magnet links)
 
