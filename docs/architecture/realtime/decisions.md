@@ -108,9 +108,11 @@ per the decoder change, never a default.
 
 Discovery that outlives the verdict: **the 1 MiB frame cap binds before the
 largest populations** — a 50k-entity full-changed delta is ~1.25 MB and a
-full snapshot with spawn rows exceeds 1 MiB past ~37k entities. The bench
-chunks; a real server needs chunked joins or a documented cap raise
-(contract v1 candidate, measured first).
+full snapshot with spawn rows exceeds 1 MiB past ~37k entities. ADDRESSED by
+the chunked-frames amendment (contract §4a, `writeChunkedFrames` in
+`shared/realtime`): 50k joins now split into cap-respecting SNAPSHOT_CHUNKs
+and were verified live at 50,002 entities through the worker path
+(dual-path parity PASS, zero resyncs).
 
 ## 4. WebGPU scatter
 
@@ -134,11 +136,23 @@ rather than manufacturing justification.
 
 ## 5. Web Workers
 
-**Decision: ADOPT for populations ≥ ~1,000 entities (pipeline change);
-meaningless below** — JSON decode of a 50-entity roster is microseconds, and
-the worker boundary costs more than it protects. The flag (`realtime_worker`)
-exists precisely so small rooms stay legacy. (Crossover numbers:
-`results/pipeline.*` land with the worker change.)
+**Decision: ADOPT for large per-tick row counts (≥ ~10k–50k changed rows) and
+for off-threading at scale; tie below.** (`results/pipeline.*`: main-thread
+crossover + 600-tick allocation soak, fraction 0.1. CORRECTED run: an earlier
+crossover claim was inflated by a boot/id-space mismatch that let the pipeline
+skip most rows as unknown; the committed numbers boot from the fixture
+world's real ids so every row applies.)
+
+- Legacy JSON vs binary pipeline, main-thread µs/tick (min): 50 → 0.31×,
+  1,000 → 0.58×, 10,000 → 0.99× (tie), 50,000 → **1.53×**.
+- Soak (N=10,000 × 600 ticks): allocations/tick flat — trend 621 B/tick
+  (< 1 KB threshold).
+- The decisive large-room benefit is off-threading, not the ratio: in worker
+  mode the main-thread cost falls to pack consumption alone regardless of
+  decode size; verified live (harness, worker mode, dual-path parity PASS:
+  201 entities, max error 0.020 u, zero resyncs).
+- `realtime_worker` stays opt-in per room scale; small rooms keep the
+  simpler inline/legacy paths.
 
 ## 6. WebTransport
 
