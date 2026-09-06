@@ -43,6 +43,9 @@ For documentation-only changes, inspect and validate the documentation; do not r
 | `src/style.css` | Full-window presentation, typography, translucent panels, responsive layouts, district selector styles. |
 | `src/main.js` | Renderer, lighting, original courtyard geometry, actors, global state, input, collision, interaction dispatch, travel, HUD updates, audio, save/load, animation loop. |
 | `src/districts.js` | District definitions, exploration-save normalization, procedural builders for the three added districts. |
+| `src/world/theaterWorld.js` | The Orpheum builder: auditorium, seats (obstacles + `seat` items), screen mesh + world-space `screenQuad`, marquee/projector restoration visuals. Registered in `DISTRICT_BUILDERS`. |
+| `src/ui/theaterScreen.js` | Theater screen UI: DOM overlay homography-anchored to the in-world screen, playback engines (video/HLS/YouTube/Vimeo), shared-clock sync, booth/guide dialogs, IPTV import + localStorage lists, cinema view (`body.theater-watching`). |
+| `server/theater.js`, `shared/theaterModel.js` | Theater room state: thin server manager + pure reducer/URL-classifier/M3U parser/timeline math (all rules live in the shared model). |
 | `tests/districts.test.js` | Node tests for exploration-save normalization and approximate navigational reachability in the new districts. |
 | `README.md` | Running the project and playing the game; update when controls or player-facing features change. |
 | `package.json`, `package-lock.json` | ES modules, dependencies, scripts, reproducible dependency versions. |
@@ -123,6 +126,15 @@ Travel currently resets position to an entrance, not the precise point of depart
 Keep input methods equivalent where possible: interaction works through E and the on-screen button; travel works through gates and the Districts selector. Do not break keyboard play after the user clicks a button. Do not hijack typing in inputs/selects. Keep keyboard focus indicators visible.
 
 Do not introduce another requestAnimationFrame loop for each object or district. Register district animation in `update()` and run it from the existing active-world loop. Use elapsed time or delta time, not assumptions about 60 FPS.
+
+### The theater (The Orpheum): screen overlay, shared playback, sitting
+
+The theater is a standard district, plus three mechanisms that exist nowhere else:
+
+- **Screen overlay, not a texture.** The screen's content is a DOM element (`#theater-screen`) positioned every frame by projecting the builder's `screenQuad` (four world-space corners exposed on the built district) and applying a CSS `matrix3d` homography. YouTube/Vimeo only exist as cross-origin iframes, which can never be WebGL textures; direct files/HLS play in a `<video>`, so one DOM path covers every source. The overlay is hidden outside the theater room and skipped when the quad projects off-screen. Do not batch the screen panel or attach content meshes: the overlay floats above the canvas, and the 3D screen is just a bezel.
+- **Server-owned playback.** All rules live in `shared/theaterModel.js` (pure reducer: URL classification with `http(s)`-only enforcement, queue caps, seek clamps, M3U parsing). The server applies actions, persists `{now, queue}` into `data/game-state.json`, and broadcasts full `theater_state` snapshots to the room on every change and on room join. Clients render snapshots, derive position from the shared timeline (`positionSec` + elapsed since `updatedAt`, skew-corrected via `serverNow`), correct drift locally only, and report `ended`/`failed` once per item id. Anyone in the room may control; there is no host.
+- **Sitting and cinema view.** Seats are `block()` obstacles with `seat` items; `interact()` snaps the actor into the chair (legs folded), suppresses movement, and sends an additive `sitting` flag through movement/presence so remote players render seated. Sitting engages cinema view (`body.theater-watching`): the overlay reflows into a large stage, the chat panel docks beside it via CSS only (its DOM is owned by the chat feature), the HUD hides, and the homography write pauses while `theaterSync` keeps running. Standing, <kbd>Esc</kbd>, or travel reverses it. The projector-restoration landmark is cosmetic and does not gate playback.
+- **The theater is the world spawn.** The default initial room (no `?room=` override) is `theater`, and `setRoom('theater')` engages cinema view on every entry; movement keys, walk clicks, or Escape step out of the view in place (watch-without-sitting never moves the actor). The server's HELLO default room stays the Market Court — the client's `JOIN_ROOM` replay is what lands players in the theater, so keep `desiredRoom` semantics intact when touching reconnect logic.
 
 ## 5. Recipe: add a complete district
 

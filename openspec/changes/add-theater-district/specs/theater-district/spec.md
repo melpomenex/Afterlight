@@ -53,3 +53,14 @@ The theater SHALL include a readable field note in keeping with the game's tone,
 #### Scenario: Read the note
 - **WHEN** the player walks to the note stand and interacts
 - **THEN** the note's title and body are shown, and the interaction works again after travel and reload
+
+### Requirement: Cinema view is the theater's default presentation
+The system SHALL present the theater in cinema view by default: a large stage for the shared screen with the town chat docked beside it and the roaming HUD set aside. The world spawn point SHALL be The Orpheum so players enter the world in this view. Leaving cinema view (Escape, a movement key, a walk click, or the watch bar) SHALL seamlessly return to the interactive isometric auditorium at the same spot; entering the theater again SHALL re-engage cinema view. Sitting SHALL keep cinema view with a "stand up" action; standing SHALL be available at all times from the watch bar.
+
+#### Scenario: Spawn into the world
+- **WHEN** a player loads the game without a room override
+- **THEN** they spawn inside The Orpheum in cinema view, watching the shared screen with chat beside it, and can step into the aisles with Escape, a movement key, or the watch-bar action
+
+#### Scenario: Step out and back in
+- **WHEN** the player leaves cinema view with a movement key and walks out through a gate, then later returns to the theater
+- **THEN** cinema view engages again on entry, without moving the player from their entrance position
