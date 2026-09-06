@@ -411,6 +411,36 @@ test('TorrentManager answers engine_unavailable when webtorrent cannot load', as
   assert.equal((await broken.streamFile(HEX, 0, null)).statusCode, 503);
 });
 
+test('streamFile revives a bill-known torrent when the library entry is gone', async () => {
+  const dir = tempDir('revive');
+  const fixture = path.join(dir, 'fixture.bin');
+  fs.writeFileSync(fixture, '0123456789ab'); // 12 bytes, matches metadata
+  const torrents = new TorrentManager({
+    dataDir: path.join(dir, 'data'),
+    clientFactory: stubClientFactory({
+      name: 'Sintel',
+      fixture,
+      files: [{ path: 'Sintel/Sintel.mp4', length: 12 }],
+    }),
+  });
+  // No resolve ever happened on THIS manager: the entry is unknown, but the
+  // persisted bill still carries the magnet (as game-state.json does).
+  torrents.setMagnetResolver((infohash) => (infohash === HEX ? MAGNET : null));
+
+  const res = await torrents.streamFile(HEX, 0, 'bytes=0-3');
+  assert.equal(res.statusCode, 206, 'the bill revived the torrent and the file streams');
+  const slice = await readStream(res.stream);
+  assert.equal(slice.toString(), '0123');
+
+  // The revived entry is remembered and persisted for future boots.
+  assert.equal(torrents.entries.get(HEX).magnet, MAGNET);
+  const library = JSON.parse(fs.readFileSync(path.join(dir, 'data', 'torrents', 'library.json'), 'utf8'));
+  assert.equal(library[HEX], MAGNET);
+
+  // Unknown infohashes still 404 even with a resolver wired.
+  assert.equal((await torrents.streamFile('f'.repeat(40), 0, null)).statusCode, 404);
+});
+
 test('TorrentManager sweeps malformed cache directories at startup', () => {
   const dir = tempDir('sweep');
   const cacheDir = path.join(dir, 'data', 'torrents');
