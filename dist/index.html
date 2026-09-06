@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#172120">
   <title>Afterlight — Multiplayer Market Garden</title>
-  <script type="module" crossorigin src="/assets/index-DHqH1tQB.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-CTEAe2dV.css">
+  <script type="module" crossorigin src="/assets/index-CG_qX2QK.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DmCJfEv1.css">
 </head>
 <body>
   <canvas id="world" aria-label="Interactive isometric market-gardening world"></canvas>
@@ -80,6 +80,26 @@
     <span>→</span>
   </button>
 
+  <section class="chat-panel panel" id="chat-panel">
+    <div id="chat-resize" class="chat-resize" role="separator" tabindex="0"
+         aria-label="Resize chat panel — drag, arrow keys adjust, double-click resets"
+         title="Drag to resize the town channel"></div>
+    <button id="chat-toggle" class="chat-toggle" aria-expanded="true" aria-controls="chat-log">
+      <span class="micro">TOWN CHANNEL <span class="chat-channel">#afterlight</span></span>
+      <span class="chat-toggle-right">
+        <span id="chat-unread" class="chat-unread" hidden aria-label="unread messages"></span>
+        <span class="chat-chevron" aria-hidden="true">▾</span>
+      </span>
+    </button>
+    <div id="chat-log" class="chat-log" role="log" aria-label="Town channel messages" aria-live="polite"></div>
+    <form id="chat-form" class="chat-form">
+      <label class="visually-hidden" for="chat-input">Message the town channel</label>
+      <input id="chat-input" type="text" maxlength="600" autocomplete="off" spellcheck="false"
+             placeholder="Say hello… (Enter to chat, Esc to release)" disabled>
+      <button type="submit" id="chat-send" class="chat-send" aria-label="Send message" disabled>➤</button>
+    </form>
+  </section>
+
   <footer>
     <div class="tool-belt" id="tool-belt">
       <button class="tool-btn active" data-tool="hands"><kbd>1</kbd> Hands</button>
@@ -109,7 +129,9 @@
       • <b>WASD / Click</b>: Move gardener<br>
       • <b>E</b>: Interact with beds, stalls, gather nodes, the Great Mill, and gateways<br>
       • <b>I</b>: Satchel & materials &nbsp;|&nbsp; <b>M</b>: Market Exchange<br>
-      • <b>V</b>: Wave emote to nearby players
+      • <b>V</b>: Wave emote to nearby players<br>
+      • <b>Enter</b>: Town chat — <b>/msg name text</b> whispers, <b>/me</b> acts, <b>Esc</b> returns to the garden<br>
+      • Drag the chat panel's corner grip (or use arrow keys on it) to resize; double-click resets
     </p>
     <label>Atmosphere <input id="atmosphere" type="checkbox" checked> Drifting mist & rain</label>
     <label>Render quality 
