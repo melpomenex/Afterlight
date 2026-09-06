@@ -55,6 +55,19 @@ test('classifySource rejects non-playable inputs', () => {
   );
 });
 
+test('classifySource accepts magnet links as torrent sources', () => {
+  const magnet = 'magnet:?xt=urn:btih:08ada5a7a6183aae1e09d831df6748d566095a10&dn=Sintel';
+  const c = classifySource(magnet);
+  assert.equal(c.kind, 'torrent');
+  assert.equal(c.infohash, '08ada5a7a6183aae1e09d831df6748d566095a10');
+  assert.equal(c.url, magnet);
+
+  // Base32 v1 infohashes normalize to hex; hashless or v2-only magnets are refused.
+  assert.match(classifySource('magnet:?xt=urn:btih:ORQI5RVWXJTPQHDKSJUHJCCQVXNZ6XKI').infohash, /^[0-9a-f]{40}$/);
+  assert.equal(classifySource('magnet:?dn=no-infohash'), null);
+  assert.equal(classifySource('magnet:?xt=urn:btmh:1220abcdef'), null);
+});
+
 // --- Reducer: queue management ---
 
 test('add to an idle screen starts playing immediately with an empty queue', () => {
@@ -293,7 +306,7 @@ test('effectivePositionSec advances while playing, freezes when paused, 0 when i
 test('parseM3U reads a classic playlist with attributes and display names', () => {
   const text = [
     '#EXTM3U',
-    '#EXTINF:-1 tvg-name="Canal Uno" group-title="News" tvg-logo="https://example.com/uno.png",Canal Uno HD',
+    '#EXTINF:-1 tvg-id="CanalUno.nl" tvg-name="Canal Uno" group-title="News" tvg-logo="https://example.com/uno.png",Canal Uno HD',
     'https://example.com/uno.m3u8',
     '#EXTINF:-1 tvg-name="Kino" group-title="Movies",Kino',
     'https://example.com/kino.mp4',
@@ -307,8 +320,10 @@ test('parseM3U reads a classic playlist with attributes and display names', () =
   assert.equal(entries[0].name, 'Canal Uno HD');
   assert.equal(entries[0].group, 'News');
   assert.equal(entries[0].logo, 'https://example.com/uno.png');
+  assert.equal(entries[0].tvgId, 'CanalUno.nl');
   assert.equal(entries[1].name, 'Kino');
   assert.equal(entries[1].group, 'Movies');
+  assert.equal(entries[1].tvgId, null, 'tvg-id is optional and defaults to null');
 });
 
 test('parseM3U names bare URL lines Channel N', () => {
@@ -407,6 +422,23 @@ test('normalizeTheaterState coerces bad numbers on a playable now', () => {
   assert.equal(state.now.playing, false);
   assert.equal(state.now.by, 'Someone');
   assert.equal(state.now.queuedBy, 'Someone');
+});
+
+test('normalizeTheaterState keeps magnet torrents (with picks) playable and shaped', () => {
+  const magnet = 'magnet:?xt=urn:btih:08ada5a7a6183aae1e09d831df6748d566095a10&dn=Sintel';
+  const state = normalizeTheaterState({
+    now: {
+      kind: 'torrent', url: magnet, title: 'Sintel', fileIndex: 0,
+      filePath: 'Sintel.mp4', fileBytes: 129, playing: true, positionSec: 8, updatedAt: 42,
+    },
+  }, T0);
+  assert.equal(state.now.kind, 'torrent');
+  assert.equal(state.now.infohash, '08ada5a7a6183aae1e09d831df6748d566095a10');
+  assert.equal(state.now.positionSec, 8);
+  assert.equal(state.now.playing, true);
+  // A torrent whose pick was lost can never play, so it is dropped.
+  const dropped = normalizeTheaterState({ now: { url: magnet, title: 'S' } }, T0);
+  assert.equal(dropped.now, null);
 });
 
 test('normalizeTheaterState passes a valid state through unchanged', () => {

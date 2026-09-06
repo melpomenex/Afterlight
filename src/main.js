@@ -15,6 +15,8 @@ import { TheaterScreenUI } from './ui/theaterScreen.js';
 import { MSG_TYPES, ROOMS } from '../shared/protocol.js';
 import { CROPS, CROP_LIST, GROWTH_STAGES } from '../shared/crops.js';
 import { MILL_REQUIREMENT } from '../shared/materials.js';
+import { FP_MODE, nextCameraMode, clampPitch, moveBasis, classifyDrag } from './cameraControl.js';
+import { createJumpState, resetJump, stepJump, moveSpeedFor, HOP_CAP_RATIO } from './jump.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -32,11 +34,23 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.15;
 
 const camera = new THREE.OrthographicCamera();
+// First person rides a perspective camera through the same pipeline: every
+// consumer (composer, raycast, resize, follow, theater projection) renders
+// through `activeCamera`, assigned by setCameraMode().
+const EYE_HEIGHT = 1.55;
+const SEATED_EYE_HEIGHT = 1.05;
+const LOOK_SENS_YAW = 0.005;
+const LOOK_SENS_PITCH = 0.004;
+const fpCamera = new THREE.PerspectiveCamera(58, 1, 0.1, 150);
+let activeCamera = camera;
 let cameraMode = 0;
+let fpYaw = 0;
+let fpPitch = 0;
 let zoom = 24;
 
 const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera));
+const renderPass = new RenderPass(scene, camera);
+composer.addPass(renderPass);
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.25, 0.65, 1.05);
 composer.addPass(bloom);
 
@@ -95,7 +109,10 @@ const ui = new UIManager(net, {
 // react to typing, so focus changes clear any held movement keys.
 const chatPanel = new ChatPanel(net, {
   onFocusChange: (typing) => {
-    if (typing) keys.clear();
+    if (typing) {
+      keys.clear();
+      clearJumpMomentum();
+    }
   },
 });
 
@@ -230,6 +247,22 @@ let paused = false;
 let t = 0;
 let toastTimer = null;
 const keys = new Set();
+
+// Jump & bunny hop: session-local movement state, never saved or synced as
+// anything but an airborne flag. Space jumps; holding it chains hops whose
+// preserved momentum grows by HOP_GAIN up to HOP_CAP_RATIO × run speed.
+const WALK_SPEED = 2.8;
+const RUN_SPEED = 5.0;
+const jumpState = createJumpState();
+let jumpQueued = false; // set by the Space keydown, consumed by the next stepped frame
+
+// Every path that clears held keys (sit, travel, pause, chat focus, blur)
+// also grounds the player and drops any live hop chain: momentum never
+// survives a state change.
+function clearJumpMomentum() {
+  resetJump(jumpState);
+  jumpQueued = false;
+}
 const ray = new THREE.Raycaster();
 const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const hit = new THREE.Vector3();
@@ -338,6 +371,7 @@ function setRoom(roomId) {
 
   target = null;
   marker.visible = false;
+  clearJumpMomentum(); // travel always spawns grounded, with no hop chain
   remotePlayers.clear();
   // Leaving the room (or re-entering it) always drops cinema view; standing
   // is handled by the travel paths that call standUp() first.
@@ -529,6 +563,26 @@ net.connect();
 // --- AUDIO SYNTHESIS ---
 let audio = null;
 let muted = true;
+// Footsteps: local player only, cadence follows run/walk. Volume lives in
+// Settings and persists per browser; storage failures fall back to
+// session-only without pretending otherwise.
+let stepsVolume = 0.7;
+let stepGain = null;
+let stepBuffer = null;
+let stepTimer = 0;
+let stepSide = 1;
+const STEPS_KEY = 'afterlight-footsteps';
+try {
+  const saved = localStorage.getItem(STEPS_KEY);
+  if (saved !== null && saved !== '') {
+    const n = Number(saved); // Number(null) is 0 — only parse a real stored value
+    if (Number.isFinite(n) && n >= 0 && n <= 100) stepsVolume = n / 100;
+  }
+} catch { /* restricted storage: session-only volume */ }
+function persistStepsVolume() {
+  try { localStorage.setItem(STEPS_KEY, String(Math.round(stepsVolume * 100))); } catch { /* ignore */ }
+}
+
 function chime(freqs = [440, 554, 660]) {
   if (!audio || muted) return;
   freqs.forEach((f, i) => {
@@ -545,10 +599,48 @@ function chime(freqs = [440, 554, 660]) {
   });
 }
 
+// One soft footfall: a decaying noise burst through a lowpass, alternating
+// slightly between "feet" for a natural cadence. Deterministically cheap —
+// one shared buffer, three small nodes per step.
+function playFootstep() {
+  if (!audio || muted || stepsVolume <= 0 || !stepBuffer) return;
+  const src = audio.createBufferSource();
+  src.buffer = stepBuffer;
+  src.playbackRate.value = 0.85 + Math.random() * 0.35;
+  const filter = audio.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 380 + Math.random() * 220;
+  const env = audio.createGain();
+  const t0 = audio.currentTime;
+  env.gain.setValueAtTime(0.0001, t0);
+  env.gain.exponentialRampToValueAtTime(0.5 + Math.random() * 0.2, t0 + 0.012);
+  env.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
+  src.connect(filter).connect(env);
+  if (audio.createStereoPanner) {
+    const pan = audio.createStereoPanner();
+    pan.pan.value = 0.22 * stepSide;
+    stepSide = -stepSide;
+    env.connect(pan).connect(stepGain);
+  } else {
+    env.connect(stepGain);
+  }
+  src.start(t0);
+  src.stop(t0 + 0.1);
+}
+
 $('sound').onclick = async () => {
   muted = !muted;
   if (!audio) {
     audio = new AudioContext();
+    stepGain = audio.createGain();
+    stepGain.gain.value = stepsVolume;
+    stepGain.connect(audio.destination);
+    // Footstep source: a short noise burst, pre-decayed so it thuds.
+    stepBuffer = audio.createBuffer(1, Math.floor(audio.sampleRate * 0.09), audio.sampleRate);
+    const stepData = stepBuffer.getChannelData(0);
+    for (let i = 0; i < stepData.length; i++) {
+      stepData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / stepData.length, 2);
+    }
     const buffer = audio.createBuffer(1, audio.sampleRate * 2, audio.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.04;
@@ -563,6 +655,15 @@ $('sound').onclick = async () => {
   }
   await (muted ? audio.suspend() : audio.resume());
   $('sound').textContent = muted ? '♫  Sound off' : '♫  Sound on';
+};
+
+$('footsteps').value = String(Math.round(stepsVolume * 100));
+$('footsteps-value').textContent = `${Math.round(stepsVolume * 100)}%`;
+$('footsteps').oninput = () => {
+  stepsVolume = Number($('footsteps').value) / 100;
+  $('footsteps-value').textContent = `${Math.round(stepsVolume * 100)}%`;
+  if (stepGain) stepGain.gain.value = stepsVolume;
+  persistStepsVolume();
 };
 
 // --- TOOL SELECTION ---
@@ -600,15 +701,21 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
 // Any movement key, walk-click, E, or travel stands them up again.
 function sitOn(seatItem) {
   if (seated) return;
-  seated = { x: seatItem.x, z: seatItem.z + 0.55, rotY: Math.PI };
+  // standZ: a clear spot 0.8 in front of the seat center (the way it faces).
+  // The seated position sits inside the chair's collision rectangle; standing
+  // up must step outside it or small movement steps can never escape.
+  seated = { x: seatItem.x, z: seatItem.z - 0.08, standZ: seatItem.z - 0.8, rotY: Math.PI };
   // Take the keyboard back: a focused chat input would silently swallow the
   // keys that get the player out of the chair again.
   if (document.activeElement?.id === 'chat-input') document.activeElement.blur();
   player.position.set(seated.x, 0, seated.z);
   player.rotation.y = seated.rotY;
+  // Seated in first person: open the view facing where the chair faces.
+  if (cameraMode === FP_MODE) fpYaw = seated.rotY + Math.PI;
   player.userData.legs.forEach(leg => { leg.rotation.x = -1.35; });
   target = null;
   marker.visible = false;
+  clearJumpMomentum(); // sitting is a hard reset: no queued jump from the chair
   net.sendMovement(player.position.x, player.position.z, player.rotation.y, false, true);
   toast('Take a Seat', 'You settle into the velvet. Press E or a movement key to stand.', 'THE ORPHEUM');
   // Cinema view: big stage, chat beside it, HUD out of the way.
@@ -618,8 +725,12 @@ function sitOn(seatItem) {
 
 function standUp() {
   if (!seated) return;
+  // Step out in front of the chair (the way it faces). Standing at the seated
+  // spot would leave the player inside the seat's collision rectangle, wedged
+  // between chair rows — small movement steps never escape a blocked rect.
+  player.position.set(seated.x, 0, seated.standZ);
   seated = null;
-  player.position.y = 0;
+  clearJumpMomentum();
   player.userData.legs.forEach(leg => { leg.rotation.x = 0; });
   net.sendMovement(player.position.x, player.position.z, player.rotation.y, false, false);
   theaterUI.setSeated(false);
@@ -784,6 +895,7 @@ $('btn-market').onclick = () => ui.openMarket();
 function openDistricts() {
   paused = true;
   keys.clear();
+  clearJumpMomentum();
   renderDistrictList();
   $('district-dialog').showModal();
 }
@@ -866,13 +978,29 @@ $('btn-edit-nick').onclick = () => ui.openProfile();
 function toggleSettings() {
   paused = !paused;
   keys.clear();
+  clearJumpMomentum();
   if (paused) $('settings-dialog').showModal();
   else $('settings-dialog').close();
 }
 $('settings').onclick = toggleSettings;
 $('resume').onclick = toggleSettings;
 $('settings-dialog').addEventListener('cancel', (e) => { e.preventDefault(); toggleSettings(); });
-$('camera').onclick = () => { cameraMode = (cameraMode + 1) % 3; };
+function setCameraMode(mode) {
+  cameraMode = mode;
+  activeCamera = mode === FP_MODE ? fpCamera : camera;
+  renderPass.camera = activeCamera;
+  // First person opens facing where the avatar faces. The avatar faces +Z at
+  // rotation.y = 0 while the camera looks down -Z, so the yaw needs a PI flip.
+  if (mode === FP_MODE) {
+    fpYaw = player.rotation.y + Math.PI;
+    fpPitch = 0;
+  }
+  // The player's own avatar stays out of view in first person; everything
+  // else (Kiln, remote players, scenery) renders normally.
+  player.visible = mode !== FP_MODE;
+  renderer.domElement.style.cursor = mode === FP_MODE ? 'grab' : '';
+}
+$('camera').onclick = () => setCameraMode(nextCameraMode(cameraMode));
 $('quality').onchange = () => {
   renderer.setPixelRatio(Math.min(devicePixelRatio, Number($('quality').value)));
   resize();
@@ -919,9 +1047,16 @@ window.addEventListener('keydown', (e) => {
   keys.add(e.code);
 
   if (e.repeat) return;
+  if (e.code === 'Space' && !paused && !seated) jumpQueued = true; // consumed by the frame loop
   if (e.code === 'KeyE') interact();
   if (e.code === 'KeyI') ui.openInventory();
   if (e.code === 'KeyM') ui.openMarket();
+  // In The Orpheum, G opens the projection booth (screen controls, IPTV, guide).
+  // preventDefault keeps the g from typing into the dialog's freshly focused URL input.
+  if (e.code === 'KeyG' && currentRoomId === ROOMS.THEATER && !document.querySelector('dialog[open]')) {
+    e.preventDefault();
+    theaterUI.openControls();
+  }
   if (e.code === 'KeyV') net.sendEmote('wave');
   if (e.code === 'KeyC') $('camera').click();
   if (e.code === 'Escape') {
@@ -936,24 +1071,59 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('keyup', (e) => keys.delete(e.code));
-window.addEventListener('blur', () => keys.clear());
+window.addEventListener('blur', () => {
+  keys.clear();
+  clearJumpMomentum();
+});
 
-// --- POINTER / CLICK TO WALK ---
+// --- POINTER / CLICK TO WALK + DRAG TO LOOK ---
+// A press is a walk click unless pointer travel promotes it to a drag
+// (classifyDrag). In first person a drag turns the view instead; in every
+// mode a plain press-release does what the old pointerdown handler did:
+// stands a seated player up, leaves cinema view, and plants a walk target.
+let press = null; // { x, y, lastX, lastY, dragging }
+
 renderer.domElement.addEventListener('pointerdown', (e) => {
   if (paused) return;
+  press = { x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, dragging: false };
+  renderer.domElement.setPointerCapture(e.pointerId);
+});
+
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (!press || paused) return;
+  const dx = e.clientX - press.lastX;
+  const dy = e.clientY - press.lastY;
+  press.lastX = e.clientX;
+  press.lastY = e.clientY;
+  press.dragging = classifyDrag(press.x, press.y, e.clientX, e.clientY, press.dragging);
+  if (press.dragging && cameraMode === FP_MODE) {
+    // Drag right looks right, drag up looks up (direct, non-inverted).
+    fpYaw -= dx * LOOK_SENS_YAW;
+    fpPitch = clampPitch(fpPitch - dy * LOOK_SENS_PITCH);
+  }
+});
+
+function endPress(e) {
+  const started = press;
+  press = null;
+  if (!started || paused || started.dragging) return; // a look-drag never walks
   if (seated) standUp();
-  else if (theaterUI.isWatching()) theaterUI.setWatchMode(false); // click-to-walk leaves cinema view
-  ray.setFromCamera(new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), camera);
+  else if (theaterUI.isWatching()) theaterUI.setWatchMode(false); // tap-to-walk leaves cinema view
+  ray.setFromCamera(new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), activeCamera);
   if (ray.ray.intersectPlane(plane, hit)) {
     const clamped = clampClickTarget(currentBounds, hit.x, hit.z);
     target = new THREE.Vector3(clamped.x, 0, clamped.z);
     marker.position.set(target.x, 0.24, target.z);
     marker.visible = true;
   }
-});
+}
+
+renderer.domElement.addEventListener('pointerup', endPress);
+renderer.domElement.addEventListener('pointercancel', () => { press = null; });
 
 renderer.domElement.addEventListener('wheel', (e) => {
   e.preventDefault();
+  if (cameraMode === FP_MODE) return; // wheel zoom is an orthographic concern
   zoom = THREE.MathUtils.clamp(zoom + e.deltaY * 0.015, 18, 34);
   resize();
 }, { passive: false });
@@ -995,6 +1165,8 @@ function resize() {
   camera.near = 0.1;
   camera.far = 150;
   camera.updateProjectionMatrix();
+  fpCamera.aspect = aspect;
+  fpCamera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
   composer.setSize(innerWidth, innerHeight);
 }
@@ -1029,11 +1201,14 @@ function frame(now) {
       theaterUI.setWatchMode(false);
     }
 
-    let dir = new THREE.Vector3(moveX, 0, moveZ);
-    if (dir.lengthSq() > 0) {
+    let dir = new THREE.Vector3(0, 0, 0);
+    if (moveX || moveZ) {
       target = null;
       marker.visible = false;
-      dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), [Math.PI / 4, 0, -Math.PI / 4][cameraMode]);
+      // Isometric modes rotate input by the camera angle; first person moves
+      // relative to the view yaw (W = where you look).
+      const basis = moveBasis(cameraMode, fpYaw, moveX, moveZ);
+      dir.set(basis.x, 0, basis.z);
     } else if (target) {
       dir.subVectors(target, player.position);
       dir.y = 0;
@@ -1044,16 +1219,48 @@ function frame(now) {
       }
     }
 
-    dir.normalize().multiplyScalar(dt * (keys.has('ShiftLeft') || keys.has('ShiftRight') ? 5.0 : 2.8));
+    const running = keys.has('ShiftLeft') || keys.has('ShiftRight');
+    const baseSpeed = running ? RUN_SPEED : WALK_SPEED;
+    // Vertical physics first: a landing frame with Space held relaunches the
+    // hop before this frame's horizontal step, so chains never touch ground.
+    if (!seated) {
+      stepJump(jumpState, {
+        jumpPressed: jumpQueued,
+        jumpHeld: keys.has('Space'),
+        moving: dir.lengthSq() > 0,
+        speed: baseSpeed,
+        cap: RUN_SPEED * HOP_CAP_RATIO,
+      }, dt);
+      jumpQueued = false;
+    }
+    dir.normalize().multiplyScalar(dt * moveSpeedFor(jumpState, baseSpeed));
     const moved = seated ? false : move(player, dir.x, dir.z, dt);
     if (target && !moved) {
       target = null;
       marker.visible = false;
     }
 
+    // While airborne the jump owns the avatar's y and the legs tuck; the
+    // grounded walk bob that move() just applied stays untouched.
+    if (!seated && jumpState.airborne) {
+      player.position.y = jumpState.y;
+      player.userData.legs.forEach(leg => { leg.rotation.x = -0.8; });
+    }
+
+    // Footstep cadence follows run/walk; idle, seated, or airborne is silent.
+    if (moved && !jumpState.airborne) {
+      stepTimer -= dt;
+      if (stepTimer <= 0) {
+        playFootstep();
+        stepTimer = running ? 0.29 : 0.42;
+      }
+    } else {
+      stepTimer = 0;
+    }
+
     // Transmit position to multiplayer server (sitting rides along so remote
-    // players render the seated pose)
-    net.sendMovement(player.position.x, player.position.z, player.rotation.y, moved, !!seated);
+    // players render the seated pose; airborne lets them render hops)
+    net.sendMovement(player.position.x, player.position.z, player.rotation.y, moved, !!seated, !seated && jumpState.airborne);
 
     // Companion Kiln follower movement
     const follow = new THREE.Vector3().subVectors(player.position, kiln.position);
@@ -1129,24 +1336,40 @@ function frame(now) {
     particles.rotation.y = Math.sin(t * 0.03) * 0.04;
   }
 
-  // Camera follow
-  const offsets = [[21, 25, 26], [0, 29, 31], [-23, 27, 25]];
-  look.lerp(new THREE.Vector3(player.position.x * 0.14, 0.1, player.position.z * 0.14), 0.025);
-  camera.position.set(look.x + offsets[cameraMode][0], offsets[cameraMode][1], look.z + offsets[cameraMode][2]);
-  camera.lookAt(look);
+  // Camera follow: isometric orbit modes vs first person at eye height
+  // (lowered when seated in a theater chair).
+  if (cameraMode === FP_MODE) {
+    const eye = seated ? SEATED_EYE_HEIGHT : EYE_HEIGHT;
+    fpCamera.position.set(player.position.x, player.position.y + eye, player.position.z);
+    fpCamera.rotation.set(fpPitch, fpYaw, 0, 'YXZ');
+  } else {
+    const offsets = [[21, 25, 26], [0, 29, 31], [-23, 27, 25]];
+    look.lerp(new THREE.Vector3(player.position.x * 0.14, 0.1, player.position.z * 0.14), 0.025);
+    camera.position.set(look.x + offsets[cameraMode][0], offsets[cameraMode][1], look.z + offsets[cameraMode][2]);
+    camera.lookAt(look);
+  }
+  renderPass.camera = activeCamera;
 
   composer.render();
 
   // Anchor the theater screen overlay to the in-world screen: project the
-  // quad's corners with the freshly updated camera each frame.
+  // quad's corners with the freshly updated active camera each frame. The
+  // screen's world-plane aspect rides along so the overlay's untransformed
+  // rect matches the real surface — media keeps its shape on the screen
+  // instead of being squashed by the projection.
   if (currentRoomId === ROOMS.THEATER && currentWorld?.screenQuad) {
-    const pts = currentWorld.screenQuad.map(v => {
-      const p = v.clone().project(camera);
+    const wq = currentWorld.screenQuad;
+    const pts = wq.map(v => {
+      const p = v.clone().project(activeCamera);
       return { x: (p.x * 0.5 + 0.5) * innerWidth, y: (-p.y * 0.5 + 0.5) * innerHeight, z: p.z };
     });
     const visible = pts.every(p => p.z > -1 && p.z < 1)
       && pts.every(p => p.x > -innerWidth && p.x < innerWidth * 2 && p.y > -innerHeight && p.y < innerHeight * 2);
-    theaterUI.updateScreenQuad(visible ? pts.map(({ x, y }) => ({ x, y })) : null);
+    // wq is bottomLeft, bottomRight, topRight, topLeft.
+    const worldAspect = visible
+      ? wq[1].distanceTo(wq[0]) / Math.max(0.01, wq[3].distanceTo(wq[0]))
+      : undefined;
+    theaterUI.updateScreenQuad(visible ? pts.map(({ x, y }) => ({ x, y })) : null, worldAspect);
   } else {
     theaterUI.updateScreenQuad(null);
   }

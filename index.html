@@ -132,11 +132,15 @@
       • Drag the chat panel's corner grip (or use arrow keys on it) to resize; double-click resets
     </p>
     <label>Atmosphere <input id="atmosphere" type="checkbox" checked> Drifting mist & rain</label>
-    <label>Render quality 
+    <label>Render quality
       <select id="quality">
         <option value="1">Balanced</option>
         <option value="2">High</option>
       </select>
+    </label>
+    <label>Footsteps
+      <input id="footsteps" type="range" min="0" max="100" step="5" value="70" aria-label="Footstep volume">
+      <span id="footsteps-value">70%</span>
     </label>
     <button id="resume">Return to game →</button>
   </dialog>

@@ -146,12 +146,14 @@ export class NetworkClient {
     }
   }
 
-  sendMovement(x, z, rotY, walking, sitting = false) {
+  sendMovement(x, z, rotY, walking, sitting = false, airborne = false) {
     const now = performance.now();
     // Cap client movement packets at ~12 Hz (every 80ms)
     if (now - this.lastMovementSend < 80) return;
     this.lastMovementSend = now;
-    this.send(MSG_TYPES.MOVEMENT, { x, z, rotY, walking, sitting: !!sitting });
+    // airborne is additive presence presentation (remote hop animation);
+    // the server only relays it, and receivers without it stay grounded.
+    this.send(MSG_TYPES.MOVEMENT, { x, z, rotY, walking, sitting: !!sitting, airborne: !!airborne });
   }
 
   sendTheaterQueue(payload) { this.send(MSG_TYPES.THEATER_QUEUE, payload); }
@@ -159,6 +161,67 @@ export class NetworkClient {
   sendTheaterControl(payload) { this.send(MSG_TYPES.THEATER_CONTROL, payload); }
 
   sendTheaterChannel(url, title) { this.send(MSG_TYPES.THEATER_CHANNEL, { url, title }); }
+
+  /** Ask the server's torrent engine to resolve a magnet to its file list. */
+  sendTorrentResolve(requestId, magnet) { this.send(MSG_TYPES.TORRENT_RESOLVE, { requestId, magnet }); }
+
+  sendIptvListGet(listId) { this.send(MSG_TYPES.IPTV_LIST_GET, { listId }); }
+
+  sendIptvListRemove(listId) { this.send(MSG_TYPES.IPTV_LIST_REMOVE, { listId }); }
+
+  sendEpgLookup(keys) { this.send(MSG_TYPES.EPG_LOOKUP, { keys }); }
+
+  /**
+   * Base URL of the game server's HTTP side, derived from the WS URL
+   * (ws://host:3001/ws -> http://host:3001). Uploads (playlists, program
+   * guide files) ride HTTP POST, not WS frames.
+   */
+  get apiBase() {
+    try {
+      const url = new URL(this.wsUrl);
+      return `${url.protocol === 'wss:' ? 'https:' : 'http:'}//${url.host}`;
+    } catch {
+      const loc = typeof window !== 'undefined' ? window.location : { protocol: 'http:', hostname: 'localhost' };
+      return `${loc.protocol}//${loc.hostname}:3001`;
+    }
+  }
+
+  /** POST to a /api/theater endpoint; resolves the JSON body or throws a readable error. */
+  async postToTheater(path, params, body, contentType) {
+    const qs = new URLSearchParams(
+      Object.entries(params || {}).filter(([, v]) => v !== undefined && v !== null && v !== ''),
+    ).toString();
+    let res;
+    try {
+      res = await fetch(`${this.apiBase}${path}${qs ? `?${qs}` : ''}`, {
+        method: 'POST',
+        headers: contentType ? { 'Content-Type': contentType } : undefined,
+        body,
+      });
+    } catch {
+      throw new Error('Could not reach the theater service — is the game server running?');
+    }
+    let payload = null;
+    try {
+      payload = await res.json();
+    } catch {}
+    if (!res.ok || !payload?.ok) {
+      throw new Error(payload?.error || `The theater refused that (HTTP ${res.status}).`);
+    }
+    return payload;
+  }
+
+  uploadPlaylistText(text, name, by) {
+    return this.postToTheater('/api/theater/playlists', { name, by }, text, 'text/plain');
+  }
+
+  importPlaylistFromUrl(url, name, by) {
+    return this.postToTheater('/api/theater/playlists', { name, by }, JSON.stringify({ url }), 'application/json');
+  }
+
+  uploadEpg(fileOrBlob, name) {
+    return this.postToTheater('/api/theater/epg', { name }, fileOrBlob, 'application/octet-stream');
+  }
 
   sendGardenAction(action, bedIndex, seedCropId = null) {
     const actionId = `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;

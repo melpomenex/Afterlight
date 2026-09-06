@@ -61,6 +61,20 @@ test('the theater exposes its screen quad and a full house of seats', () => {
   assert.ok(world.items.filter(i => i.type === 'seat').length >= 30, 'theater has seats to sit in');
 });
 
+test('every theater seat has a clear stand-up spot in front of the chair', () => {
+  // standUp() steps the player to (seat.x, seat.z - 0.8); that spot must be
+  // free of every obstacle or the player is wedged inside the chair's
+  // collision rectangle (small movement steps can never escape one).
+  const world = buildDistrict(districts.find(d => d.id === 'theater'));
+  const free = (x, z) => x > -11.3 && x < 11.3 && z > -9.5 && z < 10.3
+    && !world.obstacles.some(o => Math.abs(x - o.x) < o.w && Math.abs(z - o.z) < o.d);
+  const seats = world.items.filter(i => i.type === 'seat');
+  assert.ok(seats.length > 0, 'theater has seats');
+  for (const seat of seats) {
+    assert.ok(free(seat.x, seat.z - 0.8), `stand-up spot is clear for the seat at ${seat.x},${seat.z}`);
+  }
+});
+
 test('the rain court builds without a landmark or field note', () => {
   const world = buildDistrict(districts.find(d => d.id === 'court'));
   assert.ok(!world.items.some(i => i.type === 'landmark'), 'court has no landmark');

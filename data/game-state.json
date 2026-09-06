@@ -20,7 +20,7 @@
         "sprinklers": 0
       },
       "currentRoom": "market",
-      "lastSeen": 1788699027199,
+      "lastSeen": 1788711295568,
       "materials": {
         "copper": 2
       }
@@ -104,7 +104,7 @@
         "sprinklers": 0
       },
       "currentRoom": "market",
-      "lastSeen": 1788695008003,
+      "lastSeen": 1788710199011,
       "materials": {}
     },
     "guest_do7zmx77d_mtpn6yfp": {
@@ -128,7 +128,7 @@
         "sprinklers": 1
       },
       "currentRoom": "market",
-      "lastSeen": 1788699183925,
+      "lastSeen": 1788711295565,
       "materials": {}
     },
     "guest_c1tlwqkzd_mtpnblwp": {
@@ -196,6 +196,182 @@
       "currentRoom": "market",
       "lastSeen": 1788695800160,
       "materials": {}
+    },
+    "witness_mtpxingd": {
+      "id": "witness_mtpxingd",
+      "nickname": "HopWitness",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788706249790,
+      "materials": {}
+    },
+    "witness_mtpxkli3": {
+      "id": "witness_mtpxkli3",
+      "nickname": "HopWitness",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788706340572,
+      "materials": {}
+    },
+    "witness_mtpxsx7z": {
+      "id": "witness_mtpxsx7z",
+      "nickname": "HopWitness",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788706729008,
+      "materials": {}
+    },
+    "witness_mtpxxhsy": {
+      "id": "witness_mtpxxhsy",
+      "nickname": "HopWitness",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788706942307,
+      "materials": {}
+    },
+    "guest_76pvke52m_mtpy5z5d": {
+      "id": "guest_76pvke52m_mtpy5z5d",
+      "nickname": "BreezyMint99",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788711295217,
+      "materials": {}
+    },
+    "witness_mtpy6edr": {
+      "id": "witness_mtpy6edr",
+      "nickname": "HopWitness",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788707357776,
+      "materials": {}
+    },
+    "bhopbot_mtpy6esm": {
+      "id": "bhopbot_mtpy6esm",
+      "nickname": "BhopBot",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788707358311,
+      "materials": {}
+    },
+    "bhopbot_mtpy8vpu": {
+      "id": "bhopbot_mtpy8vpu",
+      "nickname": "BhopBot",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788707473554,
+      "materials": {}
     }
   },
   "gardens": {
@@ -207,7 +383,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0.9199999999999999,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -220,7 +396,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0.9199999999999999,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -233,7 +409,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0.9199999999999999,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -246,7 +422,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0.9199999999999999,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -259,7 +435,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0.9199999999999999,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -272,7 +448,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0.9199999999999999,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -285,7 +461,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0.9199999999999999,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -298,7 +474,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0.9199999999999999,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -311,7 +487,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0.9199999999999999,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -324,7 +500,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0.9199999999999999,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -337,7 +513,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0.9199999999999999,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -350,7 +526,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0.9199999999999999,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
