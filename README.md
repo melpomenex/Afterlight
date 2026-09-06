@@ -177,7 +177,17 @@ The auditorium has rounded burgundy seats with padded headrests, armrests and cu
 - **YouTube** videos (watch links, `youtu.be`, Shorts), **Vimeo** videos
 - **Direct video files** (`.mp4`, `.webm`, …) and **HLS streams** (`.m3u8`)
 - **Torrent magnets** (`magnet:?xt=urn:btih:…`) — see below
-- **IPTV**: import M3U/M3U8 playlists by pasting text, uploading a file, or fetching a URL; browse channels in the **guide** — pick a **country** from the dropdown first, then narrow by that country's **categories** — flip with **◂ / ▸**, and save your lists in the browser for later.
+- **IPTV**: add M3U/M3U8 playlists by pasting text, uploading a file, or fetching a URL — they land in the theater's **shared library**, so everyone in the room can browse them (see below). Browse channels in the **guide** — pick a **country** from the dropdown first, then narrow by that country's **categories** — and flip with **◂ / ▸**.
+
+### The shared channel library & program guide
+
+Playlists and the program guide are **uploads that persist on the game server** — nothing ships with the game, and the library starts empty until someone adds a list.
+
+- **One player adds a playlist; the whole room gets it.** Anything added in the booth is parsed on the server and appears in everyone's guide — no import of your own needed to browse, tune, or flip. Server-side fetching also means playlist URLs work even when the host sends no CORS headers.
+- **The guide can show "now / next".** Upload an XMLTV program guide (`.epg` / `.xml`, plain or `.gz`) in the booth and channels matched by `tvg-id` (or name) show the current and next programme in your local time, kept current while the guide is open. Uploading a new guide replaces the old one and never interrupts the screen.
+- **Personal lists stay personal.** Lists saved in your browser remain a private fallback; select one and press **Add to theater** to share it with the room.
+- **Communal shelves.** Anyone in the auditorium may remove a shared list; removing one never interrupts what's playing. The library and guide survive server restarts (`data/iptv.json`, `data/epg.json`; delete those files to reset). Generous size caps apply (24 lists, 20,000 channels each, 64 MB guides).
+- Try it with a big real-world playlist and guide — e.g. the files in `~/Code/iptv/out/` (`master.m3u8` ≈ 12k channels, `guide.epg.gz` ≈ 56k programmes).
 
 ### Torrent night (magnet links)
 
@@ -193,7 +203,7 @@ Queue behavior: items added while something plays line up in the queue and auto-
 ### Good to know
 
 - Only `http(s)` links and magnet links can be pinned to the screen; YouTube/Vimeo play through their official embeds, magnets resolve through the server's torrent engine (above), and everything else plays as a plain video stream.
-- Some public IPTV lists are hosted without CORS headers — the direct **Fetch** may be refused by your browser. Paste the playlist text or upload the file instead; that always works.
+- Playlist imports by URL are fetched by the game server, so CORS-hostile playlist hosts work; if the server itself can't reach a URL, paste the text or upload the file instead.
 - Streams their hosts remove or region-block will show a notice and skip ahead. Live channels can't be rewound.
 - Whether other players can *hear* a video depends on each browser's autoplay rules; a "Tap to start" badge appears if the browser needs a click first. Volume is local.
 
