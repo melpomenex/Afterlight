@@ -110,6 +110,21 @@ export const CROPS = {
     xp: 65,
     unlockLevel: 3,
   },
+  wheat: {
+    id: 'wheat',
+    name: 'Hearth Wheat',
+    tagline: 'Golden milling grain. The Great Mill grinds it into flour.',
+    seedCost: 4,
+    basePrice: 9,
+    growDuration: 30,
+    waterDemand: 1.0,
+    yield: 2,
+    repeatHarvest: false,
+    color: '#8a8a3d',
+    produceColor: '#d9b45a',
+    xp: 14,
+    unlockLevel: 1,
+  },
 };
 
 export const CROP_LIST = Object.values(CROPS);

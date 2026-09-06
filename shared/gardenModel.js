@@ -56,11 +56,28 @@ export function waterBed(bed, now = Date.now()) {
   return { success: true };
 }
 
-export function tickBed(bed, dtSeconds = 1, isRaining = false, now = Date.now()) {
+/**
+ * Bed-grid coverage for a sprinkler placed on the given bed tile. Beds form a
+ * 4x3 grid matching createInitialBeds(12); a sprinkler covers the bed it
+ * occupies plus its orthogonal neighbors in that grid.
+ */
+export function sprinklerCoverage(bedIndex, cols = 4) {
+  const covered = [];
+  if (!Number.isInteger(bedIndex) || bedIndex < 0) return covered;
+  const col = bedIndex % cols;
+  if (bedIndex - cols >= 0) covered.push(bedIndex - cols);
+  if (col > 0) covered.push(bedIndex - 1);
+  covered.push(bedIndex);
+  if (col < cols - 1) covered.push(bedIndex + 1);
+  covered.push(bedIndex + cols);
+  return covered;
+}
+
+export function tickBed(bed, dtSeconds = 1, isRaining = false, now = Date.now(), sprinkled = false) {
   if (!bed) return;
 
-  // Moisture decay or rain replenishment
-  if (isRaining) {
+  // Moisture decay or rain/sprinkler replenishment
+  if (isRaining || sprinkled) {
     bed.moisture = Math.min(1.0, bed.moisture + dtSeconds * 0.05);
   } else {
     const decayRate = bed.cropId ? 0.008 * (CROPS[bed.cropId]?.waterDemand ?? 1.0) : 0.005;

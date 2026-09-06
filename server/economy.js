@@ -1,9 +1,11 @@
 import { CROPS, CROP_LIST } from '../shared/crops.js';
+import { GOODS, GOOD_LIST } from '../shared/materials.js';
 import {
   calculateNpcSellPrice,
   calculateNpcSeedPrice,
   updateMarketMultiplier,
 } from '../shared/economy.js';
+import { isMillRestoredInState } from './machines.js';
 
 export class EconomyManager {
   constructor(storage) {
@@ -12,6 +14,11 @@ export class EconomyManager {
     for (const crop of CROP_LIST) {
       this.multipliers[crop.id] = (this.storage.state.marketMultipliers && this.storage.state.marketMultipliers[crop.id])
         ? this.storage.state.marketMultipliers[crop.id]
+        : 1.0;
+    }
+    for (const good of GOOD_LIST) {
+      this.multipliers[good.id] = (this.storage.state.marketMultipliers && this.storage.state.marketMultipliers[good.id])
+        ? this.storage.state.marketMultipliers[good.id]
         : 1.0;
     }
     this.contracts = this.generateContracts();
@@ -37,20 +44,35 @@ export class EconomyManager {
         seedCost: crop.seedCost,
       };
     }
+    // Processed goods trade alongside crops; they have no seed side.
+    for (const good of GOOD_LIST) {
+      const mult = this.multipliers[good.id] || 1.0;
+      prices[good.id] = {
+        cropId: good.id,
+        name: good.name,
+        basePrice: good.basePrice,
+        multiplier: mult,
+        instantBid: calculateNpcSellPrice(good.id, 'B', mult),
+        isGood: true,
+      };
+    }
     return prices;
   }
 
   npcSell(player, cropId, quality = 'B', quantity = 1) {
     if (!player || quantity <= 0) return { success: false, reason: 'invalid_request' };
+    const isGood = !!GOODS[cropId];
+    // Processed goods have no quality grades; they always trade as grade B.
+    const effectiveQuality = isGood ? 'B' : quality;
     const inv = player.inventory;
-    const produceKey = `${cropId}_${quality}`;
+    const produceKey = `${cropId}_${effectiveQuality}`;
     const available = inv.produce[produceKey] || 0;
     if (available < quantity) {
       return { success: false, reason: 'insufficient_produce' };
     }
 
     const mult = this.multipliers[cropId] || 1.0;
-    const unitPrice = calculateNpcSellPrice(cropId, quality, mult);
+    const unitPrice = calculateNpcSellPrice(cropId, effectiveQuality, mult);
     const totalEarnings = unitPrice * quantity;
 
     inv.produce[produceKey] -= quantity;
@@ -66,7 +88,7 @@ export class EconomyManager {
     return {
       success: true,
       cropId,
-      quality,
+      quality: effectiveQuality,
       quantity,
       unitPrice,
       totalEarnings,
@@ -118,6 +140,12 @@ export class EconomyManager {
 
     const contracts = [];
     for (let i = 0; i < 3; i++) {
+      // Flour contracts only generate while the mill is restored; offering
+      // them from a broken mill would create unfulfillable demand.
+      if (isMillRestoredInState(this.storage.state) && i === Math.floor(Math.random() * 3)) {
+        contracts.push(this.generateFlourContract(clients, i));
+        continue;
+      }
       const crop = CROP_LIST[Math.floor(Math.random() * CROP_LIST.length)];
       const client = clients[(i * 2 + Math.floor(Math.random() * 2)) % clients.length];
       const qty = Math.floor(Math.random() * 4) + 3; // 3 - 6 units
@@ -141,6 +169,37 @@ export class EconomyManager {
       });
     }
     return contracts;
+  }
+
+  generateFlourContract(clients, slotIndex) {
+    const client = clients[(slotIndex * 2 + Math.floor(Math.random() * 2)) % clients.length];
+    const good = GOODS.flour;
+    const qty = Math.floor(Math.random() * 3) + 2; // 2 - 4 units of flour
+    const baseVal = good.basePrice * qty;
+    const reward = Math.round(baseVal * 1.4); // same 40% contract premium
+    return {
+      id: `contract_${Date.now()}_${slotIndex}`,
+      client,
+      cropId: good.id,
+      cropName: good.name,
+      quantity: qty,
+      minQuality: 'B', // flour has no quality grades in this slice
+      reward,
+      reputation: Math.round(qty * 5),
+      xp: Math.round(qty * 8),
+      expiresAt: Date.now() + 1000 * 60 * 10,
+      tier: 'flour',
+    };
+  }
+
+  /**
+   * Forces a contract reroll (used when the mill is restored, so the new
+   * demand signal appears without waiting for the next refresh window).
+   */
+  refreshContracts() {
+    this.contracts = this.generateContracts();
+    this.lastContractRefresh = Date.now();
+    return this.contracts;
   }
 
   tickContracts() {

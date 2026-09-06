@@ -9,7 +9,7 @@ export class WorldManager {
 
   addClient(playerId, clientSession) {
     this.clients.set(playerId, clientSession);
-    this.joinRoom(playerId, clientSession.currentRoom || 'market');
+    this.joinRoom(playerId, clientSession.currentRoom || ROOMS.MARKET);
   }
 
   removeClient(playerId) {
@@ -40,23 +40,27 @@ export class WorldManager {
     }
 
     session.currentRoom = roomId;
+    const alreadyMember = this.rooms.get(roomId)?.has(playerId) ?? false;
     if (!this.rooms.has(roomId)) {
       this.rooms.set(roomId, new Set());
     }
     this.rooms.get(roomId).add(playerId);
 
-    // Notify others in the new room
-    this.broadcastToRoom(roomId, {
-      type: MSG_TYPES.PRESENCE_JOIN,
-      player: {
-        id: session.player.id,
-        nickname: session.player.nickname,
-        x: session.x,
-        z: session.z,
-        rotY: session.rotY,
-        walking: session.walking,
-      },
-    }, playerId);
+    // Notify others in the room. Re-joining the current room is a no-op for
+    // everyone else: a duplicate JOIN_ROOM must not repeat PRESENCE_JOIN.
+    if (!alreadyMember) {
+      this.broadcastToRoom(roomId, {
+        type: MSG_TYPES.PRESENCE_JOIN,
+        player: {
+          id: session.player.id,
+          nickname: session.player.nickname,
+          x: session.x,
+          z: session.z,
+          rotY: session.rotY,
+          walking: session.walking,
+        },
+      }, playerId);
+    }
 
     // Send the joining player list of existing players in room
     const existingPlayers = [];
@@ -84,6 +88,9 @@ export class WorldManager {
   updateMovement(playerId, { x, z, rotY, walking }) {
     const session = this.clients.get(playerId);
     if (!session) return;
+
+    // Movement from a player without a room has nowhere to go; drop it.
+    if (!session.currentRoom) return;
 
     // Validate coordinates are finite
     if (!Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(rotY)) {

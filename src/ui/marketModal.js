@@ -1,13 +1,24 @@
 import { CROPS, CROP_LIST, QUALITY_MULTIPLIERS } from '../../shared/crops.js';
+import { GOODS, GOOD_LIST, MATERIALS, MATERIAL_LIST, MILL_REQUIREMENT, SPRINKLER } from '../../shared/materials.js';
 import { calculateNpcSellPrice, calculateNpcSeedPrice } from '../../shared/economy.js';
+import { MSG_TYPES } from '../../shared/protocol.js';
 
 export class UIManager {
   constructor(client, onAction = {}) {
     this.client = client;
     this.onAction = onAction;
     this.selectedCropId = 'radish';
-    this.activeTool = 'hands'; // 'hands' | 'hoe' | 'seed' | 'water' | 'harvest'
+    this.activeTool = 'hands'; // 'hands' | 'hoe' | 'seed' | 'water' | 'harvest' | 'sprinkler'
     this.selectedSeed = 'radish';
+    // Sensible pre-connection default; replaced by server MACHINE_UPDATE.
+    this.lastMachines = {
+      mill: {
+        status: 'broken',
+        required: { ...MILL_REQUIREMENT },
+        contributed: { copper: 0, timber: 0, glass: 0 },
+        restoredAt: null,
+      },
+    };
     this.initDOM();
   }
 
@@ -18,6 +29,7 @@ export class UIManager {
     this.createContractDialog();
     this.createInventoryDialog();
     this.createProfileDialog();
+    this.createMachineShopDialog();
     this.setupEventListeners();
   }
 
@@ -148,12 +160,48 @@ export class UIManager {
           <h3 class="micro">HARVESTED PRODUCE</h3>
           <div id="inv-produce-list" class="inv-grid"></div>
         </div>
+        <div>
+          <h3 class="micro">MATERIALS & TOOLS</h3>
+          <div id="inv-materials-list" class="inv-grid"></div>
+        </div>
       </div>
       <div class="modal-footer">
         <button id="close-inventory" class="btn-secondary">Close Satchel →</button>
       </div>
     `;
     document.body.append(dialog);
+  }
+
+  createMachineShopDialog() {
+    const dialog = document.createElement('dialog');
+    dialog.id = 'machine-shop-dialog';
+    dialog.className = 'game-modal';
+    dialog.innerHTML = `
+      <div class="micro modal-header-tag">MARKET COURT · MACHINE SHOP</div>
+      <h2>The Great Mill</h2>
+      <p class="modal-sub">A communal machine of the court. Restore it together — once turning, it grinds wheat into flour for everyone.</p>
+      <div class="machine-grid">
+        <div class="panel machine-card">
+          <div class="micro">RESTORATION PROGRESS</div>
+          <div id="mill-progress-summary"></div>
+          <div id="mill-material-rows"></div>
+        </div>
+        <div class="panel machine-card">
+          <div class="micro">MACHINE SHOP SERVICES</div>
+          <div id="mill-flour-box"></div>
+          <div id="sprinkler-craft-box"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="close-machine-shop" class="btn-secondary">Leave the Machine Shop →</button>
+      </div>
+    `;
+    document.body.append(dialog);
+  }
+
+  openMachineShop() {
+    this.updateMachineShopView();
+    document.getElementById('machine-shop-dialog').showModal();
   }
 
   createProfileDialog() {
@@ -174,10 +222,11 @@ export class UIManager {
   }
 
   setupEventListeners() {
-    // Crop tabs in market
+    // Crop & good tabs in market
     const tabs = document.getElementById('market-crop-tabs');
     tabs.innerHTML = '';
-    for (const crop of CROP_LIST) {
+    const tradables = [...CROP_LIST, ...GOOD_LIST];
+    for (const crop of tradables) {
       const btn = document.createElement('button');
       btn.className = `crop-tab ${crop.id === this.selectedCropId ? 'active' : ''}`;
       btn.textContent = crop.name;
@@ -201,8 +250,9 @@ export class UIManager {
 
     // Instant Sell button
     document.getElementById('btn-instant-sell').onclick = () => {
+      const isGood = !!GOODS[this.selectedCropId];
       const activeBtn = document.querySelector('#sell-quality-selector button.active');
-      const quality = activeBtn ? activeBtn.dataset.qual : 'B';
+      const quality = isGood ? 'B' : (activeBtn ? activeBtn.dataset.qual : 'B');
       const qty = parseInt(document.getElementById('sell-qty-input').value, 10) || 1;
       this.client.sendMarketSell(this.selectedCropId, quality, qty);
     };
@@ -221,6 +271,7 @@ export class UIManager {
     document.getElementById('close-contracts').onclick = () => document.getElementById('contract-dialog').close();
     document.getElementById('close-inventory').onclick = () => document.getElementById('inventory-dialog').close();
     document.getElementById('close-profile').onclick = () => document.getElementById('profile-dialog').close();
+    document.getElementById('close-machine-shop').onclick = () => document.getElementById('machine-shop-dialog').close();
 
     // Profile nickname save
     document.getElementById('btn-save-nickname').onclick = () => {
@@ -257,12 +308,125 @@ export class UIManager {
     document.getElementById('profile-dialog').showModal();
   }
 
+  /**
+   * Machine shop dialog: restoration progress, contributions, milling, and
+   * sprinkler crafting. Renders from the last known machine + player state;
+   * main.js calls this whenever MACHINE_UPDATE or inventory arrives.
+   */
+  updateMachineShopView(machines = null) {
+    if (machines) this.lastMachines = machines;
+    const mill = this.lastMachines?.mill;
+    const summaryEl = document.getElementById('mill-progress-summary');
+    const rowsEl = document.getElementById('mill-material-rows');
+    const flourEl = document.getElementById('mill-flour-box');
+    const craftEl = document.getElementById('sprinkler-craft-box');
+    if (!summaryEl || !rowsEl || !mill) return;
+
+    const player = this.lastPlayer;
+    const materials = player?.materials || {};
+
+    if (mill.status === 'restored') {
+      summaryEl.innerHTML = `
+        <strong class="mill-restored-line">✦ The Great Mill is turning.</strong>
+        <p>Restored by the community. It grinds wheat into flour for everyone, permanently.</p>
+      `;
+      rowsEl.innerHTML = '';
+    } else {
+      let totalDone = 0, totalNeed = 0;
+      let rows = '';
+      for (const material of MATERIAL_LIST) {
+        const need = mill.required?.[material.id] || 0;
+        const done = Math.min(mill.contributed?.[material.id] || 0, need);
+        totalDone += done;
+        totalNeed += need;
+        const held = materials[material.id] || 0;
+        const remaining = need - done;
+        const buttons = held > 0 && remaining > 0
+          ? `<button class="btn-contribute" data-material="${material.id}" data-qty="1">Give 1</button>
+             <button class="btn-contribute" data-material="${material.id}" data-qty="${Math.min(held, remaining)}">Give all</button>`
+          : '';
+        rows += `
+          <div class="mill-material-row">
+            <span class="mill-mat-name">${material.name}</span>
+            <span class="mill-mat-count">${done} / ${need}</span>
+            <span class="mill-mat-held">satchel: ${held}</span>
+            ${buttons}
+          </div>`;
+      }
+      summaryEl.innerHTML = `
+        <strong>The Great Mill is broken.</strong>
+        <p>Community restoration: ${totalDone} / ${totalNeed} materials delivered.</p>
+      `;
+      rowsEl.innerHTML = rows;
+    }
+
+    rowsEl.querySelectorAll('.btn-contribute').forEach(btn => {
+      btn.onclick = () => {
+        this.client.send(MSG_TYPES.MACHINE_CONTRIBUTE, {
+          actionId: this.nextActionId(),
+          material: btn.dataset.material,
+          quantity: parseInt(btn.dataset.qty, 10) || 1,
+        });
+      };
+    });
+
+    if (mill.status === 'restored') {
+      const qualities = ['C', 'B', 'A', 'A+'];
+      const wheatHeld = qualities.reduce((sum, q) => sum + (player?.inventory?.produce?.[`wheat_${q}`] || 0), 0);
+      const flourHeld = player?.inventory?.produce?.['flour_B'] || 0;
+      flourEl.innerHTML = `
+        <div class="micro">MILLING · WHEAT → FLOUR (1:1)</div>
+        <p class="machine-hint">Wheat in satchel: ${wheatHeld} · Flour: ${flourHeld}</p>
+        <div class="order-form-row">
+          <input type="number" id="mill-qty-input" min="1" max="99" value="1">
+          <button id="btn-mill-flour" class="action-btn"${wheatHeld <= 0 ? ' disabled' : ''}>Mill Flour</button>
+        </div>
+      `;
+      const millBtn = flourEl.querySelector('#btn-mill-flour');
+      if (millBtn) {
+        millBtn.onclick = () => {
+          const qty = parseInt(document.getElementById('mill-qty-input').value, 10) || 1;
+          this.client.send(MSG_TYPES.MACHINE_MILL, { actionId: this.nextActionId(), quantity: qty });
+        };
+      }
+    } else {
+      flourEl.innerHTML = `
+        <div class="micro">MILLING</div>
+        <p class="machine-hint">The millstones wait. Restore the mill to grind wheat into flour.</p>
+      `;
+    }
+
+    const costLines = Object.entries(SPRINKLER.cost)
+      .map(([materialId, cost]) => `${cost}× ${MATERIALS[materialId].name}`)
+      .join(' + ');
+    const heldLine = Object.entries(SPRINKLER.cost)
+      .map(([materialId, cost]) => `${materials[materialId] || 0}/${cost}`)
+      .join(' · ');
+    const canCraft = Object.entries(SPRINKLER.cost).every(([materialId, cost]) => (materials[materialId] || 0) >= cost);
+    craftEl.innerHTML = `
+      <div class="micro">CRAFT · ${SPRINKLER.name}</div>
+      <p class="machine-hint">Cost: ${costLines}. Keeps covered beds watered on their own. (satchel: ${heldLine})</p>
+      <button id="btn-craft-sprinkler" class="action-btn"${canCraft ? '' : ' disabled'}>Craft Sprinkler Kit</button>
+    `;
+    const craftBtn = craftEl.querySelector('#btn-craft-sprinkler');
+    if (craftBtn) {
+      craftBtn.onclick = () => {
+        this.client.send(MSG_TYPES.MACHINE_CRAFT, { actionId: this.nextActionId(), fixture: SPRINKLER.id });
+      };
+    }
+  }
+
+  nextActionId() {
+    return `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  }
+
   updateMarketView(pricesData = null, orderBookData = null) {
     if (pricesData) this.lastPrices = pricesData;
     if (orderBookData) this.lastOrderBook = orderBookData;
 
-    const crop = CROPS[this.selectedCropId];
+    const crop = CROPS[this.selectedCropId] || GOODS[this.selectedCropId];
     if (!crop) return;
+    const isGood = !!GOODS[this.selectedCropId];
 
     document.getElementById('spot-crop-name').textContent = crop.name;
     document.getElementById('spot-crop-tagline').textContent = crop.tagline;
@@ -270,7 +434,7 @@ export class UIManager {
     const priceInfo = this.lastPrices ? this.lastPrices[crop.id] : null;
     const mult = priceInfo ? priceInfo.multiplier : 1.0;
     const activeQualBtn = document.querySelector('#sell-quality-selector button.active');
-    const qual = activeQualBtn ? activeQualBtn.dataset.qual : 'B';
+    const qual = isGood ? 'B' : (activeQualBtn ? activeQualBtn.dataset.qual : 'B');
     const bid = calculateNpcSellPrice(crop.id, qual, mult);
 
     document.getElementById('spot-instant-bid').textContent = `${bid} ⛁`;
@@ -376,8 +540,10 @@ export class UIManager {
     if (player) this.lastPlayer = player;
     const seedsList = document.getElementById('inv-seeds-list');
     const produceList = document.getElementById('inv-produce-list');
+    const materialsList = document.getElementById('inv-materials-list');
     seedsList.innerHTML = '';
     produceList.innerHTML = '';
+    materialsList.innerHTML = '';
 
     const p = this.lastPlayer;
     if (!p || !p.inventory) return;
@@ -411,11 +577,35 @@ export class UIManager {
     } else {
       for (const [key, qty] of produceEntries) {
         const [cId, quality] = key.split('_');
-        const crop = CROPS[cId];
+        const crop = CROPS[cId] || GOODS[cId];
+        const isGood = !!GOODS[cId];
         const item = document.createElement('div');
         item.className = 'inv-item';
-        item.innerHTML = `<strong>${crop?.name || cId}</strong> <span class="badge-grade">Grade ${quality}</span> <span>${qty} units</span>`;
+        item.innerHTML = `<strong>${crop?.name || cId}</strong> ${isGood ? '' : `<span class="badge-grade">Grade ${quality}</span>`} <span>${qty} units</span>`;
         produceList.append(item);
+      }
+    }
+
+    // Materials & crafted tools (server-owned inventory)
+    const materials = p.materials || {};
+    const materialEntries = MATERIAL_LIST
+      .map(material => [material, materials[material.id] || 0])
+      .filter(([, qty]) => qty > 0);
+    const sprinklerKits = p.inventory.sprinklers || 0;
+    if (materialEntries.length === 0 && sprinklerKits <= 0) {
+      materialsList.innerHTML = '<div class="empty-msg">No materials yet — gather them in the outer districts</div>';
+    } else {
+      for (const [material, qty] of materialEntries) {
+        const item = document.createElement('div');
+        item.className = 'inv-item';
+        item.innerHTML = `<strong>${material.name}</strong> <span>${qty} units</span>`;
+        materialsList.append(item);
+      }
+      if (sprinklerKits > 0) {
+        const item = document.createElement('div');
+        item.className = 'inv-item';
+        item.innerHTML = `<strong>${SPRINKLER.name} kit</strong> <span>${sprinklerKits} ready — place on a bed (tool 6)</span>`;
+        materialsList.append(item);
       }
     }
   }

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { MATERIAL_NODES, MATERIALS } from '../shared/materials.js';
 
 export const districts = [
   { id: 'court', name: 'The Rain Court', district: 'LOWER DISTRICT / 04', subtitle: 'AFTER THE RAIN', color: '#657264', sun: '#ffe0a5', description: 'Wet stone, warm windows. Where your journey began.' },
@@ -18,6 +19,116 @@ export const districts = [
   { id: 'archives', name: 'The Paper Catacombs', district: 'ARCHIVE DISTRICT / 18', subtitle: 'WHISPERING VAULTS', color: '#48444a', sun: '#f5e4bd', description: 'Stone shelves holding centuries of water-resistant parchment. Light the reading desk lamp.', objective: 'Illuminate the study rotunda', action: 'Turn the reading lamp switch', done: 'Study rotunda illuminated', message: 'A soft amber globe illuminates centuries of hand-bound volumes. The silence feels like peace.', landmark: [5, -4], note: [-6, 5], noteTitle: 'Chief Archivist’s Dedication', noteBody: '“Words outlive empires, provided someone keeps the rain from dripping on the ink.”', spawn: [-9, 0] },
   { id: 'kiln-terrace', name: 'The Solar Kiln', district: 'TERRACOTTA DISTRICT / 19', subtitle: 'BAKED IN WARMTH', color: '#634b3e', sun: '#ffd09e', description: 'Baked clay tiles and parabolic sun collectors. Align the solar concentrator.', objective: 'Focus the solar concentrator', action: 'Calibrate the focal mirror', done: 'Concentrator focused', message: 'A brilliant point of concentrated sunlight gleams against the terracotta kiln. Warmth radiates.', landmark: [6, -4], note: [-5, 5], noteTitle: 'Potter’s Credo', noteBody: '“Earth, water, and sun. With these three, a broken city can remake itself cup by cup.”', spawn: [-9, 0] },
 ];
+
+// Gather-node visuals. These live in a dynamic subgroup that is explicitly
+// excluded from the static instanced batch: nodes change state at runtime
+// (depleted/available), and animating batched source meshes silently does
+// nothing (AGENTS.md §7). Geometry is shared module-level; only materials
+// that animate are per-instance.
+const nodeGeo = new THREE.BoxGeometry(1, 1, 1);
+const nodeMaterialCache = new Map();
+function nodeMaterial(color, emissive = null, emissiveIntensity = 0) {
+  const key = `${color}_${emissive || ''}_${emissiveIntensity}`;
+  if (!nodeMaterialCache.has(key)) {
+    nodeMaterialCache.set(key, new THREE.MeshStandardMaterial({
+      color, roughness: 0.62, metalness: 0.2,
+      emissive: emissive || '#000000', emissiveIntensity,
+    }));
+  }
+  return nodeMaterialCache.get(key);
+}
+function nbox(parent, x, y, z, w, h, d, mat, rotZ = 0, rotY = 0) {
+  const mesh = new THREE.Mesh(nodeGeo, mat);
+  mesh.position.set(x, y, z);
+  mesh.scale.set(w, h, d);
+  mesh.rotation.z = rotZ;
+  mesh.rotation.y = rotY;
+  mesh.castShadow = mesh.receiveShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+// Builds the harvestable material nodes owned by this district under a
+// dynamic subgroup, and returns { visuals, dynamicGroup }.
+function buildMaterialNodes(def, ctx) {
+  const { group, items, animated } = ctx;
+  const defs = MATERIAL_NODES.filter(node => node.district === def.id);
+  if (defs.length === 0) return null;
+
+  const dynamic = new THREE.Group();
+  dynamic.name = 'dynamic';
+  group.add(dynamic);
+
+  const visuals = defs.map((nodeDef, i) => {
+    const matDef = MATERIALS[nodeDef.material];
+    const [x, z] = nodeDef.position;
+    const nodeGroup = new THREE.Group();
+    nodeGroup.position.set(x, 0, z);
+    dynamic.add(nodeGroup);
+
+    // Shared base slab every node keeps, even picked clean.
+    nbox(nodeGroup, 0, 0.12, 0, 1.15, 0.24, 1.15, nodeMaterial('#3d4547'));
+
+    // The harvestable cache itself; hidden while depleted.
+    const rich = new THREE.Group();
+    nodeGroup.add(rich);
+    if (nodeDef.material === 'copper') {
+      nbox(rich, -0.18, 0.34, 0.1, 0.42, 0.34, 0.42, nodeMaterial(matDef.color), 0, 0.4);
+      nbox(rich, 0.22, 0.3, -0.14, 0.34, 0.26, 0.34, nodeMaterial('#a8663a'), 0.2, -0.5);
+      nbox(rich, 0.05, 0.54, 0.02, 0.2, 0.22, 0.2, nodeMaterial('#d18b52'), -0.3, 0.9);
+    } else if (nodeDef.material === 'timber') {
+      nbox(rich, 0, 0.36, 0.05, 1.05, 0.26, 0.3, nodeMaterial(matDef.color), 0, 0.18);
+      nbox(rich, 0.06, 0.6, -0.04, 0.95, 0.24, 0.28, nodeMaterial('#8a6842'), 0, -0.32);
+      nbox(rich, -0.05, 0.8, 0.02, 0.6, 0.2, 0.24, nodeMaterial('#6b4e30'), 0, 0.62);
+    } else {
+      nbox(rich, -0.16, 0.4, 0.08, 0.16, 0.5, 0.4, nodeMaterial(matDef.color), 0.12, 0.3);
+      nbox(rich, 0.18, 0.36, -0.1, 0.14, 0.44, 0.34, nodeMaterial('#b8d8e8'), -0.1, -0.6);
+      nbox(rich, 0.02, 0.52, 0.12, 0.12, 0.62, 0.3, nodeMaterial('#cfe4f0'), 0.05, 1.1);
+    }
+
+    // A single warm glint marks the cache as gatherable; it is extinguished
+    // while the node is depleted.
+    const sparkMat = new THREE.MeshStandardMaterial({
+      color: matDef.glowColor, emissive: matDef.glowColor, emissiveIntensity: 1.2,
+    });
+    const spark = new THREE.Mesh(nodeGeo, sparkMat);
+    spark.scale.set(0.12, 0.12, 0.12);
+    spark.position.y = 0.95;
+    nodeGroup.add(spark);
+
+    const item = {
+      type: 'material_node',
+      nodeId: nodeDef.id,
+      material: nodeDef.material,
+      x, z,
+      title: `${matDef.name} cache`,
+      sub: 'Press E to gather materials',
+    };
+    items.push(item);
+
+    const visual = { def: nodeDef, nodeGroup, rich, spark, sparkMat, item, depleted: false, phase: i * 1.7 };
+    animated.push(time => {
+      if (visual.depleted) return;
+      spark.position.y = 0.95 + Math.sin(time * 2 + visual.phase) * 0.07;
+      spark.rotation.y = time * 0.8 + visual.phase;
+      sparkMat.emissiveIntensity = 1.1 + Math.sin(time * 2.6 + visual.phase) * 0.35;
+    });
+    return visual;
+  });
+
+  return { visuals, dynamic };
+}
+
+function applyNodeState(visual, state) {
+  visual.depleted = !state.available;
+  visual.rich.visible = state.available;
+  visual.spark.visible = state.available;
+  if (visual.item) {
+    visual.item.sub = state.available
+      ? 'Press E to gather materials'
+      : 'Picked clean — it will regrow in time';
+  }
+}
 
 export function readExploration(value) {
   return {
@@ -463,6 +574,17 @@ export function buildDistrict(def, completed = false) {
   const ring = new THREE.Mesh(new THREE.RingGeometry(.8, .84, 32), new THREE.MeshBasicMaterial({ color: '#e7c889', side: THREE.DoubleSide, transparent: true, opacity: .65 }));
   ring.rotation.x = -Math.PI / 2; ring.position.set(lx, .25, lz); group.add(ring);
   items.push({ type: 'landmark', x: lx, z: lz, title: def.action, sub: 'A small act of restoration' });
+
+  // Gather nodes for this district (server state applied on district entry).
+  // They live in a dynamic subgroup that the static batch below skips.
+  const nodeBuild = buildMaterialNodes(def, { group, items, animated });
+  function setNodeStates(states) {
+    if (!nodeBuild || !Array.isArray(states)) return;
+    for (const state of states) {
+      const visual = nodeBuild.visuals.find(v => v.def.id === state.nodeId);
+      if (visual) applyNodeState(visual, state);
+    }
+  }
   function update(time, done) {
     signal.position.y = 2.5 + Math.sin(time * 2) * .12;
     signal.material.emissive.set(done ? '#93e9b6' : '#ffe0a0');
@@ -475,5 +597,5 @@ export function buildDistrict(def, completed = false) {
   const batch = new THREE.InstancedMesh(geometry, new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: .62, metalness: .2 }), statics.length);
   statics.forEach((mesh, i) => { mesh.updateMatrix(); batch.setMatrixAt(i, mesh.matrix); batch.setColorAt(i, mesh.material.color); group.remove(mesh); });
   batch.castShadow = batch.receiveShadow = true; group.add(batch);
-  return { group, obstacles, items, update };
+  return { group, obstacles, items, update, setNodeStates };
 }

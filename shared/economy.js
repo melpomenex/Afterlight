@@ -3,6 +3,7 @@
  */
 
 import { CROPS, QUALITY_MULTIPLIERS } from './crops.js';
+import { GOODS } from './materials.js';
 
 export const ECONOMY = {
   FEE_RATE: 0.02, // 2% trading fee on order book sales
@@ -13,10 +14,18 @@ export const ECONOMY = {
 };
 
 /**
+ * Looks up a sellable good definition — crops and processed goods share the
+ * basePrice shape. Returns null for unknown ids.
+ */
+export function getSellableGood(goodId) {
+  return CROPS[goodId] || GOODS[goodId] || null;
+}
+
+/**
  * Calculates current NPC instant sell price (bid) given base price, market multiplier, and quality.
  */
 export function calculateNpcSellPrice(cropId, quality = 'B', marketMultiplier = 1.0) {
-  const crop = CROPS[cropId];
+  const crop = getSellableGood(cropId);
   if (!crop) return 0;
   const qualMult = QUALITY_MULTIPLIERS[quality] ?? 1.0;
   // NPC instant buyback operates with a 15% liquidity spread discount below market spot

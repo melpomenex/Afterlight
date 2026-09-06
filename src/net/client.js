@@ -17,9 +17,14 @@ export class NetworkClient {
     this.reconnectAttempts = 0;
     this.reconnectTimer = null;
     this.lastMovementSend = 0;
+    this.desiredRoom = null;
   }
 
   getDefaultUrl() {
+    // Deployed builds get the multiplayer server URL at build time
+    // (e.g. VITE_WS_URL=wss://example.invalid/ws); dev falls back to localhost.
+    const configured = import.meta.env?.VITE_WS_URL;
+    if (configured) return configured;
     const loc = window.location;
     const protocol = loc.protocol === 'https:' ? 'wss:' : 'ws:';
     // By default, connect to port 3001 if on dev localhost, or same host
@@ -80,6 +85,12 @@ export class NetworkClient {
         guestId: this.guestId,
         nickname: this.nickname,
       });
+      // Re-join the remembered room on every (re)connect. This also covers a
+      // joinRoom() requested before the handshake finished: send() drops
+      // packets until the socket is OPEN, so the request is replayed here.
+      if (this.desiredRoom) {
+        this.send(MSG_TYPES.JOIN_ROOM, { roomId: this.desiredRoom });
+      }
       this.connectListeners.forEach(fn => fn());
     };
 
@@ -187,12 +198,20 @@ export class NetworkClient {
     this.send(MSG_TYPES.EMOTE, { emote });
   }
 
+  sendChat(text) {
+    // Raw line; the server parses /msg and /me authoritatively.
+    this.send(MSG_TYPES.CHAT_SEND, { text });
+  }
+
   setNickname(newNick) {
     this.setStoredNickname(newNick);
     this.send(MSG_TYPES.SET_NICKNAME, { nickname: this.nickname });
   }
 
   joinRoom(roomId) {
+    // Remember the room so it is sent once the socket opens and re-sent
+    // automatically after any reconnect.
+    this.desiredRoom = roomId;
     this.send(MSG_TYPES.JOIN_ROOM, { roomId });
   }
 }
