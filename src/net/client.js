@@ -146,13 +146,19 @@ export class NetworkClient {
     }
   }
 
-  sendMovement(x, z, rotY, walking) {
+  sendMovement(x, z, rotY, walking, sitting = false) {
     const now = performance.now();
     // Cap client movement packets at ~12 Hz (every 80ms)
     if (now - this.lastMovementSend < 80) return;
     this.lastMovementSend = now;
-    this.send(MSG_TYPES.MOVEMENT, { x, z, rotY, walking });
+    this.send(MSG_TYPES.MOVEMENT, { x, z, rotY, walking, sitting: !!sitting });
   }
+
+  sendTheaterQueue(payload) { this.send(MSG_TYPES.THEATER_QUEUE, payload); }
+
+  sendTheaterControl(payload) { this.send(MSG_TYPES.THEATER_CONTROL, payload); }
+
+  sendTheaterChannel(url, title) { this.send(MSG_TYPES.THEATER_CHANNEL, { url, title }); }
 
   sendGardenAction(action, bedIndex, seedCropId = null) {
     const actionId = `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;

@@ -14,6 +14,17 @@ import { MSG_TYPES } from '../../shared/protocol.js';
 
 const MAX_LINES = 200; // DOM cap; the server keeps the longer history
 
+// User-resizable panel bounds (log height / panel width, in px).
+const SIZE_KEY = 'afterlight-chat-size';
+const SIZE_MIN_W = 280;
+const SIZE_MIN_H = 120;
+const SIZE_MAX_W = 640;
+const SIZE_MAX_H = 560;
+
+function clampSize(value, lo, hi) {
+  return Math.max(lo, Math.min(hi, value));
+}
+
 export class ChatPanel {
   constructor(net, { onFocusChange = null } = {}) {
     this.net = net;
@@ -28,6 +39,7 @@ export class ChatPanel {
     this.form = document.getElementById('chat-form');
     this.input = document.getElementById('chat-input');
     this.sendBtn = document.getElementById('chat-send');
+    this.handle = document.getElementById('chat-resize');
     this.connected = false;
 
     if (!this.panel || !this.log) return;
@@ -64,6 +76,8 @@ export class ChatPanel {
     this.net.onDisconnect(() => this.setConnected(false));
     this.net.onConnect(() => this.setConnected(true));
     this.setConnected(this.net.connected);
+
+    this.#initResize();
   }
 
   // --- state ---------------------------------------------------------------
@@ -161,6 +175,133 @@ export class ChatPanel {
   }
 
   // --- internals -------------------------------------------------------------
+
+  /**
+   * Panel resizing: a grip on the panel's top-left corner (the panel is
+   * anchored bottom-right, so growing means dragging up/left). Works by
+   * mouse/touch drag and, for keyboard play, via arrow keys while the grip
+   * is focused; double-click resets. The chosen size persists in
+   * localStorage and is intentionally dropped on narrow viewports where the
+   * responsive rules own the panel's size.
+   */
+  #initResize() {
+    if (!this.handle) return;
+    this.sizeMedia = window.matchMedia('(max-width: 900px)');
+    this.#applySavedSize();
+    // Cross-check both signals: media queries cover breakpoint crossings in
+    // ordinary browsers; the resize event covers environments (and window
+    // managers) where the change event is not delivered.
+    this.sizeMedia.addEventListener('change', () => this.#applySavedSize());
+    window.addEventListener('resize', () => this.#applySavedSize());
+
+    let drag = null;
+    const onDragMove = (e) => {
+      if (!drag) return;
+      e.preventDefault();
+      const w = clampSize(drag.w - (e.clientX - drag.x), SIZE_MIN_W, this.#maxWidth());
+      const h = clampSize(drag.h - (e.clientY - drag.y), SIZE_MIN_H, this.#maxHeight());
+      this.#setSize(w, h);
+    };
+    const endDrag = () => {
+      if (!drag) return;
+      drag = null;
+      window.removeEventListener('pointermove', onDragMove);
+      window.removeEventListener('pointerup', endDrag);
+      window.removeEventListener('pointercancel', endDrag);
+      this.#saveSize(this.#currentSize());
+    };
+    this.handle.addEventListener('pointerdown', (e) => {
+      if (this.sizeMedia.matches || this.collapsed) return;
+      e.preventDefault();
+      drag = {
+        x: e.clientX,
+        y: e.clientY,
+        w: this.panel.getBoundingClientRect().width,
+        h: this.log.getBoundingClientRect().height,
+      };
+      try { this.handle.setPointerCapture(e.pointerId); } catch {}
+      // Window-level listeners keep the drag alive even if the cursor
+      // leaves the small grip or pointer capture is unavailable.
+      window.addEventListener('pointermove', onDragMove);
+      window.addEventListener('pointerup', endDrag);
+      window.addEventListener('pointercancel', endDrag);
+    });
+    this.handle.addEventListener('dblclick', () => this.#clearSize());
+
+    this.handle.addEventListener('keydown', (e) => {
+      if (this.sizeMedia.matches || this.collapsed) return;
+      const step = e.shiftKey ? 8 : 28;
+      const size = this.#currentSize();
+      let w = size.w;
+      let h = size.h;
+      if (e.code === 'ArrowLeft') w += step;   // handle sits top-left: left/up grow
+      else if (e.code === 'ArrowRight') w -= step;
+      else if (e.code === 'ArrowUp') h += step;
+      else if (e.code === 'ArrowDown') h -= step;
+      else return;
+      e.preventDefault();
+      this.#setSize(clampSize(w, SIZE_MIN_W, this.#maxWidth()), clampSize(h, SIZE_MIN_H, this.#maxHeight()));
+      this.#saveSize(this.#currentSize());
+    });
+  }
+
+  #maxWidth() {
+    return Math.min(SIZE_MAX_W, window.innerWidth - 380);
+  }
+
+  #maxHeight() {
+    return Math.min(SIZE_MAX_H, window.innerHeight - 260);
+  }
+
+  #setSize(w, h) {
+    this.panel.style.width = `${Math.round(w)}px`;
+    this.log.style.height = `${Math.round(h)}px`;
+  }
+
+  #currentSize() {
+    return {
+      w: this.panel.getBoundingClientRect().width,
+      h: this.log.getBoundingClientRect().height,
+    };
+  }
+
+  #applySavedSize() {
+    const saved = this.#loadSize();
+    if (this.sizeMedia.matches || !saved) {
+      // Let the responsive stylesheet own the size here.
+      this.panel.style.width = '';
+      this.log.style.height = '';
+      return;
+    }
+    this.#setSize(
+      clampSize(saved.w, SIZE_MIN_W, this.#maxWidth()),
+      clampSize(saved.h, SIZE_MIN_H, this.#maxHeight()),
+    );
+  }
+
+  #loadSize() {
+    try {
+      const raw = localStorage.getItem(SIZE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Number.isFinite(parsed.w) || !Number.isFinite(parsed.h)) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  #saveSize(size) {
+    try {
+      localStorage.setItem(SIZE_KEY, JSON.stringify({ w: Math.round(size.w), h: Math.round(size.h) }));
+    } catch {}
+  }
+
+  #clearSize() {
+    try { localStorage.removeItem(SIZE_KEY); } catch {}
+    this.panel.style.width = '';
+    this.log.style.height = '';
+  }
 
   #makeLine(msg = {}) {
     const line = document.createElement('div');

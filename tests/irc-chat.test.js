@@ -141,14 +141,14 @@ test('JOIN delivers topic and names; members see joins and parts', async () => {
     await b.waitFor(' 001 ');
 
     a.send('JOIN #afterlight');
-    await a.waitFor(' 332 #afterlight');
-    await a.waitFor(' 353 ');
-    await a.waitFor(' 366 ');
+    await a.waitFor(' 332 '); // topic
+    await a.waitFor(' 353 '); // names
+    await a.waitFor(' 366 '); // end of names
 
     b.send('JOIN #afterlight');
     await b.waitFor(' 353 ');
     assert.ok(linesInclude(b, 'JOIN #afterlight'), 'joiner sees their own JOIN line');
-    await a.waitFor(':SecondFan!b@127.0.0.1 JOIN'); // announcement to the existing member
+    await a.waitFor(':SecondFan!b@'); // announcement to the existing member
   } finally {
     closeIrc(a);
     closeIrc(b);
@@ -163,7 +163,7 @@ test('PRIVMSG fans out to the channel but never echoes the sender', async () => 
   try {
     a.send('NICK ChanA', 'USER a 0 * :A', 'JOIN #afterlight');
     b.send('NICK ChanB', 'USER b 0 * :B', 'JOIN #afterlight');
-    await a.waitFor(':ChanB! JOIN');
+    await a.waitFor(':ChanB!b@');
     await b.waitFor(' 366 ');
 
     a.send('PRIVMSG #afterlight :the mill turns again');

@@ -78,7 +78,8 @@ class IrcConnection {
   sendNumeric(num, ...parts) {
     const trailing = parts.pop() ?? '';
     const params = parts.length ? ` ${parts.join(' ')}` : '';
-    this.sendLine(`:${SERVER_NAME} ${num} ${this.nick || '*'}${params} :${trailing}`);
+    // RFC numerics are three digits, zero-padded; real clients parse them as such.
+    this.sendLine(`:${SERVER_NAME} ${String(num).padStart(3, '0')} ${this.nick || '*'}${params} :${trailing}`);
   }
 
   noteActivity() {

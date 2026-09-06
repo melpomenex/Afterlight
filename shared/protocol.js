@@ -15,6 +15,17 @@
  *   - chat_dm (S→C): { from, fromKind, to, text, ts, action?, echo? } — private
  *   - chat_presence (S→C): { channel, event: 'join'|'part', who, fromKind, ts }
  *   - chat_error (S→C): { message }
+ *
+ * Theater payloads (additive):
+ *   - theater_queue (C→S): { op: 'add'|'remove'|'playNow'|'skip'|'clear',
+ *     url?, title?, itemId? } — queue management for the shared screen
+ *   - theater_control (C→S): { op: 'pause'|'resume'|'seek'|'ended'|'failed',
+ *     itemId?, positionSec? } — playback control from any occupant
+ *   - theater_channel (C→S): { url, title } — tune to an IPTV channel by
+ *     resolved stream URL (never an index into a private list)
+ *   - theater_state (S→C): { theater: { now, queue }, serverNow } — full
+ *     snapshot, broadcast on every applied change and sent on room join
+ *   - Presence payloads additively carry `sitting: boolean` (theater seats)
  */
 
 export const MSG_TYPES = {
@@ -33,6 +44,9 @@ export const MSG_TYPES = {
   MACHINE_CONTRIBUTE: 'machine_contribute',
   MACHINE_MILL: 'machine_mill',
   MACHINE_CRAFT: 'machine_craft',
+  THEATER_QUEUE: 'theater_queue',
+  THEATER_CONTROL: 'theater_control',
+  THEATER_CHANNEL: 'theater_channel',
   EMOTE: 'emote',
   CHAT_SEND: 'chat_send',
   PING: 'ping',
@@ -49,6 +63,7 @@ export const MSG_TYPES = {
   CONTRACT_UPDATE: 'contract_update',
   NODE_STATE: 'node_state',
   MACHINE_UPDATE: 'machine_update',
+  THEATER_STATE: 'theater_state',
   WEATHER_UPDATE: 'weather_update',
   ACTION_RESULT: 'action_result',
   TRADE_FILLED: 'trade_filled',
@@ -64,6 +79,7 @@ export const MSG_TYPES = {
 
 export const ROOMS = {
   MARKET: 'market',
+  THEATER: 'theater',
   gardenFor: (playerId) => `garden:${playerId}`,
   isGarden: (roomId) => roomId?.startsWith('garden:'),
   gardenOwner: (roomId) => roomId?.startsWith('garden:') ? roomId.slice('garden:'.length) : null,

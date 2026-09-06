@@ -5,13 +5,13 @@ import { createServer } from '../server/index.js';
 import { Storage } from '../server/storage.js';
 import { MSG_TYPES, ROOMS, parse, serialize } from '../shared/protocol.js';
 import {
-
-// Chat relay binds its own TCP port; tests use an ephemeral one.
-process.env.IRC_PORT = '0';
   generateDefaultNickname,
   sanitizeNickname,
   resolveDuplicateNickname,
 } from '../shared/identity.js';
+
+// Chat relay binds its own TCP port; tests use an ephemeral one.
+process.env.IRC_PORT = '0';
 
 test('nickname generation, sanitization, and duplicate resolution', () => {
   const nick = generateDefaultNickname();

@@ -9,6 +9,8 @@ import { EconomyManager } from './economy.js';
 import { OrderBook } from './orderbook.js';
 import { NodesManager } from './nodes.js';
 import { MachinesManager } from './machines.js';
+import { TheaterManager } from './theater.js';
+import { theaterErrorText } from '../shared/theaterModel.js';
 import { IrcServer } from './irc.js';
 import { ChatBridge } from './chat.js';
 import { MATERIALS } from '../shared/materials.js';
@@ -24,6 +26,7 @@ export function createServer(customStorage = null) {
   const machines = new MachinesManager(storage);
   const economy = new EconomyManager(storage);
   const orderbook = new OrderBook(storage);
+  const theater = new TheaterManager(storage);
 
   // Town chat: an embedded IRC server (external clients & bots can connect
   // on the IRC port) with the game world bridged into it. IRC_DISABLED=1
@@ -134,6 +137,7 @@ export function createServer(customStorage = null) {
           prices: economy.getPricesSnapshot(),
           contracts: economy.contracts,
           orderBook: orderbook.getBookSnapshot(),
+          theater: theater.snapshot(),
         });
 
         // Send initial garden state
@@ -167,6 +171,7 @@ export function createServer(customStorage = null) {
           prices: economy.getPricesSnapshot(),
           contracts: economy.contracts,
           orderBook: orderbook.getBookSnapshot(),
+          theater: theater.snapshot(),
         });
         return;
       }
@@ -194,6 +199,15 @@ export function createServer(customStorage = null) {
           }
           if (newRoom === ROOMS.MARKET) {
             session.send({ type: MSG_TYPES.MACHINE_UPDATE, machines: machines.getStatus() });
+          }
+          if (newRoom === ROOMS.THEATER) {
+            // Late joiners get the shared screen's current bill so their
+            // player settles on the same item the room is watching.
+            session.send({
+              type: MSG_TYPES.THEATER_STATE,
+              theater: theater.snapshot(),
+              serverNow: Date.now(),
+            });
           }
         }
         return;
@@ -473,6 +487,36 @@ export function createServer(customStorage = null) {
         return;
       }
 
+      // --- Theater: the shared Orpheum screen. All rules live in the
+      // shared reducer; the server only guards the room and relays full
+      // snapshots (sender included, so their UI syncs too). ---
+      if (msg.type === MSG_TYPES.THEATER_QUEUE || msg.type === MSG_TYPES.THEATER_CONTROL || msg.type === MSG_TYPES.THEATER_CHANNEL) {
+        if (session.currentRoom !== ROOMS.THEATER) {
+          session.send({
+            type: MSG_TYPES.ERROR,
+            message: 'You need to be inside The Orpheum to reach the projector.',
+          });
+          return;
+        }
+        // theater_channel is a bare {url, title}; normalize it to the
+        // reducer's channel op. The queue/control messages already carry
+        // op + fields.
+        const payload = msg.type === MSG_TYPES.THEATER_CHANNEL
+          ? { op: 'channel', url: msg.url, title: msg.title }
+          : msg;
+        const res = theater.applyAction(player.nickname, payload);
+        if (res.success) {
+          world.broadcastToRoom(ROOMS.THEATER, {
+            type: MSG_TYPES.THEATER_STATE,
+            theater: theater.snapshot(),
+            serverNow: Date.now(),
+          });
+        } else {
+          session.send({ type: MSG_TYPES.ERROR, message: theaterErrorText(res.reason) });
+        }
+        return;
+      }
+
       // --- Gathering: material node harvest (server-validated grant) ---
       if (msg.type === MSG_TYPES.NODE_HARVEST) {
         const { actionId, nodeId } = msg;
@@ -681,7 +725,7 @@ export function createServer(customStorage = null) {
     server.close();
   }
 
-  return { server, wss, world, gardens, economy, orderbook, nodes, machines, storage, irc, chat, close };
+  return { server, wss, world, gardens, economy, orderbook, nodes, machines, theater, storage, irc, chat, close };
 }
 
 // Auto-run if executed directly

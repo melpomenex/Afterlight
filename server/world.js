@@ -58,6 +58,7 @@ export class WorldManager {
           z: session.z,
           rotY: session.rotY,
           walking: session.walking,
+          sitting: !!session.sitting,
         },
       }, playerId);
     }
@@ -75,6 +76,7 @@ export class WorldManager {
           z: other.z,
           rotY: other.rotY,
           walking: other.walking,
+          sitting: !!other.sitting,
         });
       }
     }
@@ -85,7 +87,7 @@ export class WorldManager {
     });
   }
 
-  updateMovement(playerId, { x, z, rotY, walking }) {
+  updateMovement(playerId, { x, z, rotY, walking, sitting }) {
     const session = this.clients.get(playerId);
     if (!session) return;
 
@@ -101,6 +103,8 @@ export class WorldManager {
     session.z = z;
     session.rotY = rotY;
     session.walking = !!walking;
+    // Theater seats: additive presence flag, no persistence.
+    session.sitting = !!sitting;
     session.moved = true;
     this.dirtyMovementRooms.add(session.currentRoom);
   }
@@ -120,6 +124,7 @@ export class WorldManager {
             z: s.z,
             rotY: s.rotY,
             walking: s.walking,
+            sitting: !!s.sitting,
           });
           s.moved = false;
         }
