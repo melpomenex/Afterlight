@@ -7,10 +7,10 @@
 
 ## 2. Server: torrent engine
 
-- [ ] 2.1 Create `server/torrents.js` `TorrentManager`: lazy `webtorrent` import with boot-guard degradation ("torrent engine unavailable" errors, server keeps running), `resolve(magnet)` returning name + ordered file list with timeout, per-file read streams by `(infohash, fileIndex)`, video-extension/index allow-list
-- [ ] 2.2 Cache lifecycle in `TorrentManager`: `data/torrents/<infohash>/` (env `TORRENT_CACHE_DIR`), idle reap (~10 min, on the existing 1 Hz tick), LRU disk cap (default 4 GB, env `TORRENT_CACHE_MAX_BYTES`) that never evicts the playing item, startup sweep of malformed/orphaned directories
-- [ ] 2.3 Add `GET /api/theater/torrent/:infohash/:fileIndex` to `server/index.js`: lazy ensure, Range parsing → 206 with `Content-Range`/`Accept-Ranges`, extension Content-Type, clean 404s for non-video/unknown indexes, same CORS posture as the other `/api/theater/*` routes
-- [ ] 2.4 Wire WS handlers in `server/index.js`: room-gated `torrent_resolve` (in-flight map keyed by `requestId`, one resolve per connection) replying `torrent_files` to the requester only; torrent field validation on `theater_queue`/`theater_channel` payloads; ~2 s `torrent_state` broadcast to the theater room while a torrent item is live or a resolve is in flight
+- [x] 2.1 Create `server/torrents.js` `TorrentManager`: lazy `webtorrent` import with boot-guard degradation ("torrent engine unavailable" errors, server keeps running), `resolve(magnet)` returning name + ordered file list with timeout, per-file read streams by `(infohash, fileIndex)`, video-extension/index allow-list
+- [x] 2.2 Cache lifecycle in `TorrentManager`: `data/torrents/<infohash>/` (env `TORRENT_CACHE_DIR`), idle reap (~10 min, on the existing 1 Hz tick), LRU disk cap (default 4 GB, env `TORRENT_CACHE_MAX_BYTES`) that never evicts the playing item, startup sweep of malformed/orphaned directories
+- [x] 2.3 Add `GET /api/theater/torrent/:infohash/:fileIndex` to `server/index.js`: lazy ensure, Range parsing → 206 with `Content-Range`/`Accept-Ranges`, extension Content-Type, clean 404s for non-video/unknown indexes, same CORS posture as the other `/api/theater/*` routes
+- [x] 2.4 Wire WS handlers in `server/index.js`: room-gated `torrent_resolve` (in-flight map keyed by `requestId`, one resolve per connection) replying `torrent_files` to the requester only; torrent field validation on `theater_queue`/`theater_channel` payloads; ~2 s `torrent_state` broadcast to the theater room while a torrent item is live or a resolve is in flight
 
 ## 3. Client: picker, engine, status
 
@@ -25,8 +25,12 @@
 
 ## 5. Docs and verification
 
-- [ ] 5.1 Update README: pasting a magnet, the resolve→pick flow, what the room sees, cache location/limits, content-responsibility note, and the env overrides (`TORRENT_CACHE_DIR`, `TORRENT_CACHE_MAX_BYTES`)
-- [ ] 5.2 Update AGENTS.md theater section: torrent engine architecture (manager, canonical magnet state, stream endpoint, status broadcast)
-- [ ] 5.3 Run `npm test` and `npm run build`; resolve any failures
-- [ ] 5.4 Verify in the running app with a well-seeded Creative Commons torrent (e.g. the Sintel fixture): paste → resolve → pick → room playback, seek/pause/skip while partially downloaded, cancel-picker leaves the bill untouched, invalid magnet and non-theater resolve are rejected with readable errors
-- [ ] 5.5 Verify persistence: server restart mid-bill restores the torrent item and re-serves from cache; cache directory deletion degrades to re-download without errors; IPTV/YouTube/file/HLS paths and the rest of the theater still work
+- [x] 5.1 Update README: pasting a magnet, the resolve→pick flow, what the room sees, cache location/limits, content-responsibility note, and the env overrides (`TORRENT_CACHE_DIR`, `TORRENT_CACHE_MAX_BYTES`)
+- [x] 5.2 Update AGENTS.md theater section: torrent engine architecture (manager, canonical magnet state, stream endpoint, status broadcast)
+- [x] 5.3 Run `npm test` and `npm run build`; resolve any failures
+- [x] 5.4 Verify in the running app with a well-seeded Creative Commons torrent (e.g. the Sintel fixture): paste → resolve → pick → room playback, seek/pause/skip while partially downloaded, cancel-picker leaves the bill untouched, invalid magnet and non-theater resolve are rejected with readable errors
+- [x] 5.5 Verify persistence: server restart mid-bill restores the torrent item and re-serves from cache; cache directory deletion degrades to re-download without errors; IPTV/YouTube/file/HLS paths and the rest of the theater still work
+
+### Verification note
+
+This environment blocks outbound UDP, so public DHT/UDP-tracker swarms are unreachable (the Sintel magnet was attempted and timed out). Verification ran against a functionally identical local swarm — an HTTP tracker + webtorrent seeder (`bittorrent-tracker` + ffmpeg-generated fixtures) on localhost — exercising the same resolve → metadata → peer → Range-stream path. Covered live: paste → resolve → picker (video-only, playable-first) → pick → room playback with screenshot, pause/resume, ±30s seek propagation, cancel-picker leaving the bill untouched, natural end → auto-advance, server restart mid-bill restoring the item, and stream revival from the bill's magnet with and without cache (including cache re-creation by re-download). Two robustness fixes came out of verification: `ensureTorrent` uses webtorrent v3's event-based `add()`/async `get()` (the v2 callback API no longer exists), and `streamFile` revives bill-known torrents via a magnet resolver so a lost `library.json` cannot strand a restart-resumed bill. Known deployment artifact: a stale pre-torrent client tab reports `failed` for torrent items (old unknown-kind path) and advances the bill for everyone; all clients on current code are unaffected.

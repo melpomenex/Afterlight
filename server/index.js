@@ -45,6 +45,14 @@ export function createServer(customStorage = null, options = {}) {
   // Owns its cache + magnet library; webtorrent imports lazily so a broken
   // install degrades to readable errors instead of blocking server boot.
   const torrents = options.torrents || new TorrentManager({ dataDir: dataDir || undefined });
+  // The bill is the canonical magnet source: stream requests can revive a
+  // torrent entry after a restart even when the manager's library cache is
+  // missing (game-state.json carries the magnet on every torrent item).
+  torrents.setMagnetResolver((infohash) => {
+    const items = [theater.state?.now, ...(theater.state?.queue || [])];
+    const item = items.find((it) => it?.kind === 'torrent' && it.infohash === infohash);
+    return item?.url || null;
+  });
 
   // Town chat: an embedded IRC server (external clients & bots can connect
   // on the IRC port) with the game world bridged into it. IRC_DISABLED=1

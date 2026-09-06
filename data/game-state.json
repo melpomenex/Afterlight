@@ -20,7 +20,7 @@
         "sprinklers": 0
       },
       "currentRoom": "market",
-      "lastSeen": 1788714420499,
+      "lastSeen": 1788716702524,
       "materials": {
         "copper": 2
       }
@@ -104,7 +104,7 @@
         "sprinklers": 0
       },
       "currentRoom": "market",
-      "lastSeen": 1788714423997,
+      "lastSeen": 1788716560998,
       "materials": {}
     },
     "guest_do7zmx77d_mtpn6yfp": {
@@ -128,7 +128,7 @@
         "sprinklers": 1
       },
       "currentRoom": "market",
-      "lastSeen": 1788714536222,
+      "lastSeen": 1788716699997,
       "materials": {}
     },
     "guest_c1tlwqkzd_mtpnblwp": {
@@ -304,7 +304,7 @@
         "sprinklers": 0
       },
       "currentRoom": "market",
-      "lastSeen": 1788714421806,
+      "lastSeen": 1788716695002,
       "materials": {}
     },
     "witness_mtpy6edr": {
@@ -415,6 +415,160 @@
       },
       "currentRoom": "market",
       "lastSeen": 1788714394816,
+      "materials": {}
+    },
+    "probe_mtq363cf": {
+      "id": "probe_mtq363cf",
+      "nickname": "ProbeBot",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788715741553,
+      "materials": {}
+    },
+    "probe_mtq3jb24": {
+      "id": "probe_mtq3jb24",
+      "nickname": "ProbeBot",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788716358077,
+      "materials": {}
+    },
+    "requeue_mtq3lhqv": {
+      "id": "requeue_mtq3lhqv",
+      "nickname": "RequeueBot",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788716460056,
+      "materials": {}
+    },
+    "requeue_mtq3mscr": {
+      "id": "requeue_mtq3mscr",
+      "nickname": "RequeueBot",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788716520460,
+      "materials": {}
+    },
+    "probe_mtq3nmp4": {
+      "id": "probe_mtq3nmp4",
+      "nickname": "ProbeBot",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788716559785,
+      "materials": {}
+    },
+    "requeue_mtq3qgj2": {
+      "id": "requeue_mtq3qgj2",
+      "nickname": "RequeueBot",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788716691760,
+      "materials": {}
+    },
+    "probe_mtq3qih2": {
+      "id": "probe_mtq3qih2",
+      "nickname": "ProbeBot",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788716694282,
       "materials": {}
     }
   },

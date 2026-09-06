@@ -950,7 +950,52 @@ kbd {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-#theater-screen.ts-state-idle .ts-caption { color: #93a49a; }
+/* Sleeping screen: a centered invitation instead of a bottom caption.
+   Sizes ride --ts-scale so the panel keeps its share of the projected
+   in-world screen; cinema view (which clears --ts-scale) overrides
+   with viewport clamps in the theater-watching block below. */
+#theater-screen.ts-state-idle .ts-caption { display: none; }
+#theater-screen .ts-idle {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(2.8px * var(--ts-scale, 1));
+  text-align: center;
+  padding: 0 6%;
+}
+#theater-screen.ts-state-idle .ts-idle { display: flex; }
+#theater-screen .ts-idle-title {
+  font: 600 calc(8.5px * var(--ts-scale, 1)) 'DM Sans', sans-serif;
+  letter-spacing: 0.5px;
+  color: #e8dcb9;
+}
+#theater-screen .ts-idle-hint {
+  font: calc(4.8px * var(--ts-scale, 1)) 'Space Mono', monospace;
+  letter-spacing: 0.4px;
+  color: #a5b7ab;
+}
+#theater-screen .ts-idle-hint kbd {
+  font-size: calc(4.4px * var(--ts-scale, 1));
+  padding: calc(0.9px * var(--ts-scale, 1)) calc(1.8px * var(--ts-scale, 1));
+  color: #e2c987;
+  border-color: #cbb88659;
+}
+#theater-screen .ts-idle-open {
+  pointer-events: auto; /* the idle overlay's only interactive element */
+  font: bold calc(5.5px * var(--ts-scale, 1)) 'Space Mono', monospace;
+  letter-spacing: 0.5px;
+  color: #122020;
+  background: #bfaa78;
+  border: none;
+  border-radius: calc(1px * var(--ts-scale, 1));
+  padding: calc(1.8px * var(--ts-scale, 1)) calc(4.2px * var(--ts-scale, 1));
+  margin-top: calc(1.6px * var(--ts-scale, 1));
+  cursor: pointer;
+}
+#theater-screen .ts-idle-open:hover { background: #d4bf88; }
 #theater-screen.ts-state-error .ts-caption { color: #f2b8b8; border-top-color: #d6878759; }
 /* While something actually plays, the caption must not cover the picture;
    the title lives in the watch bar, guide, and booth instead. */
@@ -1342,6 +1387,21 @@ body.theater-watching #theater-screen {
   border-radius: 6px;
   box-shadow: 0 30px 120px #000d, 0 0 0 1px #a99c6f40;
 }
+
+/* The cinema stage is CSS-sized and --ts-scale is cleared while watching,
+   so give the sleeping-screen invitation and the remaining captions
+   (loading/error) readable viewport-scaled sizes here. */
+body.theater-watching #theater-screen .ts-idle { gap: 1.7vh; }
+body.theater-watching #theater-screen .ts-idle-title { font-size: clamp(20px, 3.4vh, 34px); }
+body.theater-watching #theater-screen .ts-idle-hint { font-size: clamp(12px, 1.9vh, 17px); }
+body.theater-watching #theater-screen .ts-idle-hint kbd { font-size: clamp(10px, 1.6vh, 14px); padding: 2px 7px; }
+body.theater-watching #theater-screen .ts-idle-open {
+  font-size: clamp(11px, 1.7vh, 15px);
+  border-radius: 3px;
+  padding: 9px 18px;
+  margin-top: 1vh;
+}
+body.theater-watching #theater-screen .ts-caption { font-size: clamp(12px, 1.9vh, 17px); }
 
 /* Stow the roaming HUD while watching; the watch bar + chat carry the UI. */
 body.theater-watching header,

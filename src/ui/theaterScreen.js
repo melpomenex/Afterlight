@@ -1066,7 +1066,7 @@ export class TheaterScreenUI {
     const now = this.state?.now;
     let text = '';
     if (this.overlayState === 'idle') {
-      text = 'The screen sleeps — open the Screen controls to queue something';
+      text = ''; // the centered .ts-idle invitation carries the sleeping state
     } else if (this.overlayState === 'loading') {
       const waiting = now?.kind === 'torrent' ? this.torrentStatusText(now.infohash) : '';
       text = waiting
@@ -1151,6 +1151,11 @@ export class TheaterScreenUI {
     overlay.innerHTML = `
       <div class="ts-media"></div>
       <div class="ts-state-layer"></div>
+      <div class="ts-idle">
+        <p class="ts-idle-title">The screen sleeps</p>
+        <p class="ts-idle-hint">Press <kbd>G</kbd> to open the Booth and queue something to watch</p>
+        <button type="button" class="ts-idle-open" title="Open the projection booth (G)">▣ Open the Booth</button>
+      </div>
       <div class="ts-caption"><span class="ts-caption-text"></span></div>
       <button type="button" class="ts-play-badge" hidden>▶ Tap to start</button>
     `;
@@ -1159,6 +1164,8 @@ export class TheaterScreenUI {
     this.dom.caption = overlay.querySelector('.ts-caption-text');
     this.dom.playBadge = overlay.querySelector('.ts-play-badge');
     this.dom.playBadge.addEventListener('click', () => this.resumeFromGesture());
+    this.dom.idleOpen = overlay.querySelector('.ts-idle-open');
+    this.dom.idleOpen.addEventListener('click', () => this.openControls());
     document.body.append(overlay);
   }
 

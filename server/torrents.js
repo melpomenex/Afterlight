@@ -76,6 +76,12 @@ export class TorrentManager {
     this.engineBroken = false;   // module import failed; every call answers unavailable
     // infohash -> Promise<torrent>: concurrent ensureTorrent calls share one add
     this.pendingAdds = new Map();
+    /**
+     * Optional (infohash) -> magnet lookup wired by the server: the shared
+     * bill is the canonical magnet source, so a stream request can revive a
+     * torrent after a restart even when this manager's library.json is gone.
+     */
+    this.magnetResolver = null;
     // infohash -> { infohash, magnet, torrent, name, lastServedMs, addedMs }
     this.entries = new Map();
     this.sweepStartup();
@@ -84,6 +90,15 @@ export class TorrentManager {
   /** Human-readable reason string; used for ERROR messages to clients. */
   unavailableReason() {
     return 'engine_unavailable';
+  }
+
+  /**
+   * Wire the canonical magnet lookup (the shared theater bill). Called by
+   * the server after both managers exist; keeps the stream endpoint able to
+   * revive torrent items after a restart with no persisted library file.
+   */
+  setMagnetResolver(resolver) {
+    this.magnetResolver = typeof resolver === 'function' ? resolver : null;
   }
 
   /**
@@ -283,6 +298,20 @@ export class TorrentManager {
     if (!client) return { statusCode: 503 };
 
     const entry = this.entries.get(infohash);
+    if (!entry?.magnet && this.magnetResolver) {
+      // The bill is the canonical magnet source: revive the entry from it
+      // (covers a lost/missing library.json after a restart).
+      const magnet = this.magnetResolver(infohash);
+      if (magnet && parseMagnet(magnet)) {
+        const revived = {
+          infohash, magnet, torrent: null, name: null,
+          lastServedMs: Date.now(), addedMs: Date.now(),
+        };
+        this.entries.set(infohash, revived);
+        this.persistLibrary();
+        return this.streamFile(infohash, idx, rangeHeader); // retry with the entry in place
+      }
+    }
     if (!entry?.magnet) return { statusCode: 404 };
 
     let torrent = entry.torrent;
