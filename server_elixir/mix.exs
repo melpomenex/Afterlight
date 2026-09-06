@@ -51,7 +51,12 @@ defmodule Afterlight.MixProject do
       {:jason, "~> 1.4"},
       {:telemetry, "~> 1.4"},
       {:telemetry_metrics, "~> 1.1"},
-      {:telemetry_poller, "~> 1.3"}
+      {:telemetry_poller, "~> 1.3"},
+      # P2 gateway transport: WebSocket CLIENT for the per-session Node
+      # "shadow" upstream connection, and the HTTP client behind the
+      # /api/health + /api/theater/* reverse proxy.
+      {:websockex, "~> 0.4"},
+      {:finch, "~> 0.19"}
     ]
   end
 end

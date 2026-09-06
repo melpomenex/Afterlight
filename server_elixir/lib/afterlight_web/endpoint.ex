@@ -1,9 +1,22 @@
 defmodule AfterlightWeb.Endpoint do
-  # Minimal P1 endpoint: health check only. No Channels, no socket, no game
-  # protocol, no LiveView surface — those arrive with P2 (gateway transport).
+  # Gateway endpoint (P2): the `/ws` channel socket, the reverse-proxied
+  # HTTP side channel, and the auth route.
+  #
+  # Plug order matters: `socket "/ws"` paths are matched before the plug
+  # pipeline (Phoenix compiles socket dispatch ahead of it), then
+  # HTTPProxy intercepts `/api/health` + `/api/theater/*` BEFORE
+  # Plug.Parsers so raw bodies pass through untouched; everything else
+  # flows through parsers into the router. `/health` stays a direct
+  # Phoenix endpoint; `/api/health` now answers from Node.
   use Phoenix.Endpoint, otp_app: :afterlight
 
+  socket "/ws", AfterlightWeb.UserSocket,
+    websocket: true,
+    longpoll: false
+
   plug Plug.RequestId
+
+  plug AfterlightWeb.HTTPProxy
 
   plug Plug.Parsers,
     parsers: [:json],

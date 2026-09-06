@@ -24,3 +24,26 @@ config :afterlight, AfterlightWeb.Endpoint,
     ip: {127, 0, 0, 1},
     port: String.to_integer(System.get_env("PORT") || "4000")
   ]
+
+# P2 gateway transport runtime knobs (env reads only; test pins its own
+# deterministic values in test.exs, which is why this block is skipped
+# under :test — runtime.exs evaluates after per-env configs).
+if config_env() != :test do
+  token_secret =
+    System.get_env("AFTERLIGHT_TOKEN_SECRET") ||
+      if config_env() == :prod do
+        raise "AFTERLIGHT_TOKEN_SECRET is not set — refusing to boot a production release without a guest-token secret"
+      else
+        # Distinct from secret_key_base on purpose (D3): the guest-token
+        # secret rotates independently of the endpoint signing secret.
+        "afterlight-dev-only-token-secret-please-do-not-use-in-prod-1111111111111111"
+      end
+
+  config :afterlight, :gateway,
+    node_ws_url: System.get_env("AFTERLIGHT_NODE_WS_URL") || "ws://127.0.0.1:3001/ws",
+    proxy_target: System.get_env("AFTERLIGHT_NODE_HTTP_URL") || "http://127.0.0.1:3001",
+    # nil in dev = no boundary header sent (D5 secret-less acceptance).
+    boundary_secret: System.get_env("AFTERLIGHT_BOUNDARY_SECRET"),
+    token_secret: token_secret,
+    token_max_age_secs: String.to_integer(System.get_env("AFTERLIGHT_TOKEN_MAX_AGE") || "43200")
+end
