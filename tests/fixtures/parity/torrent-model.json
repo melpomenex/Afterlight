@@ -1,0 +1,1440 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "magnet/rn_btih_0123456789abcdef0123",
+      "fn": "parseMagnet",
+      "args": [
+        "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Sintel"
+      ],
+      "expected": {
+        "url": "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Sintel",
+        "infohash": "0123456789abcdef0123456789abcdef01234567"
+      }
+    },
+    {
+      "id": "magnet/rn_btih_0123456789ABCDEF0123",
+      "fn": "parseMagnet",
+      "args": [
+        "magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567"
+      ],
+      "expected": {
+        "url": "magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567",
+        "infohash": "0123456789abcdef0123456789abcdef01234567"
+      }
+    },
+    {
+      "id": "magnet/rn_btih_MFRGGDFCMYTDE2LQGJTG",
+      "fn": "parseMagnet",
+      "args": [
+        "magnet:?xt=urn:btih:MFRGGDFCMYTDE2LQGJTGKNBZGY4TQNJRGUZTANJZMU3DKOBVGY3A===="
+      ],
+      "expected": {
+        "url": "magnet:?xt=urn:btih:MFRGGDFCMYTDE2LQGJTGKNBZGY4TQNJRGUZTANJZMU3DKOBVGY3A====",
+        "infohash": "31472420a066a10ecb72230bb8cc536c1449c47b"
+      }
+    },
+    {
+      "id": "magnet/ame-only",
+      "fn": "parseMagnet",
+      "args": [
+        "magnet:?dn=name-only"
+      ],
+      "expected": null
+    },
+    {
+      "id": "magnet/rn_sha1_0123456789abcdef0123",
+      "fn": "parseMagnet",
+      "args": [
+        "magnet:?xt=urn:sha1:0123456789abcdef0123456789abcdef01234567"
+      ],
+      "expected": null
+    },
+    {
+      "id": "magnet/rn_btih_zzzzzzzz",
+      "fn": "parseMagnet",
+      "args": [
+        "magnet:?xt=urn:btih:zzzzzzzz"
+      ],
+      "expected": null
+    },
+    {
+      "id": "magnet/rn_btih_0123456789abcdef0123",
+      "fn": "parseMagnet",
+      "args": [
+        "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef0123456"
+      ],
+      "expected": null
+    },
+    {
+      "id": "magnet/rn_btih_0123456789abcdef0123",
+      "fn": "parseMagnet",
+      "args": [
+        "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef012345677"
+      ],
+      "expected": null
+    },
+    {
+      "id": "magnet/le.com_torrent",
+      "fn": "parseMagnet",
+      "args": [
+        "http://example.com/torrent"
+      ],
+      "expected": null
+    },
+    {
+      "id": "magnet/empty",
+      "fn": "parseMagnet",
+      "args": [
+        ""
+      ],
+      "expected": null
+    },
+    {
+      "id": "magnet/rn_btih_31472420a066a10ecb72",
+      "fn": "parseMagnet",
+      "args": [
+        "magnet:?xt=urn:btih:31472420a066a10ecb72230bb8cc536c1449c47b&tr=http://tracker/a&tr=http://tracker/b"
+      ],
+      "expected": {
+        "url": "magnet:?xt=urn:btih:31472420a066a10ecb72230bb8cc536c1449c47b&tr=http://tracker/a&tr=http://tracker/b",
+        "infohash": "31472420a066a10ecb72230bb8cc536c1449c47b"
+      }
+    },
+    {
+      "id": "pick/valid",
+      "fn": "sanitizeTorrentPick",
+      "args": [
+        {
+          "fileIndex": 1,
+          "filePath": "a/movie.mp4",
+          "fileBytes": 1024
+        }
+      ],
+      "expected": {
+        "fileIndex": 1,
+        "filePath": "a/movie.mp4",
+        "fileBytes": 1024
+      }
+    },
+    {
+      "id": "pick/fileIndex-at-1e6",
+      "fn": "sanitizeTorrentPick",
+      "args": [
+        {
+          "fileIndex": 1000000,
+          "filePath": "a/movie.mp4",
+          "fileBytes": 0
+        }
+      ],
+      "expected": {
+        "fileIndex": 1000000,
+        "filePath": "a/movie.mp4",
+        "fileBytes": 0
+      }
+    },
+    {
+      "id": "pick/fileIndex-over-1e6",
+      "fn": "sanitizeTorrentPick",
+      "args": [
+        {
+          "fileIndex": 1000001,
+          "filePath": "a/movie.mp4",
+          "fileBytes": 0
+        }
+      ],
+      "expected": null
+    },
+    {
+      "id": "pick/fileIndex-float",
+      "fn": "sanitizeTorrentPick",
+      "args": [
+        {
+          "fileIndex": 1.5,
+          "filePath": "a/movie.mp4",
+          "fileBytes": 0
+        }
+      ],
+      "expected": null
+    },
+    {
+      "id": "pick/fileIndex-string",
+      "fn": "sanitizeTorrentPick",
+      "args": [
+        {
+          "fileIndex": "2",
+          "filePath": "a/movie.mp4",
+          "fileBytes": 5
+        }
+      ],
+      "expected": {
+        "fileIndex": 2,
+        "filePath": "a/movie.mp4",
+        "fileBytes": 5
+      }
+    },
+    {
+      "id": "pick/fileIndex-negative",
+      "fn": "sanitizeTorrentPick",
+      "args": [
+        {
+          "fileIndex": -1,
+          "filePath": "a/movie.mp4",
+          "fileBytes": 5
+        }
+      ],
+      "expected": null
+    },
+    {
+      "id": "pick/fileIndex-missing",
+      "fn": "sanitizeTorrentPick",
+      "args": [
+        {
+          "filePath": "a/movie.mp4",
+          "fileBytes": 5
+        }
+      ],
+      "expected": null
+    },
+    {
+      "id": "pick/fileIndex-null",
+      "fn": "sanitizeTorrentPick",
+      "args": [
+        {
+          "fileIndex": null,
+          "filePath": "a/movie.mp4",
+          "fileBytes": 5
+        }
+      ],
+      "expected": {
+        "fileIndex": 0,
+        "filePath": "a/movie.mp4",
+        "fileBytes": 5
+      }
+    },
+    {
+      "id": "pick/fileBytes-float",
+      "fn": "sanitizeTorrentPick",
+      "args": [
+        {
+          "fileIndex": 0,
+          "filePath": "a/movie.mp4",
+          "fileBytes": 12.5
+        }
+      ],
+      "expected": {
+        "fileIndex": 0,
+        "filePath": "a/movie.mp4",
+        "fileBytes": 12.5
+      }
+    },
+    {
+      "id": "pick/fileBytes-negative",
+      "fn": "sanitizeTorrentPick",
+      "args": [
+        {
+          "fileIndex": 0,
+          "filePath": "a/movie.mp4",
+          "fileBytes": -1
+        }
+      ],
+      "expected": null
+    },
+    {
+      "id": "pick/fileBytes-nan-string",
+      "fn": "sanitizeTorrentPick",
+      "args": [
+        {
+          "fileIndex": 0,
+          "filePath": "a/movie.mp4",
+          "fileBytes": "big"
+        }
+      ],
+      "expected": null
+    },
+    {
+      "id": "pick/path-too-long",
+      "fn": "sanitizeTorrentPick",
+      "args": [
+        {
+          "fileIndex": 0,
+          "filePath": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.mp4",
+          "fileBytes": 5
+        }
+      ],
+      "expected": null
+    },
+    {
+      "id": "pick/path-512-ok",
+      "fn": "sanitizeTorrentPick",
+      "args": [
+        {
+          "fileIndex": 0,
+          "filePath": "d/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.mp4",
+          "fileBytes": 5
+        }
+      ],
+      "expected": {
+        "fileIndex": 0,
+        "filePath": "d/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.mp4",
+        "fileBytes": 5
+      }
+    },
+    {
+      "id": "pick/path-whitespace-trim",
+      "fn": "sanitizeTorrentPick",
+      "args": [
+        {
+          "fileIndex": 0,
+          "filePath": "  a/movie.mp4  ",
+          "fileBytes": 5
+        }
+      ],
+      "expected": {
+        "fileIndex": 0,
+        "filePath": "a/movie.mp4",
+        "fileBytes": 5
+      }
+    },
+    {
+      "id": "pick/path-non-video",
+      "fn": "sanitizeTorrentPick",
+      "args": [
+        {
+          "fileIndex": 0,
+          "filePath": "a/readme.txt",
+          "fileBytes": 5
+        }
+      ],
+      "expected": {
+        "fileIndex": 0,
+        "filePath": "a/readme.txt",
+        "fileBytes": 5
+      }
+    },
+    {
+      "id": "pick/empty-object",
+      "fn": "sanitizeTorrentPick",
+      "args": [
+        {}
+      ],
+      "expected": null
+    },
+    {
+      "id": "picker/tie-bytes-stable",
+      "fn": "orderFilesForPicker",
+      "args": [
+        [
+          {
+            "index": 0,
+            "path": "a/s1.mp4",
+            "bytes": 100,
+            "playable": false
+          },
+          {
+            "index": 1,
+            "path": "a/s2.webm",
+            "bytes": 100,
+            "playable": true
+          },
+          {
+            "index": 2,
+            "path": "a/s3.mkv",
+            "bytes": 100,
+            "playable": false
+          },
+          {
+            "index": 3,
+            "path": "a/s4.mp4",
+            "bytes": 100,
+            "playable": true
+          }
+        ]
+      ],
+      "expected": [
+        {
+          "index": 0,
+          "path": "a/s1.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 1,
+          "path": "a/s2.webm",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 3,
+          "path": "a/s4.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 2,
+          "path": "a/s3.mkv",
+          "bytes": 0,
+          "playable": false
+        }
+      ]
+    },
+    {
+      "id": "picker/junk-and-sort",
+      "fn": "orderFilesForPicker",
+      "args": [
+        [
+          {
+            "index": 2,
+            "path": "b/small.mp4",
+            "bytes": 10
+          },
+          {
+            "index": 0,
+            "path": "b/big.mkv",
+            "bytes": 9000000
+          },
+          {
+            "index": -1,
+            "path": "b/neg.mp4",
+            "bytes": 5
+          },
+          {
+            "path": "b/noidx.txt",
+            "bytes": 5
+          },
+          {
+            "index": 1,
+            "path": "b/mid.ogv",
+            "bytes": 5000
+          },
+          {
+            "index": 3,
+            "path": "b/nanbytes.mp4",
+            "bytes": null
+          }
+        ]
+      ],
+      "expected": [
+        {
+          "index": 2,
+          "path": "b/small.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 1,
+          "path": "b/mid.ogv",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 3,
+          "path": "b/nanbytes.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 0,
+          "path": "b/big.mkv",
+          "bytes": 0,
+          "playable": false
+        }
+      ]
+    },
+    {
+      "id": "picker/cap-60",
+      "fn": "orderFilesForPicker",
+      "args": [
+        [
+          {
+            "index": 0,
+            "path": "f/f0.mp4",
+            "bytes": 1000
+          },
+          {
+            "index": 1,
+            "path": "f/f1.mp4",
+            "bytes": 999
+          },
+          {
+            "index": 2,
+            "path": "f/f2.mp4",
+            "bytes": 998
+          },
+          {
+            "index": 3,
+            "path": "f/f3.mp4",
+            "bytes": 997
+          },
+          {
+            "index": 4,
+            "path": "f/f4.mp4",
+            "bytes": 996
+          },
+          {
+            "index": 5,
+            "path": "f/f5.mp4",
+            "bytes": 995
+          },
+          {
+            "index": 6,
+            "path": "f/f6.mp4",
+            "bytes": 994
+          },
+          {
+            "index": 7,
+            "path": "f/f7.mp4",
+            "bytes": 993
+          },
+          {
+            "index": 8,
+            "path": "f/f8.mp4",
+            "bytes": 992
+          },
+          {
+            "index": 9,
+            "path": "f/f9.mp4",
+            "bytes": 991
+          },
+          {
+            "index": 10,
+            "path": "f/f10.mp4",
+            "bytes": 990
+          },
+          {
+            "index": 11,
+            "path": "f/f11.mp4",
+            "bytes": 989
+          },
+          {
+            "index": 12,
+            "path": "f/f12.mp4",
+            "bytes": 988
+          },
+          {
+            "index": 13,
+            "path": "f/f13.mp4",
+            "bytes": 987
+          },
+          {
+            "index": 14,
+            "path": "f/f14.mp4",
+            "bytes": 986
+          },
+          {
+            "index": 15,
+            "path": "f/f15.mp4",
+            "bytes": 985
+          },
+          {
+            "index": 16,
+            "path": "f/f16.mp4",
+            "bytes": 984
+          },
+          {
+            "index": 17,
+            "path": "f/f17.mp4",
+            "bytes": 983
+          },
+          {
+            "index": 18,
+            "path": "f/f18.mp4",
+            "bytes": 982
+          },
+          {
+            "index": 19,
+            "path": "f/f19.mp4",
+            "bytes": 981
+          },
+          {
+            "index": 20,
+            "path": "f/f20.mp4",
+            "bytes": 980
+          },
+          {
+            "index": 21,
+            "path": "f/f21.mp4",
+            "bytes": 979
+          },
+          {
+            "index": 22,
+            "path": "f/f22.mp4",
+            "bytes": 978
+          },
+          {
+            "index": 23,
+            "path": "f/f23.mp4",
+            "bytes": 977
+          },
+          {
+            "index": 24,
+            "path": "f/f24.mp4",
+            "bytes": 976
+          },
+          {
+            "index": 25,
+            "path": "f/f25.mp4",
+            "bytes": 975
+          },
+          {
+            "index": 26,
+            "path": "f/f26.mp4",
+            "bytes": 974
+          },
+          {
+            "index": 27,
+            "path": "f/f27.mp4",
+            "bytes": 973
+          },
+          {
+            "index": 28,
+            "path": "f/f28.mp4",
+            "bytes": 972
+          },
+          {
+            "index": 29,
+            "path": "f/f29.mp4",
+            "bytes": 971
+          },
+          {
+            "index": 30,
+            "path": "f/f30.mp4",
+            "bytes": 970
+          },
+          {
+            "index": 31,
+            "path": "f/f31.mp4",
+            "bytes": 969
+          },
+          {
+            "index": 32,
+            "path": "f/f32.mp4",
+            "bytes": 968
+          },
+          {
+            "index": 33,
+            "path": "f/f33.mp4",
+            "bytes": 967
+          },
+          {
+            "index": 34,
+            "path": "f/f34.mp4",
+            "bytes": 966
+          },
+          {
+            "index": 35,
+            "path": "f/f35.mp4",
+            "bytes": 965
+          },
+          {
+            "index": 36,
+            "path": "f/f36.mp4",
+            "bytes": 964
+          },
+          {
+            "index": 37,
+            "path": "f/f37.mp4",
+            "bytes": 963
+          },
+          {
+            "index": 38,
+            "path": "f/f38.mp4",
+            "bytes": 962
+          },
+          {
+            "index": 39,
+            "path": "f/f39.mp4",
+            "bytes": 961
+          },
+          {
+            "index": 40,
+            "path": "f/f40.mp4",
+            "bytes": 960
+          },
+          {
+            "index": 41,
+            "path": "f/f41.mp4",
+            "bytes": 959
+          },
+          {
+            "index": 42,
+            "path": "f/f42.mp4",
+            "bytes": 958
+          },
+          {
+            "index": 43,
+            "path": "f/f43.mp4",
+            "bytes": 957
+          },
+          {
+            "index": 44,
+            "path": "f/f44.mp4",
+            "bytes": 956
+          },
+          {
+            "index": 45,
+            "path": "f/f45.mp4",
+            "bytes": 955
+          },
+          {
+            "index": 46,
+            "path": "f/f46.mp4",
+            "bytes": 954
+          },
+          {
+            "index": 47,
+            "path": "f/f47.mp4",
+            "bytes": 953
+          },
+          {
+            "index": 48,
+            "path": "f/f48.mp4",
+            "bytes": 952
+          },
+          {
+            "index": 49,
+            "path": "f/f49.mp4",
+            "bytes": 951
+          },
+          {
+            "index": 50,
+            "path": "f/f50.mp4",
+            "bytes": 950
+          },
+          {
+            "index": 51,
+            "path": "f/f51.mp4",
+            "bytes": 949
+          },
+          {
+            "index": 52,
+            "path": "f/f52.mp4",
+            "bytes": 948
+          },
+          {
+            "index": 53,
+            "path": "f/f53.mp4",
+            "bytes": 947
+          },
+          {
+            "index": 54,
+            "path": "f/f54.mp4",
+            "bytes": 946
+          },
+          {
+            "index": 55,
+            "path": "f/f55.mp4",
+            "bytes": 945
+          },
+          {
+            "index": 56,
+            "path": "f/f56.mp4",
+            "bytes": 944
+          },
+          {
+            "index": 57,
+            "path": "f/f57.mp4",
+            "bytes": 943
+          },
+          {
+            "index": 58,
+            "path": "f/f58.mp4",
+            "bytes": 942
+          },
+          {
+            "index": 59,
+            "path": "f/f59.mp4",
+            "bytes": 941
+          },
+          {
+            "index": 60,
+            "path": "f/f60.mp4",
+            "bytes": 940
+          },
+          {
+            "index": 61,
+            "path": "f/f61.mp4",
+            "bytes": 939
+          },
+          {
+            "index": 62,
+            "path": "f/f62.mp4",
+            "bytes": 938
+          },
+          {
+            "index": 63,
+            "path": "f/f63.mp4",
+            "bytes": 937
+          },
+          {
+            "index": 64,
+            "path": "f/f64.mp4",
+            "bytes": 936
+          },
+          {
+            "index": 65,
+            "path": "f/f65.mp4",
+            "bytes": 935
+          },
+          {
+            "index": 66,
+            "path": "f/f66.mp4",
+            "bytes": 934
+          },
+          {
+            "index": 67,
+            "path": "f/f67.mp4",
+            "bytes": 933
+          },
+          {
+            "index": 68,
+            "path": "f/f68.mp4",
+            "bytes": 932
+          },
+          {
+            "index": 69,
+            "path": "f/f69.mp4",
+            "bytes": 931
+          }
+        ]
+      ],
+      "expected": [
+        {
+          "index": 0,
+          "path": "f/f0.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 1,
+          "path": "f/f1.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 2,
+          "path": "f/f2.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 3,
+          "path": "f/f3.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 4,
+          "path": "f/f4.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 5,
+          "path": "f/f5.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 6,
+          "path": "f/f6.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 7,
+          "path": "f/f7.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 8,
+          "path": "f/f8.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 9,
+          "path": "f/f9.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 10,
+          "path": "f/f10.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 11,
+          "path": "f/f11.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 12,
+          "path": "f/f12.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 13,
+          "path": "f/f13.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 14,
+          "path": "f/f14.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 15,
+          "path": "f/f15.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 16,
+          "path": "f/f16.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 17,
+          "path": "f/f17.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 18,
+          "path": "f/f18.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 19,
+          "path": "f/f19.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 20,
+          "path": "f/f20.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 21,
+          "path": "f/f21.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 22,
+          "path": "f/f22.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 23,
+          "path": "f/f23.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 24,
+          "path": "f/f24.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 25,
+          "path": "f/f25.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 26,
+          "path": "f/f26.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 27,
+          "path": "f/f27.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 28,
+          "path": "f/f28.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 29,
+          "path": "f/f29.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 30,
+          "path": "f/f30.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 31,
+          "path": "f/f31.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 32,
+          "path": "f/f32.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 33,
+          "path": "f/f33.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 34,
+          "path": "f/f34.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 35,
+          "path": "f/f35.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 36,
+          "path": "f/f36.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 37,
+          "path": "f/f37.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 38,
+          "path": "f/f38.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 39,
+          "path": "f/f39.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 40,
+          "path": "f/f40.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 41,
+          "path": "f/f41.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 42,
+          "path": "f/f42.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 43,
+          "path": "f/f43.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 44,
+          "path": "f/f44.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 45,
+          "path": "f/f45.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 46,
+          "path": "f/f46.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 47,
+          "path": "f/f47.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 48,
+          "path": "f/f48.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 49,
+          "path": "f/f49.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 50,
+          "path": "f/f50.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 51,
+          "path": "f/f51.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 52,
+          "path": "f/f52.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 53,
+          "path": "f/f53.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 54,
+          "path": "f/f54.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 55,
+          "path": "f/f55.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 56,
+          "path": "f/f56.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 57,
+          "path": "f/f57.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 58,
+          "path": "f/f58.mp4",
+          "bytes": 0,
+          "playable": true
+        },
+        {
+          "index": 59,
+          "path": "f/f59.mp4",
+          "bytes": 0,
+          "playable": true
+        }
+      ]
+    },
+    {
+      "id": "picker/empty",
+      "fn": "orderFilesForPicker",
+      "args": [
+        []
+      ],
+      "expected": []
+    },
+    {
+      "id": "status/valid",
+      "fn": "normalizeTorrentStatus",
+      "args": [
+        {
+          "infohash": "0123456789abcdef0123456789abcdef01234567",
+          "progress": 0.5,
+          "peers": 3,
+          "downloaded": 1024,
+          "ready": true
+        }
+      ],
+      "expected": {
+        "infohash": "0123456789abcdef0123456789abcdef01234567",
+        "progress": 0.5,
+        "peers": 3,
+        "downloaded": 1024,
+        "ready": true
+      }
+    },
+    {
+      "id": "status/uppercase-infohash",
+      "fn": "normalizeTorrentStatus",
+      "args": [
+        {
+          "infohash": "0123456789ABCDEF0123456789ABCDEF01234567",
+          "progress": 0.5,
+          "peers": 3,
+          "downloaded": 1024,
+          "ready": true
+        }
+      ],
+      "expected": null
+    },
+    {
+      "id": "status/progress-clamps",
+      "fn": "normalizeTorrentStatus",
+      "args": [
+        {
+          "infohash": "0123456789abcdef0123456789abcdef01234567",
+          "progress": 1.5,
+          "peers": 0,
+          "downloaded": 0,
+          "ready": false
+        }
+      ],
+      "expected": {
+        "infohash": "0123456789abcdef0123456789abcdef01234567",
+        "progress": 1,
+        "peers": 0,
+        "downloaded": 0,
+        "ready": false
+      }
+    },
+    {
+      "id": "status/progress-negative",
+      "fn": "normalizeTorrentStatus",
+      "args": [
+        {
+          "infohash": "0123456789abcdef0123456789abcdef01234567",
+          "progress": -1,
+          "peers": 0,
+          "downloaded": 0,
+          "ready": false
+        }
+      ],
+      "expected": {
+        "infohash": "0123456789abcdef0123456789abcdef01234567",
+        "progress": 0,
+        "peers": 0,
+        "downloaded": 0,
+        "ready": false
+      }
+    },
+    {
+      "id": "status/progress-string",
+      "fn": "normalizeTorrentStatus",
+      "args": [
+        {
+          "infohash": "0123456789abcdef0123456789abcdef01234567",
+          "progress": "0.25",
+          "peers": "2",
+          "downloaded": "64",
+          "ready": 1
+        }
+      ],
+      "expected": {
+        "infohash": "0123456789abcdef0123456789abcdef01234567",
+        "progress": 0.25,
+        "peers": 2,
+        "downloaded": 64,
+        "ready": false
+      }
+    },
+    {
+      "id": "status/missing-fields",
+      "fn": "normalizeTorrentStatus",
+      "args": [
+        {
+          "infohash": "0123456789abcdef0123456789abcdef01234567"
+        }
+      ],
+      "expected": {
+        "infohash": "0123456789abcdef0123456789abcdef01234567",
+        "progress": 0,
+        "peers": 0,
+        "downloaded": 0,
+        "ready": false
+      }
+    },
+    {
+      "id": "status/junk",
+      "fn": "normalizeTorrentStatus",
+      "args": [
+        {
+          "infohash": "nope"
+        }
+      ],
+      "expected": null
+    },
+    {
+      "id": "range/0-99",
+      "fn": "parseRange",
+      "args": [
+        "bytes=0-99",
+        1000
+      ],
+      "expected": {
+        "start": 0,
+        "end": 99
+      }
+    },
+    {
+      "id": "range/open-end",
+      "fn": "parseRange",
+      "args": [
+        "bytes=500-",
+        1000
+      ],
+      "expected": {
+        "start": 500,
+        "end": 999
+      }
+    },
+    {
+      "id": "range/suffix",
+      "fn": "parseRange",
+      "args": [
+        "bytes=-200",
+        1000
+      ],
+      "expected": {
+        "start": 800,
+        "end": 999
+      }
+    },
+    {
+      "id": "range/suffix-oversize",
+      "fn": "parseRange",
+      "args": [
+        "bytes=-5000",
+        1000
+      ],
+      "expected": {
+        "start": 0,
+        "end": 999
+      }
+    },
+    {
+      "id": "range/full",
+      "fn": "parseRange",
+      "args": [
+        "bytes=0-",
+        1000
+      ],
+      "expected": {
+        "start": 0,
+        "end": 999
+      }
+    },
+    {
+      "id": "range/exceeds-total",
+      "fn": "parseRange",
+      "args": [
+        "bytes=0-5000",
+        1000
+      ],
+      "expected": {
+        "start": 0,
+        "end": 999
+      }
+    },
+    {
+      "id": "range/start-past-total",
+      "fn": "parseRange",
+      "args": [
+        "bytes=2000-3000",
+        1000
+      ],
+      "expected": null
+    },
+    {
+      "id": "range/malformed",
+      "fn": "parseRange",
+      "args": [
+        "bytes=1-2-3",
+        1000
+      ],
+      "expected": null
+    },
+    {
+      "id": "range/not-bytes",
+      "fn": "parseRange",
+      "args": [
+        "items=0-1",
+        1000
+      ],
+      "expected": null
+    },
+    {
+      "id": "range/reversed",
+      "fn": "parseRange",
+      "args": [
+        "bytes=50-10",
+        1000
+      ],
+      "expected": null
+    },
+    {
+      "id": "range/empty",
+      "fn": "parseRange",
+      "args": [
+        "bytes=-",
+        1000
+      ],
+      "expected": null
+    },
+    {
+      "id": "range/whitespace",
+      "fn": "parseRange",
+      "args": [
+        " bytes=0-9 ",
+        1000
+      ],
+      "expected": {
+        "start": 0,
+        "end": 9
+      }
+    },
+    {
+      "id": "range/absent",
+      "fn": "parseRange",
+      "args": [
+        null,
+        1000
+      ],
+      "expected": null
+    },
+    {
+      "id": "range/zero-total",
+      "fn": "parseRange",
+      "args": [
+        "bytes=0-1",
+        0
+      ],
+      "expected": null
+    }
+  ]
+}

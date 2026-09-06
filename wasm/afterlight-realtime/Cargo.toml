@@ -1,0 +1,18 @@
+[package]
+name = "afterlight-realtime"
+version = "0.1.0"
+edition = "2021"
+description = "Slot-based entity store + afterlight-soa-v1 frame decoder (docs/architecture/realtime/contract.md v0). std-only, no external crates."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# `cargo test` uses the dev/test profile (panic = unwind) so the fuzz harness
+# can catch panics as test failures. The shipped wasm artifact is built with
+# `cargo build --target wasm32-unknown-unknown --release`.
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

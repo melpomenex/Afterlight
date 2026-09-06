@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Afterlight WebGPU transform-upload probe</title>
+<style>
+  body { background: #101418; color: #d6e2ec; font: 13px/1.5 monospace; margin: 16px; }
+  h1 { font-size: 14px; font-weight: 600; }
+  #status { color: #8fd0ff; margin: 8px 0; white-space: pre-wrap; }
+  pre { margin: 0; white-space: pre; }
+</style>
+</head>
+<body>
+<h1>Afterlight realtime probe — persistent GPU transform buffer upload strategies (afterlight-soa-v0, contract §7)</h1>
+<div id="status">starting…</div>
+<pre id="out">running…</pre>
+<script type="module">
+// Self-contained WebGPU benchmark probe for the realtime data-plane workstream.
+// No imports, no build step. Measures three strategies for propagating changed
+// entity transforms (x, y, z, yaw as vec4<f32>) into a PERSISTENT GPU storage
+// buffer of N vec4s, per docs/architecture/realtime/contract.md §2/§7:
+//   full    — one queue.writeBuffer of the entire N*16 B buffer per frame.
+//   partial — one queue.writeBuffer per changed entity (the anti-pattern).
+//   scatter — one queue.writeBuffer of a compact delta (u32 count header +
+//             changed u32 ids + packed f32x4 values), then ONE compute dispatch:
+//             positions[ids[i]] = delta.values[i].
+// Correctness after each measured run: a checksum compute pass XOR-folds the
+// bit patterns of all N vec4s into a mapAsync readback buffer and compares
+// against a CPU mirror. XOR is order-independent and bit-exact, so a wrong
+// scatter FAILS LOUDLY in the results. A render-read check (instanced draw of
+// N quads whose vertex stage reads positions[instance_index]) proves the
+// persistent-buffer → render path is coherent (Three.js-instancing analogue).
+
+const out = document.getElementById('out');
+const statusEl = document.getElementById('status');
+const setStatus = (s) => { statusEl.textContent = s; };
+
+const NS_LIST = [1000, 10000, 50000];
+const CHANGED_LIST = [1, 10, 100, 1000, 10000];
+
+// World bounds from contract §2 (fixture realism).
+const BOUNDS = { minX: -11.3, maxX: 11.3, minZ: -9.5, maxZ: 10.3, maxY: 0.72 };
+const TAU = Math.PI * 2;
+const MAX_N = 50000;
+
+// Seeded LCG, same convention as benchmarks/realtime/lib/fixtures.mjs.
+function rng(seed) {
+  let s = seed >>> 0;
+  return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
+}
+
+const hex = (v) => '0x' + (v >>> 0).toString(16).padStart(8, '0');
+
+function medianMin(samples) {
+  const a = Array.from(samples, Number).sort((p, q) => p - q);
+  const mid = a.length >> 1;
+  const median = a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+  return { median, min: a[0], max: a[a.length - 1], n: a.length };
+}
+
+const RESULTS = {
+  supported: true,
+  reason: null,
+  meta: {
+    probe: 'afterlight-webgpu-transform-upload-v0',
+    contract: 'docs/architecture/realtime/contract.md §2 (entity model) §7 (client layering)',
+    date: new Date().toISOString(),
+    userAgent: navigator.userAgent,
+  },
+  adapter: null,
+  adapterFeatures: null,
+  device: null,
+  timestampQuery: false,
+  // Dawn/Chromium report timestamp ticks in nanoseconds and the JS API exposes
+  // no timestampPeriod; if a future adapter exposes one, prefer it over this.
+  timestampPeriodAssumedNs: 1,
+  timingNotes: [],
+  errors: [],            // uncaptured GPU errors
+  deviceLost: null,
+  correctness: 'pending', // 'passed' | 'FAILED' | 'not-run'
+  renderCheck: null,
+  matrix: [],
+  totalMs: null,
+};
+window.__probeResults = RESULTS;
+
+// ---------------------------------------------------------------------------
+// WGSL
+// ---------------------------------------------------------------------------
+const SCATTER_WGSL = /* wgsl */ `
+struct Delta {
+  count: u32,
+  _pad0: u32,
+  _pad1: u32,
+  _pad2: u32,
+  data: array<u32>, // ids at words 4..4+count-1, then f32 bit patterns
+}
+
+@group(0) @binding(0) var<storage, read_write> positions : array<vec4f>;
+@group(0) @binding(1) var<storage, read> delta : Delta;
+
+@compute @workgroup_size(64)
+fn scatter(@builtin(global_invocation_id) gid : vec3u) {
+  let i = gid.x;
+  if (i >= delta.count) { return; }
+  let id = delta.data[4u + i];
+  let base = 4u + delta.count + 4u * i;
+  positions[id] = vec4f(
+    bitcast<f32>(delta.data[base]),
+    bitcast<f32>(delta.data[base + 1u]),
+    bitcast<f32>(delta.data[base + 2u]),
+    bitcast<f32>(delta.data[base + 3u]));
+}
+`;
+
+const CHECKSUM_WGSL = /* wgsl */ `
+struct Params { count: u32, invocations: u32, _p0: u32, _p1: u32 }
+struct Chk { sums: array<u32> }
+
+@group(0) @binding(0) var<storage, read> positions : array<vec4f>;
+@group(0) @binding(1) var<storage, read_write> chk : Chk;
+@group(0) @binding(2) var<uniform> params : Params;
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+  var acc = 0u;
+  for (var i = gid.x; i < params.count; i = i + params.invocations) {
+    let v = positions[i];
+    acc = acc ^ bitcast<u32>(v.x);
+    acc = acc ^ bitcast<u32>(v.y);
+    acc = acc ^ bitcast<u32>(v.z);
+    acc = acc ^ bitcast<u32>(v.w);
+  }
+  chk.sums[gid.x] = acc;
+}
+`;
+
+const RENDER_WGSL = /* wgsl */ `
+@group(0) @binding(0) var<storage, read> positions : array<vec4f>;
+
+struct VOut { @builtin(position) pos : vec4f }
+
+@vertex
+fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOut {
+  var corners = array<vec2f, 6>(
+    vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0),
+    vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0));
+  let p = positions[ii];
+  let c = corners[vi];
+  let s = sin(p.w);
+  let co = cos(p.w);
+  let rx = c.x * co - c.y * s;
+  let ry = c.x * s + c.y * co;
+  let x = (p.x + rx * 0.35) / 11.3;
+  let z = (p.z + ry * 0.35) / 10.0;
+  var o : VOut;
+  o.pos = vec4f(x, z, p.y, 1.0);
+  return o;
+}
+
+@fragment
+fn fs() -> @location(0) vec4f {
+  return vec4f(0.16, 0.85, 0.45, 1.0);
+}
+`;
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+async function main() {
+  if (!('gpu' in navigator)) {
+    return fail('navigator.gpu is undefined: WebGPU unavailable (Chromium 113+; headless needs --enable-unsafe-webgpu; see benchmarks/realtime/webgpu/README.md).');
+  }
+  let adapter = null;
+  try {
+    adapter = await navigator.gpu.requestAdapter();
+  } catch (e) {
+    return fail('navigator.gpu.requestAdapter() threw: ' + (e && e.message));
+  }
+  if (!adapter) {
+    return fail('requestAdapter() returned null: no usable WebGPU adapter. Try the README flag ladder: --enable-unsafe-webgpu, --use-angle=swiftshader, or --use-gl=angle --use-webgpu-adapter=swiftshader; check chrome://gpu.');
+  }
+
+  let info = null;
+  try {
+    info = adapter.info ? { vendor: adapter.info.vendor, architecture: adapter.info.architecture, device: adapter.info.device, description: adapter.info.description } :
+      (adapter.requestAdapterInfo ? await adapter.requestAdapterInfo().catch(() => null) : null);
+  } catch { /* keep null */ }
+  RESULTS.adapter = info || { note: 'adapter info unavailable on this Chromium build' };
+  const adapterFeatures = [...adapter.features];
+  RESULTS.adapterFeatures = adapterFeatures;
+
+  const wantTs = adapterFeatures.includes('timestamp-query');
+  if (!wantTs) {
+    RESULTS.timingNotes.push('adapter lacks "timestamp-query": every cell falls back to performance.now() wall-clock timing (see timing methodology below).');
+  }
+
+  let device;
+  try {
+    device = await adapter.requestDevice({ requiredFeatures: wantTs ? ['timestamp-query'] : [] });
+  } catch (e) {
+    return fail('requestDevice() threw: ' + (e && e.message));
+  }
+  device.addEventListener('uncapturederror', (e) => {
+    RESULTS.errors.push(String((e.error && e.error.message) || e));
+  });
+  device.lost.then((l) => {
+    RESULTS.deviceLost = { reason: l.reason, message: l.message };
+    RESULTS.supported = false;
+    RESULTS.reason = 'GPU device lost during probe: ' + l.reason + ' ' + l.message + ' (cells collected before the loss remain in matrix)';
+    finish();
+  });
+
+  RESULTS.device = {
+    features: [...device.features],
+    maxStorageBufferBindingSize: device.limits.maxStorageBufferBindingSize,
+    maxBufferSize: device.limits.maxBufferSize,
+    maxComputeInvocationsPerWorkgroup: device.limits.maxComputeInvocationsPerWorkgroup,
+    maxComputeWorkgroupSizeX: device.limits.maxComputeWorkgroupSizeX,
+    maxComputeWorkgroupsPerDimension: device.limits.maxComputeWorkgroupsPerDimension,
+  };
+
+  const device2 = device; // alias to keep minification-friendly references below
+  const queue = device2.queue;
+  const ts = RESULTS.timestampQuery = device2.features.has('timestamp-query');
+  const PERIOD_NS = RESULTS.timestampPeriodAssumedNs;
+
+  // --- timestamp plumbing ---------------------------------------------------
+  const MAX_TS_SLOTS = 2 * 150 + 2;
+  let qs = null, tsResolve = null, tsRead = null;
+  let tsEncoderOk = false;
+  if (ts) {
+    qs = device2.createQuerySet({ type: 'timestamp', count: MAX_TS_SLOTS });
+    tsResolve = device2.createBuffer({ size: 8 * MAX_TS_SLOTS, usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC });
+    tsRead = device2.createBuffer({ size: 8 * MAX_TS_SLOTS, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+    // Probe encoder-level writeTimestamp once; not all implementations accept it.
+    device2.pushErrorScope('validation');
+    const probeEnc = device2.createCommandEncoder();
+    probeEnc.writeTimestamp(qs, MAX_TS_SLOTS - 1);
+    probeEnc.writeTimestamp(qs, MAX_TS_SLOTS - 2);
+    queue.submit([probeEnc.finish()]);
+    const err = await device2.popErrorScope();
+    if (err) {
+      RESULTS.timingNotes.push('encoder.writeTimestamp rejected on this device (' + err.message + '); scatter uses pass-level timestampWrites, full/partial GPU-side numbers are omitted.');
+    } else {
+      tsEncoderOk = true;
+    }
+  }
+  RESULTS.tsEncoderWriteTimestamp = tsEncoderOk;
+
+  // --- shared GPU resources -------------------------------------------------
+  const scatterPipe = device2.createComputePipeline({ layout: 'auto', compute: { module: device2.createShaderModule({ code: SCATTER_WGSL }), entryPoint: 'scatter' } });
+  const chkPipe = device2.createComputePipeline({ layout: 'auto', compute: { module: device2.createShaderModule({ code: CHECKSUM_WGSL }), entryPoint: 'main' } });
+  const renderModule = device2.createShaderModule({ code: RENDER_WGSL });
+  const renderPipe = device2.createRenderPipeline({
+    layout: 'auto',
+    vertex: { module: renderModule, entryPoint: 'vs' },
+    fragment: { module: renderModule, entryPoint: 'fs', targets: [{ format: 'rgba8unorm' }] },
+    primitive: { topology: 'triangle-list' },
+  });
+
+  const maxInvocations = Math.ceil(MAX_N / 64) * 64;
+  const chkOut = device2.createBuffer({ size: 4 * maxInvocations, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
+  const chkRead = device2.createBuffer({ size: 4 * maxInvocations, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+  const chkParams = device2.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+
+  function makeBaseline(N, seed) {
+    const rand = rng(seed);
+    const arr = new Float32Array(N * 4);
+    for (let i = 0; i < N; i++) {
+      arr[i * 4 + 0] = BOUNDS.minX + rand() * (BOUNDS.maxX - BOUNDS.minX);
+      arr[i * 4 + 1] = 0;
+      arr[i * 4 + 2] = BOUNDS.minZ + rand() * (BOUNDS.maxZ - BOUNDS.minZ);
+      arr[i * 4 + 3] = rand() * TAU;
+    }
+    return arr;
+  }
+
+  const perN = new Map();
+  function allocN(N) {
+    const baseline = makeBaseline(N, (0x414C5254 ^ N) >>> 0);
+    const positions = device2.createBuffer({ size: N * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+    const deltaBuf = device2.createBuffer({ size: 16 + N * 20, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+    const staging = device2.createBuffer({ size: N * 16, usage: GPUBufferUsage.MAP_WRITE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST });
+    const res = {
+      N, baseline, positions, deltaBuf, staging,
+      fullSrc: baseline.slice(),   // upload source for full mode (baseline + per-iteration changed entries)
+      mirror: baseline.slice(),    // authoritative CPU expectation of positions[]
+      deltaWords: new Uint32Array(4 + 5 * N), // scatter delta staging (CPU side)
+      slots: new Uint32Array(N),   // shuffle scratch for changed-id sampling
+      partialViews: null,
+      scatterBind: device2.createBindGroup({
+        layout: scatterPipe.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: positions } },
+          { binding: 1, resource: { buffer: deltaBuf } },
+        ],
+      }),
+      chkBind: device2.createBindGroup({
+        layout: chkPipe.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: positions } },
+          { binding: 1, resource: { buffer: chkOut } },
+          { binding: 2, resource: { buffer: chkParams } },
+        ],
+      }),
+      renderBind: device2.createBindGroup({
+        layout: renderPipe.getBindGroupLayout(0),
+        entries: [{ binding: 0, resource: { buffer: positions } }],
+      }),
+    };
+    for (let i = 0; i < N; i++) res.slots[i] = i;
+    queue.writeBuffer(positions, 0, baseline);
+    perN.set(N, res);
+    return res;
+  }
+
+  // --- CPU-side per-cell state -----------------------------------------------
+  function pickIds(p, changed, seed) {
+    // Reset then partial Fisher-Yates: changed distinct slots, deterministic.
+    const { slots } = p;
+    for (let i = 0; i < p.N; i++) slots[i] = i;
+    const rand = rng(seed);
+    for (let i = 0; i < changed; i++) {
+      const j = i + Math.floor(rand() * (p.N - i));
+      const t = slots[i]; slots[i] = slots[j]; slots[j] = t;
+    }
+    const ids = new Uint32Array(changed);
+    for (let i = 0; i < changed; i++) ids[i] = slots[i];
+    return ids;
+  }
+
+  function computeValues(p, ids, values, changed, iter) {
+    // Deterministic, finite per-iteration transform values (the "decoded delta").
+    const phase = iter * 0.0015;
+    const bl = p.baseline;
+    for (let j = 0; j < changed; j++) {
+      const b = ids[j] * 4;
+      const a = phase + j * 0.37;
+      let x = bl[b] + Math.sin(a) * 0.4;
+      let z = bl[b + 2] + Math.cos(a) * 0.4;
+      let yaw = bl[b + 3] + a * 0.25;
+      if (x < BOUNDS.minX) x = BOUNDS.minX; else if (x > BOUNDS.maxX) x = BOUNDS.maxX;
+      if (z < BOUNDS.minZ) z = BOUNDS.minZ; else if (z > BOUNDS.maxZ) z = BOUNDS.maxZ;
+      yaw %= TAU;
+      const o = j * 4;
+      values[o] = x;
+      values[o + 1] = (0.5 + 0.5 * Math.sin(2 * a)) * BOUNDS.maxY;
+      values[o + 2] = z;
+      values[o + 3] = yaw;
+    }
+  }
+
+  function applyMirror(p, ids, values, changed, fullSrcToo) {
+    const m = p.mirror;
+    for (let j = 0; j < changed; j++) {
+      const b = ids[j] * 4;
+      const o = j * 4;
+      m[b] = values[o]; m[b + 1] = values[o + 1]; m[b + 2] = values[o + 2]; m[b + 3] = values[o + 3];
+      if (fullSrcToo) {
+        const f = p.fullSrc;
+        f[b] = m[b]; f[b + 1] = m[b + 1]; f[b + 2] = m[b + 2]; f[b + 3] = m[b + 3];
+      }
+    }
+  }
+
+  function packDelta(p, ids, values, changed) {
+    const w = p.deltaWords;
+    w[0] = changed; w[1] = 0; w[2] = 0; w[3] = 0;
+    for (let j = 0; j < changed; j++) w[4 + j] = ids[j];
+    // f32 view starts right after the ids region (16 + 4*changed bytes).
+    const vals = new Float32Array(w.buffer, 16 + 4 * changed, 4 * changed);
+    vals.set(values);
+    return 4 + 5 * changed; // words to upload
+  }
+
+  // --- GPU timing readback ----------------------------------------------------
+  async function readTimestamps(count) {
+    const enc = device2.createCommandEncoder();
+    enc.resolveQuerySet(qs, 0, count, tsResolve, 0);
+    enc.copyBufferToBuffer(tsResolve, 0, tsRead, 0, 8 * count);
+    queue.submit([enc.finish()]);
+    await queue.onSubmittedWorkDone();
+    await tsRead.mapAsync(GPUMapMode.READ);
+    try {
+      const big = new BigUint64Array(tsRead.getMappedRange(), 0, count);
+      const samples = new Float64Array(count / 2);
+      for (let i = 0; i < count / 2; i++) {
+        let d = big[2 * i + 1] - big[2 * i];
+        if (d < 0n) d += (1n << 64n);
+        samples[i] = Number(d) * PERIOD_NS / 1000; // ns -> µs
+      }
+      return samples;
+    } finally {
+      tsRead.unmap();
+    }
+  }
+
+  // --- one frame of one mode (timed region: upload + submit + completion) -----
+  async function runFrame(mode, p, changed, ids, tsSlotBase, collectTs) {
+    const enc = device2.createCommandEncoder();
+    if (mode === 'full') {
+      queue.writeBuffer(p.positions, 0, p.fullSrc);
+      // Empty command buffer: flushes pending writeBuffer and gives
+      // onSubmittedWorkDone a completion anchor (fair vs. the scatter submit).
+      queue.submit([enc.finish()]);
+    } else if (mode === 'partial') {
+      for (let j = 0; j < changed; j++) {
+        queue.writeBuffer(p.positions, ids[j] * 16, p.partialViews[j]);
+      }
+      queue.submit([enc.finish()]);
+    } else {
+      const words = 4 + 5 * changed; // packed by packDelta() during prep
+      queue.writeBuffer(p.deltaBuf, 0, p.deltaWords, 0, words);
+      let useEncoderTs = false;
+      if (collectTs && tsEncoderOk) {
+        enc.writeTimestamp(qs, tsSlotBase);
+        useEncoderTs = true;
+      }
+      const pass = enc.beginComputePass(
+        collectTs && !tsEncoderOk
+          ? { timestampWrites: { querySet: qs, beginningOfPassWriteIndex: tsSlotBase, endOfPassWriteIndex: tsSlotBase + 1 } }
+          : undefined);
+      pass.setPipeline(scatterPipe);
+      pass.setBindGroup(0, p.scatterBind);
+      pass.dispatchWorkgroups(Math.ceil(changed / 64));
+      pass.end();
+      if (useEncoderTs) enc.writeTimestamp(qs, tsSlotBase + 1);
+      queue.submit([enc.finish()]);
+    }
+    await queue.onSubmittedWorkDone();
+  }
+
+  // --- correctness validation ---------------------------------------------------
+  async function validate(p) {
+    const N = p.N;
+    const invocations = Math.ceil(N / 64) * 64;
+    queue.writeBuffer(chkParams, 0, new Uint32Array([N, invocations, 0, 0]));
+    const enc = device2.createCommandEncoder();
+    const pass = enc.beginComputePass();
+    pass.setPipeline(chkPipe);
+    pass.setBindGroup(0, p.chkBind);
+    pass.dispatchWorkgroups(invocations / 64);
+    pass.end();
+    enc.copyBufferToBuffer(chkOut, 0, chkRead, 0, 4 * invocations);
+    queue.submit([enc.finish()]);
+    await queue.onSubmittedWorkDone();
+    await chkRead.mapAsync(GPUMapMode.READ);
+    let actual = 0;
+    try {
+      const u32 = new Uint32Array(chkRead.getMappedRange(), 0, invocations);
+      for (let i = 0; i < invocations; i++) actual = (actual ^ u32[i]) >>> 0;
+    } finally {
+      chkRead.unmap();
+    }
+    const mu32 = new Uint32Array(p.mirror.buffer, 0, N * 4);
+    let expected = 0;
+    for (let i = 0; i < N * 4; i++) expected = (expected ^ mu32[i]) >>> 0;
+    return { passed: actual === expected, expectedXor: hex(expected), actualXor: hex(actual), elements: N };
+  }
+
+  // --- cell measurement ---------------------------------------------------------
+  function pickIters(mode, N, changed) {
+    // units ~ elements touched per frame
+    const units = mode === 'full' ? N : (mode === 'partial' ? changed : Math.ceil(N / 64) + changed);
+    if (units <= 20000) return { iters: 150, warmup: 5 };   // small passes: >=100 measured
+    if (units <= 200000) return { iters: 60, warmup: 4 };   // e.g. 50k full writes
+    return { iters: 25, warmup: 3 };
+  }
+
+  async function measureCell(mode, p, changed, ids, values) {
+    const { iters, warmup } = pickIters(mode, p.N, changed);
+    const cell = {
+      mode,
+      iterations: 0,
+      warmup,
+      truncated: false,
+      bytesPerFrame: mode === 'full' ? p.N * 16 : (mode === 'partial' ? changed * 16 : 16 + changed * 20),
+      writeBufferCallsPerFrame: mode === 'partial' ? changed : 1,
+      timing: 'wall-clock',
+    };
+    // Reset authoritative state (untimed): positions[] = baseline, mirror = baseline.
+    p.mirror.set(p.baseline);
+    if (mode === 'full') p.fullSrc.set(p.baseline);
+    if (mode === 'partial') {
+      p.partialViews = Array.from({ length: changed }, (_, j) => new Float32Array(values.buffer, j * 16, 4));
+    }
+    queue.writeBuffer(p.positions, 0, p.baseline);
+
+    const prep = (i) => {
+      computeValues(p, ids, values, changed, i);
+      applyMirror(p, ids, values, changed, mode === 'full');
+      if (mode === 'scatter') packDelta(p, ids, values, changed);
+    };
+
+    for (let i = 0; i < warmup; i++) {
+      prep(i);
+      await runFrame(mode, p, changed, ids, -1, false);
+    }
+    const useTs = ts && mode === 'scatter';
+    const wall = new Float64Array(iters);
+    const budgetStart = performance.now();
+    let done = 0;
+    for (let i = 0; i < iters; i++) {
+      prep(i);
+      const t0 = performance.now();
+      await runFrame(mode, p, changed, ids, 2 * i, useTs);
+      wall[i] = performance.now() - t0;
+      done++;
+      if (performance.now() - budgetStart > 6000 && i >= 30) { cell.truncated = true; break; }
+    }
+    cell.iterations = done;
+    const st = medianMin(wall.subarray(0, done));
+    cell.wallMedianUs = st.median;
+    cell.wallMinUs = st.min;
+    cell.wallMaxUs = st.max;
+
+    if (useTs) {
+      const gpuSamples = await readTimestamps(2 * done);
+      const gs = medianMin(gpuSamples);
+      cell.gpuMedianUs = gs.median;
+      cell.gpuMinUs = gs.min;
+      cell.gpuScope = tsEncoderOk
+        ? 'scatter compute pass elapsed, bracketed by encoder.writeTimestamp (delta writeBuffer excluded: writeBuffer is not encoder-visible)'
+        : 'scatter compute pass elapsed, pass-level timestampWrites (delta writeBuffer excluded)';
+      if (gs.max === 0) RESULTS.timingNotes.push('scatter GPU timestamps were all zero on this adapter (common on SwiftShader); treat gpu numbers as unavailable, use wall-clock.');
+      cell.timing = 'wall-clock + gpu-timestamps';
+    }
+
+    cell.checksum = await validate(p);
+    if (cell.checksum.passed) {
+      if (RESULTS.correctness !== 'FAILED') RESULTS.correctness = 'passed';
+    } else {
+      RESULTS.correctness = 'FAILED';
+    }
+    return cell;
+  }
+
+  // GPU-side analogue for full/partial: writeBuffer is not encoder-visible, so
+  // bracket an equivalent staging->positions copyBufferToBuffer with timestamps.
+  async function tsCopyRun(mode, p, changed, ids, values) {
+    if (!tsEncoderOk) return null;
+    const iters = Math.min(24, pickIters(mode, p.N, changed).iters);
+    for (let i = 0; i < iters; i++) {
+      computeValues(p, ids, values, changed, 1000 + i);
+      applyMirror(p, ids, values, changed, true);
+      queue.writeBuffer(p.staging, 0, p.fullSrc);
+      const enc = device2.createCommandEncoder();
+      enc.writeTimestamp(qs, 2 * i);
+      if (mode === 'full') {
+        enc.copyBufferToBuffer(p.staging, 0, p.positions, 0, p.N * 16);
+      } else {
+        for (let j = 0; j < changed; j++) {
+          enc.copyBufferToBuffer(p.staging, ids[j] * 16, p.positions, ids[j] * 16, 16);
+        }
+      }
+      enc.writeTimestamp(qs, 2 * i + 1);
+      queue.submit([enc.finish()]);
+      await queue.onSubmittedWorkDone();
+    }
+    const samples = await readTimestamps(2 * iters);
+    const st = medianMin(samples);
+    return {
+      iterations: iters,
+      gpuMedianUs: st.median,
+      gpuMinUs: st.min,
+      gpuScope: mode === 'full'
+        ? 'one staging->positions copyBufferToBuffer of the whole buffer, encoder.writeTimestamp bracket (GPU-side analogue of the writeBuffer frame)'
+        : changed + ' staging->positions copyBufferToBuffer call' + (changed === 1 ? '' : 's') + ' of 16 B each, encoder.writeTimestamp bracket (GPU-side analogue of the per-entity writeBuffer anti-pattern)',
+    };
+  }
+
+  // --- render-read check ----------------------------------------------------------
+  async function renderCheck(p) {
+    const N = p.N;
+    const tex = device2.createTexture({ size: [16, 16], format: 'rgba8unorm', usage: GPUTextureUsage.RENDER_ATTACHMENT });
+    device2.pushErrorScope('validation');
+    const enc = device2.createCommandEncoder();
+    const pass = enc.beginRenderPass({
+      colorAttachments: [{ view: tex.createView(), clearValue: { r: 0, g: 0, b: 0, a: 1 }, loadOp: 'clear', storeOp: 'store' }],
+    });
+    pass.setPipeline(renderPipe);
+    pass.setBindGroup(0, p.renderBind);
+    pass.draw(6, N); // N instanced quads, vertex stage reads positions[instance_index]
+    pass.end();
+    queue.submit([enc.finish()]);
+    const verr = await device2.popErrorScope();
+    await queue.onSubmittedWorkDone();
+    tex.destroy();
+    return {
+      passed: !verr && RESULTS.errors.length === 0 && !RESULTS.deviceLost,
+      instances: N,
+      validationError: verr ? verr.message : null,
+      note: 'one instanced draw of N quads; vertex stage reads positions[instance_index] from the persistent storage buffer (Three.js InstancedMesh analogue; draw submitted and completed with no device errors)',
+    };
+  }
+
+  // --- report rendering --------------------------------------------------------------
+  function fmtUs(x) { return x == null ? null : (Math.abs(x) >= 100 ? x.toFixed(1) : x.toFixed(2)); }
+  function renderReport() {
+    const L = [];
+    L.push('=== capability report ===');
+    L.push('navigator.gpu    : ' + ('gpu' in navigator ? 'present' : 'ABSENT'));
+    L.push('adapter          : ' + JSON.stringify(RESULTS.adapter));
+    L.push('adapter features : ' + (RESULTS.adapterFeatures ? RESULTS.adapterFeatures.join(', ') : 'n/a'));
+    L.push('device limits    : ' + JSON.stringify(RESULTS.device));
+    L.push('timestamp-query  : ' + (RESULTS.timestampQuery
+      ? 'yes; timestamps converted at ' + RESULTS.timestampPeriodAssumedNs + ' ns/tick (Dawn convention; the JS API exposes no period)' + (RESULTS.tsEncoderWriteTimestamp ? '; encoder.writeTimestamp ok' : '; encoder.writeTimestamp rejected, pass-level fallback')
+      : 'no — wall-clock fallback for all cells'));
+    if (RESULTS.timingNotes.length) {
+      L.push('');
+      L.push('=== timing methodology / notes ===');
+      for (const n of RESULTS.timingNotes) L.push('  - ' + n);
+      L.push('  - wall-clock (all cells): performance.now() around [writeBuffer(s) (+ encode/submit for scatter) -> onSubmittedWorkDone], per frame.');
+      L.push('    Includes the ~0.1-0.5 ms completion-signal latency floor equally for all modes: compare modes within a row.');
+      L.push('  - prepare (computeValues/applyMirror/packDelta, the CPU "decode" side) runs OUTSIDE the timed region.');
+    }
+    L.push('');
+    L.push('=== matrix (µs, median / min; gpu* for full|partial is the staging-copy timestamp analogue) ===');
+    L.push('     N  changed  mode     iters  wall-med  wall-min   gpu-med   gpu-min   bytes/frame  checksum');
+    for (const e of RESULTS.matrix) {
+      for (const mode of ['full', 'partial', 'scatter']) {
+        const c = e.modes[mode];
+        if (!c) continue;
+        L.push(
+          String(e.N).padStart(6) + String(e.changed).padStart(9) + (e.clamped ? '*' : ' ') +
+          mode.padStart(9) + String(c.iterations).padStart(7) +
+          fmtUs(c.wallMedianUs).padStart(10) + fmtUs(c.wallMinUs).padStart(10) +
+          (c.gpuMedianUs != null ? fmtUs(c.gpuMedianUs).padStart(10) : '         -') +
+          (c.gpuMinUs != null ? fmtUs(c.gpuMinUs).padStart(10) : '         -') +
+          String(c.bytesPerFrame).padStart(13) +
+          (c.checksum && c.checksum.passed ? '  ok' : '  MISMATCH ' + JSON.stringify(c.checksum))
+        );
+      }
+    }
+    L.push('* = requested changed clamped to N. iterations may be fewer than 150 where a 6 s per-cell budget truncated heavy cells.');
+    L.push('');
+    L.push('correctness   : ' + RESULTS.correctness + (RESULTS.correctness === 'passed'
+      ? ' — every mode\'s final GPU state matched the CPU mirror (bit-exact XOR checksum over all N vec4s)'
+      : RESULTS.correctness === 'FAILED'
+        ? ' — SEE BANNER ABOVE; GPU state diverged from the CPU mirror for at least one cell'
+        : ''));
+    L.push('render check  : ' + (RESULTS.renderCheck ? (RESULTS.renderCheck.passed ? 'passed' : 'FAILED') + ' — ' + RESULTS.renderCheck.note + (RESULTS.renderCheck.validationError ? ' [validation error: ' + RESULTS.renderCheck.validationError + ']' : '') : 'not run'));
+    if (RESULTS.errors.length) L.push('device errors : ' + RESULTS.errors.length + ' uncaptured — ' + JSON.stringify(RESULTS.errors));
+    if (RESULTS.deviceLost) L.push('device lost   : ' + JSON.stringify(RESULTS.deviceLost));
+    L.push('total wall    : ' + (RESULTS.totalMs != null ? (RESULTS.totalMs / 1000).toFixed(1) + ' s' : 'n/a'));
+    L.push('');
+    if (RESULTS.correctness === 'FAILED') {
+      L.push('************************************************************************************************');
+      L.push('*  CHECKSUM MISMATCH: GPU positions[] != CPU mirror for at least one cell. Results are INVALID.*');
+      L.push('*  A scatter/full/partial write was lost or misdirected. Do not cite numbers from this run.    *');
+      L.push('************************************************************************************************');
+      L.push('');
+    }
+    L.push('machine-readable results: window.__probeResults  (console: copy(JSON.stringify(window.__probeResults, null, 2)))');
+    if (RESULTS.reason) L.push('reason: ' + RESULTS.reason);
+    return L.join('\n');
+  }
+
+  function finish() {
+    try {
+      out.textContent = renderReport();
+      document.title = (RESULTS.correctness === 'FAILED' ? 'FAILED — ' : '') + 'afterlight webgpu probe' + (RESULTS.supported ? '' : ' (unsupported)');
+    } catch (e) {
+      out.textContent = 'probe finished; report rendering failed: ' + (e && e.message) + '\nJSON: window.__probeResults';
+    }
+    setStatus(RESULTS.supported ? 'done' : 'done (unsupported/lost)');
+  }
+
+  function fail(reason) {
+    RESULTS.supported = false;
+    RESULTS.reason = reason;
+    RESULTS.correctness = RESULTS.correctness === 'pending' ? 'not-run' : RESULTS.correctness;
+    finish();
+  }
+
+  // --- run the matrix ------------------------------------------------------------
+  const t0 = performance.now();
+  try {
+    for (const N of NS_LIST) {
+      const p = allocN(N);
+      for (const changedRaw of CHANGED_LIST) {
+        if (RESULTS.deviceLost) throw new Error('aborted: device lost');
+        const changed = Math.min(changedRaw, N);
+        const entry = { N, requestedChanged: changedRaw, changed, clamped: changedRaw > N, modes: {} };
+        const seed = (0x9E3779B9 ^ Math.imul(N, 2654435761) ^ Math.imul(changed, 0x85EBCA6B)) >>> 0;
+        const ids = pickIds(p, changed, seed);
+        const values = new Float32Array(changed * 4);
+        for (const mode of ['full', 'partial', 'scatter']) {
+          setStatus('running N=' + N + ' changed=' + changed + ' mode=' + mode + ' … (cells done: ' + RESULTS.matrix.length * 3 + ')');
+          entry.modes[mode] = await measureCell(mode, p, changed, ids, values);
+          if (mode !== 'scatter') {
+            const g = await tsCopyRun(mode, p, changed, ids, values);
+            if (g) {
+              entry.modes[mode].gpuMedianUs = g.gpuMedianUs;
+              entry.modes[mode].gpuMinUs = g.gpuMinUs;
+              entry.modes[mode].gpuScope = g.gpuScope;
+            }
+          }
+        }
+        RESULTS.matrix.push(entry);
+      }
+    }
+    setStatus('render-read check…');
+    RESULTS.renderCheck = await renderCheck(perN.get(MAX_N));
+    RESULTS.totalMs = performance.now() - t0;
+    if (!RESULTS.deviceLost) finish();
+  } catch (e) {
+    RESULTS.fatalError = String((e && e.stack) || e);
+    if (!RESULTS.reason) RESULTS.reason = 'fatal: ' + (e && e.message);
+    if (!RESULTS.matrix.length) RESULTS.supported = false;
+    finish();
+  }
+}
+
+main().catch((e) => {
+  RESULTS.fatalError = String((e && e.stack) || e);
+  if (!RESULTS.matrix.length) RESULTS.supported = false;
+  RESULTS.reason = RESULTS.reason || ('fatal: ' + (e && e.message));
+  RESULTS.correctness = RESULTS.correctness === 'pending' ? 'not-run' : RESULTS.correctness;
+  try {
+    document.getElementById('out').textContent = 'probe crashed:\n' + RESULTS.fatalError + '\n\npartial JSON: window.__probeResults';
+    document.getElementById('status').textContent = 'crashed';
+  } catch { /* ignore */ }
+});
+</script>
+</body>
+</html>

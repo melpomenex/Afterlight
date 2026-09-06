@@ -1,0 +1,84 @@
+{
+  "env": {
+    "node": "v22.22.1",
+    "exposedGc": true,
+    "cpus": 24,
+    "date": "2026-09-06T21:56:26.147Z"
+  },
+  "fraction": 0.1,
+  "crossover": [
+    {
+      "n": 50,
+      "changed": 5,
+      "jsonBytes": 577,
+      "frameBytes": 173,
+      "legacyMedianUs": 0.0034,
+      "legacyMinUs": 0.0031,
+      "legacyAllocBytes": -6584,
+      "pipelineMedianUs": 0.0096,
+      "pipelineMinUs": 0.0074,
+      "pipelineAllocBytes": 112,
+      "mainThreadSpeedupMin": 0.42
+    },
+    {
+      "n": 200,
+      "changed": 20,
+      "jsonBytes": 2183,
+      "frameBytes": 548,
+      "legacyMedianUs": 0.0115,
+      "legacyMinUs": 0.0094,
+      "legacyAllocBytes": -464,
+      "pipelineMedianUs": 0.015,
+      "pipelineMinUs": 0.0136,
+      "pipelineAllocBytes": 208,
+      "mainThreadSpeedupMin": 0.69
+    },
+    {
+      "n": 1000,
+      "changed": 100,
+      "jsonBytes": 10780,
+      "frameBytes": 2548,
+      "legacyMedianUs": 0.0502,
+      "legacyMinUs": 0.0494,
+      "legacyAllocBytes": -192,
+      "pipelineMedianUs": 0.0518,
+      "pipelineMinUs": 0.0479,
+      "pipelineAllocBytes": 824,
+      "mainThreadSpeedupMin": 1.03
+    },
+    {
+      "n": 5000,
+      "changed": 500,
+      "jsonBytes": 53705,
+      "frameBytes": 12548,
+      "legacyMedianUs": 0.2137,
+      "legacyMinUs": 0.1986,
+      "legacyAllocBytes": -648,
+      "pipelineMedianUs": 0.1504,
+      "pipelineMinUs": 0.1352,
+      "pipelineAllocBytes": 9424,
+      "mainThreadSpeedupMin": 1.47
+    },
+    {
+      "n": 10000,
+      "changed": 1000,
+      "jsonBytes": 107400,
+      "frameBytes": 25048,
+      "legacyMedianUs": 0.4174,
+      "legacyMinUs": 0.3976,
+      "legacyAllocBytes": -320,
+      "pipelineMedianUs": 0.2619,
+      "pipelineMinUs": 0.2124,
+      "pipelineAllocBytes": -264,
+      "mainThreadSpeedupMin": 1.87
+    }
+  ],
+  "soak": {
+    "population": 10000,
+    "ticks": 600,
+    "allocPerTickFirst100Bytes": -78,
+    "allocPerTickLast100Bytes": 16,
+    "trendBytesPerTick": 94,
+    "flat": true
+  }
+}

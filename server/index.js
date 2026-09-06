@@ -5,6 +5,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { MSG_TYPES, ROOMS, WEATHER, parse, serialize } from '../shared/protocol.js';
 import { sanitizeNickname, resolveDuplicateNickname } from '../shared/identity.js';
 import { Storage } from './storage.js';
+import { initBaselineProbe } from './baselineProbe.js';
 import { WorldManager } from './world.js';
 import { GardensManager } from './gardens.js';
 import { EconomyManager } from './economy.js';
@@ -29,6 +30,7 @@ const PLAYLIST_FETCH_TIMEOUT_MS = 15000;
 
 export function createServer(customStorage = null, options = {}) {
   const storage = customStorage || new Storage();
+  initBaselineProbe({ storage });
   const { dataDir = null } = options;
   const world = new WorldManager();
   const gardens = new GardensManager(storage);

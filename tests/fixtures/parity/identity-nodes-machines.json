@@ -1,0 +1,1509 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "nick/default-seed-0",
+      "fn": "generateDefaultNickname",
+      "args": [
+        0
+      ],
+      "seed": 0,
+      "expected": "Mossyundefined10"
+    },
+    {
+      "id": "nick/default-seed-0.1",
+      "fn": "generateDefaultNickname",
+      "args": [
+        0.1
+      ],
+      "seed": 0.1,
+      "expected": "DuskyPepper77"
+    },
+    {
+      "id": "nick/default-seed-0.5",
+      "fn": "generateDefaultNickname",
+      "args": [
+        0.5
+      ],
+      "seed": 0.5,
+      "expected": "MossySprout88"
+    },
+    {
+      "id": "nick/default-seed-0.999",
+      "fn": "generateDefaultNickname",
+      "args": [
+        0.999
+      ],
+      "seed": 0.999,
+      "expected": "GildedBerry32"
+    },
+    {
+      "id": "nick/sanitize-0",
+      "fn": "sanitizeNickname",
+      "args": [
+        "plain"
+      ],
+      "expected": "plain"
+    },
+    {
+      "id": "nick/sanitize-1",
+      "fn": "sanitizeNickname",
+      "args": [
+        "  spaced   name  "
+      ],
+      "expected": "spaced name"
+    },
+    {
+      "id": "nick/sanitize-2",
+      "fn": "sanitizeNickname",
+      "args": [
+        "<b>Bold</b>name"
+      ],
+      "expected": "Boldname"
+    },
+    {
+      "id": "nick/sanitize-3",
+      "fn": "sanitizeNickname",
+      "args": [
+        "control\u0001char"
+      ],
+      "expected": "controlchar"
+    },
+    {
+      "id": "nick/sanitize-4",
+      "fn": "sanitizeNickname",
+      "args": [
+        "idemi_"
+      ],
+      "expected": "idemi_"
+    },
+    {
+      "id": "nick/sanitize-5",
+      "fn": "sanitizeNickname",
+      "args": [
+        "🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟"
+      ],
+      "expected": "<generated>"
+    },
+    {
+      "id": "nick/sanitize-6",
+      "fn": "sanitizeNickname",
+      "args": [
+        "ab🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟"
+      ],
+      "expected": "<generated>"
+    },
+    {
+      "id": "nick/sanitize-7",
+      "fn": "sanitizeNickname",
+      "args": [
+        "ABABABABABABABABABABABAB"
+      ],
+      "expected": "ABABABABABABABABABAB"
+    },
+    {
+      "id": "nick/sanitize-8",
+      "fn": "sanitizeNickname",
+      "args": [
+        ""
+      ],
+      "expected": "<generated>"
+    },
+    {
+      "id": "nick/sanitize-9",
+      "fn": "sanitizeNickname",
+      "args": [
+        "a"
+      ],
+      "expected": "<generated>"
+    },
+    {
+      "id": "nick/dup-ladder-exhausted",
+      "fn": "resolveDuplicateNickname",
+      "args": [
+        "wren",
+        {}
+      ],
+      "expected": "<generated>"
+    },
+    {
+      "id": "nick/dup-two",
+      "fn": "resolveDuplicateNickname",
+      "args": [
+        "wren",
+        {}
+      ],
+      "expected": "wren2"
+    },
+    {
+      "id": "nick/dup-case",
+      "fn": "resolveDuplicateNickname",
+      "args": [
+        "Wren",
+        {}
+      ],
+      "expected": "Wren2"
+    },
+    {
+      "id": "palette/0",
+      "fn": "generatePlayerPalette",
+      "args": [
+        "guest_abc123"
+      ],
+      "expected": {
+        "coat": "#445e38",
+        "apron": "#b8b498",
+        "hat": "#314427",
+        "boots": "#1f2b18"
+      }
+    },
+    {
+      "id": "palette/1",
+      "fn": "generatePlayerPalette",
+      "args": [
+        "Astral🌟Id"
+      ],
+      "expected": {
+        "coat": "#3a5449",
+        "apron": "#c2bca3",
+        "hat": "#2d3f37",
+        "boots": "#202924"
+      }
+    },
+    {
+      "id": "palette/2",
+      "fn": "generatePlayerPalette",
+      "args": [
+        "🎯🎯"
+      ],
+      "expected": {
+        "coat": "#806835",
+        "apron": "#ccc4a7",
+        "hat": "#544320",
+        "boots": "#2e2411"
+      }
+    },
+    {
+      "id": "palette/3",
+      "fn": "generatePlayerPalette",
+      "args": [
+        ""
+      ],
+      "expected": {
+        "coat": "#7a4e32",
+        "apron": "#b8a682",
+        "hat": "#473d32",
+        "boots": "#2b231c"
+      }
+    },
+    {
+      "id": "palette/4",
+      "fn": "generatePlayerPalette",
+      "args": [
+        "x"
+      ],
+      "expected": {
+        "coat": "#7a4e32",
+        "apron": "#b8a682",
+        "hat": "#473d32",
+        "boots": "#2b231c"
+      }
+    },
+    {
+      "id": "nodes/harvest-and-deplete",
+      "kind": "script",
+      "steps": [
+        {
+          "fn": "newNodesManager",
+          "args": [],
+          "expected": {
+            "storage": {
+              "state": {
+                "nodes": {}
+              }
+            },
+            "depletions": {}
+          }
+        },
+        {
+          "fn": "nodesHarvest",
+          "args": [
+            "<prev>",
+            "foundry_copper_cache",
+            1700000000000
+          ],
+          "expected": {
+            "success": false,
+            "reason": "unknown_node"
+          }
+        },
+        {
+          "fn": "nodesIsDepleted",
+          "args": [
+            "<prev>",
+            "foundry_copper_cache",
+            1700000000001
+          ],
+          "expected": {
+            "depleted": false
+          }
+        },
+        {
+          "fn": "nodesIsDepleted",
+          "args": [
+            "<prev>",
+            "foundry_copper_cache",
+            1700000179999
+          ],
+          "expected": {
+            "depleted": false
+          }
+        },
+        {
+          "fn": "nodesIsDepleted",
+          "args": [
+            "<prev>",
+            "foundry_copper_cache",
+            1700000180000
+          ],
+          "expected": {
+            "depleted": false
+          }
+        },
+        {
+          "fn": "nodesHarvest",
+          "args": [
+            "<prev>",
+            "foundry_copper_cache",
+            1700000001000
+          ],
+          "expected": {
+            "success": false,
+            "reason": "unknown_node"
+          }
+        },
+        {
+          "fn": "nodesReap",
+          "args": [
+            "<prev>",
+            1700000180001
+          ],
+          "expected": {
+            "nodes": {}
+          }
+        }
+      ],
+      "keepPrev": true,
+      "expected": {
+        "prev": {
+          "storage": {
+            "state": {
+              "nodes": {}
+            }
+          },
+          "depletions": {}
+        }
+      }
+    },
+    {
+      "id": "nodes/unknown-node",
+      "kind": "script",
+      "steps": [
+        {
+          "fn": "newNodesManager",
+          "args": [],
+          "expected": {
+            "storage": {
+              "state": {
+                "nodes": {}
+              }
+            },
+            "depletions": {}
+          }
+        },
+        {
+          "fn": "nodesHarvest",
+          "args": [
+            "<prev>",
+            "made_up_node",
+            1700000000000
+          ],
+          "expected": {
+            "success": false,
+            "reason": "unknown_node"
+          }
+        }
+      ],
+      "keepPrev": true,
+      "expected": {
+        "prev": {
+          "storage": {
+            "state": {
+              "nodes": {}
+            }
+          },
+          "depletions": {}
+        }
+      }
+    },
+    {
+      "id": "nodes/district-states",
+      "kind": "script",
+      "steps": [
+        {
+          "fn": "newNodesManager",
+          "args": [],
+          "expected": {
+            "storage": {
+              "state": {
+                "nodes": {}
+              }
+            },
+            "depletions": {}
+          }
+        },
+        {
+          "fn": "nodesDistrictStates",
+          "args": [
+            "<prev>"
+          ],
+          "expected": [
+            {
+              "nodeId": "trestle_timber_1",
+              "material": "timber",
+              "available": true,
+              "depletedAt": null,
+              "respawnAt": null
+            },
+            {
+              "nodeId": "trestle_timber_2",
+              "material": "timber",
+              "available": true,
+              "depletedAt": null,
+              "respawnAt": null
+            },
+            {
+              "nodeId": "trestle_timber_3",
+              "material": "timber",
+              "available": true,
+              "depletedAt": null,
+              "respawnAt": null
+            }
+          ]
+        }
+      ],
+      "keepPrev": true,
+      "expected": {
+        "prev": {
+          "storage": {
+            "state": {
+              "nodes": {}
+            }
+          },
+          "depletions": {}
+        }
+      }
+    },
+    {
+      "id": "mill/contribute-clamp-matrix",
+      "kind": "script",
+      "steps": [
+        {
+          "fn": "newMachinesManager",
+          "args": [],
+          "expected": {
+            "storage": {
+              "state": {
+                "machines": {
+                  "mill": {
+                    "status": "broken",
+                    "required": {
+                      "copper": 4,
+                      "timber": 4,
+                      "glass": 4
+                    },
+                    "contributed": {
+                      "copper": 0,
+                      "timber": 0,
+                      "glass": 0
+                    },
+                    "restoredAt": null
+                  }
+                }
+              }
+            },
+            "mill": {
+              "status": "broken",
+              "required": {
+                "copper": 4,
+                "timber": 4,
+                "glass": 4
+              },
+              "contributed": {
+                "copper": 0,
+                "timber": 0,
+                "glass": 0
+              },
+              "restoredAt": null
+            }
+          }
+        },
+        {
+          "fn": "millContribute",
+          "args": [
+            "<prev>",
+            {
+              "id": "p1",
+              "nickname": "Parity",
+              "coins": 100,
+              "xp": 0,
+              "level": 1,
+              "reputation": 10,
+              "reservedCoins": 0,
+              "materials": {
+                "copper": 3,
+                "timber": 0,
+                "glass": 0
+              },
+              "inventory": {
+                "seeds": {},
+                "produce": {},
+                "reservedProduce": {},
+                "sprinklers": 0
+              },
+              "currentRoom": "market",
+              "lastSeen": 1700000000000
+            },
+            "copper",
+            2
+          ],
+          "expected": {
+            "success": true,
+            "material": "copper",
+            "applied": 2,
+            "restored": false,
+            "machine": {
+              "mill": {
+                "status": "broken",
+                "required": {
+                  "copper": 4,
+                  "timber": 4,
+                  "glass": 4
+                },
+                "contributed": {
+                  "copper": 2,
+                  "timber": 0,
+                  "glass": 0
+                },
+                "restoredAt": null
+              }
+            }
+          }
+        },
+        {
+          "fn": "millContribute",
+          "args": [
+            "<prev>",
+            {
+              "id": "p1",
+              "nickname": "Parity",
+              "coins": 100,
+              "xp": 0,
+              "level": 1,
+              "reputation": 10,
+              "reservedCoins": 0,
+              "materials": {
+                "copper": 3,
+                "timber": 0,
+                "glass": 0
+              },
+              "inventory": {
+                "seeds": {},
+                "produce": {},
+                "reservedProduce": {},
+                "sprinklers": 0
+              },
+              "currentRoom": "market",
+              "lastSeen": 1700000000000
+            },
+            "copper",
+            5
+          ],
+          "expected": {
+            "success": true,
+            "material": "copper",
+            "applied": 2,
+            "restored": false,
+            "machine": {
+              "mill": {
+                "status": "broken",
+                "required": {
+                  "copper": 4,
+                  "timber": 4,
+                  "glass": 4
+                },
+                "contributed": {
+                  "copper": 4,
+                  "timber": 0,
+                  "glass": 0
+                },
+                "restoredAt": null
+              }
+            }
+          }
+        },
+        {
+          "fn": "millContribute",
+          "args": [
+            "<prev>",
+            {
+              "id": "p1",
+              "nickname": "Parity",
+              "coins": 100,
+              "xp": 0,
+              "level": 1,
+              "reputation": 10,
+              "reservedCoins": 0,
+              "materials": {
+                "copper": 1
+              },
+              "inventory": {
+                "seeds": {},
+                "produce": {},
+                "reservedProduce": {},
+                "sprinklers": 0
+              },
+              "currentRoom": "market",
+              "lastSeen": 1700000000000
+            },
+            "gold",
+            1
+          ],
+          "expected": {
+            "success": false,
+            "reason": "material_not_needed"
+          }
+        },
+        {
+          "fn": "millContribute",
+          "args": [
+            "<prev>",
+            {
+              "id": "p1",
+              "nickname": "Parity",
+              "coins": 100,
+              "xp": 0,
+              "level": 1,
+              "reputation": 10,
+              "reservedCoins": 0,
+              "materials": {
+                "copper": 1
+              },
+              "inventory": {
+                "seeds": {},
+                "produce": {},
+                "reservedProduce": {},
+                "sprinklers": 0
+              },
+              "currentRoom": "market",
+              "lastSeen": 1700000000000
+            },
+            "copper",
+            0
+          ],
+          "expected": {
+            "success": false,
+            "reason": "invalid_quantity"
+          }
+        },
+        {
+          "fn": "millContribute",
+          "args": [
+            "<prev>",
+            {
+              "id": "p1",
+              "nickname": "Parity",
+              "coins": 100,
+              "xp": 0,
+              "level": 1,
+              "reputation": 10,
+              "reservedCoins": 0,
+              "materials": {
+                "copper": 1
+              },
+              "inventory": {
+                "seeds": {},
+                "produce": {},
+                "reservedProduce": {},
+                "sprinklers": 0
+              },
+              "currentRoom": "market",
+              "lastSeen": 1700000000000
+            },
+            "copper",
+            1.5
+          ],
+          "expected": {
+            "success": false,
+            "reason": "material_fulfilled"
+          }
+        },
+        {
+          "fn": "millContribute",
+          "args": [
+            "<prev>",
+            {
+              "id": "p1",
+              "nickname": "Parity",
+              "coins": 100,
+              "xp": 0,
+              "level": 1,
+              "reputation": 10,
+              "reservedCoins": 0,
+              "materials": {
+                "timber": 4
+              },
+              "inventory": {
+                "seeds": {},
+                "produce": {},
+                "reservedProduce": {},
+                "sprinklers": 0
+              },
+              "currentRoom": "market",
+              "lastSeen": 1700000000000
+            },
+            "timber",
+            4
+          ],
+          "expected": {
+            "success": true,
+            "material": "timber",
+            "applied": 4,
+            "restored": false,
+            "machine": {
+              "mill": {
+                "status": "broken",
+                "required": {
+                  "copper": 4,
+                  "timber": 4,
+                  "glass": 4
+                },
+                "contributed": {
+                  "copper": 4,
+                  "timber": 4,
+                  "glass": 0
+                },
+                "restoredAt": null
+              }
+            }
+          }
+        },
+        {
+          "fn": "millContribute",
+          "args": [
+            "<prev>",
+            {
+              "id": "p1",
+              "nickname": "Parity",
+              "coins": 100,
+              "xp": 0,
+              "level": 1,
+              "reputation": 10,
+              "reservedCoins": 0,
+              "materials": {
+                "glass": 4
+              },
+              "inventory": {
+                "seeds": {},
+                "produce": {},
+                "reservedProduce": {},
+                "sprinklers": 0
+              },
+              "currentRoom": "market",
+              "lastSeen": 1700000000000
+            },
+            "glass",
+            4
+          ],
+          "expected": {
+            "success": true,
+            "material": "glass",
+            "applied": 4,
+            "restored": true,
+            "machine": {
+              "mill": {
+                "status": "restored",
+                "required": {
+                  "copper": 4,
+                  "timber": 4,
+                  "glass": 4
+                },
+                "contributed": {
+                  "copper": 4,
+                  "timber": 4,
+                  "glass": 4
+                },
+                "restoredAt": 1700000000000
+              }
+            }
+          }
+        },
+        {
+          "fn": "millContribute",
+          "args": [
+            "<prev>",
+            {
+              "id": "p1",
+              "nickname": "Parity",
+              "coins": 100,
+              "xp": 0,
+              "level": 1,
+              "reputation": 10,
+              "reservedCoins": 0,
+              "materials": {
+                "copper": 1
+              },
+              "inventory": {
+                "seeds": {},
+                "produce": {},
+                "reservedProduce": {},
+                "sprinklers": 0
+              },
+              "currentRoom": "market",
+              "lastSeen": 1700000000000
+            },
+            "copper",
+            1
+          ],
+          "expected": {
+            "success": false,
+            "reason": "mill_already_restored"
+          }
+        },
+        {
+          "fn": "millSnapshot",
+          "args": [
+            "<prev>"
+          ],
+          "expected": {
+            "status": "restored",
+            "required": {
+              "copper": 4,
+              "timber": 4,
+              "glass": 4
+            },
+            "contributed": {
+              "copper": 4,
+              "timber": 4,
+              "glass": 4
+            },
+            "restoredAt": 1700000000000
+          }
+        }
+      ],
+      "keepPrev": true,
+      "expected": {
+        "prev": {
+          "storage": {
+            "state": {
+              "machines": {
+                "mill": {
+                  "status": "restored",
+                  "required": {
+                    "copper": 4,
+                    "timber": 4,
+                    "glass": 4
+                  },
+                  "contributed": {
+                    "copper": 4,
+                    "timber": 4,
+                    "glass": 4
+                  },
+                  "restoredAt": 1700000000000
+                }
+              }
+            }
+          },
+          "mill": {
+            "status": "restored",
+            "required": {
+              "copper": 4,
+              "timber": 4,
+              "glass": 4
+            },
+            "contributed": {
+              "copper": 4,
+              "timber": 4,
+              "glass": 4
+            },
+            "restoredAt": 1700000000000
+          }
+        }
+      }
+    },
+    {
+      "id": "mill/wheat-consume-order",
+      "kind": "script",
+      "steps": [
+        {
+          "fn": "newMachinesManager",
+          "args": [],
+          "expected": {
+            "storage": {
+              "state": {
+                "machines": {
+                  "mill": {
+                    "status": "broken",
+                    "required": {
+                      "copper": 4,
+                      "timber": 4,
+                      "glass": 4
+                    },
+                    "contributed": {
+                      "copper": 0,
+                      "timber": 0,
+                      "glass": 0
+                    },
+                    "restoredAt": null
+                  }
+                }
+              }
+            },
+            "mill": {
+              "status": "broken",
+              "required": {
+                "copper": 4,
+                "timber": 4,
+                "glass": 4
+              },
+              "contributed": {
+                "copper": 0,
+                "timber": 0,
+                "glass": 0
+              },
+              "restoredAt": null
+            }
+          }
+        },
+        {
+          "fn": "millSnapshot",
+          "args": [
+            "<prev>"
+          ],
+          "expected": {
+            "status": "broken",
+            "required": {
+              "copper": 4,
+              "timber": 4,
+              "glass": 4
+            },
+            "contributed": {
+              "copper": 0,
+              "timber": 0,
+              "glass": 0
+            },
+            "restoredAt": null
+          }
+        },
+        {
+          "fn": "millWheat",
+          "args": [
+            "<prev>",
+            {
+              "id": "p1",
+              "nickname": "Parity",
+              "coins": 100,
+              "xp": 0,
+              "level": 1,
+              "reputation": 10,
+              "reservedCoins": 0,
+              "materials": {},
+              "inventory": {
+                "seeds": {},
+                "produce": {
+                  "wheat_C": 2,
+                  "wheat_B": 2,
+                  "wheat_A": 1,
+                  "wheat_Aplus": 3
+                },
+                "reservedProduce": {},
+                "sprinklers": 0
+              },
+              "currentRoom": "market",
+              "lastSeen": 1700000000000
+            },
+            5
+          ],
+          "expected": {
+            "success": false,
+            "reason": "mill_broken"
+          }
+        },
+        {
+          "fn": "millWheat",
+          "args": [
+            "<prev>",
+            {
+              "id": "p1",
+              "nickname": "Parity",
+              "coins": 100,
+              "xp": 0,
+              "level": 1,
+              "reputation": 10,
+              "reservedCoins": 0,
+              "materials": {},
+              "inventory": {
+                "seeds": {},
+                "produce": {
+                  "wheat_Aplus": 1
+                },
+                "reservedProduce": {},
+                "sprinklers": 0
+              },
+              "currentRoom": "market",
+              "lastSeen": 1700000000000
+            },
+            2
+          ],
+          "expected": {
+            "success": false,
+            "reason": "mill_broken"
+          }
+        },
+        {
+          "fn": "millWheat",
+          "args": [
+            "<prev>",
+            {
+              "id": "p1",
+              "nickname": "Parity",
+              "coins": 100,
+              "xp": 0,
+              "level": 1,
+              "reputation": 10,
+              "reservedCoins": 0,
+              "materials": {},
+              "inventory": {
+                "seeds": {},
+                "produce": {},
+                "reservedProduce": {},
+                "sprinklers": 0
+              },
+              "currentRoom": "market",
+              "lastSeen": 1700000000000
+            },
+            1
+          ],
+          "expected": {
+            "success": false,
+            "reason": "mill_broken"
+          }
+        }
+      ],
+      "keepPrev": true,
+      "expected": {
+        "prev": {
+          "storage": {
+            "state": {
+              "machines": {
+                "mill": {
+                  "status": "broken",
+                  "required": {
+                    "copper": 4,
+                    "timber": 4,
+                    "glass": 4
+                  },
+                  "contributed": {
+                    "copper": 0,
+                    "timber": 0,
+                    "glass": 0
+                  },
+                  "restoredAt": null
+                }
+              }
+            }
+          },
+          "mill": {
+            "status": "broken",
+            "required": {
+              "copper": 4,
+              "timber": 4,
+              "glass": 4
+            },
+            "contributed": {
+              "copper": 0,
+              "timber": 0,
+              "glass": 0
+            },
+            "restoredAt": null
+          }
+        }
+      }
+    },
+    {
+      "id": "mill/craft-sprinkler",
+      "kind": "script",
+      "steps": [
+        {
+          "fn": "newMachinesManager",
+          "args": [],
+          "expected": {
+            "storage": {
+              "state": {
+                "machines": {
+                  "mill": {
+                    "status": "broken",
+                    "required": {
+                      "copper": 4,
+                      "timber": 4,
+                      "glass": 4
+                    },
+                    "contributed": {
+                      "copper": 0,
+                      "timber": 0,
+                      "glass": 0
+                    },
+                    "restoredAt": null
+                  }
+                }
+              }
+            },
+            "mill": {
+              "status": "broken",
+              "required": {
+                "copper": 4,
+                "timber": 4,
+                "glass": 4
+              },
+              "contributed": {
+                "copper": 0,
+                "timber": 0,
+                "glass": 0
+              },
+              "restoredAt": null
+            }
+          }
+        },
+        {
+          "fn": "millCraft",
+          "args": [
+            "<prev>",
+            {
+              "id": "p1",
+              "nickname": "Parity",
+              "coins": 100,
+              "xp": 0,
+              "level": 1,
+              "reputation": 10,
+              "reservedCoins": 0,
+              "materials": {
+                "copper": 2,
+                "glass": 2
+              },
+              "inventory": {
+                "seeds": {},
+                "produce": {},
+                "reservedProduce": {},
+                "sprinklers": 0
+              },
+              "currentRoom": "market",
+              "lastSeen": 1700000000000
+            },
+            "sprinkler"
+          ],
+          "expected": {
+            "success": true,
+            "fixture": "sprinkler",
+            "name": "Garden Sprinkler"
+          }
+        },
+        {
+          "fn": "millCraft",
+          "args": [
+            "<prev>",
+            {
+              "id": "p1",
+              "nickname": "Parity",
+              "coins": 100,
+              "xp": 0,
+              "level": 1,
+              "reputation": 10,
+              "reservedCoins": 0,
+              "materials": {
+                "copper": 2,
+                "glass": 1
+              },
+              "inventory": {
+                "seeds": {},
+                "produce": {},
+                "reservedProduce": {},
+                "sprinklers": 0
+              },
+              "currentRoom": "market",
+              "lastSeen": 1700000000000
+            },
+            "sprinkler"
+          ],
+          "expected": {
+            "success": false,
+            "reason": "insufficient_materials",
+            "material": "glass"
+          }
+        },
+        {
+          "fn": "millCraft",
+          "args": [
+            "<prev>",
+            {
+              "id": "p1",
+              "nickname": "Parity",
+              "coins": 100,
+              "xp": 0,
+              "level": 1,
+              "reputation": 10,
+              "reservedCoins": 0,
+              "materials": {
+                "copper": 9,
+                "glass": 9
+              },
+              "inventory": {
+                "seeds": {},
+                "produce": {},
+                "reservedProduce": {},
+                "sprinklers": 0
+              },
+              "currentRoom": "market",
+              "lastSeen": 1700000000000
+            },
+            "ladder"
+          ],
+          "expected": {
+            "success": false,
+            "reason": "unknown_fixture"
+          }
+        }
+      ],
+      "keepPrev": true,
+      "expected": {
+        "prev": {
+          "storage": {
+            "state": {
+              "machines": {
+                "mill": {
+                  "status": "broken",
+                  "required": {
+                    "copper": 4,
+                    "timber": 4,
+                    "glass": 4
+                  },
+                  "contributed": {
+                    "copper": 0,
+                    "timber": 0,
+                    "glass": 0
+                  },
+                  "restoredAt": null
+                }
+              }
+            }
+          },
+          "mill": {
+            "status": "broken",
+            "required": {
+              "copper": 4,
+              "timber": 4,
+              "glass": 4
+            },
+            "contributed": {
+              "copper": 0,
+              "timber": 0,
+              "glass": 0
+            },
+            "restoredAt": null
+          }
+        }
+      }
+    },
+    {
+      "id": "mill/restored-predicate",
+      "fn": "isMillRestoredInState",
+      "args": [
+        {
+          "machines": {
+            "mill": {
+              "status": "restored"
+            }
+          }
+        }
+      ],
+      "expected": true
+    },
+    {
+      "id": "mill/restored-predicate-broken",
+      "fn": "isMillRestoredInState",
+      "args": [
+        {
+          "machines": {
+            "mill": {
+              "status": "broken"
+            }
+          }
+        }
+      ],
+      "expected": false
+    },
+    {
+      "id": "mill/restored-predicate-empty",
+      "fn": "isMillRestoredInState",
+      "args": [
+        {}
+      ],
+      "expected": false
+    },
+    {
+      "id": "yt/classic-renderers",
+      "fn": "extractPlaylistVideos",
+      "args": [
+        "<html><script>var ytInitialData = {\"title\":\"Parity List\",\"contents\":[{\"playlistVideoRenderer\":{\"videoId\":\"vid00000001\",\"title\":{\"runs\":[{\"text\":\"One\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"vid00000002\",\"title\":{\"runs\":[{\"text\":\"Two\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"vid00000001\",\"title\":{\"runs\":[{\"text\":\"One Again\"}]}}}]};</script></html>"
+      ],
+      "expected": {
+        "title": "A YouTube playlist",
+        "videos": [
+          {
+            "videoId": "vid00000001",
+            "title": "One"
+          },
+          {
+            "videoId": "vid00000002",
+            "title": "Two"
+          }
+        ]
+      }
+    },
+    {
+      "id": "yt/lockup-view-models",
+      "fn": "extractPlaylistVideos",
+      "args": [
+        "<html><script>var ytInitialData = {\"header\":{\"pageHeaderViewModel\":{\"metadata\":{\"contentPageViewModel\":{\"title\":{\"content\":\"Lockups\"}}}}},\"contents\":[{\"lockupViewModel\":{\"contentType\":\"LOCKUP_CONTENT_TYPE_VIDEO\",\"contentId\":\"lock00000001\",\"metadata\":{\"lockupMetadataViewModel\":{\"title\":{\"content\":\"L1\"}}}}},{\"lockupViewModel\":{\"contentType\":\"LOCKUP_CONTENT_TYPE_PLAYLIST\",\"contentId\":\"PLxxx\"}},{\"lockupViewModel\":{\"contentType\":\"LOCKUP_CONTENT_TYPE_VIDEO\",\"contentId\":\"lock00000002\",\"metadata\":{\"lockupMetadataViewModel\":{\"title\":{\"content\":\"L2\"}}}}}]};</script></html>"
+      ],
+      "expected": {
+        "title": "A YouTube playlist",
+        "videos": [
+          {
+            "videoId": "lock00000001",
+            "title": "L1"
+          },
+          {
+            "videoId": "lock00000002",
+            "title": "L2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "yt/no-initial-data",
+      "fn": "extractPlaylistVideos",
+      "args": [
+        "<html>nothing</html>"
+      ],
+      "expected": {
+        "reason": "playlist_unreadable"
+      }
+    },
+    {
+      "id": "yt/damaged-json",
+      "fn": "extractPlaylistVideos",
+      "args": [
+        "<script>var ytInitialData = {broken;;</script>"
+      ],
+      "expected": {
+        "reason": "playlist_unreadable"
+      }
+    },
+    {
+      "id": "yt/dedupe-keeps-first",
+      "fn": "extractPlaylistVideos",
+      "args": [
+        "<html><script>var ytInitialData = {\"contents\":[{\"playlistVideoRenderer\":{\"videoId\":\"v000000000\",\"title\":{\"runs\":[{\"text\":\"V0\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000001\",\"title\":{\"runs\":[{\"text\":\"V1\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000002\",\"title\":{\"runs\":[{\"text\":\"V2\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000003\",\"title\":{\"runs\":[{\"text\":\"V3\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000004\",\"title\":{\"runs\":[{\"text\":\"V4\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000005\",\"title\":{\"runs\":[{\"text\":\"V5\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000006\",\"title\":{\"runs\":[{\"text\":\"V6\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000007\",\"title\":{\"runs\":[{\"text\":\"V7\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000008\",\"title\":{\"runs\":[{\"text\":\"V8\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000009\",\"title\":{\"runs\":[{\"text\":\"V9\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000010\",\"title\":{\"runs\":[{\"text\":\"V10\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000011\",\"title\":{\"runs\":[{\"text\":\"V11\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000000\",\"title\":{\"runs\":[{\"text\":\"Dup\"}]}}}]};</script></html>"
+      ],
+      "expected": {
+        "title": "A YouTube playlist",
+        "videos": [
+          {
+            "videoId": "v000000000",
+            "title": "V0"
+          },
+          {
+            "videoId": "v000000001",
+            "title": "V1"
+          },
+          {
+            "videoId": "v000000002",
+            "title": "V2"
+          },
+          {
+            "videoId": "v000000003",
+            "title": "V3"
+          },
+          {
+            "videoId": "v000000004",
+            "title": "V4"
+          },
+          {
+            "videoId": "v000000005",
+            "title": "V5"
+          },
+          {
+            "videoId": "v000000006",
+            "title": "V6"
+          },
+          {
+            "videoId": "v000000007",
+            "title": "V7"
+          },
+          {
+            "videoId": "v000000008",
+            "title": "V8"
+          },
+          {
+            "videoId": "v000000009",
+            "title": "V9"
+          },
+          {
+            "videoId": "v000000010",
+            "title": "V10"
+          },
+          {
+            "videoId": "v000000011",
+            "title": "V11"
+          }
+        ]
+      }
+    },
+    {
+      "id": "yt/mix-id-rd",
+      "fn": "isYouTubeMixId",
+      "args": [
+        "RD12345678901"
+      ],
+      "expected": true
+    },
+    {
+      "id": "yt/mix-id-ul",
+      "fn": "isYouTubeMixId",
+      "args": [
+        "UL12345678901"
+      ],
+      "expected": true
+    },
+    {
+      "id": "yt/mix-id-no",
+      "fn": "isYouTubeMixId",
+      "args": [
+        "PL12345678901"
+      ],
+      "expected": false
+    },
+    {
+      "id": "yt/listid-short",
+      "fn": "looksLikePlaylistId",
+      "args": [
+        "PL123456789"
+      ],
+      "expected": false
+    },
+    {
+      "id": "yt/listid-chars",
+      "fn": "looksLikePlaylistId",
+      "args": [
+        "PL12345678901"
+      ],
+      "expected": true
+    },
+    {
+      "id": "yt/listid-bad-chars",
+      "fn": "looksLikePlaylistId",
+      "args": [
+        "PL12345/8901!!"
+      ],
+      "expected": false
+    },
+    {
+      "id": "protocol/parse-valid",
+      "fn": "parse",
+      "args": [
+        "{\"type\":\"movement\",\"x\":1.5,\"z\":-2}"
+      ],
+      "expected": {
+        "type": "movement",
+        "x": 1.5,
+        "z": -2
+      }
+    },
+    {
+      "id": "protocol/parse-truncated",
+      "fn": "parse",
+      "args": [
+        "{\"type\":\"movement\""
+      ],
+      "expected": null
+    },
+    {
+      "id": "protocol/parse-not-json",
+      "fn": "parse",
+      "args": [
+        "hello"
+      ],
+      "expected": null
+    },
+    {
+      "id": "protocol/parse-empty",
+      "fn": "parse",
+      "args": [
+        ""
+      ],
+      "expected": null
+    },
+    {
+      "id": "protocol/parse-primitive",
+      "fn": "parse",
+      "args": [
+        "42"
+      ],
+      "expected": 42
+    },
+    {
+      "id": "protocol/serialize-roundtrip",
+      "fn": "roundtripMsg",
+      "args": [
+        {
+          "type": "theater_state",
+          "theater": {
+            "now": null,
+            "queue": []
+          },
+          "serverNow": 1700000000000
+        }
+      ],
+      "expected": {
+        "type": "theater_state",
+        "theater": {
+          "now": null,
+          "queue": []
+        },
+        "serverNow": 1700000000000
+      }
+    },
+    {
+      "id": "protocol/serialize-integral-float",
+      "fn": "serializeMsg",
+      "args": [
+        {
+          "type": "movement",
+          "x": 1,
+          "z": -0.5
+        }
+      ],
+      "expected": "{\"type\":\"movement\",\"x\":1,\"z\":-0.5}"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "docs/architecture/elixir/diagrams/conferencing.json",
+  "output": "docs/architecture/elixir/diagrams/conferencing.html",
+  "specification": {
+    "sha256": "0887c170b3e54195a948d8d95738ab9c74df926b86cca4ed0413137a5fea3b36",
+    "bytes": 3514
+  },
+  "artifact": {
+    "sha256": "67e4de15892e55e82aed621fa5c7d1edf1064a260b465d1611ebf8b505f9bd3e",
+    "bytes": 710726
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

@@ -1,0 +1,5 @@
+# Pinned toolchain for the Afterlight Elixir app (rootless install convention).
+# See server_elixir/README.md — the dev machine installs these under
+# ~/.local/afterlight-beam (precompiled Hex builds, no root required).
+erlang 27.3.4.9
+elixir 1.18.5

@@ -78,6 +78,20 @@
       ]
     },
     {
+      "id": "ash",
+      "type": "backend",
+      "label": "Ash domains",
+      "sublabel": "Durable actions + policies",
+      "pos": [
+        370,
+        60
+      ],
+      "size": [
+        180,
+        74
+      ]
+    },
+    {
       "id": "pubsub",
       "type": "messagebus",
       "label": "Phoenix PubSub",
@@ -149,6 +163,18 @@
       "label": "WSS"
     },
     {
+      "id": "phoenix-ash",
+      "from": "phoenix",
+      "to": "ash",
+      "label": "domain actions"
+    },
+    {
+      "id": "ash-db",
+      "from": "ash",
+      "to": "db",
+      "label": "AshPostgres"
+    },
+    {
       "id": "phoenix-rooms",
       "from": "phoenix",
       "to": "rooms",
@@ -200,7 +226,8 @@
       "title": "Proposed boundaries",
       "items": [
         "Movement uses Channels; media uses WebRTC directly.",
-        "See media diagram for browser-to-SFU and TURN paths."
+        "See media diagram for browser-to-SFU and TURN paths.",
+        "Ash owns durable actions; bounded Ecto stays behind domains for contended transactions."
       ]
     }
   ]

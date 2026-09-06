@@ -1,0 +1,5584 @@
+{
+  "contract": "afterlight-soa-v0",
+  "env": {
+    "node": "v22.22.1",
+    "exposedGc": true,
+    "cpus": 24,
+    "date": "2026-09-06T21:06:36.794Z"
+  },
+  "methodology": {
+    "warmup": 3,
+    "runs": 20,
+    "clock": "performance.now",
+    "heapMetric": "median retained-heap delta of 3 decode calls (needs --expose-gc)",
+    "machineNote": "concurrent agents on this host inflate medians; MIN is the comparable statistic (contract §8)",
+    "denseNote": "C (FULL_SNAPSHOT) measured at f = 1.0 only",
+    "overLimitNote": "cells with overContractLimit exceed the §3 1 MiB frame cap; decode timed with a raised limit for measurement only — illegal on the wire"
+  },
+  "thresholds": {
+    "T_FULL": 0.85,
+    "T_SORTED": 8
+  },
+  "choices": [
+    {
+      "n": 50,
+      "f": 0.001,
+      "k": 1,
+      "choice": "sorted"
+    },
+    {
+      "n": 50,
+      "f": 0.01,
+      "k": 1,
+      "choice": "sorted"
+    },
+    {
+      "n": 50,
+      "f": 0.05,
+      "k": 3,
+      "choice": "sorted"
+    },
+    {
+      "n": 50,
+      "f": 0.1,
+      "k": 5,
+      "choice": "sorted"
+    },
+    {
+      "n": 50,
+      "f": 0.25,
+      "k": 13,
+      "choice": "roaring"
+    },
+    {
+      "n": 50,
+      "f": 0.5,
+      "k": 25,
+      "choice": "roaring"
+    },
+    {
+      "n": 50,
+      "f": 1,
+      "k": 50,
+      "choice": "dense"
+    },
+    {
+      "n": 100,
+      "f": 0.001,
+      "k": 1,
+      "choice": "sorted"
+    },
+    {
+      "n": 100,
+      "f": 0.01,
+      "k": 1,
+      "choice": "sorted"
+    },
+    {
+      "n": 100,
+      "f": 0.05,
+      "k": 5,
+      "choice": "sorted"
+    },
+    {
+      "n": 100,
+      "f": 0.1,
+      "k": 10,
+      "choice": "roaring"
+    },
+    {
+      "n": 100,
+      "f": 0.25,
+      "k": 25,
+      "choice": "roaring"
+    },
+    {
+      "n": 100,
+      "f": 0.5,
+      "k": 50,
+      "choice": "roaring"
+    },
+    {
+      "n": 100,
+      "f": 1,
+      "k": 100,
+      "choice": "dense"
+    },
+    {
+      "n": 200,
+      "f": 0.001,
+      "k": 1,
+      "choice": "sorted"
+    },
+    {
+      "n": 200,
+      "f": 0.01,
+      "k": 2,
+      "choice": "sorted"
+    },
+    {
+      "n": 200,
+      "f": 0.05,
+      "k": 10,
+      "choice": "roaring"
+    },
+    {
+      "n": 200,
+      "f": 0.1,
+      "k": 20,
+      "choice": "roaring"
+    },
+    {
+      "n": 200,
+      "f": 0.25,
+      "k": 50,
+      "choice": "roaring"
+    },
+    {
+      "n": 200,
+      "f": 0.5,
+      "k": 100,
+      "choice": "roaring"
+    },
+    {
+      "n": 200,
+      "f": 1,
+      "k": 200,
+      "choice": "dense"
+    },
+    {
+      "n": 500,
+      "f": 0.001,
+      "k": 1,
+      "choice": "sorted"
+    },
+    {
+      "n": 500,
+      "f": 0.01,
+      "k": 5,
+      "choice": "sorted"
+    },
+    {
+      "n": 500,
+      "f": 0.05,
+      "k": 25,
+      "choice": "roaring"
+    },
+    {
+      "n": 500,
+      "f": 0.1,
+      "k": 50,
+      "choice": "roaring"
+    },
+    {
+      "n": 500,
+      "f": 0.25,
+      "k": 125,
+      "choice": "roaring"
+    },
+    {
+      "n": 500,
+      "f": 0.5,
+      "k": 250,
+      "choice": "roaring"
+    },
+    {
+      "n": 500,
+      "f": 1,
+      "k": 500,
+      "choice": "dense"
+    },
+    {
+      "n": 1000,
+      "f": 0.001,
+      "k": 1,
+      "choice": "sorted"
+    },
+    {
+      "n": 1000,
+      "f": 0.01,
+      "k": 10,
+      "choice": "roaring"
+    },
+    {
+      "n": 1000,
+      "f": 0.05,
+      "k": 50,
+      "choice": "roaring"
+    },
+    {
+      "n": 1000,
+      "f": 0.1,
+      "k": 100,
+      "choice": "roaring"
+    },
+    {
+      "n": 1000,
+      "f": 0.25,
+      "k": 250,
+      "choice": "roaring"
+    },
+    {
+      "n": 1000,
+      "f": 0.5,
+      "k": 500,
+      "choice": "roaring"
+    },
+    {
+      "n": 1000,
+      "f": 1,
+      "k": 1000,
+      "choice": "dense"
+    },
+    {
+      "n": 5000,
+      "f": 0.001,
+      "k": 5,
+      "choice": "sorted"
+    },
+    {
+      "n": 5000,
+      "f": 0.01,
+      "k": 50,
+      "choice": "roaring"
+    },
+    {
+      "n": 5000,
+      "f": 0.05,
+      "k": 250,
+      "choice": "roaring"
+    },
+    {
+      "n": 5000,
+      "f": 0.1,
+      "k": 500,
+      "choice": "roaring"
+    },
+    {
+      "n": 5000,
+      "f": 0.25,
+      "k": 1250,
+      "choice": "roaring"
+    },
+    {
+      "n": 5000,
+      "f": 0.5,
+      "k": 2500,
+      "choice": "roaring"
+    },
+    {
+      "n": 5000,
+      "f": 1,
+      "k": 5000,
+      "choice": "dense"
+    },
+    {
+      "n": 10000,
+      "f": 0.001,
+      "k": 10,
+      "choice": "roaring"
+    },
+    {
+      "n": 10000,
+      "f": 0.01,
+      "k": 100,
+      "choice": "roaring"
+    },
+    {
+      "n": 10000,
+      "f": 0.05,
+      "k": 500,
+      "choice": "roaring"
+    },
+    {
+      "n": 10000,
+      "f": 0.1,
+      "k": 1000,
+      "choice": "roaring"
+    },
+    {
+      "n": 10000,
+      "f": 0.25,
+      "k": 2500,
+      "choice": "roaring"
+    },
+    {
+      "n": 10000,
+      "f": 0.5,
+      "k": 5000,
+      "choice": "roaring"
+    },
+    {
+      "n": 10000,
+      "f": 1,
+      "k": 10000,
+      "choice": "dense"
+    },
+    {
+      "n": 50000,
+      "f": 0.001,
+      "k": 50,
+      "choice": "roaring"
+    },
+    {
+      "n": 50000,
+      "f": 0.01,
+      "k": 500,
+      "choice": "roaring"
+    },
+    {
+      "n": 50000,
+      "f": 0.1,
+      "k": 5000,
+      "choice": "roaring"
+    },
+    {
+      "n": 50000,
+      "f": 1,
+      "k": 50000,
+      "choice": "dense"
+    }
+  ],
+  "rows": [
+    {
+      "encoding": "json",
+      "n": 50,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 146,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0043,
+        "p95": 0.0112,
+        "min": 0.0039
+      },
+      "decode": {
+        "median": 0.0018,
+        "p95": 0.0042,
+        "min": 0.0011
+      },
+      "decodeHeapBytes": 328
+    },
+    {
+      "encoding": "aos",
+      "n": 50,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 57,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0041,
+        "p95": 0.0076,
+        "min": 0.0037
+      },
+      "decode": {
+        "median": 0.0019,
+        "p95": 0.0282,
+        "min": 0.0016
+      },
+      "decodeHeapBytes": 2280
+    },
+    {
+      "encoding": "sorted",
+      "n": 50,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 73,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0046,
+        "p95": 0.0074,
+        "min": 0.0041
+      },
+      "decode": {
+        "median": 0.0025,
+        "p95": 0.014,
+        "min": 0.002
+      },
+      "decodeHeapBytes": 2024
+    },
+    {
+      "encoding": "roaring",
+      "n": 50,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 101,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0071,
+        "p95": 0.0743,
+        "min": 0.0058
+      },
+      "decode": {
+        "median": 0.0039,
+        "p95": 0.023,
+        "min": 0.003
+      },
+      "decodeHeapBytes": 2024
+    },
+    {
+      "encoding": "hybrid",
+      "n": 50,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 73,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0046,
+        "p95": 0.0079,
+        "min": 0.004
+      },
+      "decode": {
+        "median": 0.0051,
+        "p95": 0.0235,
+        "min": 0.0025
+      },
+      "decodeHeapBytes": 2024,
+      "choice": "sorted"
+    },
+    {
+      "encoding": "json",
+      "n": 50,
+      "f": 0.01,
+      "k": 1,
+      "bytes": 146,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0035,
+        "p95": 0.004,
+        "min": 0.0034
+      },
+      "decode": {
+        "median": 0.0011,
+        "p95": 0.0012,
+        "min": 0.001
+      },
+      "decodeHeapBytes": 272
+    },
+    {
+      "encoding": "aos",
+      "n": 50,
+      "f": 0.01,
+      "k": 1,
+      "bytes": 57,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0037,
+        "p95": 0.0044,
+        "min": 0.0033
+      },
+      "decode": {
+        "median": 0.0015,
+        "p95": 0.0017,
+        "min": 0.0014
+      },
+      "decodeHeapBytes": 2040
+    },
+    {
+      "encoding": "sorted",
+      "n": 50,
+      "f": 0.01,
+      "k": 1,
+      "bytes": 73,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0044,
+        "p95": 0.006,
+        "min": 0.0039
+      },
+      "decode": {
+        "median": 0.0019,
+        "p95": 0.0024,
+        "min": 0.0018
+      },
+      "decodeHeapBytes": 2024
+    },
+    {
+      "encoding": "roaring",
+      "n": 50,
+      "f": 0.01,
+      "k": 1,
+      "bytes": 101,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.006,
+        "p95": 0.0079,
+        "min": 0.0056
+      },
+      "decode": {
+        "median": 0.003,
+        "p95": 0.0044,
+        "min": 0.0029
+      },
+      "decodeHeapBytes": 2024
+    },
+    {
+      "encoding": "hybrid",
+      "n": 50,
+      "f": 0.01,
+      "k": 1,
+      "bytes": 73,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0042,
+        "p95": 0.0048,
+        "min": 0.0039
+      },
+      "decode": {
+        "median": 0.0042,
+        "p95": 0.0048,
+        "min": 0.0022
+      },
+      "decodeHeapBytes": 2024,
+      "choice": "sorted"
+    },
+    {
+      "encoding": "json",
+      "n": 50,
+      "f": 0.05,
+      "k": 3,
+      "bytes": 361,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0048,
+        "p95": 0.0058,
+        "min": 0.0046
+      },
+      "decode": {
+        "median": 0.0018,
+        "p95": 0.0019,
+        "min": 0.0018
+      },
+      "decodeHeapBytes": 608
+    },
+    {
+      "encoding": "aos",
+      "n": 50,
+      "f": 0.05,
+      "k": 3,
+      "bytes": 99,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.004,
+        "p95": 0.013,
+        "min": 0.0037
+      },
+      "decode": {
+        "median": 0.0031,
+        "p95": 0.0035,
+        "min": 0.0017
+      },
+      "decodeHeapBytes": 2080
+    },
+    {
+      "encoding": "sorted",
+      "n": 50,
+      "f": 0.05,
+      "k": 3,
+      "bytes": 123,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0046,
+        "p95": 0.0052,
+        "min": 0.0043
+      },
+      "decode": {
+        "median": 0.0024,
+        "p95": 0.0066,
+        "min": 0.0023
+      },
+      "decodeHeapBytes": 2064
+    },
+    {
+      "encoding": "roaring",
+      "n": 50,
+      "f": 0.05,
+      "k": 3,
+      "bytes": 143,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0065,
+        "p95": 0.0078,
+        "min": 0.0062
+      },
+      "decode": {
+        "median": 0.0033,
+        "p95": 0.0038,
+        "min": 0.0033
+      },
+      "decodeHeapBytes": 2064
+    },
+    {
+      "encoding": "hybrid",
+      "n": 50,
+      "f": 0.05,
+      "k": 3,
+      "bytes": 123,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0049,
+        "p95": 0.0067,
+        "min": 0.0045
+      },
+      "decode": {
+        "median": 0.0026,
+        "p95": 0.0029,
+        "min": 0.0025
+      },
+      "decodeHeapBytes": 2064,
+      "choice": "sorted"
+    },
+    {
+      "encoding": "json",
+      "n": 50,
+      "f": 0.1,
+      "k": 5,
+      "bytes": 577,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.006,
+        "p95": 0.0112,
+        "min": 0.0059
+      },
+      "decode": {
+        "median": 0.0026,
+        "p95": 0.0027,
+        "min": 0.0026
+      },
+      "decodeHeapBytes": 944
+    },
+    {
+      "encoding": "aos",
+      "n": 50,
+      "f": 0.1,
+      "k": 5,
+      "bytes": 141,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0045,
+        "p95": 0.0085,
+        "min": 0.004
+      },
+      "decode": {
+        "median": 0.0038,
+        "p95": 0.0042,
+        "min": 0.0035
+      },
+      "decodeHeapBytes": 2120
+    },
+    {
+      "encoding": "sorted",
+      "n": 50,
+      "f": 0.1,
+      "k": 5,
+      "bytes": 173,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.005,
+        "p95": 0.0086,
+        "min": 0.0049
+      },
+      "decode": {
+        "median": 0.0027,
+        "p95": 0.0029,
+        "min": 0.0026
+      },
+      "decodeHeapBytes": 2104
+    },
+    {
+      "encoding": "roaring",
+      "n": 50,
+      "f": 0.1,
+      "k": 5,
+      "bytes": 185,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0068,
+        "p95": 0.0082,
+        "min": 0.0065
+      },
+      "decode": {
+        "median": 0.0037,
+        "p95": 0.0042,
+        "min": 0.0036
+      },
+      "decodeHeapBytes": 2104
+    },
+    {
+      "encoding": "hybrid",
+      "n": 50,
+      "f": 0.1,
+      "k": 5,
+      "bytes": 173,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0051,
+        "p95": 0.0054,
+        "min": 0.0049
+      },
+      "decode": {
+        "median": 0.003,
+        "p95": 0.0031,
+        "min": 0.0029
+      },
+      "decodeHeapBytes": 2104,
+      "choice": "sorted"
+    },
+    {
+      "encoding": "json",
+      "n": 50,
+      "f": 0.25,
+      "k": 13,
+      "bytes": 1430,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0107,
+        "p95": 0.0112,
+        "min": 0.0104
+      },
+      "decode": {
+        "median": 0.0058,
+        "p95": 0.0068,
+        "min": 0.0057
+      },
+      "decodeHeapBytes": 2288
+    },
+    {
+      "encoding": "aos",
+      "n": 50,
+      "f": 0.25,
+      "k": 13,
+      "bytes": 309,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0052,
+        "p95": 0.0061,
+        "min": 0.0051
+      },
+      "decode": {
+        "median": 0.0029,
+        "p95": 0.0029,
+        "min": 0.0028
+      },
+      "decodeHeapBytes": 2288
+    },
+    {
+      "encoding": "sorted",
+      "n": 50,
+      "f": 0.25,
+      "k": 13,
+      "bytes": 373,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0068,
+        "p95": 0.0072,
+        "min": 0.0066
+      },
+      "decode": {
+        "median": 0.0042,
+        "p95": 0.0047,
+        "min": 0.0041
+      },
+      "decodeHeapBytes": 2272
+    },
+    {
+      "encoding": "roaring",
+      "n": 50,
+      "f": 0.25,
+      "k": 13,
+      "bytes": 353,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0082,
+        "p95": 0.0168,
+        "min": 0.0079
+      },
+      "decode": {
+        "median": 0.0053,
+        "p95": 0.006,
+        "min": 0.0052
+      },
+      "decodeHeapBytes": 2272
+    },
+    {
+      "encoding": "hybrid",
+      "n": 50,
+      "f": 0.25,
+      "k": 13,
+      "bytes": 353,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0084,
+        "p95": 0.01,
+        "min": 0.008
+      },
+      "decode": {
+        "median": 0.0056,
+        "p95": 0.0061,
+        "min": 0.0055
+      },
+      "decodeHeapBytes": 2272,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 50,
+      "f": 0.5,
+      "k": 25,
+      "bytes": 2718,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0187,
+        "p95": 0.0249,
+        "min": 0.0179
+      },
+      "decode": {
+        "median": 0.0104,
+        "p95": 0.012,
+        "min": 0.0103
+      },
+      "decodeHeapBytes": 4304
+    },
+    {
+      "encoding": "aos",
+      "n": 50,
+      "f": 0.5,
+      "k": 25,
+      "bytes": 561,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0073,
+        "p95": 0.0139,
+        "min": 0.007
+      },
+      "decode": {
+        "median": 0.011,
+        "p95": 0.0123,
+        "min": 0.0105
+      },
+      "decodeHeapBytes": 1944
+    },
+    {
+      "encoding": "sorted",
+      "n": 50,
+      "f": 0.5,
+      "k": 25,
+      "bytes": 673,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0097,
+        "p95": 0.0109,
+        "min": 0.0094
+      },
+      "decode": {
+        "median": 0.0082,
+        "p95": 0.0088,
+        "min": 0.0076
+      },
+      "decodeHeapBytes": 1928
+    },
+    {
+      "encoding": "roaring",
+      "n": 50,
+      "f": 0.5,
+      "k": 25,
+      "bytes": 605,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0108,
+        "p95": 0.0114,
+        "min": 0.0105
+      },
+      "decode": {
+        "median": 0.0094,
+        "p95": 0.0105,
+        "min": 0.0089
+      },
+      "decodeHeapBytes": 1928
+    },
+    {
+      "encoding": "hybrid",
+      "n": 50,
+      "f": 0.5,
+      "k": 25,
+      "bytes": 605,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.012,
+        "p95": 0.0229,
+        "min": 0.0106
+      },
+      "decode": {
+        "median": 0.0115,
+        "p95": 0.0227,
+        "min": 0.0093
+      },
+      "decodeHeapBytes": 1928,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 50,
+      "f": 1,
+      "k": 50,
+      "bytes": 5415,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0339,
+        "p95": 0.0372,
+        "min": 0.0334
+      },
+      "decode": {
+        "median": 0.0203,
+        "p95": 0.0217,
+        "min": 0.0202
+      },
+      "decodeHeapBytes": 8504
+    },
+    {
+      "encoding": "aos",
+      "n": 50,
+      "f": 1,
+      "k": 50,
+      "bytes": 1086,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0113,
+        "p95": 0.0135,
+        "min": 0.0106
+      },
+      "decode": {
+        "median": 0.0093,
+        "p95": 0.0102,
+        "min": 0.0083
+      },
+      "decodeHeapBytes": 1968
+    },
+    {
+      "encoding": "sorted",
+      "n": 50,
+      "f": 1,
+      "k": 50,
+      "bytes": 1298,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0158,
+        "p95": 0.0175,
+        "min": 0.0153
+      },
+      "decode": {
+        "median": 0.0137,
+        "p95": 0.0148,
+        "min": 0.0127
+      },
+      "decodeHeapBytes": 1952
+    },
+    {
+      "encoding": "roaring",
+      "n": 50,
+      "f": 1,
+      "k": 50,
+      "bytes": 1130,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.016,
+        "p95": 0.0172,
+        "min": 0.0156
+      },
+      "decode": {
+        "median": 0.0147,
+        "p95": 0.0166,
+        "min": 0.0138
+      },
+      "decodeHeapBytes": 1952
+    },
+    {
+      "encoding": "dense",
+      "n": 50,
+      "f": 1,
+      "k": 50,
+      "bytes": 898,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0057,
+        "p95": 0.0146,
+        "min": 0.0056
+      },
+      "decode": {
+        "median": 0.0089,
+        "p95": 0.0159,
+        "min": 0.008
+      },
+      "decodeHeapBytes": 1768
+    },
+    {
+      "encoding": "hybrid",
+      "n": 50,
+      "f": 1,
+      "k": 50,
+      "bytes": 898,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0058,
+        "p95": 0.0068,
+        "min": 0.0057
+      },
+      "decode": {
+        "median": 0.0089,
+        "p95": 0.0156,
+        "min": 0.0081
+      },
+      "decodeHeapBytes": 1768,
+      "choice": "dense"
+    },
+    {
+      "encoding": "json",
+      "n": 100,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 147,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.006,
+        "p95": 0.0094,
+        "min": 0.0058
+      },
+      "decode": {
+        "median": 0.0011,
+        "p95": 0.0011,
+        "min": 0.001
+      },
+      "decodeHeapBytes": 240
+    },
+    {
+      "encoding": "aos",
+      "n": 100,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 57,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.006,
+        "p95": 0.0079,
+        "min": 0.0057
+      },
+      "decode": {
+        "median": 0.0016,
+        "p95": 0.0033,
+        "min": 0.0014
+      },
+      "decodeHeapBytes": 2960
+    },
+    {
+      "encoding": "sorted",
+      "n": 100,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 73,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0065,
+        "p95": 0.0073,
+        "min": 0.006
+      },
+      "decode": {
+        "median": 0.0018,
+        "p95": 0.002,
+        "min": 0.0017
+      },
+      "decodeHeapBytes": 2024
+    },
+    {
+      "encoding": "roaring",
+      "n": 100,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 101,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0084,
+        "p95": 0.0097,
+        "min": 0.008
+      },
+      "decode": {
+        "median": 0.0029,
+        "p95": 0.0035,
+        "min": 0.0028
+      },
+      "decodeHeapBytes": 2024
+    },
+    {
+      "encoding": "hybrid",
+      "n": 100,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 73,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0066,
+        "p95": 0.0081,
+        "min": 0.0061
+      },
+      "decode": {
+        "median": 0.002,
+        "p95": 0.0023,
+        "min": 0.002
+      },
+      "decodeHeapBytes": 2024,
+      "choice": "sorted"
+    },
+    {
+      "encoding": "json",
+      "n": 100,
+      "f": 0.01,
+      "k": 1,
+      "bytes": 147,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0032,
+        "p95": 0.0035,
+        "min": 0.003
+      },
+      "decode": {
+        "median": 0.001,
+        "p95": 0.0097,
+        "min": 0.0009
+      },
+      "decodeHeapBytes": 272
+    },
+    {
+      "encoding": "aos",
+      "n": 100,
+      "f": 0.01,
+      "k": 1,
+      "bytes": 57,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0061,
+        "p95": 0.0109,
+        "min": 0.0055
+      },
+      "decode": {
+        "median": 0.0014,
+        "p95": 0.0025,
+        "min": 0.0013
+      },
+      "decodeHeapBytes": 2040
+    },
+    {
+      "encoding": "sorted",
+      "n": 100,
+      "f": 0.01,
+      "k": 1,
+      "bytes": 73,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0067,
+        "p95": 0.0118,
+        "min": 0.0063
+      },
+      "decode": {
+        "median": 0.0018,
+        "p95": 0.002,
+        "min": 0.0017
+      },
+      "decodeHeapBytes": 2024
+    },
+    {
+      "encoding": "roaring",
+      "n": 100,
+      "f": 0.01,
+      "k": 1,
+      "bytes": 101,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0081,
+        "p95": 0.0088,
+        "min": 0.0079
+      },
+      "decode": {
+        "median": 0.0028,
+        "p95": 0.0031,
+        "min": 0.0027
+      },
+      "decodeHeapBytes": 2024
+    },
+    {
+      "encoding": "hybrid",
+      "n": 100,
+      "f": 0.01,
+      "k": 1,
+      "bytes": 73,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.003,
+        "p95": 0.0033,
+        "min": 0.0029
+      },
+      "decode": {
+        "median": 0.002,
+        "p95": 0.0022,
+        "min": 0.002
+      },
+      "decodeHeapBytes": 2024,
+      "choice": "sorted"
+    },
+    {
+      "encoding": "json",
+      "n": 100,
+      "f": 0.05,
+      "k": 5,
+      "bytes": 577,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0048,
+        "p95": 0.008,
+        "min": 0.0046
+      },
+      "decode": {
+        "median": 0.0025,
+        "p95": 0.0026,
+        "min": 0.0025
+      },
+      "decodeHeapBytes": 944
+    },
+    {
+      "encoding": "aos",
+      "n": 100,
+      "f": 0.05,
+      "k": 5,
+      "bytes": 141,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0064,
+        "p95": 0.0067,
+        "min": 0.0061
+      },
+      "decode": {
+        "median": 0.0018,
+        "p95": 0.0019,
+        "min": 0.0018
+      },
+      "decodeHeapBytes": 2120
+    },
+    {
+      "encoding": "sorted",
+      "n": 100,
+      "f": 0.05,
+      "k": 5,
+      "bytes": 173,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.003,
+        "p95": 0.0032,
+        "min": 0.0028
+      },
+      "decode": {
+        "median": 0.0025,
+        "p95": 0.0028,
+        "min": 0.0025
+      },
+      "decodeHeapBytes": 2104
+    },
+    {
+      "encoding": "roaring",
+      "n": 100,
+      "f": 0.05,
+      "k": 5,
+      "bytes": 185,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0088,
+        "p95": 0.0098,
+        "min": 0.0084
+      },
+      "decode": {
+        "median": 0.0036,
+        "p95": 0.0038,
+        "min": 0.0036
+      },
+      "decodeHeapBytes": 2104
+    },
+    {
+      "encoding": "hybrid",
+      "n": 100,
+      "f": 0.05,
+      "k": 5,
+      "bytes": 173,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0031,
+        "p95": 0.0035,
+        "min": 0.003
+      },
+      "decode": {
+        "median": 0.0029,
+        "p95": 0.0071,
+        "min": 0.0028
+      },
+      "decodeHeapBytes": 2104,
+      "choice": "sorted"
+    },
+    {
+      "encoding": "json",
+      "n": 100,
+      "f": 0.1,
+      "k": 10,
+      "bytes": 1110,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0066,
+        "p95": 0.0076,
+        "min": 0.0064
+      },
+      "decode": {
+        "median": 0.0045,
+        "p95": 0.0047,
+        "min": 0.0044
+      },
+      "decodeHeapBytes": 1784
+    },
+    {
+      "encoding": "aos",
+      "n": 100,
+      "f": 0.1,
+      "k": 10,
+      "bytes": 246,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0077,
+        "p95": 0.0142,
+        "min": 0.0074
+      },
+      "decode": {
+        "median": 0.0024,
+        "p95": 0.003,
+        "min": 0.0024
+      },
+      "decodeHeapBytes": 2208
+    },
+    {
+      "encoding": "sorted",
+      "n": 100,
+      "f": 0.1,
+      "k": 10,
+      "bytes": 298,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0034,
+        "p95": 0.0044,
+        "min": 0.0032
+      },
+      "decode": {
+        "median": 0.0035,
+        "p95": 0.004,
+        "min": 0.0034
+      },
+      "decodeHeapBytes": 2192
+    },
+    {
+      "encoding": "roaring",
+      "n": 100,
+      "f": 0.1,
+      "k": 10,
+      "bytes": 290,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0175,
+        "p95": 0.0189,
+        "min": 0.015
+      },
+      "decode": {
+        "median": 0.0086,
+        "p95": 0.0097,
+        "min": 0.008
+      },
+      "decodeHeapBytes": 2192
+    },
+    {
+      "encoding": "hybrid",
+      "n": 100,
+      "f": 0.1,
+      "k": 10,
+      "bytes": 290,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0104,
+        "p95": 0.0137,
+        "min": 0.0097
+      },
+      "decode": {
+        "median": 0.005,
+        "p95": 0.0131,
+        "min": 0.0048
+      },
+      "decodeHeapBytes": 2192,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 100,
+      "f": 0.25,
+      "k": 25,
+      "bytes": 2728,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0132,
+        "p95": 0.0145,
+        "min": 0.0128
+      },
+      "decode": {
+        "median": 0.0102,
+        "p95": 0.0105,
+        "min": 0.0102
+      },
+      "decodeHeapBytes": 4304
+    },
+    {
+      "encoding": "aos",
+      "n": 100,
+      "f": 0.25,
+      "k": 25,
+      "bytes": 561,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0096,
+        "p95": 0.0195,
+        "min": 0.0093
+      },
+      "decode": {
+        "median": 0.0061,
+        "p95": 0.0067,
+        "min": 0.0053
+      },
+      "decodeHeapBytes": 1944
+    },
+    {
+      "encoding": "sorted",
+      "n": 100,
+      "f": 0.25,
+      "k": 25,
+      "bytes": 673,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.004,
+        "p95": 0.0047,
+        "min": 0.0038
+      },
+      "decode": {
+        "median": 0.0087,
+        "p95": 0.0096,
+        "min": 0.0077
+      },
+      "decodeHeapBytes": 1928
+    },
+    {
+      "encoding": "roaring",
+      "n": 100,
+      "f": 0.25,
+      "k": 25,
+      "bytes": 605,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0132,
+        "p95": 0.0142,
+        "min": 0.0128
+      },
+      "decode": {
+        "median": 0.0099,
+        "p95": 0.0114,
+        "min": 0.0089
+      },
+      "decodeHeapBytes": 1928
+    },
+    {
+      "encoding": "hybrid",
+      "n": 100,
+      "f": 0.25,
+      "k": 25,
+      "bytes": 605,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0275,
+        "p95": 0.038,
+        "min": 0.0237
+      },
+      "decode": {
+        "median": 0.0193,
+        "p95": 0.0218,
+        "min": 0.017
+      },
+      "decodeHeapBytes": 1928,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 100,
+      "f": 0.5,
+      "k": 50,
+      "bytes": 5405,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0239,
+        "p95": 0.0259,
+        "min": 0.0234
+      },
+      "decode": {
+        "median": 0.0203,
+        "p95": 0.0217,
+        "min": 0.0203
+      },
+      "decodeHeapBytes": 8504
+    },
+    {
+      "encoding": "aos",
+      "n": 100,
+      "f": 0.5,
+      "k": 50,
+      "bytes": 1086,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0037,
+        "p95": 0.0062,
+        "min": 0.0034
+      },
+      "decode": {
+        "median": 0.0089,
+        "p95": 0.0095,
+        "min": 0.0083
+      },
+      "decodeHeapBytes": 1968
+    },
+    {
+      "encoding": "sorted",
+      "n": 100,
+      "f": 0.5,
+      "k": 50,
+      "bytes": 1298,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0049,
+        "p95": 0.0055,
+        "min": 0.0048
+      },
+      "decode": {
+        "median": 0.0126,
+        "p95": 0.0132,
+        "min": 0.0122
+      },
+      "decodeHeapBytes": 1952
+    },
+    {
+      "encoding": "roaring",
+      "n": 100,
+      "f": 0.5,
+      "k": 50,
+      "bytes": 1130,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0172,
+        "p95": 0.0203,
+        "min": 0.0168
+      },
+      "decode": {
+        "median": 0.0257,
+        "p95": 0.0289,
+        "min": 0.0143
+      },
+      "decodeHeapBytes": 1952
+    },
+    {
+      "encoding": "hybrid",
+      "n": 100,
+      "f": 0.5,
+      "k": 50,
+      "bytes": 1130,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0172,
+        "p95": 0.0183,
+        "min": 0.0168
+      },
+      "decode": {
+        "median": 0.0142,
+        "p95": 0.0148,
+        "min": 0.0138
+      },
+      "decodeHeapBytes": 1952,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 100,
+      "f": 1,
+      "k": 100,
+      "bytes": 10771,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.046,
+        "p95": 0.0601,
+        "min": 0.045
+      },
+      "decode": {
+        "median": 0.0481,
+        "p95": 0.0551,
+        "min": 0.0407
+      },
+      "decodeHeapBytes": 16904
+    },
+    {
+      "encoding": "aos",
+      "n": 100,
+      "f": 1,
+      "k": 100,
+      "bytes": 2136,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0045,
+        "p95": 0.0048,
+        "min": 0.0043
+      },
+      "decode": {
+        "median": 0.0145,
+        "p95": 0.0159,
+        "min": 0.0142
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 100,
+      "f": 1,
+      "k": 100,
+      "bytes": 2548,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0069,
+        "p95": 0.0074,
+        "min": 0.0066
+      },
+      "decode": {
+        "median": 0.0218,
+        "p95": 0.0246,
+        "min": 0.0213
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 100,
+      "f": 1,
+      "k": 100,
+      "bytes": 2180,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.028,
+        "p95": 0.0589,
+        "min": 0.0257
+      },
+      "decode": {
+        "median": 0.0262,
+        "p95": 0.0518,
+        "min": 0.0233
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "dense",
+      "n": 100,
+      "f": 1,
+      "k": 100,
+      "bytes": 1748,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0193,
+        "p95": 0.0209,
+        "min": 0.0099
+      },
+      "decode": {
+        "median": 0.0131,
+        "p95": 0.0136,
+        "min": 0.0127
+      },
+      "decodeHeapBytes": 12320
+    },
+    {
+      "encoding": "hybrid",
+      "n": 100,
+      "f": 1,
+      "k": 100,
+      "bytes": 1748,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0101,
+        "p95": 0.0105,
+        "min": 0.01
+      },
+      "decode": {
+        "median": 0.0132,
+        "p95": 0.0141,
+        "min": 0.0128
+      },
+      "decodeHeapBytes": 1696,
+      "choice": "dense"
+    },
+    {
+      "encoding": "json",
+      "n": 200,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 144,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0056,
+        "p95": 0.0062,
+        "min": 0.0052
+      },
+      "decode": {
+        "median": 0.0009,
+        "p95": 0.001,
+        "min": 0.0009
+      },
+      "decodeHeapBytes": 240
+    },
+    {
+      "encoding": "aos",
+      "n": 200,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 57,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0049,
+        "p95": 0.0056,
+        "min": 0.0046
+      },
+      "decode": {
+        "median": 0.0014,
+        "p95": 0.0015,
+        "min": 0.0013
+      },
+      "decodeHeapBytes": 2040
+    },
+    {
+      "encoding": "sorted",
+      "n": 200,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 73,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.005,
+        "p95": 0.0062,
+        "min": 0.0046
+      },
+      "decode": {
+        "median": 0.0005,
+        "p95": 0.0006,
+        "min": 0.0005
+      },
+      "decodeHeapBytes": 2024
+    },
+    {
+      "encoding": "roaring",
+      "n": 200,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 101,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0139,
+        "p95": 0.0258,
+        "min": 0.0125
+      },
+      "decode": {
+        "median": 0.0018,
+        "p95": 0.0022,
+        "min": 0.0017
+      },
+      "decodeHeapBytes": 2024
+    },
+    {
+      "encoding": "hybrid",
+      "n": 200,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 73,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0059,
+        "p95": 0.0071,
+        "min": 0.0053
+      },
+      "decode": {
+        "median": 0.0009,
+        "p95": 0.0012,
+        "min": 0.0008
+      },
+      "decodeHeapBytes": 2024,
+      "choice": "sorted"
+    },
+    {
+      "encoding": "json",
+      "n": 200,
+      "f": 0.01,
+      "k": 2,
+      "bytes": 254,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.006,
+        "p95": 0.0074,
+        "min": 0.0056
+      },
+      "decode": {
+        "median": 0.0014,
+        "p95": 0.0014,
+        "min": 0.0013
+      },
+      "decodeHeapBytes": 440
+    },
+    {
+      "encoding": "aos",
+      "n": 200,
+      "f": 0.01,
+      "k": 2,
+      "bytes": 78,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0054,
+        "p95": 0.0087,
+        "min": 0.0049
+      },
+      "decode": {
+        "median": 0.0015,
+        "p95": 0.0016,
+        "min": 0.0014
+      },
+      "decodeHeapBytes": 2040
+    },
+    {
+      "encoding": "sorted",
+      "n": 200,
+      "f": 0.01,
+      "k": 2,
+      "bytes": 98,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0055,
+        "p95": 0.0064,
+        "min": 0.005
+      },
+      "decode": {
+        "median": 0.0005,
+        "p95": 0.0006,
+        "min": 0.0005
+      },
+      "decodeHeapBytes": 2024
+    },
+    {
+      "encoding": "roaring",
+      "n": 200,
+      "f": 0.01,
+      "k": 2,
+      "bytes": 122,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0138,
+        "p95": 0.0152,
+        "min": 0.0129
+      },
+      "decode": {
+        "median": 0.002,
+        "p95": 0.0022,
+        "min": 0.0019
+      },
+      "decodeHeapBytes": 2024
+    },
+    {
+      "encoding": "hybrid",
+      "n": 200,
+      "f": 0.01,
+      "k": 2,
+      "bytes": 98,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0092,
+        "p95": 0.0103,
+        "min": 0.0083
+      },
+      "decode": {
+        "median": 0.0018,
+        "p95": 0.0019,
+        "min": 0.0015
+      },
+      "decodeHeapBytes": 2024,
+      "choice": "sorted"
+    },
+    {
+      "encoding": "json",
+      "n": 200,
+      "f": 0.05,
+      "k": 10,
+      "bytes": 1110,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0153,
+        "p95": 0.017,
+        "min": 0.0132
+      },
+      "decode": {
+        "median": 0.0091,
+        "p95": 0.0093,
+        "min": 0.0083
+      },
+      "decodeHeapBytes": 1784
+    },
+    {
+      "encoding": "aos",
+      "n": 200,
+      "f": 0.05,
+      "k": 10,
+      "bytes": 246,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0056,
+        "p95": 0.0064,
+        "min": 0.0051
+      },
+      "decode": {
+        "median": 0.0024,
+        "p95": 0.0026,
+        "min": 0.0024
+      },
+      "decodeHeapBytes": 2208
+    },
+    {
+      "encoding": "sorted",
+      "n": 200,
+      "f": 0.05,
+      "k": 10,
+      "bytes": 298,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0089,
+        "p95": 0.0108,
+        "min": 0.0052
+      },
+      "decode": {
+        "median": 0.0006,
+        "p95": 0.0007,
+        "min": 0.0006
+      },
+      "decodeHeapBytes": 2192
+    },
+    {
+      "encoding": "roaring",
+      "n": 200,
+      "f": 0.05,
+      "k": 10,
+      "bytes": 290,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0148,
+        "p95": 0.0164,
+        "min": 0.0143
+      },
+      "decode": {
+        "median": 0.0028,
+        "p95": 0.0056,
+        "min": 0.0027
+      },
+      "decodeHeapBytes": 2192
+    },
+    {
+      "encoding": "hybrid",
+      "n": 200,
+      "f": 0.05,
+      "k": 10,
+      "bytes": 290,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0149,
+        "p95": 0.0165,
+        "min": 0.0144
+      },
+      "decode": {
+        "median": 0.0031,
+        "p95": 0.0039,
+        "min": 0.003
+      },
+      "decodeHeapBytes": 2192,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 200,
+      "f": 0.1,
+      "k": 20,
+      "bytes": 2181,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0224,
+        "p95": 0.0242,
+        "min": 0.0211
+      },
+      "decode": {
+        "median": 0.0168,
+        "p95": 0.0173,
+        "min": 0.0157
+      },
+      "decodeHeapBytes": 3464
+    },
+    {
+      "encoding": "aos",
+      "n": 200,
+      "f": 0.1,
+      "k": 20,
+      "bytes": 456,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0054,
+        "p95": 0.0066,
+        "min": 0.005
+      },
+      "decode": {
+        "median": 0.0054,
+        "p95": 0.0059,
+        "min": 0.0048
+      },
+      "decodeHeapBytes": 1936
+    },
+    {
+      "encoding": "sorted",
+      "n": 200,
+      "f": 0.1,
+      "k": 20,
+      "bytes": 548,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.006,
+        "p95": 0.007,
+        "min": 0.0055
+      },
+      "decode": {
+        "median": 0.0028,
+        "p95": 0.0032,
+        "min": 0.0021
+      },
+      "decodeHeapBytes": 1920
+    },
+    {
+      "encoding": "roaring",
+      "n": 200,
+      "f": 0.1,
+      "k": 20,
+      "bytes": 500,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0168,
+        "p95": 0.0221,
+        "min": 0.0159
+      },
+      "decode": {
+        "median": 0.0027,
+        "p95": 0.0033,
+        "min": 0.002
+      },
+      "decodeHeapBytes": 1920
+    },
+    {
+      "encoding": "hybrid",
+      "n": 200,
+      "f": 0.1,
+      "k": 20,
+      "bytes": 500,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0167,
+        "p95": 0.0336,
+        "min": 0.016
+      },
+      "decode": {
+        "median": 0.003,
+        "p95": 0.0034,
+        "min": 0.0023
+      },
+      "decodeHeapBytes": 1920,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 200,
+      "f": 0.25,
+      "k": 50,
+      "bytes": 5390,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0263,
+        "p95": 0.0347,
+        "min": 0.0256
+      },
+      "decode": {
+        "median": 0.0204,
+        "p95": 0.0214,
+        "min": 0.0203
+      },
+      "decodeHeapBytes": 8504
+    },
+    {
+      "encoding": "aos",
+      "n": 200,
+      "f": 0.25,
+      "k": 50,
+      "bytes": 1086,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0062,
+        "p95": 0.0071,
+        "min": 0.0057
+      },
+      "decode": {
+        "median": 0.0092,
+        "p95": 0.0098,
+        "min": 0.0087
+      },
+      "decodeHeapBytes": 1968
+    },
+    {
+      "encoding": "sorted",
+      "n": 200,
+      "f": 0.25,
+      "k": 50,
+      "bytes": 1298,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0133,
+        "p95": 0.015,
+        "min": 0.0122
+      },
+      "decode": {
+        "median": 0.0044,
+        "p95": 0.0062,
+        "min": 0.0032
+      },
+      "decodeHeapBytes": 1952
+    },
+    {
+      "encoding": "roaring",
+      "n": 200,
+      "f": 0.25,
+      "k": 50,
+      "bytes": 1130,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0234,
+        "p95": 0.0393,
+        "min": 0.022
+      },
+      "decode": {
+        "median": 0.0033,
+        "p95": 0.0038,
+        "min": 0.0022
+      },
+      "decodeHeapBytes": 1952
+    },
+    {
+      "encoding": "hybrid",
+      "n": 200,
+      "f": 0.25,
+      "k": 50,
+      "bytes": 1130,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0232,
+        "p95": 0.0503,
+        "min": 0.0222
+      },
+      "decode": {
+        "median": 0.0038,
+        "p95": 0.0044,
+        "min": 0.003
+      },
+      "decodeHeapBytes": 1952,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 200,
+      "f": 0.5,
+      "k": 100,
+      "bytes": 10774,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0482,
+        "p95": 0.0634,
+        "min": 0.0471
+      },
+      "decode": {
+        "median": 0.0484,
+        "p95": 0.06,
+        "min": 0.0399
+      },
+      "decodeHeapBytes": 16904
+    },
+    {
+      "encoding": "aos",
+      "n": 200,
+      "f": 0.5,
+      "k": 100,
+      "bytes": 2136,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0077,
+        "p95": 0.0113,
+        "min": 0.0066
+      },
+      "decode": {
+        "median": 0.0154,
+        "p95": 0.0202,
+        "min": 0.0142
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 200,
+      "f": 0.5,
+      "k": 100,
+      "bytes": 2548,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0106,
+        "p95": 0.0159,
+        "min": 0.0089
+      },
+      "decode": {
+        "median": 0.0036,
+        "p95": 0.0042,
+        "min": 0.0025
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 200,
+      "f": 0.5,
+      "k": 100,
+      "bytes": 2180,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0313,
+        "p95": 0.0328,
+        "min": 0.0308
+      },
+      "decode": {
+        "median": 0.0033,
+        "p95": 0.0042,
+        "min": 0.0026
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "hybrid",
+      "n": 200,
+      "f": 0.5,
+      "k": 100,
+      "bytes": 2180,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0315,
+        "p95": 0.0329,
+        "min": 0.0306
+      },
+      "decode": {
+        "median": 0.0038,
+        "p95": 0.0044,
+        "min": 0.003
+      },
+      "decodeHeapBytes": 1880,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 200,
+      "f": 1,
+      "k": 200,
+      "bytes": 21501,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0984,
+        "p95": 0.1349,
+        "min": 0.0902
+      },
+      "decode": {
+        "median": 0.096,
+        "p95": 0.1079,
+        "min": 0.0948
+      },
+      "decodeHeapBytes": 33704
+    },
+    {
+      "encoding": "aos",
+      "n": 200,
+      "f": 1,
+      "k": 200,
+      "bytes": 4236,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.009,
+        "p95": 0.0101,
+        "min": 0.0084
+      },
+      "decode": {
+        "median": 0.0037,
+        "p95": 0.0065,
+        "min": 0.0029
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 200,
+      "f": 1,
+      "k": 200,
+      "bytes": 5048,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0165,
+        "p95": 0.0183,
+        "min": 0.0147
+      },
+      "decode": {
+        "median": 0.0076,
+        "p95": 0.0176,
+        "min": 0.0045
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 200,
+      "f": 1,
+      "k": 200,
+      "bytes": 4280,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0554,
+        "p95": 0.0713,
+        "min": 0.0499
+      },
+      "decode": {
+        "median": 0.0051,
+        "p95": 0.0064,
+        "min": 0.0038
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "dense",
+      "n": 200,
+      "f": 1,
+      "k": 200,
+      "bytes": 3448,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0199,
+        "p95": 0.0293,
+        "min": 0.0188
+      },
+      "decode": {
+        "median": 0.024,
+        "p95": 0.0683,
+        "min": 0.0234
+      },
+      "decodeHeapBytes": 1696
+    },
+    {
+      "encoding": "hybrid",
+      "n": 200,
+      "f": 1,
+      "k": 200,
+      "bytes": 3448,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.002,
+        "p95": 0.0027,
+        "min": 0.0019
+      },
+      "decode": {
+        "median": 0.024,
+        "p95": 0.0529,
+        "min": 0.0231
+      },
+      "decodeHeapBytes": 1696,
+      "choice": "dense"
+    },
+    {
+      "encoding": "json",
+      "n": 500,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 145,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0113,
+        "p95": 0.0126,
+        "min": 0.0108
+      },
+      "decode": {
+        "median": 0.001,
+        "p95": 0.002,
+        "min": 0.0009
+      },
+      "decodeHeapBytes": 304
+    },
+    {
+      "encoding": "aos",
+      "n": 500,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 57,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0107,
+        "p95": 0.0153,
+        "min": 0.0096
+      },
+      "decode": {
+        "median": 0.0004,
+        "p95": 0.0005,
+        "min": 0.0004
+      },
+      "decodeHeapBytes": 2040
+    },
+    {
+      "encoding": "sorted",
+      "n": 500,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 73,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0104,
+        "p95": 0.0111,
+        "min": 0.0101
+      },
+      "decode": {
+        "median": 0.0005,
+        "p95": 0.0006,
+        "min": 0.0005
+      },
+      "decodeHeapBytes": 2024
+    },
+    {
+      "encoding": "roaring",
+      "n": 500,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 101,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0263,
+        "p95": 0.0396,
+        "min": 0.0253
+      },
+      "decode": {
+        "median": 0.0006,
+        "p95": 0.0008,
+        "min": 0.0006
+      },
+      "decodeHeapBytes": 2024
+    },
+    {
+      "encoding": "hybrid",
+      "n": 500,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 73,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0115,
+        "p95": 0.0147,
+        "min": 0.0106
+      },
+      "decode": {
+        "median": 0.0009,
+        "p95": 0.001,
+        "min": 0.0008
+      },
+      "decodeHeapBytes": 2024,
+      "choice": "sorted"
+    },
+    {
+      "encoding": "json",
+      "n": 500,
+      "f": 0.01,
+      "k": 5,
+      "bytes": 573,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0122,
+        "p95": 0.0131,
+        "min": 0.0118
+      },
+      "decode": {
+        "median": 0.0025,
+        "p95": 0.0031,
+        "min": 0.0025
+      },
+      "decodeHeapBytes": 944
+    },
+    {
+      "encoding": "aos",
+      "n": 500,
+      "f": 0.01,
+      "k": 5,
+      "bytes": 141,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0102,
+        "p95": 0.011,
+        "min": 0.0094
+      },
+      "decode": {
+        "median": 0.0004,
+        "p95": 0.0005,
+        "min": 0.0004
+      },
+      "decodeHeapBytes": 2120
+    },
+    {
+      "encoding": "sorted",
+      "n": 500,
+      "f": 0.01,
+      "k": 5,
+      "bytes": 173,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0106,
+        "p95": 0.0124,
+        "min": 0.0099
+      },
+      "decode": {
+        "median": 0.0006,
+        "p95": 0.0006,
+        "min": 0.0005
+      },
+      "decodeHeapBytes": 2104
+    },
+    {
+      "encoding": "roaring",
+      "n": 500,
+      "f": 0.01,
+      "k": 5,
+      "bytes": 185,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0266,
+        "p95": 0.0276,
+        "min": 0.0258
+      },
+      "decode": {
+        "median": 0.0006,
+        "p95": 0.0011,
+        "min": 0.0006
+      },
+      "decodeHeapBytes": 2104
+    },
+    {
+      "encoding": "hybrid",
+      "n": 500,
+      "f": 0.01,
+      "k": 5,
+      "bytes": 173,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0104,
+        "p95": 0.012,
+        "min": 0.0097
+      },
+      "decode": {
+        "median": 0.0009,
+        "p95": 0.001,
+        "min": 0.0009
+      },
+      "decodeHeapBytes": 2104,
+      "choice": "sorted"
+    },
+    {
+      "encoding": "json",
+      "n": 500,
+      "f": 0.05,
+      "k": 25,
+      "bytes": 2723,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0209,
+        "p95": 0.0225,
+        "min": 0.02
+      },
+      "decode": {
+        "median": 0.0103,
+        "p95": 0.0126,
+        "min": 0.0102
+      },
+      "decodeHeapBytes": 4304
+    },
+    {
+      "encoding": "aos",
+      "n": 500,
+      "f": 0.05,
+      "k": 25,
+      "bytes": 561,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0103,
+        "p95": 0.0106,
+        "min": 0.0096
+      },
+      "decode": {
+        "median": 0.0023,
+        "p95": 0.0028,
+        "min": 0.0016
+      },
+      "decodeHeapBytes": 1944
+    },
+    {
+      "encoding": "sorted",
+      "n": 500,
+      "f": 0.05,
+      "k": 25,
+      "bytes": 673,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0113,
+        "p95": 0.0143,
+        "min": 0.0107
+      },
+      "decode": {
+        "median": 0.0023,
+        "p95": 0.0026,
+        "min": 0.0019
+      },
+      "decodeHeapBytes": 1928
+    },
+    {
+      "encoding": "roaring",
+      "n": 500,
+      "f": 0.05,
+      "k": 25,
+      "bytes": 605,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0308,
+        "p95": 0.0507,
+        "min": 0.0295
+      },
+      "decode": {
+        "median": 0.0023,
+        "p95": 0.0044,
+        "min": 0.002
+      },
+      "decodeHeapBytes": 1928
+    },
+    {
+      "encoding": "hybrid",
+      "n": 500,
+      "f": 0.05,
+      "k": 25,
+      "bytes": 605,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0315,
+        "p95": 0.0423,
+        "min": 0.0301
+      },
+      "decode": {
+        "median": 0.0027,
+        "p95": 0.0036,
+        "min": 0.0023
+      },
+      "decodeHeapBytes": 1928,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 500,
+      "f": 0.1,
+      "k": 50,
+      "bytes": 5409,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0341,
+        "p95": 0.0469,
+        "min": 0.0311
+      },
+      "decode": {
+        "median": 0.0201,
+        "p95": 0.0209,
+        "min": 0.02
+      },
+      "decodeHeapBytes": 8504
+    },
+    {
+      "encoding": "aos",
+      "n": 500,
+      "f": 0.1,
+      "k": 50,
+      "bytes": 1086,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0113,
+        "p95": 0.0123,
+        "min": 0.0105
+      },
+      "decode": {
+        "median": 0.0023,
+        "p95": 0.0027,
+        "min": 0.0019
+      },
+      "decodeHeapBytes": 1968
+    },
+    {
+      "encoding": "sorted",
+      "n": 500,
+      "f": 0.1,
+      "k": 50,
+      "bytes": 1298,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0123,
+        "p95": 0.0141,
+        "min": 0.0118
+      },
+      "decode": {
+        "median": 0.0024,
+        "p95": 0.0026,
+        "min": 0.0021
+      },
+      "decodeHeapBytes": 1952
+    },
+    {
+      "encoding": "roaring",
+      "n": 500,
+      "f": 0.1,
+      "k": 50,
+      "bytes": 1130,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0357,
+        "p95": 0.0628,
+        "min": 0.0339
+      },
+      "decode": {
+        "median": 0.0049,
+        "p95": 0.006,
+        "min": 0.0039
+      },
+      "decodeHeapBytes": 1952
+    },
+    {
+      "encoding": "hybrid",
+      "n": 500,
+      "f": 0.1,
+      "k": 50,
+      "bytes": 1130,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0363,
+        "p95": 0.041,
+        "min": 0.035
+      },
+      "decode": {
+        "median": 0.0035,
+        "p95": 0.0043,
+        "min": 0.0026
+      },
+      "decodeHeapBytes": 1952,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 500,
+      "f": 0.25,
+      "k": 125,
+      "bytes": 13437,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0653,
+        "p95": 0.0692,
+        "min": 0.0636
+      },
+      "decode": {
+        "median": 0.05,
+        "p95": 0.0573,
+        "min": 0.0496
+      },
+      "decodeHeapBytes": 21104
+    },
+    {
+      "encoding": "aos",
+      "n": 500,
+      "f": 0.25,
+      "k": 125,
+      "bytes": 2661,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0125,
+        "p95": 0.0135,
+        "min": 0.0119
+      },
+      "decode": {
+        "median": 0.0029,
+        "p95": 0.0035,
+        "min": 0.0025
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 500,
+      "f": 0.25,
+      "k": 125,
+      "bytes": 3173,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0168,
+        "p95": 0.0241,
+        "min": 0.0157
+      },
+      "decode": {
+        "median": 0.0061,
+        "p95": 0.011,
+        "min": 0.0046
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 500,
+      "f": 0.25,
+      "k": 125,
+      "bytes": 2705,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.052,
+        "p95": 0.0695,
+        "min": 0.0484
+      },
+      "decode": {
+        "median": 0.003,
+        "p95": 0.0038,
+        "min": 0.0027
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "hybrid",
+      "n": 500,
+      "f": 0.25,
+      "k": 125,
+      "bytes": 2705,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0501,
+        "p95": 0.0845,
+        "min": 0.0479
+      },
+      "decode": {
+        "median": 0.0033,
+        "p95": 0.004,
+        "min": 0.0031
+      },
+      "decodeHeapBytes": 1880,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 500,
+      "f": 0.5,
+      "k": 250,
+      "bytes": 26871,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.1309,
+        "p95": 0.1763,
+        "min": 0.1195
+      },
+      "decode": {
+        "median": 0.1216,
+        "p95": 0.182,
+        "min": 0.1184
+      },
+      "decodeHeapBytes": 42104
+    },
+    {
+      "encoding": "aos",
+      "n": 500,
+      "f": 0.5,
+      "k": 250,
+      "bytes": 5286,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0152,
+        "p95": 0.0171,
+        "min": 0.0141
+      },
+      "decode": {
+        "median": 0.0058,
+        "p95": 0.0069,
+        "min": 0.0051
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 500,
+      "f": 0.5,
+      "k": 250,
+      "bytes": 6298,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0209,
+        "p95": 0.0325,
+        "min": 0.0202
+      },
+      "decode": {
+        "median": 0.0047,
+        "p95": 0.0179,
+        "min": 0.0039
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 500,
+      "f": 0.5,
+      "k": 250,
+      "bytes": 5330,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0737,
+        "p95": 0.1252,
+        "min": 0.0708
+      },
+      "decode": {
+        "median": 0.0045,
+        "p95": 0.008,
+        "min": 0.0039
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "hybrid",
+      "n": 500,
+      "f": 0.5,
+      "k": 250,
+      "bytes": 5330,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0716,
+        "p95": 0.1172,
+        "min": 0.0697
+      },
+      "decode": {
+        "median": 0.0042,
+        "p95": 0.0046,
+        "min": 0.0039
+      },
+      "decodeHeapBytes": 1880,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 500,
+      "f": 1,
+      "k": 500,
+      "bytes": 53722,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.2422,
+        "p95": 0.3655,
+        "min": 0.228
+      },
+      "decode": {
+        "median": 0.2419,
+        "p95": 0.2516,
+        "min": 0.2014
+      },
+      "decodeHeapBytes": 84104
+    },
+    {
+      "encoding": "aos",
+      "n": 500,
+      "f": 1,
+      "k": 500,
+      "bytes": 10536,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0204,
+        "p95": 0.0236,
+        "min": 0.0194
+      },
+      "decode": {
+        "median": 0.01,
+        "p95": 0.0149,
+        "min": 0.0055
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 500,
+      "f": 1,
+      "k": 500,
+      "bytes": 12548,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0322,
+        "p95": 0.0426,
+        "min": 0.0307
+      },
+      "decode": {
+        "median": 0.0065,
+        "p95": 0.0137,
+        "min": 0.0056
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 500,
+      "f": 1,
+      "k": 500,
+      "bytes": 10580,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.1191,
+        "p95": 0.1373,
+        "min": 0.1151
+      },
+      "decode": {
+        "median": 0.0067,
+        "p95": 0.0072,
+        "min": 0.0061
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "dense",
+      "n": 500,
+      "f": 1,
+      "k": 500,
+      "bytes": 8548,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0038,
+        "p95": 0.0041,
+        "min": 0.0036
+      },
+      "decode": {
+        "median": 0.0037,
+        "p95": 0.0061,
+        "min": 0.0029
+      },
+      "decodeHeapBytes": 1696
+    },
+    {
+      "encoding": "hybrid",
+      "n": 500,
+      "f": 1,
+      "k": 500,
+      "bytes": 8548,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.004,
+        "p95": 0.0046,
+        "min": 0.0036
+      },
+      "decode": {
+        "median": 0.0041,
+        "p95": 0.0052,
+        "min": 0.0036
+      },
+      "decodeHeapBytes": 1696,
+      "choice": "dense"
+    },
+    {
+      "encoding": "json",
+      "n": 1000,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 146,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0219,
+        "p95": 0.0287,
+        "min": 0.0207
+      },
+      "decode": {
+        "median": 0.001,
+        "p95": 0.0028,
+        "min": 0.0009
+      },
+      "decodeHeapBytes": 272
+    },
+    {
+      "encoding": "aos",
+      "n": 1000,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 57,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0308,
+        "p95": 0.036,
+        "min": 0.0218
+      },
+      "decode": {
+        "median": 0.0004,
+        "p95": 0.0005,
+        "min": 0.0004
+      },
+      "decodeHeapBytes": 2040
+    },
+    {
+      "encoding": "sorted",
+      "n": 1000,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 73,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0218,
+        "p95": 0.0235,
+        "min": 0.0205
+      },
+      "decode": {
+        "median": 0.0005,
+        "p95": 0.0006,
+        "min": 0.0005
+      },
+      "decodeHeapBytes": 2024
+    },
+    {
+      "encoding": "roaring",
+      "n": 1000,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 101,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0514,
+        "p95": 0.0897,
+        "min": 0.0489
+      },
+      "decode": {
+        "median": 0.0006,
+        "p95": 0.0009,
+        "min": 0.0006
+      },
+      "decodeHeapBytes": 2024
+    },
+    {
+      "encoding": "hybrid",
+      "n": 1000,
+      "f": 0.001,
+      "k": 1,
+      "bytes": 73,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0228,
+        "p95": 0.024,
+        "min": 0.0217
+      },
+      "decode": {
+        "median": 0.0009,
+        "p95": 0.001,
+        "min": 0.0008
+      },
+      "decodeHeapBytes": 2024,
+      "choice": "sorted"
+    },
+    {
+      "encoding": "json",
+      "n": 1000,
+      "f": 0.01,
+      "k": 10,
+      "bytes": 1111,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0257,
+        "p95": 0.0267,
+        "min": 0.0244
+      },
+      "decode": {
+        "median": 0.0045,
+        "p95": 0.0047,
+        "min": 0.0044
+      },
+      "decodeHeapBytes": 1784
+    },
+    {
+      "encoding": "aos",
+      "n": 1000,
+      "f": 0.01,
+      "k": 10,
+      "bytes": 246,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0209,
+        "p95": 0.0238,
+        "min": 0.0203
+      },
+      "decode": {
+        "median": 0.0005,
+        "p95": 0.0006,
+        "min": 0.0004
+      },
+      "decodeHeapBytes": 2208
+    },
+    {
+      "encoding": "sorted",
+      "n": 1000,
+      "f": 0.01,
+      "k": 10,
+      "bytes": 298,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0211,
+        "p95": 0.0225,
+        "min": 0.0205
+      },
+      "decode": {
+        "median": 0.0006,
+        "p95": 0.0007,
+        "min": 0.0006
+      },
+      "decodeHeapBytes": 2192
+    },
+    {
+      "encoding": "roaring",
+      "n": 1000,
+      "f": 0.01,
+      "k": 10,
+      "bytes": 290,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0505,
+        "p95": 0.053,
+        "min": 0.0492
+      },
+      "decode": {
+        "median": 0.0007,
+        "p95": 0.0009,
+        "min": 0.0006
+      },
+      "decodeHeapBytes": 2192
+    },
+    {
+      "encoding": "hybrid",
+      "n": 1000,
+      "f": 0.01,
+      "k": 10,
+      "bytes": 290,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0504,
+        "p95": 0.0551,
+        "min": 0.0491
+      },
+      "decode": {
+        "median": 0.001,
+        "p95": 0.0012,
+        "min": 0.001
+      },
+      "decodeHeapBytes": 2192,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 1000,
+      "f": 0.05,
+      "k": 50,
+      "bytes": 5406,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0419,
+        "p95": 0.0448,
+        "min": 0.0409
+      },
+      "decode": {
+        "median": 0.0203,
+        "p95": 0.0302,
+        "min": 0.0202
+      },
+      "decodeHeapBytes": 8504
+    },
+    {
+      "encoding": "aos",
+      "n": 1000,
+      "f": 0.05,
+      "k": 50,
+      "bytes": 1086,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0214,
+        "p95": 0.0228,
+        "min": 0.0206
+      },
+      "decode": {
+        "median": 0.0023,
+        "p95": 0.003,
+        "min": 0.0019
+      },
+      "decodeHeapBytes": 1968
+    },
+    {
+      "encoding": "sorted",
+      "n": 1000,
+      "f": 0.05,
+      "k": 50,
+      "bytes": 1298,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0221,
+        "p95": 0.0228,
+        "min": 0.0214
+      },
+      "decode": {
+        "median": 0.0023,
+        "p95": 0.0029,
+        "min": 0.0021
+      },
+      "decodeHeapBytes": 1952
+    },
+    {
+      "encoding": "roaring",
+      "n": 1000,
+      "f": 0.05,
+      "k": 50,
+      "bytes": 1130,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0575,
+        "p95": 0.0643,
+        "min": 0.0558
+      },
+      "decode": {
+        "median": 0.0025,
+        "p95": 0.0033,
+        "min": 0.0023
+      },
+      "decodeHeapBytes": 1952
+    },
+    {
+      "encoding": "hybrid",
+      "n": 1000,
+      "f": 0.05,
+      "k": 50,
+      "bytes": 1130,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0576,
+        "p95": 0.0614,
+        "min": 0.0564
+      },
+      "decode": {
+        "median": 0.0028,
+        "p95": 0.0032,
+        "min": 0.0026
+      },
+      "decodeHeapBytes": 1952,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 1000,
+      "f": 0.1,
+      "k": 100,
+      "bytes": 10772,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0648,
+        "p95": 0.0688,
+        "min": 0.0625
+      },
+      "decode": {
+        "median": 0.0399,
+        "p95": 0.0407,
+        "min": 0.0398
+      },
+      "decodeHeapBytes": 16904
+    },
+    {
+      "encoding": "aos",
+      "n": 1000,
+      "f": 0.1,
+      "k": 100,
+      "bytes": 2136,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0244,
+        "p95": 0.0282,
+        "min": 0.0227
+      },
+      "decode": {
+        "median": 0.0029,
+        "p95": 0.0036,
+        "min": 0.0023
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 1000,
+      "f": 0.1,
+      "k": 100,
+      "bytes": 2548,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0262,
+        "p95": 0.0448,
+        "min": 0.0251
+      },
+      "decode": {
+        "median": 0.003,
+        "p95": 0.0034,
+        "min": 0.0025
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 1000,
+      "f": 0.1,
+      "k": 100,
+      "bytes": 2180,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0673,
+        "p95": 0.0773,
+        "min": 0.0661
+      },
+      "decode": {
+        "median": 0.003,
+        "p95": 0.0036,
+        "min": 0.0026
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "hybrid",
+      "n": 1000,
+      "f": 0.1,
+      "k": 100,
+      "bytes": 2180,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.1272,
+        "p95": 0.1333,
+        "min": 0.0673
+      },
+      "decode": {
+        "median": 0.0032,
+        "p95": 0.0037,
+        "min": 0.0029
+      },
+      "decodeHeapBytes": 1880,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 1000,
+      "f": 0.25,
+      "k": 250,
+      "bytes": 26894,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.1366,
+        "p95": 0.191,
+        "min": 0.1293
+      },
+      "decode": {
+        "median": 0.1213,
+        "p95": 0.131,
+        "min": 0.0996
+      },
+      "decodeHeapBytes": 42104
+    },
+    {
+      "encoding": "aos",
+      "n": 1000,
+      "f": 0.25,
+      "k": 250,
+      "bytes": 5286,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0274,
+        "p95": 0.0335,
+        "min": 0.0263
+      },
+      "decode": {
+        "median": 0.0039,
+        "p95": 0.005,
+        "min": 0.0035
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 1000,
+      "f": 0.25,
+      "k": 250,
+      "bytes": 6298,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.052,
+        "p95": 0.0716,
+        "min": 0.032
+      },
+      "decode": {
+        "median": 0.0038,
+        "p95": 0.0044,
+        "min": 0.0034
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 1000,
+      "f": 0.25,
+      "k": 250,
+      "bytes": 5330,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0943,
+        "p95": 0.1031,
+        "min": 0.0928
+      },
+      "decode": {
+        "median": 0.0039,
+        "p95": 0.005,
+        "min": 0.0035
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "hybrid",
+      "n": 1000,
+      "f": 0.25,
+      "k": 250,
+      "bytes": 5330,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0957,
+        "p95": 0.1054,
+        "min": 0.0929
+      },
+      "decode": {
+        "median": 0.0044,
+        "p95": 0.005,
+        "min": 0.0039
+      },
+      "decodeHeapBytes": 1880,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 1000,
+      "f": 0.5,
+      "k": 500,
+      "bytes": 53684,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.2478,
+        "p95": 0.2682,
+        "min": 0.2401
+      },
+      "decode": {
+        "median": 0.1994,
+        "p95": 0.2077,
+        "min": 0.1982
+      },
+      "decodeHeapBytes": 84104
+    },
+    {
+      "encoding": "aos",
+      "n": 1000,
+      "f": 0.5,
+      "k": 500,
+      "bytes": 10536,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0323,
+        "p95": 0.035,
+        "min": 0.0309
+      },
+      "decode": {
+        "median": 0.0064,
+        "p95": 0.0073,
+        "min": 0.0059
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 1000,
+      "f": 0.5,
+      "k": 500,
+      "bytes": 12548,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0425,
+        "p95": 0.0466,
+        "min": 0.0362
+      },
+      "decode": {
+        "median": 0.0061,
+        "p95": 0.0069,
+        "min": 0.0055
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 1000,
+      "f": 0.5,
+      "k": 500,
+      "bytes": 10580,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.1395,
+        "p95": 0.1568,
+        "min": 0.1362
+      },
+      "decode": {
+        "median": 0.006,
+        "p95": 0.0132,
+        "min": 0.0055
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "hybrid",
+      "n": 1000,
+      "f": 0.5,
+      "k": 500,
+      "bytes": 10580,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.1397,
+        "p95": 0.1432,
+        "min": 0.137
+      },
+      "decode": {
+        "median": 0.0065,
+        "p95": 0.0077,
+        "min": 0.0062
+      },
+      "decodeHeapBytes": 1880,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 1000,
+      "f": 1,
+      "k": 1000,
+      "bytes": 107429,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.4775,
+        "p95": 0.5929,
+        "min": 0.4608
+      },
+      "decode": {
+        "median": 0.4056,
+        "p95": 0.4265,
+        "min": 0.3978
+      },
+      "decodeHeapBytes": 168104
+    },
+    {
+      "encoding": "aos",
+      "n": 1000,
+      "f": 1,
+      "k": 1000,
+      "bytes": 21036,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0416,
+        "p95": 0.0493,
+        "min": 0.0397
+      },
+      "decode": {
+        "median": 0.019,
+        "p95": 0.0279,
+        "min": 0.0105
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 1000,
+      "f": 1,
+      "k": 1000,
+      "bytes": 25048,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0665,
+        "p95": 0.0792,
+        "min": 0.0533
+      },
+      "decode": {
+        "median": 0.0105,
+        "p95": 0.0239,
+        "min": 0.0086
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 1000,
+      "f": 1,
+      "k": 1000,
+      "bytes": 21080,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.2371,
+        "p95": 0.286,
+        "min": 0.2295
+      },
+      "decode": {
+        "median": 0.0109,
+        "p95": 0.0168,
+        "min": 0.01
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "dense",
+      "n": 1000,
+      "f": 1,
+      "k": 1000,
+      "bytes": 17048,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0069,
+        "p95": 0.0075,
+        "min": 0.0067
+      },
+      "decode": {
+        "median": 0.0052,
+        "p95": 0.0057,
+        "min": 0.0047
+      },
+      "decodeHeapBytes": 1696
+    },
+    {
+      "encoding": "hybrid",
+      "n": 1000,
+      "f": 1,
+      "k": 1000,
+      "bytes": 17048,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0069,
+        "p95": 0.0076,
+        "min": 0.0065
+      },
+      "decode": {
+        "median": 0.0052,
+        "p95": 0.0059,
+        "min": 0.0048
+      },
+      "decodeHeapBytes": 1696,
+      "choice": "dense"
+    },
+    {
+      "encoding": "json",
+      "n": 5000,
+      "f": 0.001,
+      "k": 5,
+      "bytes": 576,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.296,
+        "p95": 0.3417,
+        "min": 0.2771
+      },
+      "decode": {
+        "median": 0.0025,
+        "p95": 0.0026,
+        "min": 0.0025
+      },
+      "decodeHeapBytes": 944
+    },
+    {
+      "encoding": "aos",
+      "n": 5000,
+      "f": 0.001,
+      "k": 5,
+      "bytes": 141,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.336,
+        "p95": 0.3836,
+        "min": 0.2745
+      },
+      "decode": {
+        "median": 0.0005,
+        "p95": 0.0031,
+        "min": 0.0004
+      },
+      "decodeHeapBytes": 2120
+    },
+    {
+      "encoding": "sorted",
+      "n": 5000,
+      "f": 0.001,
+      "k": 5,
+      "bytes": 173,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.2885,
+        "p95": 0.3231,
+        "min": 0.277
+      },
+      "decode": {
+        "median": 0.0006,
+        "p95": 0.0023,
+        "min": 0.0005
+      },
+      "decodeHeapBytes": 2104
+    },
+    {
+      "encoding": "roaring",
+      "n": 5000,
+      "f": 0.001,
+      "k": 5,
+      "bytes": 185,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.4065,
+        "p95": 0.4631,
+        "min": 0.3911
+      },
+      "decode": {
+        "median": 0.0007,
+        "p95": 0.004,
+        "min": 0.0006
+      },
+      "decodeHeapBytes": 2104
+    },
+    {
+      "encoding": "hybrid",
+      "n": 5000,
+      "f": 0.001,
+      "k": 5,
+      "bytes": 173,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.2958,
+        "p95": 0.3871,
+        "min": 0.28
+      },
+      "decode": {
+        "median": 0.0009,
+        "p95": 0.0019,
+        "min": 0.0009
+      },
+      "decodeHeapBytes": 2104,
+      "choice": "sorted"
+    },
+    {
+      "encoding": "json",
+      "n": 5000,
+      "f": 0.01,
+      "k": 50,
+      "bytes": 5419,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.3215,
+        "p95": 0.3681,
+        "min": 0.3028
+      },
+      "decode": {
+        "median": 0.0423,
+        "p95": 0.0457,
+        "min": 0.0241
+      },
+      "decodeHeapBytes": 8536
+    },
+    {
+      "encoding": "aos",
+      "n": 5000,
+      "f": 0.01,
+      "k": 50,
+      "bytes": 1086,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.2914,
+        "p95": 0.3273,
+        "min": 0.2749
+      },
+      "decode": {
+        "median": 0.0027,
+        "p95": 0.0038,
+        "min": 0.0022
+      },
+      "decodeHeapBytes": 2000
+    },
+    {
+      "encoding": "sorted",
+      "n": 5000,
+      "f": 0.01,
+      "k": 50,
+      "bytes": 1298,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.289,
+        "p95": 0.3006,
+        "min": 0.2784
+      },
+      "decode": {
+        "median": 0.0027,
+        "p95": 0.0032,
+        "min": 0.0021
+      },
+      "decodeHeapBytes": 1952
+    },
+    {
+      "encoding": "roaring",
+      "n": 5000,
+      "f": 0.01,
+      "k": 50,
+      "bytes": 1130,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.401,
+        "p95": 0.4374,
+        "min": 0.3899
+      },
+      "decode": {
+        "median": 0.003,
+        "p95": 0.0034,
+        "min": 0.0022
+      },
+      "decodeHeapBytes": 1984
+    },
+    {
+      "encoding": "hybrid",
+      "n": 5000,
+      "f": 0.01,
+      "k": 50,
+      "bytes": 1130,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.4868,
+        "p95": 0.6155,
+        "min": 0.4037
+      },
+      "decode": {
+        "median": 0.0037,
+        "p95": 0.0046,
+        "min": 0.0029
+      },
+      "decodeHeapBytes": 1952,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 5000,
+      "f": 0.05,
+      "k": 250,
+      "bytes": 26872,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.4415,
+        "p95": 0.5907,
+        "min": 0.4016
+      },
+      "decode": {
+        "median": 0.11,
+        "p95": 0.1278,
+        "min": 0.0991
+      },
+      "decodeHeapBytes": 42104
+    },
+    {
+      "encoding": "aos",
+      "n": 5000,
+      "f": 0.05,
+      "k": 250,
+      "bytes": 5286,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.3028,
+        "p95": 0.4122,
+        "min": 0.2806
+      },
+      "decode": {
+        "median": 0.0049,
+        "p95": 0.0069,
+        "min": 0.0038
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 5000,
+      "f": 0.05,
+      "k": 250,
+      "bytes": 6298,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.3361,
+        "p95": 0.3801,
+        "min": 0.2959
+      },
+      "decode": {
+        "median": 0.0053,
+        "p95": 0.0077,
+        "min": 0.0042
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 5000,
+      "f": 0.05,
+      "k": 250,
+      "bytes": 5330,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.4605,
+        "p95": 0.5035,
+        "min": 0.4348
+      },
+      "decode": {
+        "median": 0.0065,
+        "p95": 0.009,
+        "min": 0.0041
+      },
+      "decodeHeapBytes": 1912
+    },
+    {
+      "encoding": "hybrid",
+      "n": 5000,
+      "f": 0.05,
+      "k": 250,
+      "bytes": 5330,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.439,
+        "p95": 0.7078,
+        "min": 0.4332
+      },
+      "decode": {
+        "median": 0.005,
+        "p95": 0.0064,
+        "min": 0.0039
+      },
+      "decodeHeapBytes": 1880,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 5000,
+      "f": 0.1,
+      "k": 500,
+      "bytes": 53695,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.5355,
+        "p95": 0.7749,
+        "min": 0.5046
+      },
+      "decode": {
+        "median": 0.1995,
+        "p95": 0.2315,
+        "min": 0.1979
+      },
+      "decodeHeapBytes": 84136
+    },
+    {
+      "encoding": "aos",
+      "n": 5000,
+      "f": 0.1,
+      "k": 500,
+      "bytes": 10536,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.2908,
+        "p95": 0.3119,
+        "min": 0.2824
+      },
+      "decode": {
+        "median": 0.0068,
+        "p95": 0.0075,
+        "min": 0.0061
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 5000,
+      "f": 0.1,
+      "k": 500,
+      "bytes": 12548,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.3147,
+        "p95": 0.3264,
+        "min": 0.2983
+      },
+      "decode": {
+        "median": 0.0101,
+        "p95": 0.0122,
+        "min": 0.0072
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 5000,
+      "f": 0.1,
+      "k": 500,
+      "bytes": 10580,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.5029,
+        "p95": 0.5127,
+        "min": 0.4843
+      },
+      "decode": {
+        "median": 0.0071,
+        "p95": 0.0078,
+        "min": 0.0063
+      },
+      "decodeHeapBytes": 1912
+    },
+    {
+      "encoding": "hybrid",
+      "n": 5000,
+      "f": 0.1,
+      "k": 500,
+      "bytes": 10580,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.5003,
+        "p95": 0.5984,
+        "min": 0.4786
+      },
+      "decode": {
+        "median": 0.0071,
+        "p95": 0.008,
+        "min": 0.0067
+      },
+      "decodeHeapBytes": 1912,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 5000,
+      "f": 0.25,
+      "k": 1250,
+      "bytes": 134197,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.9604,
+        "p95": 1.2039,
+        "min": 0.9432
+      },
+      "decode": {
+        "median": 0.528,
+        "p95": 0.6936,
+        "min": 0.4965
+      },
+      "decodeHeapBytes": 210104
+    },
+    {
+      "encoding": "aos",
+      "n": 5000,
+      "f": 0.25,
+      "k": 1250,
+      "bytes": 26286,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.3193,
+        "p95": 0.3723,
+        "min": 0.3092
+      },
+      "decode": {
+        "median": 0.0237,
+        "p95": 0.0288,
+        "min": 0.0131
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 5000,
+      "f": 0.25,
+      "k": 1250,
+      "bytes": 31298,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.3695,
+        "p95": 0.4331,
+        "min": 0.3305
+      },
+      "decode": {
+        "median": 0.0184,
+        "p95": 0.029,
+        "min": 0.0119
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 5000,
+      "f": 0.25,
+      "k": 1250,
+      "bytes": 26330,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.6351,
+        "p95": 0.894,
+        "min": 0.3592
+      },
+      "decode": {
+        "median": 0.0136,
+        "p95": 0.0211,
+        "min": 0.0128
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "hybrid",
+      "n": 5000,
+      "f": 0.25,
+      "k": 1250,
+      "bytes": 26330,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.6498,
+        "p95": 0.7014,
+        "min": 0.3502
+      },
+      "decode": {
+        "median": 0.0135,
+        "p95": 0.0144,
+        "min": 0.0123
+      },
+      "decodeHeapBytes": 1880,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 5000,
+      "f": 0.5,
+      "k": 2500,
+      "bytes": 268381,
+      "overContractLimit": false,
+      "encode": {
+        "median": 1.7406,
+        "p95": 2.7146,
+        "min": 1.6474
+      },
+      "decode": {
+        "median": 1.0477,
+        "p95": 1.4766,
+        "min": 1.0091
+      },
+      "decodeHeapBytes": 420072
+    },
+    {
+      "encoding": "aos",
+      "n": 5000,
+      "f": 0.5,
+      "k": 2500,
+      "bytes": 52536,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.3622,
+        "p95": 0.4287,
+        "min": 0.3534
+      },
+      "decode": {
+        "median": 0.0472,
+        "p95": 0.0673,
+        "min": 0.0387
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 5000,
+      "f": 0.5,
+      "k": 2500,
+      "bytes": 62548,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.4747,
+        "p95": 0.512,
+        "min": 0.442
+      },
+      "decode": {
+        "median": 0.0468,
+        "p95": 0.0548,
+        "min": 0.0429
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 5000,
+      "f": 0.5,
+      "k": 2500,
+      "bytes": 52580,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.9319,
+        "p95": 1.1726,
+        "min": 0.4247
+      },
+      "decode": {
+        "median": 0.0215,
+        "p95": 0.0582,
+        "min": 0.0195
+      },
+      "decodeHeapBytes": 1912
+    },
+    {
+      "encoding": "hybrid",
+      "n": 5000,
+      "f": 0.5,
+      "k": 2500,
+      "bytes": 52580,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.7882,
+        "p95": 0.9117,
+        "min": 0.4045
+      },
+      "decode": {
+        "median": 0.0218,
+        "p95": 0.0236,
+        "min": 0.0199
+      },
+      "decodeHeapBytes": 1880,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 5000,
+      "f": 1,
+      "k": 5000,
+      "bytes": 536763,
+      "overContractLimit": false,
+      "encode": {
+        "median": 3.5915,
+        "p95": 4.3033,
+        "min": 3.5178
+      },
+      "decode": {
+        "median": 2.047,
+        "p95": 2.4637,
+        "min": 2.0108
+      },
+      "decodeHeapBytes": 840072
+    },
+    {
+      "encoding": "aos",
+      "n": 5000,
+      "f": 1,
+      "k": 5000,
+      "bytes": 105036,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.5004,
+        "p95": 0.5891,
+        "min": 0.4609
+      },
+      "decode": {
+        "median": 0.0857,
+        "p95": 0.0879,
+        "min": 0.0826
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 5000,
+      "f": 1,
+      "k": 5000,
+      "bytes": 125048,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.6187,
+        "p95": 0.6517,
+        "min": 0.5649
+      },
+      "decode": {
+        "median": 0.0888,
+        "p95": 0.1111,
+        "min": 0.0849
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 5000,
+      "f": 1,
+      "k": 5000,
+      "bytes": 101464,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.6623,
+        "p95": 1.3165,
+        "min": 0.5614
+      },
+      "decode": {
+        "median": 0.1334,
+        "p95": 0.9078,
+        "min": 0.1163
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "dense",
+      "n": 5000,
+      "f": 1,
+      "k": 5000,
+      "bytes": 85048,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0645,
+        "p95": 0.0676,
+        "min": 0.059
+      },
+      "decode": {
+        "median": 0.0513,
+        "p95": 0.0562,
+        "min": 0.046
+      },
+      "decodeHeapBytes": 1696
+    },
+    {
+      "encoding": "hybrid",
+      "n": 5000,
+      "f": 1,
+      "k": 5000,
+      "bytes": 85048,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.0656,
+        "p95": 0.0732,
+        "min": 0.0623
+      },
+      "decode": {
+        "median": 0.051,
+        "p95": 0.0592,
+        "min": 0.046
+      },
+      "decodeHeapBytes": 1696,
+      "choice": "dense"
+    },
+    {
+      "encoding": "json",
+      "n": 10000,
+      "f": 0.001,
+      "k": 10,
+      "bytes": 1114,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.8618,
+        "p95": 1.0168,
+        "min": 0.7281
+      },
+      "decode": {
+        "median": 0.0071,
+        "p95": 0.0108,
+        "min": 0.0045
+      },
+      "decodeHeapBytes": 1784
+    },
+    {
+      "encoding": "aos",
+      "n": 10000,
+      "f": 0.001,
+      "k": 10,
+      "bytes": 246,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.7158,
+        "p95": 0.7796,
+        "min": 0.6817
+      },
+      "decode": {
+        "median": 0.0004,
+        "p95": 0.0008,
+        "min": 0.0004
+      },
+      "decodeHeapBytes": 2208
+    },
+    {
+      "encoding": "sorted",
+      "n": 10000,
+      "f": 0.001,
+      "k": 10,
+      "bytes": 298,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.7038,
+        "p95": 0.81,
+        "min": 0.6704
+      },
+      "decode": {
+        "median": 0.0006,
+        "p95": 0.0008,
+        "min": 0.0006
+      },
+      "decodeHeapBytes": 2192
+    },
+    {
+      "encoding": "roaring",
+      "n": 10000,
+      "f": 0.001,
+      "k": 10,
+      "bytes": 290,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.8884,
+        "p95": 1.1015,
+        "min": 0.6812
+      },
+      "decode": {
+        "median": 0.0012,
+        "p95": 0.0016,
+        "min": 0.0006
+      },
+      "decodeHeapBytes": 2192
+    },
+    {
+      "encoding": "hybrid",
+      "n": 10000,
+      "f": 0.001,
+      "k": 10,
+      "bytes": 290,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.9105,
+        "p95": 0.9802,
+        "min": 0.6658
+      },
+      "decode": {
+        "median": 0.001,
+        "p95": 0.0013,
+        "min": 0.001
+      },
+      "decodeHeapBytes": 2192,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 10000,
+      "f": 0.01,
+      "k": 100,
+      "bytes": 10781,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.7682,
+        "p95": 0.8648,
+        "min": 0.7361
+      },
+      "decode": {
+        "median": 0.04,
+        "p95": 0.0651,
+        "min": 0.0398
+      },
+      "decodeHeapBytes": 16872
+    },
+    {
+      "encoding": "aos",
+      "n": 10000,
+      "f": 0.01,
+      "k": 100,
+      "bytes": 2136,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.7291,
+        "p95": 0.8741,
+        "min": 0.6844
+      },
+      "decode": {
+        "median": 0.0033,
+        "p95": 0.006,
+        "min": 0.0023
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 10000,
+      "f": 0.01,
+      "k": 100,
+      "bytes": 2548,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.7255,
+        "p95": 0.7974,
+        "min": 0.676
+      },
+      "decode": {
+        "median": 0.0035,
+        "p95": 0.0043,
+        "min": 0.0025
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 10000,
+      "f": 0.01,
+      "k": 100,
+      "bytes": 2180,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.9016,
+        "p95": 0.9893,
+        "min": 0.6743
+      },
+      "decode": {
+        "median": 0.0032,
+        "p95": 0.0041,
+        "min": 0.0026
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "hybrid",
+      "n": 10000,
+      "f": 0.01,
+      "k": 100,
+      "bytes": 2180,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.9412,
+        "p95": 1.0672,
+        "min": 0.6657
+      },
+      "decode": {
+        "median": 0.0038,
+        "p95": 0.0047,
+        "min": 0.0029
+      },
+      "decodeHeapBytes": 1880,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 10000,
+      "f": 0.05,
+      "k": 500,
+      "bytes": 53692,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.9456,
+        "p95": 1.0129,
+        "min": 0.9099
+      },
+      "decode": {
+        "median": 0.1999,
+        "p95": 0.2161,
+        "min": 0.1977
+      },
+      "decodeHeapBytes": 84072
+    },
+    {
+      "encoding": "aos",
+      "n": 10000,
+      "f": 0.05,
+      "k": 500,
+      "bytes": 10536,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.6926,
+        "p95": 0.7034,
+        "min": 0.6747
+      },
+      "decode": {
+        "median": 0.0072,
+        "p95": 0.0076,
+        "min": 0.0063
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 10000,
+      "f": 0.05,
+      "k": 500,
+      "bytes": 12548,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.7017,
+        "p95": 0.7146,
+        "min": 0.6871
+      },
+      "decode": {
+        "median": 0.007,
+        "p95": 0.0079,
+        "min": 0.0062
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 10000,
+      "f": 0.05,
+      "k": 500,
+      "bytes": 10580,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.7529,
+        "p95": 0.9935,
+        "min": 0.718
+      },
+      "decode": {
+        "median": 0.0076,
+        "p95": 0.0086,
+        "min": 0.0065
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "hybrid",
+      "n": 10000,
+      "f": 0.05,
+      "k": 500,
+      "bytes": 10580,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.9907,
+        "p95": 1.0349,
+        "min": 0.6743
+      },
+      "decode": {
+        "median": 0.008,
+        "p95": 0.0098,
+        "min": 0.0069
+      },
+      "decodeHeapBytes": 1880,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 10000,
+      "f": 0.1,
+      "k": 1000,
+      "bytes": 107364,
+      "overContractLimit": false,
+      "encode": {
+        "median": 1.1655,
+        "p95": 1.1953,
+        "min": 1.1401
+      },
+      "decode": {
+        "median": 0.4815,
+        "p95": 0.5165,
+        "min": 0.4011
+      },
+      "decodeHeapBytes": 168072
+    },
+    {
+      "encoding": "aos",
+      "n": 10000,
+      "f": 0.1,
+      "k": 1000,
+      "bytes": 21036,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.7082,
+        "p95": 0.7277,
+        "min": 0.6944
+      },
+      "decode": {
+        "median": 0.0116,
+        "p95": 0.0273,
+        "min": 0.0107
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 10000,
+      "f": 0.1,
+      "k": 1000,
+      "bytes": 25048,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.7424,
+        "p95": 0.8004,
+        "min": 0.7145
+      },
+      "decode": {
+        "median": 0.013,
+        "p95": 0.0286,
+        "min": 0.0104
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 10000,
+      "f": 0.1,
+      "k": 1000,
+      "bytes": 21080,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.7708,
+        "p95": 1.5061,
+        "min": 0.7182
+      },
+      "decode": {
+        "median": 0.0117,
+        "p95": 0.019,
+        "min": 0.0105
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "hybrid",
+      "n": 10000,
+      "f": 0.1,
+      "k": 1000,
+      "bytes": 21080,
+      "overContractLimit": false,
+      "encode": {
+        "median": 1.0689,
+        "p95": 1.451,
+        "min": 0.737
+      },
+      "decode": {
+        "median": 0.0114,
+        "p95": 0.0137,
+        "min": 0.0109
+      },
+      "decodeHeapBytes": 1880,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 10000,
+      "f": 0.25,
+      "k": 2500,
+      "bytes": 268409,
+      "overContractLimit": false,
+      "encode": {
+        "median": 2.0876,
+        "p95": 2.4501,
+        "min": 2.0035
+      },
+      "decode": {
+        "median": 1.0129,
+        "p95": 1.0488,
+        "min": 1.0074
+      },
+      "decodeHeapBytes": 420072
+    },
+    {
+      "encoding": "aos",
+      "n": 10000,
+      "f": 0.25,
+      "k": 2500,
+      "bytes": 52536,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.7786,
+        "p95": 0.7923,
+        "min": 0.7517
+      },
+      "decode": {
+        "median": 0.0442,
+        "p95": 0.0515,
+        "min": 0.0253
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 10000,
+      "f": 0.25,
+      "k": 2500,
+      "bytes": 62548,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.8438,
+        "p95": 0.9627,
+        "min": 0.8138
+      },
+      "decode": {
+        "median": 0.0418,
+        "p95": 0.0561,
+        "min": 0.0244
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 10000,
+      "f": 0.25,
+      "k": 2500,
+      "bytes": 52580,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.8502,
+        "p95": 1.5591,
+        "min": 0.8168
+      },
+      "decode": {
+        "median": 0.0498,
+        "p95": 0.0558,
+        "min": 0.046
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "hybrid",
+      "n": 10000,
+      "f": 0.25,
+      "k": 2500,
+      "bytes": 52580,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.8777,
+        "p95": 1.6017,
+        "min": 0.8106
+      },
+      "decode": {
+        "median": 0.0599,
+        "p95": 0.0747,
+        "min": 0.046
+      },
+      "decodeHeapBytes": 1880,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 10000,
+      "f": 0.5,
+      "k": 5000,
+      "bytes": 536797,
+      "overContractLimit": false,
+      "encode": {
+        "median": 4.113,
+        "p95": 4.3853,
+        "min": 3.9267
+      },
+      "decode": {
+        "median": 2.0262,
+        "p95": 2.0962,
+        "min": 2.0125
+      },
+      "decodeHeapBytes": 840136
+    },
+    {
+      "encoding": "aos",
+      "n": 10000,
+      "f": 0.5,
+      "k": 5000,
+      "bytes": 105036,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.8814,
+        "p95": 0.9269,
+        "min": 0.8575
+      },
+      "decode": {
+        "median": 0.0882,
+        "p95": 0.0931,
+        "min": 0.0836
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 10000,
+      "f": 0.5,
+      "k": 5000,
+      "bytes": 125048,
+      "overContractLimit": false,
+      "encode": {
+        "median": 1.0445,
+        "p95": 1.1032,
+        "min": 0.9858
+      },
+      "decode": {
+        "median": 0.0956,
+        "p95": 0.1237,
+        "min": 0.0897
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 10000,
+      "f": 0.5,
+      "k": 5000,
+      "bytes": 101464,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.9752,
+        "p95": 1.9051,
+        "min": 0.9379
+      },
+      "decode": {
+        "median": 0.1457,
+        "p95": 0.1727,
+        "min": 0.1333
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "hybrid",
+      "n": 10000,
+      "f": 0.5,
+      "k": 5000,
+      "bytes": 101464,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.9864,
+        "p95": 1.1984,
+        "min": 0.8982
+      },
+      "decode": {
+        "median": 0.1405,
+        "p95": 0.1568,
+        "min": 0.1295
+      },
+      "decodeHeapBytes": 1880,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 10000,
+      "f": 1,
+      "k": 10000,
+      "bytes": 1073574,
+      "overContractLimit": false,
+      "encode": {
+        "median": 7.8536,
+        "p95": 9.6489,
+        "min": 7.235
+      },
+      "decode": {
+        "median": 4.2687,
+        "p95": 4.973,
+        "min": 4.0294
+      },
+      "decodeHeapBytes": 1680072
+    },
+    {
+      "encoding": "aos",
+      "n": 10000,
+      "f": 1,
+      "k": 10000,
+      "bytes": 210036,
+      "overContractLimit": false,
+      "encode": {
+        "median": 1.1043,
+        "p95": 1.1769,
+        "min": 1.0509
+      },
+      "decode": {
+        "median": 0.1691,
+        "p95": 0.1851,
+        "min": 0.1602
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 10000,
+      "f": 1,
+      "k": 10000,
+      "bytes": 250048,
+      "overContractLimit": false,
+      "encode": {
+        "median": 1.3476,
+        "p95": 1.3997,
+        "min": 1.2673
+      },
+      "decode": {
+        "median": 0.1745,
+        "p95": 0.1842,
+        "min": 0.1676
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 10000,
+      "f": 1,
+      "k": 10000,
+      "bytes": 186464,
+      "overContractLimit": false,
+      "encode": {
+        "median": 1.2471,
+        "p95": 1.4584,
+        "min": 1.2096
+      },
+      "decode": {
+        "median": 0.264,
+        "p95": 0.284,
+        "min": 0.2553
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "dense",
+      "n": 10000,
+      "f": 1,
+      "k": 10000,
+      "bytes": 170048,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.1285,
+        "p95": 0.1366,
+        "min": 0.1229
+      },
+      "decode": {
+        "median": 0.0966,
+        "p95": 0.1025,
+        "min": 0.0952
+      },
+      "decodeHeapBytes": 1696
+    },
+    {
+      "encoding": "hybrid",
+      "n": 10000,
+      "f": 1,
+      "k": 10000,
+      "bytes": 170048,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.1291,
+        "p95": 0.1449,
+        "min": 0.1246
+      },
+      "decode": {
+        "median": 0.0977,
+        "p95": 0.111,
+        "min": 0.0944
+      },
+      "decodeHeapBytes": 1696,
+      "choice": "dense"
+    },
+    {
+      "encoding": "json",
+      "n": 50000,
+      "f": 0.001,
+      "k": 50,
+      "bytes": 5412,
+      "overContractLimit": false,
+      "encode": {
+        "median": 3.9874,
+        "p95": 7.2657,
+        "min": 3.5543
+      },
+      "decode": {
+        "median": 0.0205,
+        "p95": 0.0266,
+        "min": 0.02
+      },
+      "decodeHeapBytes": 8504
+    },
+    {
+      "encoding": "aos",
+      "n": 50000,
+      "f": 0.001,
+      "k": 50,
+      "bytes": 1086,
+      "overContractLimit": false,
+      "encode": {
+        "median": 4.0132,
+        "p95": 5.2173,
+        "min": 3.4566
+      },
+      "decode": {
+        "median": 0.0027,
+        "p95": 0.0034,
+        "min": 0.0022
+      },
+      "decodeHeapBytes": 1968
+    },
+    {
+      "encoding": "sorted",
+      "n": 50000,
+      "f": 0.001,
+      "k": 50,
+      "bytes": 1298,
+      "overContractLimit": false,
+      "encode": {
+        "median": 3.7357,
+        "p95": 5.2838,
+        "min": 3.4376
+      },
+      "decode": {
+        "median": 0.0029,
+        "p95": 0.0042,
+        "min": 0.0021
+      },
+      "decodeHeapBytes": 1952
+    },
+    {
+      "encoding": "roaring",
+      "n": 50000,
+      "f": 0.001,
+      "k": 50,
+      "bytes": 1162,
+      "overContractLimit": false,
+      "encode": {
+        "median": 3.7264,
+        "p95": 5.1966,
+        "min": 3.4749
+      },
+      "decode": {
+        "median": 0.0032,
+        "p95": 0.0041,
+        "min": 0.0023
+      },
+      "decodeHeapBytes": 1952
+    },
+    {
+      "encoding": "hybrid",
+      "n": 50000,
+      "f": 0.001,
+      "k": 50,
+      "bytes": 1162,
+      "overContractLimit": false,
+      "encode": {
+        "median": 3.6248,
+        "p95": 5.1694,
+        "min": 3.3717
+      },
+      "decode": {
+        "median": 0.0033,
+        "p95": 0.0041,
+        "min": 0.0025
+      },
+      "decodeHeapBytes": 1952,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 50000,
+      "f": 0.01,
+      "k": 500,
+      "bytes": 53717,
+      "overContractLimit": false,
+      "encode": {
+        "median": 3.9788,
+        "p95": 5.5714,
+        "min": 3.6389
+      },
+      "decode": {
+        "median": 0.1997,
+        "p95": 0.2243,
+        "min": 0.1977
+      },
+      "decodeHeapBytes": 84104
+    },
+    {
+      "encoding": "aos",
+      "n": 50000,
+      "f": 0.01,
+      "k": 500,
+      "bytes": 10536,
+      "overContractLimit": false,
+      "encode": {
+        "median": 3.7951,
+        "p95": 5.2512,
+        "min": 3.4487
+      },
+      "decode": {
+        "median": 0.0069,
+        "p95": 0.0075,
+        "min": 0.006
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 50000,
+      "f": 0.01,
+      "k": 500,
+      "bytes": 12548,
+      "overContractLimit": false,
+      "encode": {
+        "median": 3.7819,
+        "p95": 5.2058,
+        "min": 3.4423
+      },
+      "decode": {
+        "median": 0.0111,
+        "p95": 0.0137,
+        "min": 0.007
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 50000,
+      "f": 0.01,
+      "k": 500,
+      "bytes": 10612,
+      "overContractLimit": false,
+      "encode": {
+        "median": 3.8066,
+        "p95": 5.4874,
+        "min": 3.5507
+      },
+      "decode": {
+        "median": 0.0123,
+        "p95": 0.0131,
+        "min": 0.0082
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "hybrid",
+      "n": 50000,
+      "f": 0.01,
+      "k": 500,
+      "bytes": 10612,
+      "overContractLimit": false,
+      "encode": {
+        "median": 3.9779,
+        "p95": 5.7998,
+        "min": 3.5927
+      },
+      "decode": {
+        "median": 0.0083,
+        "p95": 0.0094,
+        "min": 0.0073
+      },
+      "decodeHeapBytes": 1880,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 50000,
+      "f": 0.1,
+      "k": 5000,
+      "bytes": 536918,
+      "overContractLimit": false,
+      "encode": {
+        "median": 7.0452,
+        "p95": 10.154,
+        "min": 6.2654
+      },
+      "decode": {
+        "median": 2.0674,
+        "p95": 2.2839,
+        "min": 2.0116
+      },
+      "decodeHeapBytes": 840072
+    },
+    {
+      "encoding": "aos",
+      "n": 50000,
+      "f": 0.1,
+      "k": 5000,
+      "bytes": 105036,
+      "overContractLimit": false,
+      "encode": {
+        "median": 3.9797,
+        "p95": 5.4374,
+        "min": 3.631
+      },
+      "decode": {
+        "median": 0.0473,
+        "p95": 0.0523,
+        "min": 0.0462
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 50000,
+      "f": 0.1,
+      "k": 5000,
+      "bytes": 125048,
+      "overContractLimit": false,
+      "encode": {
+        "median": 4.5199,
+        "p95": 6.1494,
+        "min": 3.7749
+      },
+      "decode": {
+        "median": 0.0426,
+        "p95": 0.0446,
+        "min": 0.0383
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 50000,
+      "f": 0.1,
+      "k": 5000,
+      "bytes": 105112,
+      "overContractLimit": false,
+      "encode": {
+        "median": 3.9754,
+        "p95": 5.6458,
+        "min": 3.7603
+      },
+      "decode": {
+        "median": 0.0455,
+        "p95": 0.0697,
+        "min": 0.0438
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "hybrid",
+      "n": 50000,
+      "f": 0.1,
+      "k": 5000,
+      "bytes": 105112,
+      "overContractLimit": false,
+      "encode": {
+        "median": 4.4199,
+        "p95": 6.057,
+        "min": 3.8927
+      },
+      "decode": {
+        "median": 0.0477,
+        "p95": 0.0593,
+        "min": 0.0459
+      },
+      "decodeHeapBytes": 1880,
+      "choice": "roaring"
+    },
+    {
+      "encoding": "json",
+      "n": 50000,
+      "f": 1,
+      "k": 50000,
+      "bytes": 5367790,
+      "overContractLimit": false,
+      "encode": {
+        "median": 39.4257,
+        "p95": 43.7031,
+        "min": 32.8916
+      },
+      "decode": {
+        "median": 21.2682,
+        "p95": 21.9707,
+        "min": 20.6259
+      },
+      "decodeHeapBytes": 8400104
+    },
+    {
+      "encoding": "aos",
+      "n": 50000,
+      "f": 1,
+      "k": 50000,
+      "bytes": 1050036,
+      "overContractLimit": true,
+      "encode": {
+        "median": 6.0351,
+        "p95": 7.3335,
+        "min": 5.5707
+      },
+      "decode": {
+        "median": 0.8364,
+        "p95": 0.9626,
+        "min": 0.4794
+      },
+      "decodeHeapBytes": 1896
+    },
+    {
+      "encoding": "sorted",
+      "n": 50000,
+      "f": 1,
+      "k": 50000,
+      "bytes": 1250048,
+      "overContractLimit": true,
+      "encode": {
+        "median": 7.7689,
+        "p95": 9.6749,
+        "min": 6.9018
+      },
+      "decode": {
+        "median": 0.8739,
+        "p95": 0.9844,
+        "min": 0.4274
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "roaring",
+      "n": 50000,
+      "f": 1,
+      "k": 50000,
+      "bytes": 899264,
+      "overContractLimit": false,
+      "encode": {
+        "median": 8.0533,
+        "p95": 9.9496,
+        "min": 6.6008
+      },
+      "decode": {
+        "median": 1.4729,
+        "p95": 1.6872,
+        "min": 1.0611
+      },
+      "decodeHeapBytes": 1880
+    },
+    {
+      "encoding": "dense",
+      "n": 50000,
+      "f": 1,
+      "k": 50000,
+      "bytes": 850048,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.6443,
+        "p95": 0.8563,
+        "min": 0.6266
+      },
+      "decode": {
+        "median": 0.4785,
+        "p95": 0.5403,
+        "min": 0.1717
+      },
+      "decodeHeapBytes": 1696
+    },
+    {
+      "encoding": "hybrid",
+      "n": 50000,
+      "f": 1,
+      "k": 50000,
+      "bytes": 850048,
+      "overContractLimit": false,
+      "encode": {
+        "median": 0.6643,
+        "p95": 0.8441,
+        "min": 0.3322
+      },
+      "decode": {
+        "median": 0.4695,
+        "p95": 0.5943,
+        "min": 0.2153
+      },
+      "decodeHeapBytes": 1696,
+      "choice": "dense"
+    }
+  ]
+}
