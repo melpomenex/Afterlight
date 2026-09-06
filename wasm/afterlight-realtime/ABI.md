@@ -16,23 +16,37 @@ Every failure is a status code — the decoder never panics on hostile input
 
 ## Frame-format decisions locked by this decoder (v0 reconciliation points)
 
-- **Spawn section (section_id 1) is columnar** per §3 ("payloads are
-  columnar within a section"): `ids` (per encoding) then archetype u16,
-  variant u16, stringRef u32, x, y, z, yaw f32 — 24 B/row of columns +
-  4 B/id. This follows the §3 string-table note's field order.
-- **Snapshot (frame_type 0)** in the benchmark = one `spawn` section
-  (SORTED_IDS; a fresh store must learn server ids) + `flags` DENSE over the
-  freshly allocated slots 0..count-1. DELTAs = `transform` + `flags`, both
-  SORTED_IDS (matching `lib/encoders/soaSorted.mjs`).
-- **DENSE** (encoding 0) = values for slots 0..entity_count-1, no id list;
-  the decoder requires every addressed slot to be live (no holes).
+- **Spawn section (section_id 1) is INTERLEAVED 28-byte rows**, matching the
+  JS reference writer (`shared/realtime/encoders.js writeSpawnSection`): per
+  row `id u32, archetype u16, variant u16, stringRef u32, x/y/z/yaw f32`.
+  Rows carry their own id, so the encoding byte is **DENSE (0)** from the JS
+  writer (SORTED (1) accepted for Rust builders — payload math is identical);
+  no separate id mask. `stringRef = 0xFFFFFFFF` (**NO_STRING_REF**, the
+  writer's sentinel for non-players) is valid with or without a string table;
+  any other ref must index the table.
+- **Chunked frames (contract §4a amendment)**: frame_type 3 =
+  `SNAPSHOT_CHUNK`, 4 = `DELTA_CHUNK`; header flag bit1 = `CHUNK_END`
+  (bit0 remains HAS_STRING_TABLE, bits 2+ reserved). A SNAPSHOT_CHUNK whose
+  frame_sequence differs from the accumulating one resets the store and
+  starts a fresh snapshot (epoch-fenced: `epoch < store.epoch` → OK_STALE);
+  CHUNK_END commits `st.seq`, clears poison and re-arms the delta baseline.
+  DELTA_CHUNK is baseline-checked exactly like DELTA (`baseline ==
+  st.seq` on every chunk); `st.seq` commits only on CHUNK_END. Chunks of one
+  logical frame share frame_sequence — the JS reference emits them via
+  `shared/realtime/writer.js writeChunkedFrames`.
+- **Snapshot (frame_type 0)** = spawn section over the fresh store
+  (self-validating, no baseline needed); DELTAs (frame_type 1) = `transform`
+  + `flags`, both SORTED_IDS (matching `lib/encoders/soaSorted.mjs`).
+- **DENSE** (encoding 0) on component sections = values for slots
+  0..entity_count-1, no id list; the decoder requires every addressed slot to
+  be live (no holes).
 - **ROARING (2) / BITSET (3) / ARROW (4)** are recognized but return
   `E_ENC_UNSUPPORTED` (26) — rejection without guessing is contract-legal;
   portable Roaring is future work for whichever encoding wins.
-- **stringRef without a string table must be 0**; with a table it must index it.
 - A frame that fails mid-apply (id unknown to the store, duplicate spawn id)
-  marks the store **poisoned**: further DELTAs get `E_POISONED` until the next
-  FULL_SNAPSHOT (which resets all state, contract §4).
+  marks the store **poisoned**: further DELTA/DELTA_CHUNKs get `E_POISONED`
+  until the next FULL_SNAPSHOT or a completed SNAPSHOT_CHUNK chain, which
+  restore a known-good state (contract §4/§4a).
 
 ## Status codes (`src/status.rs`, mirrored in glue.mjs / jsRefDecoder.mjs)
 
@@ -45,8 +59,8 @@ Every failure is a status code — the decoder never panics on hostile input
 | 16 | E_TOO_LARGE | frame > 1 MiB |
 | 17 | E_BAD_MAGIC | magic != "ALRT" |
 | 18 | E_BAD_VERSION | protocol_version != 1 |
-| 19 | E_BAD_HEADER | len < 24, header_size != 24, or reserved header flags |
-| 20 | E_BAD_FRAME_TYPE | frame_type > 2 |
+| 19 | E_BAD_HEADER | len < 24, header_size != 24, or reserved header flag bits 2+ (bit0 HAS_STRING_TABLE, bit1 CHUNK_END) |
+| 20 | E_BAD_FRAME_TYPE | frame_type > 4 |
 | 21 | E_TRUNCATED | section header/payload exceeds remaining bytes |
 | 22 | E_TOO_MANY_SECTIONS | > 16 sections |
 | 23 | E_ENTITY_COUNT | section rows > 100 000 |
@@ -62,7 +76,7 @@ Every failure is a status code — the decoder never panics on hostile input
 | 33 | E_BAD_ENUM | anim state/emote or flags reserved bits |
 | 34 | E_BAD_STRING_TABLE | malformed table or bad stringRef (poisons) |
 | 35 | E_BAD_DENSE | DENSE addresses a non-live slot (poisons) |
-| 36 | E_POISONED | sticky, until next FULL_SNAPSHOT |
+| 36 | E_POISONED | sticky, until next FULL_SNAPSHOT / completed SNAPSHOT_CHUNK chain |
 | 37 | E_NO_MEMORY | reservation failed |
 | 38 | E_BAD_HANDLE | unknown handle or ptr not from scratch_ptr |
 | 63 | E_TRAP | glue-side only: instance trapped (should be impossible) |

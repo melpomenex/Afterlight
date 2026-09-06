@@ -2,24 +2,33 @@
 //
 //   node --expose-gc run-wasm.mjs [--quick]
 //
-// Builds FULL_SNAPSHOT + chains of DELTA frames from lib/fixtures.mjs, then
-// times decode+apply per tick for:
+// Builds canonical frames with the JS reference writer
+// (shared/realtime/writer.js): a FULL_SNAPSHOT (or SNAPSHOT_CHUNK chain when
+// it exceeds the 1 MiB cap) over lib/fixtures.mjs, then chains of DELTA /
+// DELTA_CHUNK frames, and times decode+apply per tick for:
 //   arm "wasm": wasm/afterlight-realtime (cdylib) via lib/wasm/glue.mjs
 //   arm "js":   lib/wasm/jsRefDecoder.mjs (DataView control)
-// Also measures wasm linear-memory growth over a 600-tick chain and JS-side
-// retained-heap deltas. Results -> results/wasm.json + results/wasm.md.
+// BOTH arms consume byte-identical frame buffers. Also measures wasm linear-
+// memory growth over a 600-tick chain and JS-side retained-heap deltas.
+// Results -> results/wasm.json + results/wasm.md.
 //
 // Frame shapes (see wasm/afterlight-realtime/ABI.md):
-//   FULL_SNAPSHOT = spawn SORTED_IDS (ids,arch,variant,sref,x,y,z,yaw columns)
-//                   + flags DENSE over the freshly allocated slots
-//   DELTA         = transform SORTED_IDS + flags SORTED_IDS (same changed set,
-//                   matching lib/encoders/soaSorted.mjs), chunked at 1 MiB.
+//   snapshot      = spawn section, INTERLEAVED 28-byte rows (id u32,
+//                   archetype u16, variant u16, stringRef u32, x/y/z/yaw f32),
+//                   DENSE encoding, stringRef NO_STRING_REF (0xFFFFFFFF) —
+//                   chunked as SNAPSHOT_CHUNK + CHUNK_END when over the cap
+//   delta         = transform + flags, both SORTED_IDS over the same changed
+//                   set (matching lib/encoders/soaSorted.mjs); over-cap ticks
+//                   ship as DELTA_CHUNK frames (baseline kept on every chunk,
+//                   sequence commits on CHUNK_END only)
 
-import { writeFileSync, readFileSync, statSync } from 'node:fs';
+import { writeFileSync, statSync } from 'node:fs';
 import { makeWorld, stepWorld } from './lib/fixtures.mjs';
 import { timeIt, heapDelta, writeResults, markdownTable, env, WARMUP, RUNS } from './lib/measure.mjs';
 import { loadModule, WasmStore, MAX_FRAME_BYTES } from './lib/wasm/glue.mjs';
 import { JsRefStore } from './lib/wasm/jsRefDecoder.mjs';
+import { writeChunkedFrames } from '../../shared/realtime/writer.js';
+import { FRAME_TYPE, ENCODING, LIMITS } from '../../shared/realtime/constants.js';
 
 const WASM_PATH = new URL('../../wasm/afterlight-realtime/target/wasm32-unknown-unknown/release/afterlight_realtime.wasm', import.meta.url);
 const N_GRID = [1000, 10000, 50000];
@@ -27,106 +36,63 @@ const F_GRID = [0.01, 0.1, 1.0];
 const EPOCH = 1;
 const CHAIN_TARGET = 600;          // ticks per measured chain (contract-style)
 const CHAIN_BYTES_CAP = 320e6;     // keep prebuilt chains within memory reason
-const SNAPSHOT_CHUNK = 32000;      // rows per spawn section (1 MiB cap compliance)
+const CHUNK_SEQ = 1;               // frame_sequence carried by the snapshot (chunks share it)
 const QUICK = process.argv.includes('--quick');
 
-// ---------------- frame builders ----------------
+// ---------------- frame builders (canonical chunk amendment) ----------------
 
-function writeHeader(dv, ft, flags, epoch, tick, seq, baseline) {
-  dv.setUint32(0, 0x414c5254, true);
-  dv.setUint8(4, 1);
-  dv.setUint8(5, ft);
-  dv.setUint8(6, flags);
-  dv.setUint8(7, 24);
-  dv.setUint32(8, epoch, true);
-  dv.setUint32(12, tick, true);
-  dv.setUint32(16, seq, true);
-  dv.setUint32(20, baseline, true);
-}
-
-// FULL_SNAPSHOT (first chunk) / spawn-only DELTA (continuation chunks).
-// Spawn payload: ids u32 + archetype u16 + variant u16 + sref u32 +
-// x,y,z,yaw f32 — columnar (ABI.md). Flags section: DENSE over slots 0..live-1.
+// FULL_SNAPSHOT via the reference writer: spawn rows from the fixture world
+// ({id, archetype, variant, x, y, z, yaw} — no guestIds, so every stringRef
+// is NO_STRING_REF over a 1-entry string table). Fits one frame -> a plain
+// FULL_SNAPSHOT; else SNAPSHOT_CHUNK frames with CHUNK_END on the last. All
+// chunks share CHUNK_SEQ, so the store's sequence after the join == lastSeq.
 function buildSnapshotFrames(world) {
-  const frames = [];
-  let seq = 0;
-  for (let start = 0; start < world.n; start += SNAPSHOT_CHUNK) {
-    const count = Math.min(SNAPSHOT_CHUNK, world.n - start);
-    seq += 1;
-    const ft = start === 0 ? 0 : 1;
-    const baseline = ft === 0 ? seq : seq - 1;
-    const live = start + count;
-    const size = 24 + 12 + 28 * count + 12 + live;
-    const u8 = new Uint8Array(size);
-    const dv = new DataView(u8.buffer);
-    writeHeader(dv, ft, 0, EPOCH, 1000 + seq, seq, baseline);
-    let p = 24;
-    dv.setUint8(p, 1); dv.setUint8(p + 1, 1); dv.setUint16(p + 2, 0, true);
-    dv.setUint32(p + 4, count, true);
-    dv.setUint32(p + 8, 28 * count, true);
-    p += 12;
-    for (let r = 0; r < count; r++) dv.setUint32(p + 4 * r, world.ids[start + r], true);
-    p += 4 * count;
-    for (let r = 0; r < count; r++) dv.setUint16(p + 2 * r, world.archetype[start + r], true);
-    p += 2 * count;
-    for (let r = 0; r < count; r++) dv.setUint16(p + 2 * r, 0, true); // fixtures carry no variant column (§2)
-    p += 2 * count;
-    // sref column: zeros (no string table in the bench snapshot)
-    p += 4 * count;
-    for (const col of [world.x, world.y, world.z, world.yaw]) {
-      for (let r = 0; r < count; r++) dv.setFloat32(p + 4 * r, col[start + r], true);
-      p += 4 * count;
-    }
-    // flags DENSE (count == live slots, hole-free by construction)
-    dv.setUint8(p, 6); dv.setUint8(p + 1, 0); dv.setUint16(p + 2, 0, true);
-    dv.setUint32(p + 4, live, true);
-    dv.setUint32(p + 8, live, true);
-    p += 12;
-    for (let s = 0; s < live; s++) u8[p + s] = world.flags[s];
-    frames.push(u8);
+  const rows = new Array(world.n);
+  for (let i = 0; i < world.n; i++) {
+    rows[i] = {
+      id: world.ids[i],
+      archetype: world.archetype[i],
+      variant: 0, // fixtures carry no variant column (§2)
+      x: world.x[i], y: world.y[i], z: world.z[i], yaw: world.yaw[i],
+    };
   }
-  return { frames, lastSeq: seq };
+  const res = writeChunkedFrames({
+    frameType: FRAME_TYPE.FULL_SNAPSHOT,
+    roomEpoch: EPOCH,
+    serverTick: 1000,
+    frameSequence: CHUNK_SEQ,
+    baselineSequence: 0,
+    spawn: rows,
+  }, { maxBytes: LIMITS.MAX_FRAME_BYTES });
+  if (!res.ok) throw new Error(`snapshot build failed: ${res.reason}`);
+  return { frames: res.frames, lastSeq: CHUNK_SEQ };
 }
 
-// DELTA tick: transform SORTED_IDS (20 B/row) + flags SORTED_IDS (5 B/row),
-// chunked so every frame stays under the 1 MiB contract cap. idToRow maps
-// server id -> world row (fixtures worlds keep ids at their row index).
-const ROWS_PER_FRAME = Math.floor((MAX_FRAME_BYTES - 24 - 24) / 25);
-function buildDeltaFrames(world, changed, seqStart, tick, idToRow) {
-  const frames = [];
-  let seq = seqStart; // incoming baseline == store.seq at apply time
-  for (let off = 0; off < changed.length; off += ROWS_PER_FRAME) {
-    const part = changed.subarray(off, Math.min(changed.length, off + ROWS_PER_FRAME));
-    const k = part.length;
-    const baseline = seq;
-    seq += 1;
-    const u8 = new Uint8Array(24 + 12 + 20 * k + 12 + 5 * k);
-    const dv = new DataView(u8.buffer);
-    writeHeader(dv, 1, 0, EPOCH, tick, seq, baseline);
-    let p = 24;
-    // transform section
-    dv.setUint8(p, 3); dv.setUint8(p + 1, 1); dv.setUint16(p + 2, 0, true);
-    dv.setUint32(p + 4, k, true);
-    dv.setUint32(p + 8, 20 * k, true);
-    p += 12;
-    for (let j = 0; j < k; j++) dv.setUint32(p + 4 * j, part[j], true);
-    p += 4 * k;
-    for (const col of [world.x, world.y, world.z, world.yaw]) {
-      for (let j = 0; j < k; j++) dv.setFloat32(p + 4 * j, col[idToRow.get(part[j])], true);
-      p += 4 * k;
-    }
-    // flags section
-    dv.setUint8(p, 6); dv.setUint8(p + 1, 1); dv.setUint16(p + 2, 0, true);
-    dv.setUint32(p + 4, k, true);
-    dv.setUint32(p + 8, 5 * k, true);
-    p += 12;
-    for (let j = 0; j < k; j++) {
-      dv.setUint32(p + 4 * j, part[j], true);
-      u8[p + 4 * k + j] = world.flags[idToRow.get(part[j])];
-    }
-    frames.push(u8);
+// DELTA tick: transform + flags, both SORTED_IDS (20 + 5 B/row) over the same
+// changed set. writeChunkedFrames emits a plain DELTA when it fits the 1 MiB
+// contract cap, else DELTA_CHUNK frames — every chunk keeps the original
+// baseline (== store.seq at apply time); CHUNK_END commits the sequence.
+// idToRow maps server id -> world row (fixtures worlds keep ids at their row).
+function buildDeltaFrames(world, changed, seq, tick, idToRow) {
+  const k = changed.length;
+  const x = new Float32Array(k), y = new Float32Array(k), z = new Float32Array(k), yaw = new Float32Array(k);
+  const fl = new Uint8Array(k);
+  for (let j = 0; j < k; j++) {
+    const r = idToRow.get(changed[j]);
+    x[j] = world.x[r]; y[j] = world.y[r]; z[j] = world.z[r]; yaw[j] = world.yaw[r];
+    fl[j] = world.flags[r];
   }
-  return { frames, nextSeq: seq };
+  const res = writeChunkedFrames({
+    frameType: FRAME_TYPE.DELTA,
+    roomEpoch: EPOCH,
+    serverTick: tick,
+    frameSequence: seq + 1,
+    baselineSequence: seq,
+    transform: { encoding: ENCODING.SORTED_IDS, ids: changed, count: k, columns: { x, y, z, yaw } },
+    flags: { encoding: ENCODING.SORTED_IDS, ids: changed, count: k, columns: { flags: fl } },
+  }, { maxBytes: LIMITS.MAX_FRAME_BYTES });
+  if (!res.ok) throw new Error(`delta build failed: ${res.reason}`);
+  return { frames: res.frames, nextSeq: seq + 1 };
 }
 
 // ---------------- benchmark ----------------
@@ -189,6 +155,10 @@ for (const n of N_GRID) {
       assertOk(js.applyFrame(sf), 'js', -1);
     }
     if (ws.live() !== n || js.live() !== n) throw new Error(`snapshot live mismatch ${ws.live()} ${js.live()}`);
+    // The chunked snapshot committed its frame_sequence on CHUNK_END.
+    if (ws.seq() !== snap.lastSeq || js.seq() !== snap.lastSeq) {
+      throw new Error(`snapshot seq mismatch: wasm ${ws.seq()} js ${js.seq()} != lastSeq ${snap.lastSeq}`);
+    }
     const replay = (store, arm) => {
       store.resetSession(EPOCH, snap.lastSeq);
       for (let i = 0; i < chain.length; i++) {
@@ -340,9 +310,10 @@ const out = {
     runs: RUNS,
     note: 'per-tick = (reset + full chain) / ticks; median+p95+min from measure.timeIt; MIN is the comparable statistic under machine contention (contract §8).',
     decisions: [
-      'snapshot = spawn SORTED_IDS (columnar 28B/row) + flags DENSE; deltas = transform+flags SORTED_IDS (same changed set, as lib/encoders/soaSorted.mjs)',
-      'deltas chunked at the 1 MiB contract cap -> (50000, 1.0) needs 2 frames/tick',
-      'no string table in bench frames (stringRef column = 0)',
+      'frames built by the canonical JS reference writer shared/realtime/writer.js — both arms (wasm + jsRef DataView) consume byte-identical buffers',
+      'snapshot = spawn section, interleaved 28 B/row (id,arch u16,variant u16,stringRef,x,y,z,yaw), DENSE encoding, stringRef NO_STRING_REF; writeChunkedFrames emits a plain FULL_SNAPSHOT when it fits and SNAPSHOT_CHUNK frames (CHUNK_END on the last) when it does not',
+      'deltas = transform + flags SORTED_IDS over the same changed set (as lib/encoders/soaSorted.mjs); over-cap ticks split into DELTA_CHUNK frames keeping the original baseline, sequence commits on CHUNK_END',
+      'no guest identities: the writer string table carries one empty entry; every stringRef = NO_STRING_REF (0xFFFFFFFF)',
     ],
     env: env(),
   },
@@ -358,10 +329,12 @@ const rows = results.map((r) => [
   `${r.js.speedupMedianVsWasm}x / ${r.js.speedupMinVsWasm}x`,
 ]);
 const snapByN = [...new Map(results.map((r) => [r.n, r])).values()];
+const snapChunksAt50k = results.find((r) => r.n === 50000)?.snapshot.frames;
 const md = `# WASM vs JS DataView decode+apply — afterlight-soa-v1
 
 Generated by \`benchmarks/realtime/run-wasm.mjs\` (node ${env().node}, ${env().cpus} cpus, --expose-gc: ${env().exposedGc}).
 Arm **wasm** = \`wasm/afterlight-realtime\` cdylib (${out.meta.wasmBinaryBytes} B, lto, panic=abort) via \`lib/wasm/glue.mjs\`; arm **js** = \`lib/wasm/jsRefDecoder.mjs\` (DataView control).
+Both arms consume byte-identical **canonical chunk-amendment frames** built by the reference writer \`shared/realtime/writer.js\` (FULL_SNAPSHOT / SNAPSHOT_CHUNK + DELTA / DELTA_CHUNK; interleaved 28-byte spawn rows, DENSE encoding, stringRef NO_STRING_REF).
 Each timed run = re-arm baseline + replay of the full recorded tick chain; per-tick = run/ticks. Under machine load, **min** is the honest number (contract §8).
 
 ## Per-tick decode + apply + JS handover (µs per tick)
@@ -371,7 +344,7 @@ ${markdownTable(
   rows,
 )}
 
-## Session-join (FULL_SNAPSHOT, decode+apply total, per N)
+## Session-join (canonical snapshot: FULL_SNAPSHOT or SNAPSHOT_CHUNK chain, decode+apply total, per N)
 
 ${markdownTable(
   ['N', 'frames', 'bytes', 'wasm med µs', 'wasm min µs', 'js med µs', 'js min µs', 'speedup min'],
@@ -386,12 +359,13 @@ ${markdownTable(
 
 ## Findings
 
-1. Pure decode+apply is decisively faster in wasm — snapshot (28 B/row spawn + DENSE flags) runs ${snapByN.map((r) => `${(r.snapshot.jsUs.min / r.snapshot.wasmUs.min).toFixed(1)}x`).join(' / ')} faster (min, N=${snapByN.map((r) => r.n).join('/')}). That is the decode-only story.
-2. End-to-end per tick (decode + store update + JS reading outputs back), the wasm advantage compresses to ~1.2–1.6x at realistic working points and to parity at high-density ticks of small rooms — both arms then spend most time in the SAME JS consume loop over the changed columns, and glue overhead (BigInt ptr/len unpacking, view creation, frame memcpy) dominates tiny frames: at the smallest point (10 entities, 298 B/tick) the JS arm wins outright.
-3. The 1 MiB frame cap binds first: at N=50000 f=1.0 a same-changed-set DELTA is ~1.22 MB and must be chunked into 2 frames/tick (measured as such) — matching \`lib/encoders/soaSorted.mjs\`'s "overContractLimit" cell. Full snapshots exceed one frame beyond ~37k entities (28 B/row spawn rows) and were chunked too; a real server needs chunked joins or a higher cap.
-4. Memory: linear memory is flat over 600 ticks (${memory.growthEvents} growth events; ${(memory.finalBytes / 1048576).toFixed(2)} MiB) — columns are sized by max_slots at store creation, and per-frame staging buffers are reused. Retained JS heap per tick is ~0 in both arms.
-5. Correctness: after every measured chain, wasm and JS stores were driven with an everyone-changed verification delta and compared element-wise against each other AND the f32-rounded fixture world (exact equality, all 9 points, ${results.reduce((a, r) => a + r.correctness.rowsVerified, 0)} rows).
-6. Robustness: the decoder survived 12,000 deterministic mutation iterations (truncation at every length, bit flips, length overflow, bad enums, header violence) plus every-single-bit header flips — no panic, store still usable after each hostile frame (\`cargo test\`, 13 tests). A mid-apply semantic failure poisons the baseline (deltas dropped) until the next FULL_SNAPSHOT, which restores exact state.
+1. Both arms now consume identical canonical chunk-amendment frames (the previous bench hand-rolled a columnar spawn layout with spawn-only DELTA continuation chunks — a divergence from the JS reference writer that the crate has since dropped).
+2. Pure decode+apply is decisively faster in wasm — snapshot join (interleaved 28 B/row spawn, DENSE encoding) runs ${snapByN.map((r) => `${(r.snapshot.jsUs.min / r.snapshot.wasmUs.min).toFixed(1)}x`).join(' / ')} faster (min, N=${snapByN.map((r) => r.n).join('/')}). That is the decode-only story.
+3. End-to-end per tick (decode + store update + JS reading outputs back), the wasm advantage compresses to ~1.2–1.6x at realistic working points and to parity at high-density ticks of small rooms — both arms then spend most time in the SAME JS consume loop over the changed columns, and glue overhead (BigInt ptr/len unpacking, view creation, frame memcpy) dominates tiny frames: at the smallest point (${results[0].entitiesPerTick} entities, ${results[0].bytesPerTick} B/tick) the JS arm wins outright.
+4. The 1 MiB frame cap binds first: at N=50000 f=1.0 a same-changed-set DELTA is ~1.22 MB and ships as 2 DELTA_CHUNK frames/tick (measured as such; chunks share frame_sequence, keep the original baseline, and commit on CHUNK_END).${snapChunksAt50k ? ` The 50k-entity snapshot ships as ${snapChunksAt50k} SNAPSHOT_CHUNK frames —` : ''} matching \`lib/encoders/soaSorted.mjs\`'s "overContractLimit" cell. A real server needs chunked joins or a higher cap.
+5. Memory: linear memory is flat over 600 ticks (${memory.growthEvents} growth events; ${(memory.finalBytes / 1048576).toFixed(2)} MiB) — columns are sized by max_slots at store creation, and per-frame staging buffers are reused. Retained JS heap per tick is ~0 in both arms.
+6. Correctness: after every measured chain, wasm and JS stores were driven with an everyone-changed verification delta and compared element-wise against each other AND the f32-rounded fixture world (exact equality, all 9 points, ${results.reduce((a, r) => a + r.correctness.rowsVerified, 0)} rows); after each snapshot join both stores' sequence equals the chunk sequence (lastSeq).
+7. Robustness: the decoder survived 12,000 deterministic mutation iterations (truncation at every length, bit flips, length overflow, bad enums, header violence) plus every-single-bit header flips — no panic, store still usable after each hostile frame (\`cargo test\`). A mid-apply semantic failure poisons the baseline (deltas dropped) until the next FULL_SNAPSHOT, which restores exact state; a completed SNAPSHOT_CHUNK chain clears poison and re-arms the baseline at CHUNK_END.
 
 ## Recommendation
 
