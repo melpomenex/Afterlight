@@ -11,7 +11,8 @@ import { writeFrame } from '../../shared/realtime/writer.js';
 import { readHeader, readSections } from '../../shared/realtime/frame.js';
 import { serializeRoaring, deserializeRoaring } from '../../shared/realtime/roaring.js';
 import { buildHelloRt, parseHelloRt, buildWelcomeRt, parseWelcomeRt } from '../../shared/realtime/negotiation.js';
-import { FRAME_TYPE, ENCODING, MAGIC } from '../../shared/realtime/constants.js';
+import { writeChunkedFrames } from '../../shared/realtime/writer.js';
+import { FRAME_TYPE, ENCODING, MAGIC, LIMITS } from '../../shared/realtime/constants.js';
 
 const spawn2 = [
   { id: 101, guestId: 'guest_abcdef123', archetype: 0, variant: 0, x: 1, y: 0, z: 2, yaw: 0.5 },
@@ -200,4 +201,68 @@ test('writeFrame enforces the 1 MiB contract cap', () => {
   });
   assert.equal(r.ok, false);
   assert.equal(r.reason, 'frame_too_large');
+});
+
+test('chunked snapshot joins a population no single frame can carry', () => {
+  const n = 50000;
+  const spawn = Array.from({ length: n }, (_, i) => ({ id: i + 1, archetype: 2, variant: i % 8, x: 1, y: 0, z: 2, yaw: 0 }));
+  const r = writeChunkedFrames({
+    frameType: FRAME_TYPE.FULL_SNAPSHOT, roomEpoch: 1, serverTick: 0,
+    frameSequence: 100, baselineSequence: 100, spawn,
+  });
+  assert.ok(r.ok, r.reason);
+  assert.ok(r.frames.length > 1, '50k-entity snapshot must chunk');
+  for (const bytes of r.frames) {
+    assert.ok(bytes.length <= LIMITS.MAX_FRAME_BYTES, 'every chunk fits the cap');
+  }
+  const store = new EntityStore(60000);
+  const session = { epoch: 0, frameSequence: 0 };
+  for (const bytes of r.frames) {
+    const res = applyFrame(store, bytes, session);
+    assert.equal(res.kind, 'applied');
+  }
+  assert.equal(store.count, n);
+  assert.equal(session.frameSequence, 100); // committed on CHUNK_END only
+  // a delta against the joined baseline applies normally
+  const ids = Uint32Array.from([1, 2, 3]);
+  const d = writeFrame({
+    frameType: FRAME_TYPE.DELTA, roomEpoch: 1, serverTick: 1, frameSequence: 101, baselineSequence: 100,
+    transform: { encoding: ENCODING.SORTED_IDS, ids, count: 3, columns: { x: [5, 5, 5], y: [0, 0, 0], z: [5, 5, 5], yaw: [0, 0, 0] } },
+  });
+  const res = applyFrame(store, d.bytes, session);
+  assert.equal(res.kind, 'applied');
+  assert.equal(res.entries.length, 3);
+});
+
+test('chunked delta keeps baseline continuity until CHUNK_END', () => {
+  const store = new EntityStore(64);
+  const session = { epoch: 0, frameSequence: 0 };
+  applyFrame(store, snapshot().bytes, session);
+  const n = 20000;
+  const ids = Uint32Array.from({ length: n }, (_, i) => i + 100);
+  const r = writeChunkedFrames({
+    frameType: FRAME_TYPE.DELTA, roomEpoch: 0, serverTick: 2, frameSequence: 6, baselineSequence: 5,
+    transform: { encoding: ENCODING.SORTED_IDS, ids, count: n, columns: {
+      x: new Float32Array(n), y: new Float32Array(n), z: new Float32Array(n), yaw: new Float32Array(n),
+    } },
+  }, { maxBytes: 65536 });
+  assert.ok(r.ok, r.reason);
+  assert.ok(r.frames.length > 1, 'a 64 KiB budget must chunk a 20k-row delta');
+  for (const bytes of r.frames) {
+    const res = applyFrame(store, bytes, session);
+    assert.equal(res.kind, 'applied');
+  }
+  assert.equal(session.frameSequence, 6);
+  assert.equal(store.count, 2); // unknown ids skipped; store usable throughout
+});
+
+test('old readers reject unknown frame types cleanly (never misapply)', () => {
+  for (const t of [7, 9, 255]) {
+    const b = new Uint8Array(24);
+    const v = new DataView(b.buffer);
+    v.setUint32(0, MAGIC, true);
+    v.setUint8(4, 1); v.setUint8(5, t); v.setUint8(7, 24);
+    const r = applyFrame(new EntityStore(64), b, { epoch: 0, frameSequence: 0 });
+    assert.equal(r.ok, false, 'frame type ' + t + ' must be rejected');
+  }
 });

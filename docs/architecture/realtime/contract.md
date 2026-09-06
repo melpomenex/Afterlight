@@ -54,8 +54,9 @@ Header, 24 bytes, little-endian:
 offset size field
 0      4    magic = 0x414C5254 ("ALRT")
 4      1    protocol_version (v0 = 1)
-5      1    frame_type (0 FULL_SNAPSHOT, 1 DELTA, 2 RESYNC_REQUIRED)
-6      1    flags (bit0: contains string table)
+5      1    frame_type (0 FULL_SNAPSHOT, 1 DELTA, 2 RESYNC_REQUIRED,
+                  3 SNAPSHOT_CHUNK, 4 DELTA_CHUNK — see §4a)
+6      1    flags (bit0: contains string table, bit1: CHUNK_END)
 7      1    header_size (24, forward-extensible)
 8      4    room_epoch (u32; 0 = single-owner era; later = room_leases.epoch)
 12     4    server_tick (u32; 100 ms grid counter)
@@ -116,6 +117,31 @@ never throws into game code.
 - A frame consisting of exactly the 24-byte header is a legal empty DELTA
   (nothing changed); truncated frames longer than the header are rejected by
   the section table. Senders SHOULD avoid empty deltas; receivers accept them.
+
+## 4a. Chunked frames (v0 amendment: SNAPSHOT_CHUNK / DELTA_CHUNK)
+
+The 1 MiB frame cap binds before the largest populations (a 50k-entity
+snapshot is ~1.4 MB; measured in `benchmarks/realtime/results/wasm.md` #4).
+Chunked frame types split them. Rules:
+
+- SNAPSHOT_CHUNK (3): a snapshot split into N frames sharing one
+  `frame_sequence`. The first chunk with a sequence the client is not
+  accumulating (tracked as `chunk_seq`) resets the store; subsequent chunks
+  with the same sequence append. `CHUNK_END` (flags bit1) on the final chunk
+  commits `frame_sequence` as the new delta baseline. Snapshots are
+  self-validating: no baseline check, stale epochs dropped as §4.
+- DELTA_CHUNK (4): baseline-checked like DELTA; all chunks share the
+  original `baseline_sequence`; `frame_sequence` commits only on `CHUNK_END`
+  so every chunk matches. Chunks are not individually acknowledged — on loss
+  the sender restarts the whole frame (re-join semantics for snapshots).
+- Spawn-row transforms ride spawn rows; each chunk's string table carries
+  only its own identities (per-chunk stringRefs).
+- Old readers reject the unknown frame types cleanly (enum validation) —
+  they never misapply a partial snapshot. This is why chunking is two new
+  frame types, not a header flag.
+- Reference implementation: `shared/realtime/writer.js` `writeChunkedFrames`
+  (caller-selectable budget, e.g. 900 KiB per chunk); verified live at
+  50,002 entities through the worker path.
 - Spawn = allocate slot, fill all components from the spawn row (+ defaults),
   render only after initialization; Despawn = free slot, clear GPU state,
   generation-checked so a delayed stale frame cannot resurrect an id

@@ -35,7 +35,11 @@ export function applyFrame(store, bytes, session, opts = emptyOpts()) {
   // unappliable and triggers resync below.
   if (h.roomEpoch < session.epoch) return { ok: true, kind: 'stale_dropped' };
 
-  if (h.frameType === FRAME_TYPE.DELTA) {
+  const isSnapshot = h.frameType === FRAME_TYPE.FULL_SNAPSHOT || h.frameType === FRAME_TYPE.SNAPSHOT_CHUNK;
+  const isDelta = h.frameType === FRAME_TYPE.DELTA || h.frameType === FRAME_TYPE.DELTA_CHUNK;
+  const chunkEnd = (h.flags & 2) !== 0; // FRAME_FLAG.CHUNK_END
+
+  if (isDelta) {
     if (h.baselineSequence !== session.frameSequence || h.roomEpoch !== session.epoch) {
       return { ok: true, kind: 'resync' };
     }
@@ -44,7 +48,20 @@ export function applyFrame(store, bytes, session, opts = emptyOpts()) {
   const secs = readSections(bytes, head.bodyOffset);
   if (!secs.ok) return secs;
 
-  if (h.frameType === FRAME_TYPE.FULL_SNAPSHOT) store.reset();
+  if (h.frameType === FRAME_TYPE.FULL_SNAPSHOT) {
+    store.reset();
+  } else if (h.frameType === FRAME_TYPE.SNAPSHOT_CHUNK) {
+    // A chunk whose sequence differs from the accumulating one starts a new
+    // snapshot: reset and begin. CHUNK_END commits the delta baseline.
+    if (session.chunkSeq !== h.frameSequence) {
+      store.reset();
+      session.chunkSeq = h.frameSequence;
+    }
+    if (chunkEnd) {
+      session.frameSequence = h.frameSequence;
+      session.chunkSeq = 0;
+    }
+  }
 
   const collect = opts.collectEntries !== false; // default: build entries
   const entries = collect ? [] : EMPTY_ENTRIES;
@@ -128,7 +145,11 @@ export function applyFrame(store, bytes, session, opts = emptyOpts()) {
   }
 
   session.epoch = h.roomEpoch;
-  session.frameSequence = h.frameSequence;
+  // Chunked frames commit their sequence only on the final chunk, so a
+  // following delta chunk still matches its original baseline.
+  if (!h.frameType || h.frameType === FRAME_TYPE.FULL_SNAPSHOT || h.frameType === FRAME_TYPE.DELTA || chunkEnd) {
+    session.frameSequence = h.frameSequence;
+  }
   return { ok: true, kind: 'applied', frameType: h.frameType, joined, left, entries };
 }
 
