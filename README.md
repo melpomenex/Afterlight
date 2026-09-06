@@ -112,17 +112,52 @@ The Market Court shares a live **town channel** (`#afterlight`) panel in the low
 - `/msg <name> <text>` whispers directly to another player or an IRC user/bot by nickname; `/me <action>` sends an action line; `/help` lists commands.
 - When the panel is collapsed, a small unread counter shows what you missed; recent history is delivered on connect.
 - The panel scales with your display on wide screens, and can be resized: drag the corner grip on its top-left edge, focus the grip and use the arrow keys, or double-click it to reset. Your size is remembered.
-- **Self-hosted IRC**: the game server embeds a real IRC server on port **6667** (configurable). Connect from any IRC client (IRSSI, WeeChat, HexChat, mIRC, …) or bot:
+
+#### Connecting to the IRC server
+
+The game server embeds a real IRC server, and the town channel is bridged onto it: what players type in the HUD appears in the channel, and what IRC users and bots say appears in the game. Connect from any mainstream IRC client over plain TCP:
+
+| Setting | Value |
+| --- | --- |
+| Host | The machine running `npm run server` |
+| Port | `6667` (configurable — see below) |
+| Channel | `#afterlight` (created automatically; any other `#channel` works too) |
+| Password / TLS | None — no server password, no TLS, no account services |
+
+**irssi**
 
 ```sh
 irssi -c localhost -p 6667 -n KilnBot
 # then: /join #afterlight
 ```
 
-  - Online players hold their nicknames on the relay, so bots cannot impersonate them; if a player's name collides with an IRC client's, the player gets a derived handle like `Kiln_` (announced in their chat panel).
-  - Players see IRC users join/part as system lines, and CTCP actions (`/me`) arrive as styled action lines.
-  - Optional environment variables: `IRC_PORT` (default `6667`; `0` = ephemeral), `IRC_DISABLED=1` (in-game chat only, no IRC door), `IRC_OPER_NAME` / `IRC_OPER_PASS` (IRC operator login), `IRC_TOPIC`.
-  - Deployment note: hosted builds often only expose HTTPS/WebSocket. For external bots to reach the relay, forward or tunnel the IRC port yourself (e.g. via SSH or your tunnel of choice); in-game chat needs no external access.
+**WeeChat**
+
+```
+/server add afterlight localhost/6667
+/connect afterlight
+/join #afterlight
+```
+
+**HexChat / mIRC** — add a network whose server is `localhost/6667` (no login method, no password), connect, then join `#afterlight`.
+
+**Raw TCP (bots & scripts)** — send CRLF-terminated lines. The server sends its welcome (`001`) once it has seen both `NICK` and `USER`; only then will `JOIN` work:
+
+```
+NICK KilnBot
+USER kiln 0 * :Kiln, the companion
+JOIN #afterlight
+PRIVMSG #afterlight :Good evening, town.
+```
+
+Once connected you can chat with players in the channel, `/msg` them by nickname (whispers bridge both ways, players and IRC users alike), and set topics. A `/me` action (CTCP `ACTION`) reaches the game as a styled action line. The server understands `NICK USER JOIN PART TOPIC NAMES PRIVMSG PING PONG QUIT WHO WHOIS OPER CAP`; `MODE` is accepted and ignored — there are no channel modes, bans, or services. Handwritten bots should answer the server's `PING` with `PONG` (real clients do this automatically) or be dropped as timed out, and keep traffic under roughly a dozen lines per 5 seconds.
+
+Notes:
+
+- Online players hold their nicknames on the relay, so bots cannot impersonate them; if a player's name collides with an IRC client's, the player gets a derived handle like `Kiln_` (announced in their chat panel).
+- Players see IRC users join/part as system lines, and CTCP actions (`/me`) arrive as styled action lines.
+- Configuration (environment variables, read when the server starts): `IRC_PORT` (default `6667`; `0` = pick a free port automatically, logged at startup), `IRC_DISABLED=1` (in-game chat only, no IRC door), `IRC_OPER_NAME` / `IRC_OPER_PASS` (IRC operator login via `/OPER` — enabled only when a password is configured), `IRC_TOPIC` (default topic for `#afterlight`).
+- Deployment note: hosted builds often only expose HTTPS/WebSocket. For external bots to reach the relay, forward or tunnel the IRC port yourself (e.g. via SSH or your tunnel of choice); in-game chat needs no external access.
 
 ---
 
