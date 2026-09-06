@@ -32,17 +32,18 @@
 - [x] 4.5 Add IPTV import (paste text, file upload, URL fetch with CORS error message), local saved-lists storage in localStorage, channel guide dialog (names/groups), channel prev/next flipping, and the "import a list first" prompt
 - [x] 4.6 Wire `interact()` branches for `theater_screen`/projector items, `net.on(THEATER_STATE)` registration, and `src/net/client.js` send wrappers
 - [x] 4.7 Add `hls.js` to `package.json` and verify the main bundle stays under the existing warning threshold thanks to dynamic import
+- [ ] 4.8 Cinema view (user addition): seated watching reflows the screen into a large stage with the chat panel docked beside it, HUD hidden, seamless return via stand/Esc; CSS-only chat docking under `body.theater-watching`, watch bar with now-playing title, homography suspended while watching
 
 ## 5. Tests
 
 - [x] 5.1 `tests/theater.test.js`: classifySource cases (valid/invalid, scheme enforcement), reducer behaviors (queue ops, limits, seek clamps, ended/failed guards), timeline math, M3U parsing (valid, mixed, garbage), state persistence round-trip via `Storage`
 - [x] 5.2 `tests/theater-net.test.js`: boot real server on port 0; two clients join `theater`; queue/pause/flip from one → other receives `THEATER_STATE`; late joiner gets snapshot mid-playback; rejected action errors only the sender and leaves shared state intact
 - [x] 5.3 Extend `tests/districts.test.js` expectations for the theater: metadata integrity, flood-fill reachability of seats/note/projector/gates, spawn clearance, finite `update()` output
-- [ ] 5.4 Run `npm test` and resolve all failures
+- [x] 5.4 Run `npm test` and resolve all failures
 
 ## 6. Verification and docs
 
-- [ ] 6.1 `npm run build` succeeds; confirm no new bundle-size warning regression
-- [ ] 6.2 Browser-verify in the running app: travel to The Orpheum, sit/stand, restore projector (marquee/lights persist across travel+reload), queue a YouTube video and a direct `.mp4`, verify second browser window sees synced playback, pause/seek from one window, late-join mid-video, IPTV import + guide + channel flipping, dead-link auto-advance, and existing districts/save regression pass
-- [ ] 6.3 Check all three camera views and a narrow viewport for overlay alignment and HUD overlap; confirm keyboard controls still work with panels open
-- [ ] 6.4 Update README (theater controls, supported sources, IPTV import steps, CORS/streaming limitations) and AGENTS.md (theater integration points, screen-overlay architecture note)
+- [x] 6.1 `npm run build` succeeds; confirm no new bundle-size warning regression
+- [x] 6.2 Browser-verify in the running app: travel to The Orpheum, sit/stand, restore projector (marquee/lights persist across travel+reload), queue a YouTube video and a direct `.mp4`, verify second browser window sees synced playback, pause/seek from one window, late-join mid-video, IPTV import + guide + channel flipping, dead-link auto-advance, and existing districts/save regression pass
+- [x] 6.3 Check all three camera views and a narrow viewport for overlay alignment and HUD overlap; confirm keyboard controls still work with panels open
+- [x] 6.4 Update README (theater controls, supported sources, IPTV import steps, CORS/streaming limitations) and AGENTS.md (theater integration points, screen-overlay architecture note)

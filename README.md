@@ -26,7 +26,7 @@ In terminal 2 (start the Vite dev server on port 5173):
 npm run dev
 ```
 
-Open **http://localhost:5173** in one or more browser windows. When multiple players connect, they see each other walking around in the shared Market Court with overhead nickname tags, custom procedural gardener avatars, and synchronized movement.
+Open **http://localhost:5173** in one or more browser windows. You wake up inside **The Orpheum**, the city's cinema, in cinema view: the shared screen on stage with the town chat docked beside it. Press <kbd>Esc</kbd> (or a movement key) to step into the aisles, then walk out of the gates to explore — the Market Court, your garden, and 17 districts are all out there. When multiple players connect, they see each other with overhead nickname tags, custom procedural gardener avatars, and synchronized movement. (`?room=market`, `?room=garden`, or any district id in the URL overrides the spawn point.)
 
 ### 3. Production Build & Tests
 
@@ -83,15 +83,15 @@ Open **http://localhost:5173** in one or more browser windows. When multiple pla
 | <kbd>4</kbd> | Watering Can (Equip can & water beds) |
 | <kbd>5</kbd> | Harvest Shears |
 | <kbd>6</kbd> | Sprinkler Kit (Place on a bed to auto-water it + neighbors) |
-| <kbd>E</kbd> | Contextual interact with nearest bed, stall, gather node, the Great Mill, or gate |
+| <kbd>E</kbd> | Contextual interact with nearest bed, stall, gather node, the Great Mill, gate, or theater seat |
 | <kbd>I</kbd> | Open Satchel / Inventory |
 | <kbd>M</kbd> | Open Market Exchange Board |
-| <kbd>T</kbd> / **Travel** | Open District Navigator (16 biomes & areas) |
+| <kbd>T</kbd> / **Travel** | Open District Navigator (17 biomes & areas) |
 | <kbd>V</kbd> | Wave emote to other gardeners |
 | <kbd>Enter</kbd> / <kbd>/</kbd> | Open town chat (type & <kbd>Enter</kbd> to send, <kbd>Esc</kbd> to return to the game) |
 | <kbd>C</kbd> | Cycle 3 camera angles |
 | Mouse Wheel | Zoom in / out |
-| <kbd>Escape</kbd> | Journal & Settings |
+| <kbd>Escape</kbd> | Journal & Settings (in cinema view: return to the game first) |
 
 ### Town Chat & IRC
 
@@ -127,7 +127,7 @@ Each biome features:
 - **Minimap Schematics**: Custom vector floor plan radar schematics on the local HUD.
 - **Material Caches** (in the Foundry, Trestle, and Glasshouse): server-owned gather nodes that deplete on harvest and regrow on a timer, feeding the Market Court's machine shop.
 
-### The 16 Districts & Biomes:
+### The 17 Districts & Biomes:
 1. **The Rain Court** (`court`): Wet stone and warm windows where the journey began.
 2. **The Sluiceworks** (`canal`): Aqueduct channels crossed by an arched bridge.
 3. **The Glass Garden** (`garden`): Overgrown conservatory terraces with a seed nursery.
@@ -144,8 +144,37 @@ Each biome features:
 14. **The Reclaimed Marshes** (`delta`): Silt sandbars, cattails, and tidal channel beacons.
 15. **The Paper Catacombs** (`archives`): Sunken stone library holding centuries of preserved records.
 16. **The Solar Kiln** (`kiln-terrace`): Terracotta tile courtyards and parabolic sun concentrators.
+17. **The Orpheum** (`theater`): A velvet-seated cinema where the city watches together — see below.
 
 Travel between districts seamlessly via physical east/west gateway conduits or by opening the **District Navigator** (<kbd>T</kbd> or **Travel** button in the footer).
+
+---
+
+## The Orpheum — Watch Together
+
+At the far east end of the line sits **The Orpheum** (`theater`), a grand old cinema where everyone in the room watches one shared screen — and where every player wakes up. What plays there plays for **everyone at once**: one player queues a film or flips an IPTV channel and the whole auditorium sees it.
+
+### Watching
+
+- **Cinema view is the default here.** Spawning in (or walking into) The Orpheum starts the big-screen presentation: stage + docked chat, HUD aside. <kbd>Esc</kbd>, any movement key, a walk-click, or the watch bar's **⤺** action steps you back into the aisles without losing your spot — walk out the gates to play, come back and the picture is waiting.
+- **Take a seat** — press <kbd>E</kbd> at any chair to settle in; the watch bar becomes **⤺ Stand up**. Standing up is one action, always reachable.
+- **Run the projector** — the **▣ Booth** button (or interacting with the screen) opens the projection booth: queue, transport controls, IPTV, and volume. Anyone in the auditorium may run it; there is no host.
+- **Restore the projector** (landmark) to light the marquee and aisle lamps for good. It's a flourish — the screen plays with or without it.
+
+### What the screen plays
+
+- **YouTube** videos (watch links, `youtu.be`, Shorts), **Vimeo** videos
+- **Direct video files** (`.mp4`, `.webm`, …) and **HLS streams** (`.m3u8`)
+- **IPTV**: import M3U/M3U8 playlists by pasting text, uploading a file, or fetching a URL; browse channels in the **guide** (with group filters), flip with **◂ / ▸**, and save your lists in the browser for later.
+
+Queue behavior: items added while something plays line up in the queue and auto-advance when a film ends (dead links are skipped with a notice). The now-playing state and queue live on the server — they survive reloads and restarts, and latecomers join mid-picture at the right moment. Playback is drift-corrected to a shared clock, so pausing or seeking moves everyone together.
+
+### Good to know
+
+- Only `http(s)` links can be pinned to the screen; YouTube/Vimeo play through their official embeds, everything else as a plain video stream.
+- Some public IPTV lists are hosted without CORS headers — the direct **Fetch** may be refused by your browser. Paste the playlist text or upload the file instead; that always works.
+- Streams their hosts remove or region-block will show a notice and skip ahead. Live channels can't be rewound.
+- Whether other players can *hear* a video depends on each browser's autoplay rules; a "Tap to start" badge appears if the browser needs a click first. Volume is local.
 
 ---
 
