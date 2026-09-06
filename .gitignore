@@ -12,3 +12,5 @@ wasm/afterlight-realtime/target/
 server_elixir/_build/
 server_elixir/deps/
 server_elixir/erl_crash.dump
+# BEAM nodes crashing with cwd at the repo root
+/erl_crash.dump
