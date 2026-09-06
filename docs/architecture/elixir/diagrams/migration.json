@@ -1,0 +1,187 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Afterlight / Migration ownership boundaries",
+    "quality_profile": "showcase",
+    "locale": "en"
+  },
+  "components": [
+    {
+      "id": "client",
+      "type": "frontend",
+      "label": "Existing client",
+      "sublabel": "NetworkClient adapter",
+      "pos": [
+        40,
+        270
+      ],
+      "size": [
+        180,
+        74
+      ]
+    },
+    {
+      "id": "edge",
+      "type": "backend",
+      "label": "Protocol routing",
+      "sublabel": "One writer per domain",
+      "pos": [
+        370,
+        270
+      ],
+      "size": [
+        180,
+        74
+      ]
+    },
+    {
+      "id": "elixir",
+      "type": "backend",
+      "label": "Phoenix domains",
+      "sublabel": "Move behind rollout flags",
+      "pos": [
+        700,
+        270
+      ],
+      "size": [
+        180,
+        74
+      ]
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "New authority after cutover",
+      "pos": [
+        1030,
+        270
+      ],
+      "size": [
+        180,
+        74
+      ]
+    },
+    {
+      "id": "node",
+      "type": "backend",
+      "label": "Legacy Node",
+      "sublabel": "Unmigrated game domains",
+      "pos": [
+        370,
+        510
+      ],
+      "size": [
+        180,
+        74
+      ]
+    },
+    {
+      "id": "json",
+      "type": "database",
+      "label": "Legacy JSON",
+      "sublabel": "Frozen snapshot at cutover",
+      "pos": [
+        700,
+        510
+      ],
+      "size": [
+        180,
+        74
+      ]
+    },
+    {
+      "id": "fixtures",
+      "type": "backend",
+      "label": "Parity fixtures",
+      "sublabel": "Pure JS rules vs Elixir",
+      "pos": [
+        700,
+        40
+      ],
+      "size": [
+        180,
+        74
+      ]
+    },
+    {
+      "id": "sidecar",
+      "type": "backend",
+      "label": "Media sidecar",
+      "sublabel": "WebTorrent + IRC bridge",
+      "pos": [
+        40,
+        510
+      ],
+      "size": [
+        180,
+        74
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "client-edge",
+      "from": "client",
+      "to": "edge",
+      "label": "versioned events"
+    },
+    {
+      "id": "edge-elixir",
+      "from": "edge",
+      "to": "elixir",
+      "label": "new owner"
+    },
+    {
+      "id": "elixir-pg",
+      "from": "elixir",
+      "to": "pg",
+      "label": "transactions"
+    },
+    {
+      "id": "edge-node",
+      "from": "edge",
+      "to": "node",
+      "label": "legacy owner",
+      "labelDy": 70
+    },
+    {
+      "id": "node-json",
+      "from": "node",
+      "to": "json",
+      "label": "save"
+    },
+    {
+      "id": "fixtures-elixir",
+      "from": "fixtures",
+      "to": "elixir",
+      "label": "verify",
+      "labelDy": 70
+    },
+    {
+      "id": "node-sidecar",
+      "from": "node",
+      "to": "sidecar",
+      "label": "adapter"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Safe migration",
+      "items": [
+        "Cut over complete economic transactions together.",
+        "Freeze, import, reconcile, then enable the new writer."
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Retain specialty services",
+      "items": [
+        "Keep WebTorrent in Node behind authenticated APIs.",
+        "Rollback after new writes needs reverse export or restore."
+      ]
+    }
+  ]
+}
