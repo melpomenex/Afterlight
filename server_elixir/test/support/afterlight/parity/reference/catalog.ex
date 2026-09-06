@@ -1221,7 +1221,9 @@ defmodule Afterlight.Parity.Reference.Catalog do
   defp truthy(false), do: false
   defp truthy(""), do: false
   defp truthy(0), do: false
-  defp truthy(0.0), do: false
+  # JS -0 and +0 are both falsy.
+  defp truthy(+0.0), do: false
+  defp truthy(-0.0), do: false
   defp truthy(_), do: true
 
   defp non_empty_or_nil(""), do: nil
