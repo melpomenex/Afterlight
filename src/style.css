@@ -940,7 +940,7 @@ kbd {
   bottom: 4%;
   text-align: center;
   font-family: 'Space Mono', monospace;
-  font-size: 5px; /* small on the 100px base; scales up with the homography so it stays legible from the seats */
+  font-size: calc(5px * var(--ts-scale, 1)); /* 5px on the 100px base; the overlay sets --ts-scale to its height/100 so the caption keeps its on-screen share */
   letter-spacing: 0.4px;
   color: #dbe6d8;
   background: #07110ed9;
@@ -952,6 +952,9 @@ kbd {
 }
 #theater-screen.ts-state-idle .ts-caption { color: #93a49a; }
 #theater-screen.ts-state-error .ts-caption { color: #f2b8b8; border-top-color: #d6878759; }
+/* While something actually plays, the caption must not cover the picture;
+   the title lives in the watch bar, guide, and booth instead. */
+#theater-screen.ts-state-playing .ts-caption { display: none; }
 .ts-play-badge {
   position: absolute;
   left: 50%;
@@ -1083,7 +1086,8 @@ kbd {
   padding-top: 14px;
 }
 .theater-iptv-saved { display: flex; gap: 6px; margin: 8px 0; }
-.theater-iptv-saved select {
+.theater-iptv-saved select,
+.theater-guide-country select {
   flex: 1;
   min-width: 0;
   background: #122122;
@@ -1093,6 +1097,9 @@ kbd {
   border-radius: 3px;
   font-size: 12px;
 }
+.theater-guide-country { display: flex; align-items: center; gap: 10px; margin: 8px 0 0; }
+.theater-guide-country .micro { white-space: nowrap; }
+.theater-guide-country[hidden], .theater-chip-row[hidden] { display: none; }
 .theater-iptv-flip { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
 .theater-current-channel {
   flex: 1;

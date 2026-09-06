@@ -209,3 +209,59 @@ test('sanitizeSavedLists: caps lists and channels, coerces bad metadata', () => 
   assert.equal(only.channels.length, 1);
   assert.equal(only.channels[0].url, 'https://ok/1');
 });
+
+test('splitChannelGroup separates country of origin from category', () => {
+  assert.deepEqual(mod.splitChannelGroup('UK|News'), { country: 'UK', category: 'News' });
+  assert.deepEqual(mod.splitChannelGroup(' United States | Entertainment '), { country: 'United States', category: 'Entertainment' });
+  // No separator: the whole group is a country with no category.
+  assert.deepEqual(mod.splitChannelGroup('Germany'), { country: 'Germany', category: null });
+  // Separator with an empty category keeps the country, drops the category.
+  assert.deepEqual(mod.splitChannelGroup('France|'), { country: 'France', category: null });
+  // Missing/empty groups land nowhere in particular.
+  assert.deepEqual(mod.splitChannelGroup(null), { country: null, category: null });
+  assert.deepEqual(mod.splitChannelGroup('   '), { country: null, category: null });
+});
+
+test('guideFacets lists countries and the categories each one offers', () => {
+  const channels = [
+    { group: 'UK|News' },
+    { group: 'UK|Sports' },
+    { group: 'US|News' },
+    { group: 'US|Entertainment' },
+    { group: 'Germany' },
+    { group: null },          // groupless -> Other bucket, no categories
+    { url: 'http://x/1' },
+  ];
+  const facets = mod.guideFacets(channels);
+  assert.deepEqual(facets.countries, ['Germany', 'Other', 'UK', 'US']);
+  assert.deepEqual(facets.categoriesFor('UK'), ['News', 'Sports']);
+  // 'All' unions every country's categories.
+  assert.deepEqual(facets.categoriesFor('All'), ['Entertainment', 'News', 'Sports']);
+  // A country with no categories offers none.
+  assert.deepEqual(facets.categoriesFor('Germany'), []);
+  assert.deepEqual(mod.guideFacets(undefined).countries, []);
+});
+
+test('channelMatchesGuide filters by country first, then category', () => {
+  const ukNews = { group: 'UK|News' };
+  const usNews = { group: 'US|News' };
+  const germany = { group: 'Germany' };
+  assert.equal(mod.channelMatchesGuide(ukNews, 'All', 'All'), true);
+  assert.equal(mod.channelMatchesGuide(ukNews, 'UK', 'All'), true);
+  assert.equal(mod.channelMatchesGuide(ukNews, 'US', 'All'), false);
+  // Category applies within (or across) countries.
+  assert.equal(mod.channelMatchesGuide(ukNews, 'UK', 'News'), true);
+  assert.equal(mod.channelMatchesGuide(ukNews, 'UK', 'Sports'), false);
+  assert.equal(mod.channelMatchesGuide(usNews, 'All', 'News'), true);
+  // Channels without a category only surface under the 'All' filter.
+  assert.equal(mod.channelMatchesGuide(germany, 'Germany', 'All'), true);
+  assert.equal(mod.channelMatchesGuide(germany, 'Other', 'All'), false);
+  // Groupless channels belong to Other.
+  const anon = { url: 'http://x/1' };
+  assert.equal(mod.channelMatchesGuide(anon, 'Other', 'All'), true);
+  assert.equal(mod.channelMatchesGuide(anon, 'All', 'News'), false);
+});
+
+test('a fully groupless list keeps the flat fallback (no country facets)', () => {
+  assert.deepEqual(mod.guideFacets([{ url: 'http://x/1' }, { url: 'http://x/2' }]).countries, []);
+});

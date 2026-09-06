@@ -38,18 +38,6 @@ const IPTV_LISTS_KEY = 'afterlight-iptv-lists';
 const IPTV_LISTS_MAX = 12;
 const IPTV_CHANNELS_MAX = 5000;
 
-/**
- * Overlay-local source square: content top-left, top-right, bottom-right,
- * bottom-left. updateScreenQuad() maps these onto the projected quad
- * (which arrives as bottomLeft, bottomRight, topRight, topLeft).
- */
-const SQUARE_CORNERS = [
-  { x: 0, y: 0 },
-  { x: OVERLAY_BASE, y: 0 },
-  { x: OVERLAY_BASE, y: OVERLAY_BASE },
-  { x: 0, y: OVERLAY_BASE },
-];
-
 // --- Pure exported helpers (unit-tested under Node) ---
 
 /**
@@ -114,6 +102,75 @@ export function homographyToMatrix3d(h) {
     return Number.isFinite(num) ? num : i === 8 ? 1 : fallback;
   };
   return `matrix3d(${v(0)}, ${v(3)}, 0, ${v(6)}, ${v(1)}, ${v(4)}, 0, ${v(7)}, 0, 0, 1, 0, ${v(2)}, ${v(5)}, 0, ${v(8)})`;
+}
+
+// Bucket name for channels whose group has no country part.
+export const GUIDE_OTHER = 'Other';
+
+/**
+ * Split an IPTV group-title into { country, category }: the part before the
+ * first "|" is the country of origin, the rest the category ("UK|News").
+ * Groups without a separator count as countries; missing/empty groups give
+ * { country: null, category: null } and land in the GUIDE_OTHER bucket.
+ */
+export function splitChannelGroup(group) {
+  const g = typeof group === 'string' ? group.trim() : '';
+  if (!g) return { country: null, category: null };
+  const i = g.indexOf('|');
+  if (i < 0) return { country: g, category: null };
+  return {
+    country: g.slice(0, i).trim() || null,
+    category: g.slice(i + 1).trim() || null,
+  };
+}
+
+/**
+ * Facets for the guide's country -> category navigation: the sorted country
+ * list (channels with no group land under GUIDE_OTHER) plus the sorted
+ * categories available for a given country ('All' unions every country).
+ */
+export function guideFacets(channels) {
+  const byCountry = new Map();
+  let grouped = 0;
+  let groupless = 0;
+  for (const ch of Array.isArray(channels) ? channels : []) {
+    const { country, category } = splitChannelGroup(ch?.group);
+    if (!country && !category) {
+      groupless += 1;
+      continue;
+    }
+    grouped += 1;
+    const c = country || GUIDE_OTHER;
+    if (!byCountry.has(c)) byCountry.set(c, new Set());
+    if (category) byCountry.get(c).add(category);
+  }
+  // Mixed lists give groupless channels an 'Other' bucket so they stay
+  // reachable; a fully groupless list keeps the flat fallback instead.
+  if (grouped > 0 && groupless > 0) byCountry.set(GUIDE_OTHER, byCountry.get(GUIDE_OTHER) || new Set());
+  return {
+    countries: [...byCountry.keys()].sort((a, b) => a.localeCompare(b)),
+    categoriesFor(country) {
+      const sets = country === 'All'
+        ? [...byCountry.values()]
+        : [byCountry.get(country)].filter(Boolean);
+      const union = new Set();
+      for (const s of sets) for (const v of s) union.add(v);
+      return [...union].sort((a, b) => a.localeCompare(b));
+    },
+  };
+}
+
+/**
+ * Whether a channel passes the chosen country/category guide filters.
+ * 'All' disables the corresponding filter; channels without a category only
+ * surface under the 'All' category filter.
+ */
+export function channelMatchesGuide(channel, country, category) {
+  const { country: c, category: k } = splitChannelGroup(channel?.group);
+  const cc = c || GUIDE_OTHER;
+  if (country && country !== 'All' && cc !== country) return false;
+  if (category && category !== 'All' && (k || '') !== category) return false;
+  return true;
 }
 
 /**
@@ -255,8 +312,11 @@ export class TheaterScreenUI {
     this.savedLists = [];
     this.activeListId = null;
     this.activeChannelIndex = -1;
-    this.guideGroupFilter = 'All';
+    this.guideCountry = 'All'; // Guide navigation: country first…
+    this.guideCategory = 'All'; // …then categories within that country
     this.guideListId = null;
+    this.overlayW = OVERLAY_BASE; // Untransformed overlay rect (CSS px)
+    this.overlayH = OVERLAY_BASE;
 
     this.dom = null;
     if (typeof document !== 'undefined') {
@@ -343,13 +403,34 @@ export class TheaterScreenUI {
    * in CSS px, order bottomLeft, bottomRight, topRight, topLeft; null hides
    * the overlay. Also runs the ~2s drift check.
    */
-  updateScreenQuad(quad) {
+  updateScreenQuad(quad, worldAspect = 1) {
     this.quad = Array.isArray(quad) && quad.length >= 4 ? quad : null;
     if (this.dom?.overlay && this.quad && !this.watching) {
-      // quad is bl, br, tr, tl -> map content TL,TR,BR,BL onto tl, tr, br, bl
+      // Size the untransformed overlay to roughly the projected quad's area
+      // and keep its aspect equal to the in-world screen, so media rasterizes
+      // near display resolution and keeps its shape on the screen plane. (A
+      // fixed 100x100 square turned close-up views blurry and squashed the
+      // picture vertically by the screen's aspect ratio.)
+      const xs = this.quad.map((p) => p.x);
+      const ys = this.quad.map((p) => p.y);
+      const area = Math.max(0, Math.max(...xs) - Math.min(...xs)) *
+        Math.max(0, Math.max(...ys) - Math.min(...ys));
+      const aspect = Number.isFinite(worldAspect) && worldAspect > 0 ? worldAspect : 1;
+      const side = Math.min(Math.max(Math.sqrt(Math.max(area, 1) * aspect), OVERLAY_BASE), 2400);
+      const w = Math.round(side);
+      const h = Math.max(1, Math.round(side / aspect));
+      if (Math.abs(w - this.overlayW) > 2 || Math.abs(h - this.overlayH) > 2) {
+        this.overlayW = w;
+        this.overlayH = h;
+        const style = this.dom.overlay.style;
+        style.width = `${w}px`;
+        style.height = `${h}px`;
+        style.setProperty('--ts-scale', (h / OVERLAY_BASE).toFixed(3));
+      }
+      // quad is bl, br, tr, tl -> map element rect TL,TR,BR,BL onto tl, tr, br, bl
+      const src = [{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: h }, { x: 0, y: h }];
       const dst = [this.quad[3], this.quad[2], this.quad[1], this.quad[0]];
-      const h = computeHomography(SQUARE_CORNERS, dst);
-      this.dom.overlay.style.transform = homographyToMatrix3d(h);
+      this.dom.overlay.style.transform = homographyToMatrix3d(computeHomography(src, dst));
     }
     this.syncOverlay();
     this.tickDriftCheck();
@@ -386,8 +467,16 @@ export class TheaterScreenUI {
     // would otherwise swallow E/WASD and leave the player feeling stuck.
     if (document.activeElement?.id === 'chat-input') document.activeElement.blur();
     if (this.dom?.overlay) {
-      if (this.watching) this.dom.overlay.style.transform = '';
-      else this.dom.overlay.style.aspectRatio = '';
+      if (this.watching) {
+        this.dom.overlay.style.transform = '';
+        // Hand sizing back to the cinema-stage CSS: inline width/height from
+        // the projected-quad fitting would override it.
+        this.dom.overlay.style.width = '';
+        this.dom.overlay.style.height = '';
+        this.dom.overlay.style.removeProperty('--ts-scale');
+      } else {
+        this.dom.overlay.style.aspectRatio = '';
+      }
     }
     if (this.watching) this.dockChatForWatch();
     this.updateWatchBar();
@@ -1174,7 +1263,11 @@ export class TheaterScreenUI {
         <button type="button" id="theater-guide-next" class="btn-secondary">Next ▸</button>
         <span id="theater-guide-count" class="micro"></span>
       </div>
-      <div id="theater-guide-groups" class="theater-chip-row"></div>
+      <label class="theater-guide-country">
+        <span class="micro">COUNTRY</span>
+        <select id="theater-guide-country" aria-label="Filter channels by country"></select>
+      </label>
+      <div id="theater-guide-groups" class="theater-chip-row" hidden></div>
       <div id="theater-guide-list" class="theater-guide-list"></div>
       <div class="modal-footer">
         <button type="button" id="close-theater-guide" class="btn-secondary">Close guide →</button>
@@ -1188,8 +1281,16 @@ export class TheaterScreenUI {
     this.dom.guideDialog = dialog;
     this.dom.guideTitle = dialog.querySelector('#theater-guide-title');
     this.dom.guideCount = dialog.querySelector('#theater-guide-count');
+    this.dom.guideCountryRow = dialog.querySelector('.theater-guide-country');
+    this.dom.guideCountrySelect = dialog.querySelector('#theater-guide-country');
     this.dom.guideGroups = dialog.querySelector('#theater-guide-groups');
     this.dom.guideList = dialog.querySelector('#theater-guide-list');
+    this.dom.guideCountrySelect.addEventListener('change', () => {
+      // A new country means a new set of categories: fall back to all of them.
+      this.guideCountry = this.dom.guideCountrySelect.value || 'All';
+      this.guideCategory = 'All';
+      this.renderGuide();
+    });
     dialog.querySelector('#theater-guide-prev').addEventListener('click', () => this.flipChannel(-1));
     dialog.querySelector('#theater-guide-next').addEventListener('click', () => this.flipChannel(1));
     dialog.querySelector('#close-theater-guide').addEventListener('click', () => dialog.close());
@@ -1496,40 +1597,57 @@ export class TheaterScreenUI {
 
     if (this.guideListId !== (list?.id || null)) {
       this.guideListId = list?.id || null;
-      this.guideGroupFilter = 'All';
+      this.guideCountry = 'All';
+      this.guideCategory = 'All';
     }
     this.dom.guideTitle.textContent = list ? list.name : 'Channel Guide';
-    this.dom.guideCount.textContent = list
-      ? `${list.channels.length} channels${this.state?.now ? ` · on screen: ${this.state.now.title}` : ''}`
-      : 'No list loaded';
 
-    // Group filter chips (only when the list actually has groups)
-    const groups = [];
-    if (list) {
-      for (const ch of list.channels) {
-        if (ch.group && !groups.includes(ch.group)) groups.push(ch.group);
+    // Country -> category navigation: pick a country of origin first, then
+    // narrow by the categories that country actually offers. Lists without
+    // any groups fall back to the flat channel list.
+    const facets = guideFacets(list?.channels);
+    const hasGroups = facets.countries.length > 0;
+    this.dom.guideCountryRow.hidden = !hasGroups;
+    this.dom.guideGroups.hidden = true;
+    let filtering = false;
+    if (list && hasGroups) {
+      if (!facets.countries.includes(this.guideCountry)) this.guideCountry = 'All';
+      const select = this.dom.guideCountrySelect;
+      select.innerHTML = '';
+      for (const c of ['All countries', ...facets.countries]) {
+        const opt = document.createElement('option');
+        opt.value = c === 'All countries' ? 'All' : c;
+        opt.textContent = c;
+        select.append(opt);
       }
-    }
-    const chipRow = this.dom.guideGroups;
-    chipRow.innerHTML = '';
-    if (list && groups.length) {
-      if (!groups.includes(this.guideGroupFilter)) this.guideGroupFilter = 'All';
-      for (const g of ['All', ...groups]) {
-        const chip = document.createElement('button');
-        chip.type = 'button';
-        chip.className = `theater-chip ${g === this.guideGroupFilter ? 'active' : ''}`;
-        chip.textContent = g;
-        chip.addEventListener('click', () => {
-          this.guideGroupFilter = g;
-          this.renderGuide();
-        });
-        chipRow.append(chip);
+      select.value = this.guideCountry;
+
+      const cats = facets.categoriesFor(this.guideCountry);
+      if (!cats.includes(this.guideCategory)) this.guideCategory = 'All';
+      const chipRow = this.dom.guideGroups;
+      chipRow.innerHTML = '';
+      if (cats.length) {
+        chipRow.hidden = false;
+        for (const g of ['All categories', ...cats]) {
+          const value = g === 'All categories' ? 'All' : g;
+          const chip = document.createElement('button');
+          chip.type = 'button';
+          chip.className = `theater-chip ${value === this.guideCategory ? 'active' : ''}`;
+          chip.textContent = g;
+          chip.addEventListener('click', () => {
+            this.guideCategory = value;
+            this.renderGuide();
+          });
+          chipRow.append(chip);
+        }
       }
+      filtering = this.guideCountry !== 'All' || this.guideCategory !== 'All';
     }
 
     const listEl = this.dom.guideList;
     listEl.innerHTML = '';
     if (!list || !list.channels.length) {
+      this.dom.guideCount.textContent = 'No list loaded';
       const empty = document.createElement('div');
       empty.className = 'theater-empty';
       empty.textContent = 'No IPTV list yet — open the Screen controls and import one (paste text, upload a file, or fetch a URL).';
@@ -1537,9 +1655,10 @@ export class TheaterScreenUI {
       return;
     }
 
-    const filter = this.guideGroupFilter;
+    let shown = 0;
     list.channels.forEach((channel, index) => {
-      if (filter !== 'All' && (channel.group || '') !== filter) return;
+      if (!channelMatchesGuide(channel, this.guideCountry, this.guideCategory)) return;
+      shown += 1;
       const row = document.createElement('div');
       row.className = `theater-channel-row ${index === this.activeChannelIndex ? 'current' : ''}`;
       if (channel.logo && /^https?:\/\//i.test(channel.logo)) {
@@ -1568,5 +1687,12 @@ export class TheaterScreenUI {
       });
       listEl.append(row);
     });
+    if (!shown) {
+      const empty = document.createElement('div');
+      empty.className = 'theater-empty';
+      empty.textContent = 'No channels match this country and category.';
+      listEl.append(empty);
+    }
+    this.dom.guideCount.textContent = `${list.channels.length} channels · showing ${shown}${this.state?.now ? ` · on screen: ${this.state.now.title}` : ''}`;
   }
 }
