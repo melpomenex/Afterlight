@@ -4,3 +4,4 @@
 // add-realtime-worker-pipeline tasks.
 import './realtime/protocol.test.js';
 import './realtime/pipeline.test.js';
+import './realtime/fuzz.test.js';
