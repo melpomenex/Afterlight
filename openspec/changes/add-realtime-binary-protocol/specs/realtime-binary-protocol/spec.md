@@ -97,6 +97,20 @@ The codecs SHALL live under `shared/realtime/` as pure modules import-safe under
 - **WHEN** a decoded frame updates the entity store
 - **THEN** the produced per-entity entries can be applied by the existing avatar update code without adaptation
 
+### Requirement: Chunked snapshots and deltas beyond the frame cap
+
+Oversized state SHALL be split into SNAPSHOT_CHUNK / DELTA_CHUNK frames sharing one `frame_sequence`, each within the frame-size cap, with `CHUNK_END` on the final chunk committing the sequence. A SNAPSHOT_CHUNK sequence accumulating on a client SHALL reset the store only at its first chunk and append thereafter; DELTA_CHUNK frames SHALL retain their original `baseline_sequence` on every chunk so each applies. Because old readers reject unknown frame types by enum validation, a legacy client SHALL never misapply a partial snapshot — it rejects and resyncs instead. Chunked joins SHALL be verified against populations no single frame can carry (≥ 50,000 entities).
+
+#### Scenario: 50k-entity join through a capped wire
+
+- **WHEN** a 50,000-entity snapshot is written with the reference chunking writer and applied to a fresh store
+- **THEN** every chunk fits the frame cap, the entity count matches exactly, and the committed sequence equals the final chunk's
+
+#### Scenario: Legacy reader refuses a partial snapshot safely
+
+- **WHEN** a chunk frame reaches a reader that predates the chunk types
+- **THEN** the frame is rejected on frame-type validation and the client resyncs rather than applying a partial world
+
 ### Requirement: Debuggability and server encoder contract
 
 The capability SHALL include a JSON debug encoding reproducing the legacy message shapes, a frame-dump tool that prints tick, epoch, sequence, frame type, per-section encodings and counts, and a readable entity table from captured bytes, and a documented encoding-selection switch (`AFTERLIGHT_REALTIME_ENCODING=json`) for development. The server side SHALL be specified as an `Afterlight.Realtime.FrameEncoder` behaviour over a `RealtimeFrame` struct produced by delta extraction, with channel handlers free of byte-offset arithmetic and with encode-once-per-capability-class fanout; reference BEAM measurements live in the benchmark harness until the Mix app exists.
