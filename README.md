@@ -255,6 +255,17 @@ Queue behavior: items added while something plays line up in the queue and auto-
 
 ---
 
+### Optional Phoenix gateway transport (migration opt-in)
+
+The default build connects straight to the Node server as always. An opt-in transport routes the same game through the Phoenix gateway (`server_elixir/`, port 4000 in dev), which relays every frame 1:1 to Node — same rooms, same chat, same theater, nothing moved.
+
+- **Run both servers:** `npm run server` (Node, :3001) plus `cd server_elixir && mix phx.server` for the gateway after `mix deps.get` (see `server_elixir/README.md`).
+- **Opt in at build time:** `VITE_TRANSPORT=phoenix VITE_WS_URL=ws://localhost:4000/ws npm run dev`.
+- **Roll back anytime:** build with `VITE_TRANSPORT=node` (the default) or point `VITE_WS_URL` back at the Node socket. No durable state lives in the gateway, so rolling back is a pure transport switch — in-flight transient state (positions, chat history) resets exactly as it would after any server restart today.
+- Environment knobs: `AFTERLIGHT_BOUNDARY_SECRET` (gateway→Node shared secret; unset = direct clients unaffected), `AFTERLIGHT_NODE_WS_URL` / `AFTERLIGHT_NODE_HTTP_URL` (loopback defaults), `AFTERLIGHT_TOKEN_SECRET` (set a real value outside dev).
+
+---
+
 ## Architecture & Server Authority
 
 - **Server-Authoritative**: The Node.js server maintains authoritative state for coin balances, inventory quantities, gathered materials, gather-node depletion and respawn, the Great Mill's restoration state, sprinkler fixtures, crop maturation, moisture decay, order books, and contract fulfillment. The client only renders server state; items are never granted client-side.

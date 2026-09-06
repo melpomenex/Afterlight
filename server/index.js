@@ -79,7 +79,27 @@ export function createServer(customStorage = null, options = {}) {
   const playlistCooldowns = new Map();
   const PLAYLIST_RESOLVE_COOLDOWN_MS = 10_000;
 
+  /**
+   * Private boundary check (P2 gateway transport). The Phoenix gateway
+   * presents x-afterlight-boundary on its loopback shadow connections.
+   * A request presenting an INVALID secret is rejected; a request with no
+   * secret is still accepted during P2 so direct-to-Node clients (the
+   * rollback path) keep working. With the env unset there is nothing to
+   * check and everything is accepted.
+   */
+  function boundaryRejects(req) {
+    const expected = process.env.AFTERLIGHT_BOUNDARY_SECRET;
+    if (!expected) return false;
+    const presented = req.headers['x-afterlight-boundary'];
+    return presented !== undefined && presented !== expected;
+  }
+
   const server = http.createServer(async (req, res) => {
+    if (boundaryRejects(req)) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'boundary' }));
+      return;
+    }
     if (req.url === '/api/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
@@ -416,7 +436,12 @@ export function createServer(customStorage = null, options = {}) {
     });
   }
 
-  const wss = new WebSocketServer({ server });
+  const wss = new WebSocketServer({
+    server,
+    // Same boundary rule for socket upgrades: only an invalid secret is
+    // refused; secret-less upgrades stay open for direct clients (P2).
+    verifyClient: (info) => !boundaryRejects(info.req),
+  });
 
   wss.on('connection', (ws) => {
     let playerId = null;

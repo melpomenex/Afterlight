@@ -1,9 +1,14 @@
 defmodule AfterlightWeb.Router do
-  # Health-check-only pipeline. Intentionally no game routes.
+  # Gateway routes. `/api/health` and `/api/theater/*` never reach this
+  # router — AfterlightWeb.HTTPProxy forwards them to Node before the
+  # parsers. Only the auth route (gateway-owned credential issuance) and
+  # the direct Phoenix health check live here.
   use Phoenix.Router
 
   scope "/", AfterlightWeb do
     get "/", HealthController, :show
     get "/health", HealthController, :show
+
+    post "/api/auth/guest", AuthController, :create
   end
 end

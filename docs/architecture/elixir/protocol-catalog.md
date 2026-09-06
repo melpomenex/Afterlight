@@ -81,6 +81,24 @@ Dead protocol constants (do not "fix" silently): `full_state` never sent; `torre
 - Duplicate guestId: second connection **overwrites** the session map entry; old socket stays open; first close evicts the surviving session (known quirk — the Phoenix gateway must NOT create a second logical session on transport reconnect).
 - Server ticks: 100 ms movement flush; 1 Hz garden/nodes/torrent-tick; 3-min weather; 5-min contracts; ~2 s torrent_state; IRC ping 30 s.
 
+### Gateway disposition (P2 — add-phoenix-gateway-transport)
+
+Server-side, config-owned (`Gateway.Router`); clients cannot choose the implementation. In P2 every game domain is `node`; `ping` and token/connect handling terminate at the gateway.
+
+| Message / event | P2 disposition |
+|---|---|
+| socket connect, token verify, connect rate limit, channel join authorization | gateway |
+| `ping` → `pong` `{t}` echo | gateway (transport liveness; Node echo semantics preserved) |
+| `hello`, `set_nickname` (+ `welcome`) | relayed (accounts durability is Node's until P4) |
+| `join_room`, `presence_*`, room join snapshots (`theater_state`, `iptv_state`, `node_state`, `machine_update`, `garden_state`) | relayed (P3 runtime owns rooms later) |
+| `movement`, `emote` / `emote_broadcast` | relayed |
+| `chat_send`, `chat_message`, `chat_dm`, `chat_history`, `chat_presence`, `chat_error` | relayed (IRC bridge intact; Social context later) |
+| all durable-domain messages (gardens, economy, restoration, theater, catalog, torrents) | relayed |
+
+Relay mechanics: one upstream Node WebSocket per gateway session ("shadow" connection), flat⇄flat frames in order — Node semantics including snapshot ordering and `error` reason strings are preserved byte-for-byte. Reconnect stickiness: newest connection wins; the old upstream is closed and processed BEFORE the new `hello` is forwarded, so Node never holds two sessions for one guestId (the duplicate-guestId ghost cannot arise from transport reconnects).
+
+Slow receivers (P2 posture): unchanged Node behavior is retained — full-roster 10 Hz snapshots with no per-client buffer accounting. Unbounded queueing under a stalled consumer is a known property of the proxy phase; the P3 room runtime introduces bounded buffers and disconnect/resnapshot.
+
 ## 3. Persistence map (current)
 
 | State | File | Writer | Notes |
@@ -97,6 +115,10 @@ Dead protocol constants (do not "fix" silently): `full_state` never sent; `torre
 - All HTTP endpoints unauthenticated; CORS echoes any Origin on `/api/theater/*`.
 - HTTP surface: `GET /api/health`; `POST /api/theater/playlists` (text or `{url}` server-fetch, 8 MiB caps, 15 s timeout); `POST /api/theater/epg` (64 MiB, gzip detected); `GET/HEAD /api/theater/torrent/:infohash/:fileIndex` (Range 206, video extensions only).
 - Known caps: theater queue 50, URL 2048, title 120; IPTV 24 lists/20k channels/list; EPG 50k channels/250k programmes/300-key lookups; chat 600/400 chars; emote 500 ms; playlist resolve 10 s cooldown; torrent picker 60 files; trades kept 100.
+
+### Signed guest credentials (P2 transitional semantics)
+
+`POST /api/auth/guest` (gateway) issues a short-lived `Phoenix.Token` (~12 h) over `{guest_id, nickname_hint, issued_at}`; the socket connect REQUIRES a valid token, and the verified `guest_id` claim binds the connection. Precisely: in P2 the token authenticates the SOCKET HANDSHAKE — possession of a valid token gates the connect; it does not yet make a guestId unforgeable as a player identity (guestId remains client-chosen and the token is issued over it; player-identity trust lands in P4/P6). guestId continues to identify: hello still carries it, Node still keys sessions and answers `welcome` by it, self-echo filtering and `garden:<guestId>` room ids keep working. A hello whose guestId differs from the token claim is refused (defensive; current clients always match).
 
 ## 5. Client contract (NetworkClient) — what the adapter must preserve
 
