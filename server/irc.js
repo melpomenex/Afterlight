@@ -395,6 +395,14 @@ export class IrcServer {
     conn.sendNumeric(2, `Your host is ${SERVER_NAME}, running an Afterlight chat relay`);
     conn.sendNumeric(3, `This server was created for the town's gardeners and their bots`);
     conn.sendNumeric(4, `${SERVER_NAME} Afterlight-1.0 i m t`);
+    // Close the welcome burst with a minimal MOTD: mainstream libraries
+    // (e.g. the Rust `irc` crate) join their configured channels only at
+    // end-of-MOTD, so a bare 001–004 burst leaves such bots registered
+    // but never in the channel.
+    conn.sendNumeric(375, `- ${SERVER_NAME} Message of the day -`);
+    conn.sendNumeric(372, 'The town still talks — be kind, and leave the light on.');
+    conn.sendNumeric(372, "This server was created for the town's gardeners and their bots.");
+    conn.sendNumeric(376, 'End of /MOTD command');
     this.#emit({ type: 'register', conn });
   }
 
