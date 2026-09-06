@@ -235,6 +235,13 @@ export function sanitizeSavedLists(raw, nowMs = 0) {
   return out;
 }
 
+/** True when a mouse event landed on a dialog's backdrop, outside its panel. */
+function clickedOutsideDialog(dialog, e) {
+  const rect = dialog.getBoundingClientRect();
+  return e.clientX < rect.left || e.clientX > rect.right
+    || e.clientY < rect.top || e.clientY > rect.bottom;
+}
+
 // --- Lazy SDK loading (browser only) ---
 
 const scriptPromises = new Map();
@@ -1270,6 +1277,18 @@ export class TheaterScreenUI {
     dialog.addEventListener('cancel', (e) => {
       e.preventDefault();
       dialog.close();
+    });
+
+    // Clicking the backdrop leaves the booth, same as the footer button.
+    // Both press and release must land outside, so dragging a text selection
+    // that starts on a control doesn't fling the dialog shut, and
+    // keyboard-activated buttons (no mousedown) can never close it.
+    let pressStartedOutside = false;
+    dialog.addEventListener('mousedown', (e) => {
+      pressStartedOutside = clickedOutsideDialog(dialog, e);
+    });
+    dialog.addEventListener('click', (e) => {
+      if (pressStartedOutside && clickedOutsideDialog(dialog, e)) dialog.close();
     });
 
     this.dom.controlsDialog = dialog;

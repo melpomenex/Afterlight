@@ -206,7 +206,7 @@ The auditorium has rounded burgundy seats with padded headrests, armrests and cu
 
 - **Cinema view is the default here.** Spawning in (or walking into) The Orpheum starts the big-screen presentation: stage + docked chat, HUD aside. <kbd>Esc</kbd>, any movement key, a walk-click, or the watch bar's **⤺** action steps you back into the aisles without losing your spot — walk out the gates to play, come back and the picture is waiting.
 - **Take a seat** — press <kbd>E</kbd> at any chair to settle in; the watch bar becomes **⤺ Stand up**. Standing up is one action, always reachable.
-- **Run the projector** — press <kbd>G</kbd>, use the **▣ Booth** button, or interact with the screen to open the projection booth: queue, transport controls, IPTV, and volume. Works from the aisles and from your cinema seat. Anyone in the auditorium may run it; there is no host.
+- **Run the projector** — press <kbd>G</kbd>, use the **▣ Booth** button, or interact with the screen to open the projection booth: queue, transport controls, IPTV, and volume. Works from the aisles and from your cinema seat. Anyone in the auditorium may run it; there is no host. Leave it with the footer button, <kbd>Esc</kbd>, or a click anywhere outside the panel.
 - **Restore the projector** (landmark) to light the marquee and aisle lamps for good. It's a flourish — the screen plays with or without it.
 
 ### What the screen plays
