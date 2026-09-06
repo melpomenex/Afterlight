@@ -150,7 +150,7 @@ JOIN #afterlight
 PRIVMSG #afterlight :Good evening, town.
 ```
 
-Once connected you can chat with players in the channel, `/msg` them by nickname (whispers bridge both ways, players and IRC users alike), and set topics. A `/me` action (CTCP `ACTION`) reaches the game as a styled action line. The server understands `NICK USER JOIN PART TOPIC NAMES PRIVMSG PING PONG QUIT WHO WHOIS OPER CAP`; `MODE` is accepted and ignored — there are no channel modes, bans, or services. Handwritten bots should answer the server's `PING` with `PONG` (real clients do this automatically) or be dropped as timed out, and keep traffic under roughly a dozen lines per 5 seconds.
+Once connected you can chat with players in the channel, `/msg` them by nickname (whispers bridge both ways, players and IRC users alike), and set topics. A `/me` action (CTCP `ACTION`) reaches the game as a styled action line. The server understands `NICK USER JOIN PART TOPIC NAMES PRIVMSG PING PONG QUIT WHO WHOIS OPER CAP`; `MODE` is accepted and ignored — there are no channel modes, bans, or services. Registration closes with a short message of the day (`375`/`372`/`376`), so bots that auto-join only at end-of-MOTD work unchanged. Handwritten bots should answer the server's `PING` with `PONG` (real clients do this automatically) or be dropped as timed out, and keep traffic under roughly a dozen lines per 5 seconds.
 
 Notes:
 

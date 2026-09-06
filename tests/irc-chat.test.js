@@ -115,6 +115,14 @@ test('IRC registration, collision, and pre-registration rejection', async () => 
     await a.waitFor(' 004 ');
     assert.ok(linesInclude(a, 'MossyRadish'), 'welcome carries the nickname');
 
+    // The welcome burst ends with a short MOTD; libraries that join their
+    // channels only at end-of-MOTD never see the channel without it.
+    await a.waitFor(' 375 ');
+    await a.waitFor(' 376 ');
+    const lines = a.lines.map(l => l.split(/\s+/)[1]); // `:afterlight <numeric> …`
+    const pos = (needle) => lines.findIndex(l => l === needle);
+    assert.ok(pos('004') < pos('375') && pos('375') < pos('376'), 'MOTD closes the welcome burst in order');
+
     // Pre-registration commands are rejected with 451, connection stays.
     const b = ircClient(ircPort);
     b.send('PRIVMSG #afterlight :hello?');
@@ -126,6 +134,23 @@ test('IRC registration, collision, and pre-registration rejection', async () => 
     closeIrc(b);
   } finally {
     closeIrc(a);
+    handle.close();
+  }
+});
+
+test('a bot that waits for end-of-MOTD can register, then join', async () => {
+  const { handle, ircPort } = await listen();
+  const bot = ircClient(ircPort);
+  try {
+    // Some IRC libraries sit silent until 376/422 before joining channels.
+    bot.send('NICK Arya', 'USER arya 0 * :x');
+    await bot.waitFor(' 376 ');
+    bot.send('JOIN #afterlight');
+    await bot.waitFor(' 332 ');
+    await bot.waitFor(' 366 ');
+    assert.ok(linesInclude(bot, 'JOIN #afterlight'), 'join after end-of-MOTD succeeds');
+  } finally {
+    closeIrc(bot);
     handle.close();
   }
 });
