@@ -5,9 +5,18 @@ export const MAGIC = 0x414c5254; // "ALRT" little-endian
 export const PROTOCOL_VERSION = 1;
 export const HEADER_SIZE = 24;
 
-export const FRAME_TYPE = { FULL_SNAPSHOT: 0, DELTA: 1, RESYNC_REQUIRED: 2 };
+export const FRAME_TYPE = {
+  FULL_SNAPSHOT: 0,
+  DELTA: 1,
+  RESYNC_REQUIRED: 2,
+  // Chunked frames (contract v0 amendment): split oversized snapshots/deltas
+  // across frames under the 1 MiB cap. Old readers reject unknown frame
+  // types cleanly — never misapply.
+  SNAPSHOT_CHUNK: 3,
+  DELTA_CHUNK: 4,
+};
 
-export const FRAME_FLAG = { HAS_STRING_TABLE: 1 };
+export const FRAME_FLAG = { HAS_STRING_TABLE: 1, CHUNK_END: 2 };
 
 export const SECTION = {
   SPAWN: 1,

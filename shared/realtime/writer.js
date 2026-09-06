@@ -20,7 +20,7 @@ import { NO_STRING_REF } from './applyFrame.js';
 // }
 export function writeFrame(spec) {
   const parts = [];
-  let flags = 0;
+  let flags = spec.headerFlags ?? 0; // header bits (spec.flags is the FLAGS SECTION)
   let guestIds = null;
 
   if (spec.spawn && spec.spawn.length) {
@@ -90,4 +90,87 @@ export function writeFrame(spec) {
     off += p.length;
   }
   return { ok: true, bytes: frame, guestIds };
+}
+
+// writeChunkedFrames — split an oversized snapshot/delta into frames that
+// each fit `maxBytes` (contract v0 amendment: frame types SNAPSHOT_CHUNK /
+// DELTA_CHUNK, final chunk carries FRAME_FLAG.CHUNK_END; old readers reject
+// the unknown types cleanly instead of misapplying). Spawn-row transforms
+// are embedded in spawn rows; each chunk's string table carries only its own
+// identities. A spec that fits one frame degrades to a plain writeFrame.
+export function writeChunkedFrames(spec, { maxBytes = LIMITS.MAX_FRAME_BYTES } = {}) {
+  const base = {
+    roomEpoch: spec.roomEpoch ?? 0,
+    serverTick: spec.serverTick ?? 0,
+    frameSequence: spec.frameSequence ?? 0,
+    baselineSequence: spec.baselineSequence ?? 0,
+  };
+  const single = writeFrame({ ...spec, ...base });
+  if (single.ok && single.bytes.length <= maxBytes) {
+    return { ok: true, frames: [single.bytes], guestIds: single.guestIds };
+  }
+  if (!single.ok && single.reason !== 'frame_too_large') return single;
+
+  const frameType = (spec.frameType ?? FRAME_TYPE.DELTA) === FRAME_TYPE.FULL_SNAPSHOT
+    ? FRAME_TYPE.SNAPSHOT_CHUNK
+    : FRAME_TYPE.DELTA_CHUNK;
+
+  // Unified row model: every row is one spawn (snapshot, transform embedded)
+  // or one transform/flags row (delta). Despawn rides the final chunk.
+  const rows = [];
+  const snapshot = frameType === FRAME_TYPE.SNAPSHOT_CHUNK;
+  if (snapshot) {
+    for (const r of spec.spawn ?? []) rows.push({ spawn: r });
+  } else {
+    const count = spec.transform?.count ?? 0;
+    for (let i = 0; i < count; i++) rows.push({ col: i });
+  }
+  const hasExtras = (i) => !snapshot && i === rows.length && (spec.despawn?.length ?? 0) > 0;
+
+  // Conservative per-row estimate; a written frame over budget shrinks the
+  // window (pathological strings only) — correctness via writeFrame's own
+  // 1 MiB check, never by trusting the estimate alone.
+  const perRow = snapshot ? 64 : 34;
+  const frames = [];
+  let i = 0;
+  while (i < rows.length || (frames.length === 0 && rows.length === 0)) {
+    let end = Math.min(rows.length, i + Math.max(1, Math.floor((maxBytes - 256) / perRow)));
+    let f;
+    for (;;) {
+      const slice = rows.slice(i, end);
+      const final = end >= rows.length;
+      f = writeFrame({
+        ...base,
+        frameType,
+        headerFlags: final ? FRAME_FLAG.CHUNK_END : 0,
+        spawn: snapshot && slice.length ? slice.map((r) => r.spawn) : undefined,
+        despawn: final ? spec.despawn : undefined,
+        despawnEncoding: spec.despawnEncoding,
+        transform: !snapshot && slice.length ? {
+          encoding: ENCODING.SORTED_IDS,
+          ids: spec.transform.ids.subarray(slice[0].col, slice[slice.length - 1].col + 1),
+          count: slice.length,
+          columns: {
+            x: spec.transform.columns.x.subarray(slice[0].col, slice[slice.length - 1].col + 1),
+            y: spec.transform.columns.y.subarray(slice[0].col, slice[slice.length - 1].col + 1),
+            z: spec.transform.columns.z.subarray(slice[0].col, slice[slice.length - 1].col + 1),
+            yaw: spec.transform.columns.yaw.subarray(slice[0].col, slice[slice.length - 1].col + 1),
+          },
+        } : undefined,
+        flags: !snapshot && spec.flags?.count ? {
+          encoding: ENCODING.SORTED_IDS,
+          ids: spec.flags.ids.subarray(slice[0].col, slice[slice.length - 1].col + 1),
+          count: slice.length,
+          columns: { flags: spec.flags.columns.flags.subarray(slice[0].col, slice[slice.length - 1].col + 1) },
+        } : undefined,
+      });
+      if (f.ok || end - 1 <= i) break; // single row over budget: give up honestly
+      end = i + Math.max(1, Math.floor((end - i) * 0.8)); // shrink and retry
+    }
+    if (!f.ok) return f;
+    frames.push(f.bytes);
+    if (end >= rows.length) break;
+    i = end;
+  }
+  return { ok: true, frames };
 }
