@@ -22,6 +22,13 @@
 - [x] 3.3 Density selector matches its documented thresholds; encoders agree with the harness results on shared fixtures.
 - [x] 3.4 Dual-path check: legacy JSON update stream and binary frame stream from the same fixture chain produce identical store state.
 
+## 3a. Chunked frames (v0 amendment)
+
+- [x] 3.5 SNAPSHOT_CHUNK / DELTA_CHUNK semantics: per-sequence accumulation, CHUNK_END commit, clean rejection on old readers.
+- [x] 3.6 writeChunkedFrames with caller budget (degrades to single frame); per-chunk string tables.
+- [x] 3.7 Tests: 50k-entity chunked join, delta-chunk baseline continuity, unknown-type rejection.
+- [x] 3.8 Contract §4a amendment + live 50,002-entity browser verification (worker path).
+
 ## 4. Tooling + server contract
 
 - [x] 4.1 `tools/realtime/frame-dump.mjs` — decode a captured frame to readable metadata + entity table.
