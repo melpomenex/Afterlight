@@ -3,7 +3,7 @@
     "node": "v22.22.1",
     "exposedGc": true,
     "cpus": 24,
-    "date": "2026-09-06T21:56:26.147Z"
+    "date": "2026-09-06T22:23:24.151Z"
   },
   "fraction": 0.1,
   "crossover": [
@@ -12,73 +12,86 @@
       "changed": 5,
       "jsonBytes": 577,
       "frameBytes": 173,
-      "legacyMedianUs": 0.0034,
+      "legacyMedianUs": 0.0032,
       "legacyMinUs": 0.0031,
-      "legacyAllocBytes": -6584,
-      "pipelineMedianUs": 0.0096,
-      "pipelineMinUs": 0.0074,
-      "pipelineAllocBytes": 112,
-      "mainThreadSpeedupMin": 0.42
+      "legacyAllocBytes": -6408,
+      "pipelineMedianUs": 0.0272,
+      "pipelineMinUs": 0.0214,
+      "pipelineAllocBytes": 176,
+      "mainThreadSpeedupMin": 0.14
     },
     {
       "n": 200,
       "changed": 20,
       "jsonBytes": 2183,
       "frameBytes": 548,
-      "legacyMedianUs": 0.0115,
-      "legacyMinUs": 0.0094,
-      "legacyAllocBytes": -464,
-      "pipelineMedianUs": 0.015,
-      "pipelineMinUs": 0.0136,
-      "pipelineAllocBytes": 208,
-      "mainThreadSpeedupMin": 0.69
+      "legacyMedianUs": 0.0091,
+      "legacyMinUs": 0.0088,
+      "legacyAllocBytes": -368,
+      "pipelineMedianUs": 0.0491,
+      "pipelineMinUs": 0.046,
+      "pipelineAllocBytes": 128,
+      "mainThreadSpeedupMin": 0.19
     },
     {
       "n": 1000,
       "changed": 100,
       "jsonBytes": 10780,
       "frameBytes": 2548,
-      "legacyMedianUs": 0.0502,
-      "legacyMinUs": 0.0494,
-      "legacyAllocBytes": -192,
-      "pipelineMedianUs": 0.0518,
-      "pipelineMinUs": 0.0479,
-      "pipelineAllocBytes": 824,
-      "mainThreadSpeedupMin": 1.03
+      "legacyMedianUs": 0.0562,
+      "legacyMinUs": 0.0498,
+      "legacyAllocBytes": 56,
+      "pipelineMedianUs": 0.1002,
+      "pipelineMinUs": 0.0869,
+      "pipelineAllocBytes": 1568,
+      "mainThreadSpeedupMin": 0.57
     },
     {
       "n": 5000,
       "changed": 500,
       "jsonBytes": 53705,
       "frameBytes": 12548,
-      "legacyMedianUs": 0.2137,
-      "legacyMinUs": 0.1986,
-      "legacyAllocBytes": -648,
-      "pipelineMedianUs": 0.1504,
-      "pipelineMinUs": 0.1352,
-      "pipelineAllocBytes": 9424,
-      "mainThreadSpeedupMin": 1.47
+      "legacyMedianUs": 0.2097,
+      "legacyMinUs": 0.1952,
+      "legacyAllocBytes": -1352,
+      "pipelineMedianUs": 0.3561,
+      "pipelineMinUs": 0.2114,
+      "pipelineAllocBytes": 64,
+      "mainThreadSpeedupMin": 0.92
     },
     {
       "n": 10000,
       "changed": 1000,
       "jsonBytes": 107400,
       "frameBytes": 25048,
-      "legacyMedianUs": 0.4174,
-      "legacyMinUs": 0.3976,
-      "legacyAllocBytes": -320,
-      "pipelineMedianUs": 0.2619,
-      "pipelineMinUs": 0.2124,
-      "pipelineAllocBytes": -264,
-      "mainThreadSpeedupMin": 1.87
+      "legacyMedianUs": 0.4117,
+      "legacyMinUs": 0.3946,
+      "legacyAllocBytes": -416,
+      "pipelineMedianUs": 0.4607,
+      "pipelineMinUs": 0.3853,
+      "pipelineAllocBytes": 168,
+      "mainThreadSpeedupMin": 1.02
+    },
+    {
+      "n": 50000,
+      "changed": 5000,
+      "jsonBytes": 536877,
+      "frameBytes": 125048,
+      "legacyMedianUs": 2.4626,
+      "legacyMinUs": 2.0103,
+      "legacyAllocBytes": -536,
+      "pipelineMedianUs": 1.7982,
+      "pipelineMinUs": 1.2315,
+      "pipelineAllocBytes": -37440,
+      "mainThreadSpeedupMin": 1.63
     }
   ],
   "soak": {
     "population": 10000,
     "ticks": 600,
-    "allocPerTickFirst100Bytes": -78,
-    "allocPerTickLast100Bytes": 16,
-    "trendBytesPerTick": 94,
+    "allocPerTickFirst100Bytes": -976,
+    "allocPerTickLast100Bytes": -1578,
+    "trendBytesPerTick": -601,
     "flat": true
   }
 }

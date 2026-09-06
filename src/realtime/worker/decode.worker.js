@@ -10,7 +10,8 @@ import { PipelineCore, PackGate, MAX_IN_FLIGHT, createPack, packForTransfer, PAC
 
 const CAPACITY = 1024;
 
-const core = new PipelineCore({ maxSlots: 8192 });
+let coreMaxSlots = 8192;
+let core = new PipelineCore({ maxSlots: coreMaxSlots });
 const gate = new PackGate();
 const pool = [];
 
@@ -27,6 +28,14 @@ function postPack(pack) {
 
 self.onmessage = (e) => {
   const msg = e.data;
+  if (msg.type === 'config') {
+    // resize before frames flow (store is empty pre-join, so this is safe)
+    if (msg.maxSlots && msg.maxSlots !== coreMaxSlots) {
+      coreMaxSlots = msg.maxSlots;
+      core = new PipelineCore({ maxSlots: coreMaxSlots });
+    }
+    return;
+  }
   if (msg.type === 'frame') {
     if (gate.pending === null) {
       gate.pending = takePack();

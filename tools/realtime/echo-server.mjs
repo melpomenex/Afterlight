@@ -15,17 +15,18 @@
 
 import { WebSocketServer } from 'ws';
 import { EntityStore, presenceToFlags } from '../../shared/realtime/entityStore.js';
-import { writeFrame } from '../../shared/realtime/writer.js';
+import { writeFrame, writeChunkedFrames } from '../../shared/realtime/writer.js';
 import { parseHelloRt } from '../../shared/realtime/negotiation.js';
 import { chooseFrameShape } from '../../shared/realtime/chooseEncoding.js';
 import { FRAME_TYPE, ENCODING } from '../../shared/realtime/constants.js';
 
 const args = process.argv.slice(2);
 const port = Number(args[args.indexOf('--port') + 1]) || 39301;
+const NPC_ARG = Number(args[args.indexOf('--npcs') + 1]);
 const hz = 10;
 
 // A deterministic NPC population with gap-y ids (contract fixtures style).
-const NPC_COUNT = 200;
+const NPC_COUNT = Number.isFinite(NPC_ARG) && NPC_ARG > 0 ? Math.min(NPC_ARG, 200000) : 200;
 const npcIds = Uint32Array.from({ length: NPC_COUNT }, (_, i) => 5000 + i * 7);
 const world = {
   x: new Float32Array(NPC_COUNT), z: new Float32Array(NPC_COUNT), yaw: new Float32Array(NPC_COUNT),
@@ -37,7 +38,7 @@ for (let i = 0; i < NPC_COUNT; i++) {
 }
 const flags = new Uint8Array(NPC_COUNT); // idle
 
-const store = new EntityStore(4096);
+const store = new EntityStore(Math.max(4096, NPC_COUNT * 2));
 for (let i = 0; i < NPC_COUNT; i++) {
   store.spawn(npcIds[i], { archetype: 2, variant: i % 8, x: world.x[i], z: world.z[i], yaw: world.yaw[i] });
 }
@@ -99,15 +100,19 @@ function spawnRowsFor(live) {
 
 function sendSnapshot(client) {
   const live = liveIds();
-  const cols = liveColumns(live);
   if (client.binary) {
-    const f = writeFrame({
+    // Chunked join (contract v0 amendment): degrades to a single
+    // FULL_SNAPSHOT when the world fits one frame.
+    const r = writeChunkedFrames({
       frameType: FRAME_TYPE.FULL_SNAPSHOT, roomEpoch: 1, serverTick: tick,
       frameSequence: frameSequence, baselineSequence: frameSequence,
       spawn: spawnRowsFor(live),
-      transform: { encoding: ENCODING.DENSE, count: live.length, columns: cols },
-    });
-    if (f.ok && client.ws.readyState === 1) client.ws.send(f.bytes, { binary: true });
+    }, { maxBytes: 900 * 1024 });
+    if (r.ok) {
+      for (const bytes of r.frames) {
+        if (client.ws.readyState === 1) client.ws.send(bytes, { binary: true });
+      }
+    }
   } else {
     send(client, { type: 'presence_update', players: legacyEntries(live) });
   }
@@ -125,11 +130,16 @@ function liveColumns(live) {
   return { x, y, z, yaw };
 }
 function legacyEntries(live) {
-  return live.map((id) => {
+  // `live` may be a plain array or a Uint32Array (whose .map would produce
+  // another typed array and JSON-stringify as an object, not an array).
+  const out = new Array(live.length);
+  for (let i = 0; i < live.length; i++) {
+    const id = live[i];
     const s = store.slot(id);
     const f = store.flags[s];
-    return { id: store.guestIdOf[s] ?? String(id), x: store.x[s], z: store.z[s], rotY: store.yaw[s], walking: !!(f & 1), sitting: !!(f & 2), airborne: !!(f & 4) };
-  });
+    out[i] = { id: store.guestIdOf[s] ?? String(id), x: store.x[s], z: store.z[s], rotY: store.yaw[s], walking: !!(f & 1), sitting: !!(f & 2), airborne: !!(f & 4) };
+  }
+  return out;
 }
 
 // 10 Hz simulation + broadcast: NPCs drift; deltas selected by measured policy.
@@ -152,14 +162,16 @@ setInterval(() => {
     if (!client.binary) { send(client, { type: 'presence_update', players: legacyEntries(changedNpcs) }); continue; }
     if (shape.frameType === 'FULL_SNAPSHOT') {
       // Snapshot re-asserts the whole world (store resets client-side, so all
-      // entities ride spawn rows); DENSE sections skip the mask entirely.
-      const c = liveColumns(live);
-      const f = writeFrame({
+      // entities ride spawn rows); chunked when the world exceeds one frame.
+      const r = writeChunkedFrames({
         frameType: FRAME_TYPE.FULL_SNAPSHOT, roomEpoch: 1, serverTick: tick,
         frameSequence, baselineSequence: frameSequence, spawn: spawnRowsFor(live),
-        transform: { encoding: ENCODING.DENSE, count: live.length, columns: c },
-      });
-      if (f.ok && client.ws.readyState === 1) client.ws.send(f.bytes, { binary: true });
+      }, { maxBytes: 900 * 1024 });
+      if (r.ok) {
+        for (const bytes of r.frames) {
+          if (client.ws.readyState === 1) client.ws.send(bytes, { binary: true });
+        }
+      }
     } else {
       const enc = shape.transformEncoding === 'ROARING' ? ENCODING.ROARING : ENCODING.SORTED_IDS;
       const f = writeFrame({
