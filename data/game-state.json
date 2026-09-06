@@ -1,0 +1,270 @@
+{
+  "version": 1,
+  "players": {
+    "guest_35aiwoqe8_mtpiar1i": {
+      "id": "guest_35aiwoqe8_mtpiar1i",
+      "nickname": "MistyPepper94",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {}
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788680848308
+    },
+    "guest_6od6gz67b_mtpidkld": {
+      "id": "guest_6od6gz67b_mtpidkld",
+      "nickname": "RustMint93",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {}
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788680819518
+    },
+    "guest_ze347348r_mtpidtmo": {
+      "id": "guest_ze347348r_mtpidtmo",
+      "nickname": "GildedSage21",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {}
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788680831306
+    },
+    "guest_faaejupys_mtpie9z8": {
+      "id": "guest_faaejupys_mtpie9z8",
+      "nickname": "HedgeBasil90",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {}
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788680852487
+    },
+    "guest_c4n3v1jm7_mtpiaq7q": {
+      "id": "guest_c4n3v1jm7_mtpiaq7q",
+      "nickname": "QuietChard65",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {}
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788680939686
+    }
+  },
+  "gardens": {
+    "guest_35aiwoqe8_mtpiar1i": {
+      "beds": [
+        {
+          "index": 0,
+          "prepared": false,
+          "cropId": null,
+          "plantedAt": null,
+          "lastWateredAt": null,
+          "moisture": 0,
+          "health": 1,
+          "moistureHistorySum": 0,
+          "moistureChecks": 0,
+          "stage": 0,
+          "harvestCount": 0
+        },
+        {
+          "index": 1,
+          "prepared": false,
+          "cropId": null,
+          "plantedAt": null,
+          "lastWateredAt": null,
+          "moisture": 0,
+          "health": 1,
+          "moistureHistorySum": 0,
+          "moistureChecks": 0,
+          "stage": 0,
+          "harvestCount": 0
+        },
+        {
+          "index": 2,
+          "prepared": false,
+          "cropId": null,
+          "plantedAt": null,
+          "lastWateredAt": null,
+          "moisture": 0,
+          "health": 1,
+          "moistureHistorySum": 0,
+          "moistureChecks": 0,
+          "stage": 0,
+          "harvestCount": 0
+        },
+        {
+          "index": 3,
+          "prepared": false,
+          "cropId": null,
+          "plantedAt": null,
+          "lastWateredAt": null,
+          "moisture": 0,
+          "health": 1,
+          "moistureHistorySum": 0,
+          "moistureChecks": 0,
+          "stage": 0,
+          "harvestCount": 0
+        },
+        {
+          "index": 4,
+          "prepared": false,
+          "cropId": null,
+          "plantedAt": null,
+          "lastWateredAt": null,
+          "moisture": 0,
+          "health": 1,
+          "moistureHistorySum": 0,
+          "moistureChecks": 0,
+          "stage": 0,
+          "harvestCount": 0
+        },
+        {
+          "index": 5,
+          "prepared": false,
+          "cropId": null,
+          "plantedAt": null,
+          "lastWateredAt": null,
+          "moisture": 0,
+          "health": 1,
+          "moistureHistorySum": 0,
+          "moistureChecks": 0,
+          "stage": 0,
+          "harvestCount": 0
+        },
+        {
+          "index": 6,
+          "prepared": false,
+          "cropId": null,
+          "plantedAt": null,
+          "lastWateredAt": null,
+          "moisture": 0,
+          "health": 1,
+          "moistureHistorySum": 0,
+          "moistureChecks": 0,
+          "stage": 0,
+          "harvestCount": 0
+        },
+        {
+          "index": 7,
+          "prepared": false,
+          "cropId": null,
+          "plantedAt": null,
+          "lastWateredAt": null,
+          "moisture": 0,
+          "health": 1,
+          "moistureHistorySum": 0,
+          "moistureChecks": 0,
+          "stage": 0,
+          "harvestCount": 0
+        },
+        {
+          "index": 8,
+          "prepared": true,
+          "cropId": null,
+          "plantedAt": null,
+          "lastWateredAt": null,
+          "moisture": 0,
+          "health": 1,
+          "moistureHistorySum": 0,
+          "moistureChecks": 0,
+          "stage": 1,
+          "harvestCount": 0
+        },
+        {
+          "index": 9,
+          "prepared": false,
+          "cropId": null,
+          "plantedAt": null,
+          "lastWateredAt": null,
+          "moisture": 0,
+          "health": 1,
+          "moistureHistorySum": 0,
+          "moistureChecks": 0,
+          "stage": 0,
+          "harvestCount": 0
+        },
+        {
+          "index": 10,
+          "prepared": false,
+          "cropId": null,
+          "plantedAt": null,
+          "lastWateredAt": null,
+          "moisture": 0,
+          "health": 1,
+          "moistureHistorySum": 0,
+          "moistureChecks": 0,
+          "stage": 0,
+          "harvestCount": 0
+        },
+        {
+          "index": 11,
+          "prepared": false,
+          "cropId": null,
+          "plantedAt": null,
+          "lastWateredAt": null,
+          "moisture": 0,
+          "health": 1,
+          "moistureHistorySum": 0,
+          "moistureChecks": 0,
+          "stage": 0,
+          "harvestCount": 0
+        }
+      ]
+    }
+  },
+  "orders": [],
+  "trades": [],
+  "marketMultipliers": {}
+}

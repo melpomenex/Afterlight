@@ -6,6 +6,28 @@ test('old and malformed saves migrate without inventing progress', () => {
   assert.deepEqual(readExploration(undefined), { current: 'court', visited: ['court'], completed: [] });
   assert.deepEqual(readExploration({ current: 'removed', visited: ['canal', 'canal', 'missing'], completed: ['garden', 'garden', 3] }), { current: 'court', visited: ['court', 'canal'], completed: ['garden'] });
   assert.equal(readExploration({ current: 'station' }).current, 'station');
+  assert.equal(readExploration({ current: 'aqueduct' }).current, 'aqueduct');
+  assert.ok(readExploration({ visited: ['aqueduct', 'caldera'] }).visited.includes('aqueduct'));
+  assert.ok(readExploration({ completed: ['understory', 'saltworks'] }).completed.includes('understory'));
+});
+
+test('all sixteen districts have unique IDs, names, and complete metadata', () => {
+  assert.equal(districts.length, 16);
+  const ids = new Set(), names = new Set();
+  for (const d of districts) {
+    assert.ok(!ids.has(d.id), `duplicate district id: ${d.id}`);
+    ids.add(d.id);
+    assert.ok(!names.has(d.name), `duplicate district name: ${d.name}`);
+    names.add(d.name);
+    assert.ok(d.color.startsWith('#'), `${d.id} has valid hex color`);
+    assert.ok(d.sun.startsWith('#'), `${d.id} has valid sun hex`);
+    if (d.id !== 'court') {
+      assert.ok(Array.isArray(d.landmark) && d.landmark.length === 2, `${d.id} has landmark coordinate`);
+      assert.ok(Array.isArray(d.note) && d.note.length === 2, `${d.id} has note coordinate`);
+      assert.ok(d.noteTitle && d.noteBody, `${d.id} has note lore`);
+      assert.ok(d.objective && d.action && d.done, `${d.id} has restoration action metadata`);
+    }
+  }
 });
 
 for (const def of districts.slice(1)) test(`${def.name}: exits and objectives are reachable with collision enabled`, () => {

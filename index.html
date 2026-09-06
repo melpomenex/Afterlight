@@ -1,1 +1,128 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#172120"><title>Afterlight — The Rain Court</title></head><body><canvas id="world" aria-label="Interactive isometric courtyard"></canvas><div class="vignette"></div><header><div class="brand"><span class="star">✧</span><div>AFTERLIGHT<small>A WORLD WORTH REPAIRING</small></div></div><section class="location"><span class="micro">LOWER DISTRICT / 04</span><h1>The Rain Court</h1><p>☼ &nbsp; AFTER THE RAIN <span>17:42</span></p></section></header><aside class="map panel"><div class="micro">▥ LOCAL SIGNAL <span>N ↑</span></div><svg viewBox="0 0 180 120"><path d="M24 24H130V96H24Z M130 49H160V76H130 M65 24V13H87V24"/><path class="map-grid" d="M24 60H130M77 24V96"/><circle id="map-player" cx="78" cy="67" r="3"/><circle class="map-point" cx="38" cy="38" r="2"/><circle class="map-point" cx="116" cy="36" r="2"/><circle class="map-point" cx="116" cy="86" r="2"/></svg><div class="micro map-bottom">• THE RAIN COURT <span>04</span></div></aside><div id="toast" class="panel toast"><span class="toast-icon">♧</span><div><div class="micro" id="toast-type">FIELD NOTE</div><strong id="toast-title">A little light goes a long way.</strong><p id="toast-body">Find three lost power cells. Bring the courtyard back to life.</p></div></div><aside class="objective panel"><div class="micro">COURTYARD RESTORATION</div><div class="objective-row"><span id="objective-text">Recover power cells</span><b id="progress">0 / 3</b></div><div class="progress-track"><i id="progress-bar"></i></div></aside><section class="companion panel"><div class="robot-icon"><div class="antenna"></div><div class="robot-head">▪ ▪</div><div class="robot-body">▤</div><div class="robot-feet">▰ ▰</div></div><div><div class="micro">ACTIVE COMPANION <span class="live">●</span></div><h2>Kiln <small>♨ FURNACE</small></h2><p>A warm core. A curious mind.</p></div></section><button id="interact" class="panel interact"><kbd>E</kbd><div><span class="micro">EXPLORE</span><strong id="action-title">Follow the little lights</strong><p id="action-sub">Wander the court with Kiln</p></div><span>→</span></button><footer><div class="controls"><span><kbd>W A S D</kbd> Move</span><span><kbd>↖</kbd> Click to walk</span><span><kbd>SHIFT</kbd> Faster</span><span><kbd>E</kbd> Interact</span></div><div class="actions"><span id="saved">✓ SAVED LOCALLY</span><button id="camera">▧ &nbsp; Camera <kbd>C</kbd></button><button id="sound">♫ &nbsp; Sound off</button><button id="settings">☷ &nbsp; Settings <kbd>ESC</kbd></button></div></footer><dialog id="settings-dialog"><div class="micro">TAKE A BREATHER</div><h2>The world can wait.</h2><p>Explore with WASD or arrow keys. Click the ground to walk.<br>Hold Shift to run. Press E near glowing objects.<br>Find three power cells, then restore the old generator.<br>Press M or use Districts to explore three more areas.<br>At a glowing gateway, press E to travel.</p><label>Atmosphere <input id="atmosphere" type="checkbox" checked> Drifting mist & fireflies</label><label>Render quality <select id="quality"><option value="1">Balanced</option><option value="2">High</option></select></label><button id="resume">Return to the courtyard →</button><button id="reset">Start a new journey</button></dialog><div id="loading">✧<span>WAKING THE COURTYARD</span></div><script type="module" src="/src/main.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#172120">
+  <title>Afterlight — Multiplayer Market Garden</title>
+</head>
+<body>
+  <canvas id="world" aria-label="Interactive isometric market-gardening world"></canvas>
+  <div class="vignette"></div>
+
+  <header>
+    <div class="brand">
+      <span class="star">✧</span>
+      <div>AFTERLIGHT<small>MARKET GARDENER</small></div>
+    </div>
+    <section class="location">
+      <span class="micro" id="district-tag">MARKET SOCIAL DISTRICT / 01</span>
+      <h1 id="location-title">The Market Court</h1>
+      <p><span id="weather-icon">☼</span> &nbsp; <span id="weather-text">AFTER THE RAIN</span> <span id="hud-clock">17:42</span></p>
+      <div class="player-stats-row">
+        <span class="stat-pill" id="hud-coins">60 ⛁</span>
+        <span class="stat-pill" id="hud-rep">10 ★</span>
+        <span class="stat-pill" id="hud-xp">Lvl 1 · 0 XP</span>
+      </div>
+    </section>
+  </header>
+
+  <aside class="map panel">
+    <div class="micro">▥ LOCAL RADAR <span>N ↑</span></div>
+    <svg viewBox="0 0 180 120">
+      <path id="map-path" d="M24 24H130V96H24Z M130 49H160V76H130 M65 24V13H87V24" />
+      <path class="map-grid" d="M24 60H130M77 24V96" />
+      <circle id="map-player" cx="78" cy="67" r="3" />
+      <circle class="map-point" cx="38" cy="38" r="2" />
+      <circle class="map-point" cx="116" cy="36" r="2" />
+      <circle class="map-point" cx="116" cy="86" r="2" />
+    </svg>
+    <div class="micro map-bottom" id="map-label">• MARKET COURT <span>01</span></div>
+  </aside>
+
+  <div id="toast" class="panel toast">
+    <span class="toast-icon">♧</span>
+    <div>
+      <div class="micro" id="toast-type">FIELD NOTE</div>
+      <strong id="toast-title">Welcome, Gardener.</strong>
+      <p id="toast-body">Cultivate your garden, trade produce at the market, and share the harvest.</p>
+    </div>
+  </div>
+
+  <section class="companion panel">
+    <div class="robot-icon">
+      <div class="antenna"></div>
+      <div class="robot-head">▪ ▪</div>
+      <div class="robot-body">▤</div>
+      <div class="robot-feet">▰ ▰</div>
+    </div>
+    <div>
+      <div class="micro">GARDENER PROFILE <span class="live" id="net-indicator">● ONLINE</span></div>
+      <h2><span id="hud-nick">MossyRadish42</span> <small id="btn-edit-nick" style="cursor:pointer;">✎ EDIT</small></h2>
+      <p id="hud-tool-hint">Tool: Hands & Inspect · Press 1–5 to switch</p>
+    </div>
+  </section>
+
+  <button id="interact" class="panel interact">
+    <kbd>E</kbd>
+    <div>
+      <span class="micro">ACTION</span>
+      <strong id="action-title">Explore the Market Court</strong>
+      <p id="action-sub">Interact with stalls, garden beds, and boards</p>
+    </div>
+    <span>→</span>
+  </button>
+
+  <footer>
+    <div class="tool-belt" id="tool-belt">
+      <button class="tool-btn active" data-tool="hands"><kbd>1</kbd> Hands</button>
+      <button class="tool-btn" data-tool="hoe"><kbd>2</kbd> Hoe</button>
+      <button class="tool-btn" data-tool="seed"><kbd>3</kbd> Seeds: <b id="active-seed-label">Radish</b></button>
+      <button class="tool-btn" data-tool="water"><kbd>4</kbd> Water Can</button>
+      <button class="tool-btn" data-tool="harvest"><kbd>5</kbd> Harvest</button>
+    </div>
+
+    <div class="actions">
+      <button id="btn-inventory">🎒 Satchel <kbd>I</kbd></button>
+      <button id="btn-market">⚖ Market <kbd>M</kbd></button>
+      <button id="btn-travel">◇ Travel</button>
+      <button id="btn-emote">👋 Wave <kbd>V</kbd></button>
+      <button id="camera">▧ Camera <kbd>C</kbd></button>
+      <button id="sound">♫ Sound off</button>
+      <button id="settings">☷ Settings <kbd>ESC</kbd></button>
+    </div>
+  </footer>
+
+  <dialog id="settings-dialog">
+    <div class="micro">SETTINGS & HELP</div>
+    <h2>Market Gardener's Journal</h2>
+    <p>
+      • <b>1–5</b>: Select tools (Hands, Hoe, Seeds, Water Can, Harvest)<br>
+      • <b>WASD / Click</b>: Move gardener<br>
+      • <b>E</b>: Interact with beds, market stalls, and gateways<br>
+      • <b>I</b>: Satchel & harvests &nbsp;|&nbsp; <b>M</b>: Market Exchange<br>
+      • <b>V</b>: Wave emote to nearby players
+    </p>
+    <label>Atmosphere <input id="atmosphere" type="checkbox" checked> Drifting mist & rain</label>
+    <label>Render quality 
+      <select id="quality">
+        <option value="1">Balanced</option>
+        <option value="2">High</option>
+      </select>
+    </label>
+    <button id="resume">Return to game →</button>
+  </dialog>
+
+  <dialog id="district-dialog">
+    <div class="micro">THE CITY EXPANDS</div>
+    <h2>Exploration Districts</h2>
+    <p class="dialog-sub">Follow the ancient routes across diverse biomes and restore the sleeping city.</p>
+    <div id="district-list"></div>
+    <button id="close-districts">Return to exploring →</button>
+  </dialog>
+
+  <div id="loading">✧<span>INITIALIZING EXPEDITION...</span></div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
