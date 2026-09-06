@@ -25,7 +25,7 @@ Do not interpret “add levels” as just changing the background color, moving 
 
 ## 2. Start here on each task
 
-1. Read this file and the relevant source files. Inspect the actual current code; this document can become stale.
+1. Read this file and the relevant source files. Inspect the actual current code; this document can become stale. When entering an unfamiliar subsystem, let Ripwire (section "Ripwire — repository intelligence") rank where to look before opening many files.
 2. Read `package.json` for available commands and `README.md` for player-facing behavior.
 3. Check for existing work before editing. Do not overwrite user changes, deployment configuration, or unrelated modifications.
 4. State briefly what you are implementing. Make reasonable choices within the user's scope rather than repeatedly asking for confirmation.
@@ -75,6 +75,28 @@ If the environment blocks package downloads or binding a server socket, use the 
 The build currently emits a non-fatal warning about a JavaScript chunk exceeding 500 kB. It is not a failed build. Do not silence it by arbitrarily raising thresholds. Address actual loading/performance needs when in scope.
 
 The CSS requests Google Fonts with local font fallbacks. Game geometry and synthesized sound do not depend on external game assets. Do not claim the font styling is entirely offline without changing this dependency.
+
+## 3a. Ripwire — repository intelligence
+
+Ripwire (`~/.local/bin/ripwire`, installed via `RIPWIRE_REPO=redhat-et/ripwire bash -c "$(curl -fsSL https://raw.githubusercontent.com/redhat-et/ripwire/main/scripts/install.sh)"` if missing) is the preferred first-line repository navigation and change-impact tool for this project. It is a development-time tool only: it must never become an Afterlight runtime dependency, build dependency, bundle input, or CI gate. If it is not installed, keep working with normal file reads and searches — do not install software without authorization.
+
+**Before broad grep/search, large-scale file reading, or guessing where a subsystem lives, run Ripwire instead:**
+
+- Orient in an unfamiliar area: `ripwire .` (ranked symbol map), or scoped: `ripwire src`, `ripwire server shared`.
+- Ask a specific question: `ripwire . --for="<task or question>"`.
+- Plan a substantial feature: `ripwire . --pack-task="<feature in plain English>"` before writing it — use the result to find reusable building blocks, files/symbols to touch, architecture boundaries, and tests.
+- Before modifying a load-bearing symbol, inspect its blast radius: `ripwire . --callers=<symbol>`, `--uses=<symbol>`, and `--impact=<symbol>`. Also ask "which tests cover this?" with `--affected=<symbol>`.
+- When a symbol's body is needed, prefer `ripwire . --expand=<symbol>` over opening a large file; normal reads remain fine when needed.
+- For a small but contract-sensitive edit: `ripwire . --edit-check=<symbol>`; escalate to full change review if it reports a contract change.
+- After a non-trivial diff, run `ripwire . --situ` (what your change touched and what may be affected); use `ripwire . --pr-context[=main]` (add `--max-tokens=8000` if large) for broader review, then `ripwire . --test-gate`.
+- When several agent branches/worktrees are landing together: `ripwire . --merge-scout=<ref1>,<ref2>,<ref3>` for conflicts and merge order. To find stranded or superseded unmerged work: `ripwire . --stray-content --plan`.
+
+Ripwire supplements, and does not replace: `npm test`, `npm run build`, README requirements, and the OpenSpec workflow (proposals, specs, and tasks remain mandatory where they apply). Ripwire findings are evidence for planning; they never bypass process, and missing Ripwire edges are never proof that no dependency exists.
+
+Scope caveats for this repository:
+
+- Run roots deliberately. `ripwire .` indexes the whole tree, including untracked vendored trees (`serviceradar/`, `server_elixir/` deps and build output) that can dominate results with unrelated symbols. For Afterlight work prefer scoped roots like `src server shared tests` (multi-root: `ripwire src server shared`).
+- **Elixir caveat.** The installed Ripwire build has no Elixir grammar, so `server_elixir/**.ex`/`.exs` files receive no AST/symbol/call-graph analysis. Use Ripwire for the JavaScript side, but supplement Elixir work with targeted source inspection, project search, and Elixir tooling/tests. Do not treat missing Ripwire edges in Elixir code as proof that no caller or dependency exists.
 
 ## 4. Runtime architecture: understand before editing
 
@@ -354,6 +376,8 @@ For changes to gameplay, districts, persistence, or rendering:
 6. Check browser errors. Separate external font/network issues from actual runtime failures.
 7. Reload after changes if hot reload did not apply them. HMR may reset the player to the saved district entrance; that is not evidence movement failed.
 8. Report the verification actually performed. If browser tooling is blocked, say which checks passed and what remains unverified.
+
+After the implementation, Ripwire review is encouraged but optional: `ripwire . --situ` (and `--pr-context` for broad diffs) can point at symbols your change may have affected, and `--test-gate` can suggest tests — but the steps above are the actual gate. Ripwire never substitutes for running the commands itself.
 
 Minimum useful gameplay smoke check for a new area:
 

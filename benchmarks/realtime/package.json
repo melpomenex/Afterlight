@@ -1,0 +1,10 @@
+{
+  "name": "afterlight-realtime-benchmarks",
+  "private": true,
+  "type": "module",
+  "description": "Self-contained benchmark deps for the realtime data-plane workstream. Deliberately separate from the root manifest (see docs/architecture/realtime/compat-report.md §6).",
+  "dependencies": {
+    "apache-arrow": "^21.2.0",
+    "roaring-wasm": "^1.1.0"
+  }
+}

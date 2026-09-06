@@ -22,6 +22,8 @@ Proposed contexts in one Elixir codebase:
 
 Phoenix controllers, LiveViews and Channels call the same context commands. LiveView assigns are UI projections, not an independent authoritative copy of a garden or wallet. Initial release contains Repo, PubSub, Presence, Endpoint, a local Registry and a DynamicSupervisor for room processes. Import jobs run in a separate bounded worker pool backed by durable jobs. Media runs in its own release from the beginning.
 
+Durable contexts are implemented as Ash domains: resources, actions and policies over AshPostgres own accounts, gardens, economy, restoration, theater, catalog and social state. `Afterlight.World` stays supervised OTP/process state and does not become an Ash resource. Channel and LiveView code calls domain action interfaces rather than issuing ad-hoc queries against Ash resources. Where transactions are highly contended, such as market fills, carefully bounded raw Ecto/Postgres code is permitted behind domain functions so locks and isolation remain explicit.
+
 ## Browser integration
 
 Mount a stable `id="afterlight-world" phx-hook="AfterlightWorld" phx-update="ignore"` island. Three.js owns its canvas, requestAnimationFrame, input, camera, local prediction and theater media DOM. LiveView owns siblings outside that island. Avoid replacing the root during panel changes or navigation. A hook starts once, reconnects its subscriptions without rebuilding GPU resources, and destroys listeners, sockets, media tracks and renderer resources on actual unmount.

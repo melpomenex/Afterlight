@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "generator": "scripts/export-parity-fixtures.mjs",
+  "comparator": {
+    "numbers": "numeric-tolerant (JS 1.0 serializes as 1; compare by value)",
+    "arrays": "order-sensitive (arrays are semantic)",
+    "objects": "key-order-insensitive except where the case pins key order",
+    "generated": "<gen:N> tokens are positional: the Nth id generated within a case (scan order: now, then queue order); \"<generated>\" masks random nickname fallbacks",
+    "<prev>": "threads the previous script step result (keepPrev: the step-0 result stays pinned)"
+  },
+  "files": [
+    {
+      "file": "theater-model.json",
+      "module": "Afterlight.Parity.Reference.Theater",
+      "caseCount": 97,
+      "hazards": {
+        "url-whatwg": [
+          "classify/*"
+        ],
+        "error-strings": [
+          "reducer/*"
+        ],
+        "float-position": [
+          "position/*"
+        ],
+        "number-coercion": [
+          "normalize/string-numbers",
+          "normalize/null-fields"
+        ],
+        "null-undefined-absent": [
+          "normalize/null",
+          "normalize/empty",
+          "normalize/null-fields"
+        ],
+        "utf16-slicing": [
+          "m3u/unicode-names",
+          "normalize/bad-ids-and-long-queue"
+        ],
+        "timestamps": [
+          "reducer/lifecycle-add-pause-seek-ended",
+          "position/*"
+        ]
+      }
+    },
+    {
+      "file": "torrent-model.json",
+      "module": "Afterlight.Parity.Reference.Torrent",
+      "caseCount": 52,
+      "hazards": {
+        "base32-bitops": [
+          "magnet/*"
+        ],
+        "number-coercion": [
+          "pick/*",
+          "status/*"
+        ],
+        "null-undefined-absent": [
+          "pick/*",
+          "status/missing-fields"
+        ],
+        "sorting-stability": [
+          "picker/*"
+        ],
+        "int-float-fields": [
+          "pick/fileBytes-float",
+          "status/*"
+        ],
+        "error-strings": [
+          "range/*"
+        ]
+      }
+    },
+    {
+      "file": "market.json",
+      "module": "Afterlight.Parity.Reference.Market",
+      "caseCount": 283,
+      "hazards": {
+        "rounding": [
+          "sell-price/*",
+          "seed-price/*",
+          "multiplier/*",
+          "book/fee-half-even-divergence-tv125",
+          "book/rounds-price-and-quantity"
+        ],
+        "tofixed": [
+          "multiplier/*"
+        ],
+        "sorting": [
+          "book/price-time-priority"
+        ],
+        "error-strings": [
+          "book/cancel-and-invalid"
+        ],
+        "int-float-fields": [
+          "book/rounds-price-and-quantity"
+        ],
+        "generated-ids": [
+          "book/*"
+        ]
+      }
+    },
+    {
+      "file": "garden-crops.json",
+      "module": "Afterlight.Parity.Reference.Garden",
+      "caseCount": 48,
+      "hazards": {
+        "float-accumulation": [
+          "tick/*"
+        ],
+        "rounding-boundaries": [
+          "quality/*",
+          "stage/*"
+        ],
+        "int-float-fields": [
+          "tick/*",
+          "harvest/*"
+        ],
+        "error-strings": [
+          "harvest/*",
+          "tick/null-bed"
+        ],
+        "timestamps": [
+          "stage/*",
+          "harvest/*"
+        ]
+      }
+    },
+    {
+      "file": "iptv-xmltv.json",
+      "module": "Afterlight.Parity.Reference.Catalog",
+      "caseCount": 47,
+      "hazards": {
+        "key-order": [
+          "xmltv/index-first-wins",
+          "epg/set-unsorted-sorts"
+        ],
+        "timestamps-rollover": [
+          "time/*"
+        ],
+        "utf16-slicing": [
+          "epg/set-entities-and-caps"
+        ],
+        "number-coercion": [
+          "library/normalize-repairs"
+        ],
+        "error-strings": [
+          "library/*",
+          "channels/*"
+        ],
+        "locale-excluded": [
+          "library/add-*"
+        ]
+      }
+    },
+    {
+      "file": "identity-nodes-machines.json",
+      "module": "Afterlight.Parity.Reference.Misc",
+      "caseCount": 49,
+      "hazards": {
+        "bitops32": [
+          "palette/*"
+        ],
+        "utf16-slicing": [
+          "nick/sanitize-*",
+          "palette/*"
+        ],
+        "libm-trig": [
+          "nick/default-seed-*"
+        ],
+        "generated-ids": [
+          "nick/dup-ladder-exhausted",
+          "nick/sanitize-7",
+          "nick/sanitize-8"
+        ],
+        "error-strings": [
+          "nodes/*",
+          "mill/*",
+          "yt/*"
+        ],
+        "key-order": [
+          "yt/classic-renderers",
+          "yt/lockup-view-models"
+        ],
+        "timestamps": [
+          "nodes/*"
+        ],
+        "number-coercion": [
+          "mill/contribute-clamp-matrix",
+          "protocol/parse-*"
+        ],
+        "json-roundtrip": [
+          "protocol/*"
+        ]
+      }
+    }
+  ]
+}

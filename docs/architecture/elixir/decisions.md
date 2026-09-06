@@ -12,7 +12,7 @@ Use Channels topics with authorization and snapshots; Presence contains coarse m
 
 ## ADR-003: PostgreSQL owns valuable durable state
 
-Replace whole-file saves with transactions, constraints, receipts and an outbox. Actor serialization alone cannot atomically transfer assets between players or survive failures. Cost: schema migrations, database operations and contention testing. No event-sourcing platform is required initially.
+Replace whole-file saves with transactions, constraints, receipts and an outbox. Actor serialization alone cannot atomically transfer assets between players or survive failures. Cost: schema migrations, database operations and contention testing. No event-sourcing platform is required initially. The durable domain layer over this state is Ash/AshPostgres (ADR-008).
 
 ## ADR-004: Bound rooms and fence distributed owners
 
@@ -29,3 +29,7 @@ Provider embeds remain in the browser. Retain WebTorrent and initially IRC behin
 ## ADR-007: Migrate one authority at a time
 
 Use fixtures and domain routing, then freeze/import/reconcile before switching writers. Reject dual writes for inventory, balances and theater state. Cost: short maintenance windows and an explicit post-cutover rollback/export procedure.
+
+## ADR-008: Use Ash for durable domain modeling; retain OTP and Ecto escape hatches
+
+Use Ash domains, actions and policies over AshPostgres as the durable domain layer between Phoenix and PostgreSQL. Ash complements Phoenix; it does not replace supervised room processes, Channels, PubSub, Membrane or the Three.js client, and it does not own frame-rate state. High-contention transactions, such as market fills, may use carefully bounded Ecto/Postgres code behind domain functions where declarative abstraction would obscure locks and isolation. Transactional correctness outranks framework purity. Cost: pinning and learning a framework dependency, keeping channel/LiveView code on action interfaces, and reviewing any escape hatch for hidden transaction behavior.

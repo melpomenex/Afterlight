@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Afterlight realtime pipeline harness</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { background: #141d1b; color: #e8e2cf; font: 14px/1.5 'Space Mono', ui-monospace, monospace; margin: 2rem; }
+  h1 { font-size: 1rem; letter-spacing: 0.12em; color: #d8b865; }
+  .panel { background: rgba(20,40,38,0.7); border: 1px solid #2e4440; border-radius: 4px 12px 4px 12px; padding: 1rem; margin: 1rem 0; max-width: 60rem; }
+  .ok { color: #9fd6a8; } .bad { color: #e08c7a; } .dim { color: #7d8f89; }
+  table { border-collapse: collapse; }
+  td, th { padding: 0.15rem 0.8rem; text-align: left; border-bottom: 1px solid #24332f; }
+</style>
+</head>
+<body>
+<h1>REALTIME PIPELINE HARNESS — DUAL-PATH PARITY</h1>
+<p class="dim">Served by the dev server alongside the echo server. Connects two sockets:
+one legacy JSON, one binary via the worker pipeline, then compares store state.</p>
+<div class="panel" id="log">starting…</div>
+<div class="panel"><span class="dim">debug:</span> <span id="dbg">-</span></div>
+<div class="panel" id="parity">parity: pending</div>
+<script type="module">
+import { RealtimePipeline } from '/src/realtime/pipeline.js';
+import { resolveFlags } from '/src/realtime/flags.js';
+import { buildHelloRt, parseWelcomeRt } from '/shared/realtime/negotiation.js';
+
+const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.hostname + ':39301';
+const log = (html) => { document.getElementById('log').innerHTML += '<div>' + html + '</div>'; };
+const SAMPLES = 40; // ~4 s of ticks
+const TOLERANCE = 0.5; // world units (both sockets observe the same ticks)
+const dbg = window.__dbg = { legacyFrames: 0, binaryFrames: 0, entries: 0, mode: '?', packs: 0, resyncs: 0, errors: [] };
+setInterval(() => {
+  const el = document.getElementById('dbg');
+  if (el) el.textContent = JSON.stringify(dbg);
+}, 500);
+
+// --- legacy peer -----------------------------------------------------------
+const legacy = { ws: null, players: new Map(), samples: 0 };
+
+function legacyConnect() {
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(wsUrl);
+    ws.onopen = () => ws.send(JSON.stringify({ type: 'hello', guestId: 'guest_harnessLEG' }));
+    ws.onmessage = (ev) => {
+      if (typeof ev.data !== 'string') return;
+      const msg = JSON.parse(ev.data);
+      if (msg.type === 'welcome') {
+        ws.send(JSON.stringify({ type: 'join_room', roomId: 'market' }));
+      } else if (msg.type === 'presence_update') {
+        for (const p of msg.players) legacy.players.set(p.id, p);
+        dbg.legacyFrames++;
+        if (++legacy.samples >= SAMPLES) resolve();
+      }
+    };
+    ws.onerror = () => reject(new Error('legacy socket failed — is the echo server on :39301?'));
+    legacy.ws = ws;
+  });
+}
+
+// --- accelerated peer ------------------------------------------------------
+const flags = { ...resolveFlags(), realtime_binary: true, realtime_worker: true };
+const binary = { ws: null, players: new Map(), samples: 0, mode: '?' };
+
+function binaryConnect() {
+  return new Promise((resolve, reject) => {
+    const pipeline = new RealtimePipeline({
+      flags,
+      handlers: {
+        onEntry: (e) => {
+          dbg.entries++;
+          binary.players.set(e.entityId, { id: e.id, x: e.x, z: e.z, rotY: e.rotY, walking: e.walking, sitting: e.sitting, airborne: e.airborne });
+        },
+        onModeChange: (m) => { binary.mode = m; dbg.mode = m; },
+        onResync: (r) => { dbg.resyncs++; dbg.errors.push(String(r)); },
+      },
+    });
+    dbg.mode = pipeline.mode;
+    const ws = new WebSocket(wsUrl);
+    ws.binaryType = 'arraybuffer';
+    ws.onopen = () => ws.send(JSON.stringify({ type: 'hello', guestId: 'guest_harnessBIN', rt: buildHelloRt({ wasm: flags.realtime_wasm }) }));
+    ws.onmessage = (ev) => {
+      if (typeof ev.data === 'string') {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === 'welcome') {
+          const rt = parseWelcomeRt(msg);
+          log('binary peer negotiated: ' + (rt ? rt.protocol + ' @ ' + rt.snapshotHz + ' Hz' : '<b>legacy (negotiation failed)</b>'));
+          ws.send(JSON.stringify({ type: 'join_room', roomId: 'market' }));
+        }
+        return;
+      }
+      if (++binary.samples <= SAMPLES) { dbg.binaryFrames++; pipeline.feedBinary(ev.data); }
+      if (binary.samples === SAMPLES) { pipeline.dispose(); resolve(); }
+    };
+    ws.onerror = () => reject(new Error('binary socket failed'));
+    binary.ws = ws;
+  });
+}
+
+// --- parity ----------------------------------------------------------------
+function compare() {
+  // legacy NPC ids arrive as numeric strings; binary ids resolve to numbers
+  const a = new Map([...legacy.players].map(([k, v]) => [String(k), v]));
+  const b = new Map([...binary.players].map(([k, v]) => [String(k), v]));
+  let checked = 0, maxErr = 0, missing = 0;
+  for (const [id, pa] of a) {
+    const pb = b.get(id);
+    if (!pb) { missing++; continue; }
+    const err = Math.hypot(pa.x - pb.x, pa.z - pb.z);
+    maxErr = Math.max(maxErr, err);
+    checked++;
+  }
+  const pass = missing === 0 && maxErr <= TOLERANCE && checked > 0;
+  document.getElementById('parity').innerHTML =
+    '<span class="' + (pass ? 'ok' : 'bad') + '">' + (pass ? 'PARITY PASS' : 'PARITY FAIL') + '</span>' +
+    ' — entities compared: ' + checked + ', missing: ' + missing +
+    ', max position error: ' + maxErr.toFixed(3) + ' u (tolerance ' + TOLERANCE + ' u)' +
+    '<br><span class="dim">pipeline mode: ' + binary.mode + ' · ticks sampled: ' + SAMPLES + '</span>';
+}
+
+Promise.all([legacyConnect(), binaryConnect()])
+  .then(() => { log('sampled ' + SAMPLES + ' ticks on both paths'); compare(); })
+  .catch((e) => { log('<span class="bad">' + e.message + '</span>'); log('start it with: node tools/realtime/echo-server.mjs'); });
+</script>
+</body>
+</html>

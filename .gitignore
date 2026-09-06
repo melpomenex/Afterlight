@@ -3,3 +3,12 @@ node_modules/
 
 # Torrent download cache (disposable runtime data; see server/torrents.js)
 data/torrents/
+
+# Vendored external repository (development reference only)
+serviceradar/
+
+# Build artifacts
+wasm/afterlight-realtime/target/
+server_elixir/_build/
+server_elixir/deps/
+server_elixir/erl_crash.dump

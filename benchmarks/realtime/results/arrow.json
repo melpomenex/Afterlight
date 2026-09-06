@@ -1,0 +1,2498 @@
+{
+  "encoding": "F: Arrow IPC full entity table; G: Arrow IPC changed-row columns + Roaring portable mask",
+  "libs": {
+    "apache-arrow": "21.2.0",
+    "roaring-wasm": "1.1.0"
+  },
+  "env": {
+    "node": "v22.22.1",
+    "exposedGc": true,
+    "cpus": 24,
+    "date": "2026-09-06T20:59:02.747Z"
+  },
+  "methodology": {
+    "runs": "timeIt: warmup 3, 20 measured; report median/p95/min (ms). Machine shared with concurrent agents: MIN is the comparable statistic, contract §8.",
+    "bytes": "payload bytes only (no ALRT/section headers), matches JSON.stringify bytes",
+    "delta": "stepWorld chains ticks on a mutating world; each point uses a fresh tick seed",
+    "decode": "Arrow decode = tableFromIPC + toArray() per column + Roaring deserialize/toArray; JSON decode = JSON.parse",
+    "encode": "Arrow G encode = gather changed rows + tableFromArrays wrap + tableToIPC + Roaring serialize + dispose (full fixture-state→wire path)"
+  },
+  "overhead": {
+    "snapshotSchema6col": {
+      "totalEmpty": 760,
+      "schemaMessageBytes": 392,
+      "batchMessageBytes": 360,
+      "eosBytes": 8,
+      "fixedBytes": 760
+    },
+    "deltaSchema5col": {
+      "totalEmpty": 656,
+      "schemaMessageBytes": 336,
+      "batchMessageBytes": 312,
+      "eosBytes": 8,
+      "fixedBytes": 656
+    },
+    "explanation": "fixedBytes = schema message + record-batch metadata message + EOS, paid per IPC stream (i.e. per frame, fresh writer per tick). valueBytes(rows) = sum of 8-byte-aligned column buffers (snapshot: u32+4xf32+u8 = ~21 B/row; delta: 4xf32+u8 = ~17 B/row). Fields are non-nullable so validity bitmaps are zero-length. Size model verified against actual tableToIPC output at n=1 and n=997."
+  },
+  "schemaEvolutionProbe": {
+    "addedTrailingFieldDecodes": true,
+    "missingColumnGetChildIsNull": true
+  },
+  "snapshot": [
+    {
+      "n": 50,
+      "arrowF": {
+        "bytes": 1816,
+        "metaBytes": 760,
+        "valueBytes": 1056,
+        "encMs": {
+          "median": 0.3869,
+          "p95": 0.5284,
+          "min": 0.2567
+        },
+        "decMs": {
+          "median": 0.1947,
+          "p95": 0.3474,
+          "min": 0.1404
+        },
+        "encHeapBytes": -12360,
+        "decHeapBytes": -1440
+      },
+      "json": {
+        "bytes": 5418,
+        "encMs": {
+          "median": 0.0562,
+          "p95": 0.078,
+          "min": 0.0374
+        },
+        "decMs": {
+          "median": 0.0377,
+          "p95": 0.0403,
+          "min": 0.0346
+        },
+        "encHeapBytes": 376,
+        "decHeapBytes": 280
+      }
+    },
+    {
+      "n": 100,
+      "arrowF": {
+        "bytes": 2864,
+        "metaBytes": 760,
+        "valueBytes": 2104,
+        "encMs": {
+          "median": 0.3566,
+          "p95": 0.5243,
+          "min": 0.1974
+        },
+        "decMs": {
+          "median": 0.151,
+          "p95": 0.3283,
+          "min": 0.1091
+        },
+        "encHeapBytes": -52584,
+        "decHeapBytes": -15568
+      },
+      "json": {
+        "bytes": 10775,
+        "encMs": {
+          "median": 0.0546,
+          "p95": 0.076,
+          "min": 0.0462
+        },
+        "decMs": {
+          "median": 0.065,
+          "p95": 0.0743,
+          "min": 0.0429
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": -32
+      }
+    },
+    {
+      "n": 200,
+      "arrowF": {
+        "bytes": 4960,
+        "metaBytes": 760,
+        "valueBytes": 4200,
+        "encMs": {
+          "median": 0.2064,
+          "p95": 0.3217,
+          "min": 0.1394
+        },
+        "decMs": {
+          "median": 0.1475,
+          "p95": 0.2019,
+          "min": 0.1055
+        },
+        "encHeapBytes": -76552,
+        "decHeapBytes": -8392
+      },
+      "json": {
+        "bytes": 21513,
+        "encMs": {
+          "median": 0.115,
+          "p95": 0.165,
+          "min": 0.0927
+        },
+        "decMs": {
+          "median": 0.1282,
+          "p95": 0.1351,
+          "min": 0.0793
+        },
+        "encHeapBytes": -32,
+        "decHeapBytes": -32
+      }
+    },
+    {
+      "n": 500,
+      "arrowF": {
+        "bytes": 11264,
+        "metaBytes": 760,
+        "valueBytes": 10504,
+        "encMs": {
+          "median": 0.2954,
+          "p95": 0.458,
+          "min": 0.1586
+        },
+        "decMs": {
+          "median": 0.1674,
+          "p95": 0.2169,
+          "min": 0.1159
+        },
+        "encHeapBytes": 26160,
+        "decHeapBytes": -27984
+      },
+      "json": {
+        "bytes": 53700,
+        "encMs": {
+          "median": 0.4089,
+          "p95": 0.5721,
+          "min": 0.382
+        },
+        "decMs": {
+          "median": 0.3857,
+          "p95": 0.4711,
+          "min": 0.2377
+        },
+        "encHeapBytes": 64,
+        "decHeapBytes": -32
+      }
+    },
+    {
+      "n": 1000,
+      "arrowF": {
+        "bytes": 21760,
+        "metaBytes": 760,
+        "valueBytes": 21000,
+        "encMs": {
+          "median": 0.2211,
+          "p95": 0.2815,
+          "min": 0.1401
+        },
+        "decMs": {
+          "median": 0.1145,
+          "p95": 0.1502,
+          "min": 0.0851
+        },
+        "encHeapBytes": 10712,
+        "decHeapBytes": -49048
+      },
+      "json": {
+        "bytes": 107415,
+        "encMs": {
+          "median": 0.8081,
+          "p95": 1.0468,
+          "min": 0.5272
+        },
+        "decMs": {
+          "median": 0.5586,
+          "p95": 0.7289,
+          "min": 0.3956
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": -32
+      }
+    },
+    {
+      "n": 5000,
+      "arrowF": {
+        "bytes": 105760,
+        "metaBytes": 760,
+        "valueBytes": 105000,
+        "encMs": {
+          "median": 0.4586,
+          "p95": 0.8249,
+          "min": 0.316
+        },
+        "decMs": {
+          "median": 0.1692,
+          "p95": 0.2566,
+          "min": 0.1324
+        },
+        "encHeapBytes": -29256,
+        "decHeapBytes": -1016
+      },
+      "json": {
+        "bytes": 536849,
+        "encMs": {
+          "median": 3.7947,
+          "p95": 5.2927,
+          "min": 3.0192
+        },
+        "decMs": {
+          "median": 2.9854,
+          "p95": 4.2068,
+          "min": 2.3993
+        },
+        "encHeapBytes": -32,
+        "decHeapBytes": 16
+      }
+    },
+    {
+      "n": 10000,
+      "arrowF": {
+        "bytes": 210760,
+        "metaBytes": 760,
+        "valueBytes": 210000,
+        "encMs": {
+          "median": 0.4789,
+          "p95": 1.2978,
+          "min": 0.3106
+        },
+        "decMs": {
+          "median": 0.2084,
+          "p95": 0.3779,
+          "min": 0.1276
+        },
+        "encHeapBytes": -45608,
+        "decHeapBytes": -11824
+      },
+      "json": {
+        "bytes": 1073746,
+        "encMs": {
+          "median": 9.026,
+          "p95": 12.1568,
+          "min": 7.5957
+        },
+        "decMs": {
+          "median": 8.1992,
+          "p95": 9.6577,
+          "min": 4.245
+        },
+        "encHeapBytes": -32,
+        "decHeapBytes": 16
+      }
+    },
+    {
+      "n": 50000,
+      "arrowF": {
+        "bytes": 1050760,
+        "metaBytes": 760,
+        "valueBytes": 1050000,
+        "encMs": {
+          "median": 1.1209,
+          "p95": 1.5039,
+          "min": 0.734
+        },
+        "decMs": {
+          "median": 0.2257,
+          "p95": 0.659,
+          "min": 0.1334
+        },
+        "encHeapBytes": -51872,
+        "decHeapBytes": -11824
+      },
+      "json": {
+        "bytes": 5368754,
+        "encMs": {
+          "median": 55.8218,
+          "p95": 73.8921,
+          "min": 41.4916
+        },
+        "decMs": {
+          "median": 25.9999,
+          "p95": 33.0378,
+          "min": 22.5193
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": -32
+      }
+    }
+  ],
+  "deltas": [
+    {
+      "n": 50,
+      "f": 0.001,
+      "k": 1,
+      "json": {
+        "bytes": 144,
+        "encMs": {
+          "median": 0.0041,
+          "p95": 0.0072,
+          "min": 0.0039
+        },
+        "decMs": {
+          "median": 0.001,
+          "p95": 0.0019,
+          "min": 0.001
+        },
+        "encHeapBytes": 520,
+        "decHeapBytes": 896
+      },
+      "arrowG": {
+        "ipcBytes": 704,
+        "maskBytes": 18,
+        "totalBytes": 722,
+        "metaBytes": 664,
+        "valueBytes": 40,
+        "bytesPerChangedRow": 722,
+        "encMs": {
+          "median": 0.3006,
+          "p95": 0.5502,
+          "min": 0.213
+        },
+        "decMs": {
+          "median": 0.2221,
+          "p95": 0.2871,
+          "min": 0.1756
+        },
+        "encHeapBytes": -19152,
+        "decHeapBytes": -3592
+      },
+      "ratio": 5.014
+    },
+    {
+      "n": 50,
+      "f": 0.01,
+      "k": 1,
+      "json": {
+        "bytes": 144,
+        "encMs": {
+          "median": 0.0054,
+          "p95": 0.008,
+          "min": 0.0042
+        },
+        "decMs": {
+          "median": 0.001,
+          "p95": 0.0014,
+          "min": 0.001
+        },
+        "encHeapBytes": -3512,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 704,
+        "maskBytes": 18,
+        "totalBytes": 722,
+        "metaBytes": 664,
+        "valueBytes": 40,
+        "bytesPerChangedRow": 722,
+        "encMs": {
+          "median": 0.2905,
+          "p95": 0.5537,
+          "min": 0.2175
+        },
+        "decMs": {
+          "median": 0.1895,
+          "p95": 0.2678,
+          "min": 0.1349
+        },
+        "encHeapBytes": -23728,
+        "decHeapBytes": -6328
+      },
+      "ratio": 5.014
+    },
+    {
+      "n": 50,
+      "f": 0.05,
+      "k": 3,
+      "json": {
+        "bytes": 359,
+        "encMs": {
+          "median": 0.0102,
+          "p95": 0.0114,
+          "min": 0.0086
+        },
+        "decMs": {
+          "median": 0.0047,
+          "p95": 0.0056,
+          "min": 0.0039
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 736,
+        "maskBytes": 22,
+        "totalBytes": 758,
+        "metaBytes": 664,
+        "valueBytes": 72,
+        "bytesPerChangedRow": 252.7,
+        "encMs": {
+          "median": 0.3974,
+          "p95": 0.6153,
+          "min": 0.2319
+        },
+        "decMs": {
+          "median": 0.2374,
+          "p95": 0.2673,
+          "min": 0.1979
+        },
+        "encHeapBytes": 26496,
+        "decHeapBytes": -12544
+      },
+      "ratio": 2.111
+    },
+    {
+      "n": 50,
+      "f": 0.1,
+      "k": 5,
+      "json": {
+        "bytes": 573,
+        "encMs": {
+          "median": 0.0104,
+          "p95": 0.012,
+          "min": 0.0059
+        },
+        "decMs": {
+          "median": 0.0025,
+          "p95": 0.0028,
+          "min": 0.0025
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 768,
+        "maskBytes": 26,
+        "totalBytes": 794,
+        "metaBytes": 664,
+        "valueBytes": 104,
+        "bytesPerChangedRow": 158.8,
+        "encMs": {
+          "median": 0.3204,
+          "p95": 0.6038,
+          "min": 0.203
+        },
+        "decMs": {
+          "median": 0.1596,
+          "p95": 0.2142,
+          "min": 0.1265
+        },
+        "encHeapBytes": -2376,
+        "decHeapBytes": -1496
+      },
+      "ratio": 1.386
+    },
+    {
+      "n": 50,
+      "f": 0.25,
+      "k": 13,
+      "json": {
+        "bytes": 1433,
+        "encMs": {
+          "median": 0.019,
+          "p95": 0.0233,
+          "min": 0.0164
+        },
+        "decMs": {
+          "median": 0.0057,
+          "p95": 0.0118,
+          "min": 0.0056
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 904,
+        "maskBytes": 42,
+        "totalBytes": 946,
+        "metaBytes": 664,
+        "valueBytes": 240,
+        "bytesPerChangedRow": 72.8,
+        "encMs": {
+          "median": 0.3964,
+          "p95": 0.563,
+          "min": 0.2821
+        },
+        "decMs": {
+          "median": 0.2382,
+          "p95": 0.2939,
+          "min": 0.1433
+        },
+        "encHeapBytes": 15168,
+        "decHeapBytes": -12832
+      },
+      "ratio": 0.66
+    },
+    {
+      "n": 50,
+      "f": 0.5,
+      "k": 25,
+      "json": {
+        "bytes": 2728,
+        "encMs": {
+          "median": 0.0259,
+          "p95": 0.0498,
+          "min": 0.0186
+        },
+        "decMs": {
+          "median": 0.0211,
+          "p95": 0.0236,
+          "min": 0.0179
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 1112,
+        "maskBytes": 66,
+        "totalBytes": 1178,
+        "metaBytes": 664,
+        "valueBytes": 448,
+        "bytesPerChangedRow": 47.1,
+        "encMs": {
+          "median": 0.3128,
+          "p95": 0.5071,
+          "min": 0.2445
+        },
+        "decMs": {
+          "median": 0.202,
+          "p95": 0.2644,
+          "min": 0.1461
+        },
+        "encHeapBytes": -31080,
+        "decHeapBytes": -12592
+      },
+      "ratio": 0.432
+    },
+    {
+      "n": 50,
+      "f": 1,
+      "k": 50,
+      "json": {
+        "bytes": 5408,
+        "encMs": {
+          "median": 0.0249,
+          "p95": 0.0352,
+          "min": 0.0234
+        },
+        "decMs": {
+          "median": 0.0202,
+          "p95": 0.0209,
+          "min": 0.0201
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 1520,
+        "maskBytes": 116,
+        "totalBytes": 1636,
+        "metaBytes": 664,
+        "valueBytes": 856,
+        "bytesPerChangedRow": 32.7,
+        "encMs": {
+          "median": 0.3006,
+          "p95": 0.5731,
+          "min": 0.2141
+        },
+        "decMs": {
+          "median": 0.2091,
+          "p95": 0.3095,
+          "min": 0.1436
+        },
+        "encHeapBytes": -39232,
+        "decHeapBytes": -320
+      },
+      "ratio": 0.303
+    },
+    {
+      "n": 100,
+      "f": 0.001,
+      "k": 1,
+      "json": {
+        "bytes": 143,
+        "encMs": {
+          "median": 0.0042,
+          "p95": 0.0067,
+          "min": 0.0032
+        },
+        "decMs": {
+          "median": 0.001,
+          "p95": 0.0011,
+          "min": 0.0009
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 704,
+        "maskBytes": 18,
+        "totalBytes": 722,
+        "metaBytes": 664,
+        "valueBytes": 40,
+        "bytesPerChangedRow": 722,
+        "encMs": {
+          "median": 0.3254,
+          "p95": 0.5172,
+          "min": 0.2457
+        },
+        "decMs": {
+          "median": 0.1893,
+          "p95": 0.3174,
+          "min": 0.1227
+        },
+        "encHeapBytes": -13208,
+        "decHeapBytes": -1016
+      },
+      "ratio": 5.049
+    },
+    {
+      "n": 100,
+      "f": 0.01,
+      "k": 1,
+      "json": {
+        "bytes": 144,
+        "encMs": {
+          "median": 0.0055,
+          "p95": 0.0067,
+          "min": 0.0051
+        },
+        "decMs": {
+          "median": 0.0017,
+          "p95": 0.002,
+          "min": 0.0016
+        },
+        "encHeapBytes": 136,
+        "decHeapBytes": 120
+      },
+      "arrowG": {
+        "ipcBytes": 704,
+        "maskBytes": 18,
+        "totalBytes": 722,
+        "metaBytes": 664,
+        "valueBytes": 40,
+        "bytesPerChangedRow": 722,
+        "encMs": {
+          "median": 0.3462,
+          "p95": 0.9587,
+          "min": 0.169
+        },
+        "decMs": {
+          "median": 0.1984,
+          "p95": 0.2849,
+          "min": 0.168
+        },
+        "encHeapBytes": -41448,
+        "decHeapBytes": -6224
+      },
+      "ratio": 5.014
+    },
+    {
+      "n": 100,
+      "f": 0.05,
+      "k": 5,
+      "json": {
+        "bytes": 576,
+        "encMs": {
+          "median": 0.007,
+          "p95": 0.0091,
+          "min": 0.0053
+        },
+        "decMs": {
+          "median": 0.0048,
+          "p95": 0.0056,
+          "min": 0.0043
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 768,
+        "maskBytes": 26,
+        "totalBytes": 794,
+        "metaBytes": 664,
+        "valueBytes": 104,
+        "bytesPerChangedRow": 158.8,
+        "encMs": {
+          "median": 0.2739,
+          "p95": 1.1211,
+          "min": 0.179
+        },
+        "decMs": {
+          "median": 0.1179,
+          "p95": 0.185,
+          "min": 0.1033
+        },
+        "encHeapBytes": 3512,
+        "decHeapBytes": -12592
+      },
+      "ratio": 1.378
+    },
+    {
+      "n": 100,
+      "f": 0.1,
+      "k": 10,
+      "json": {
+        "bytes": 1113,
+        "encMs": {
+          "median": 0.0113,
+          "p95": 0.0124,
+          "min": 0.0104
+        },
+        "decMs": {
+          "median": 0.0086,
+          "p95": 0.01,
+          "min": 0.0071
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": -9304
+      },
+      "arrowG": {
+        "ipcBytes": 840,
+        "maskBytes": 36,
+        "totalBytes": 876,
+        "metaBytes": 664,
+        "valueBytes": 176,
+        "bytesPerChangedRow": 87.6,
+        "encMs": {
+          "median": 0.2913,
+          "p95": 0.4928,
+          "min": 0.1601
+        },
+        "decMs": {
+          "median": 0.1796,
+          "p95": 0.2873,
+          "min": 0.1381
+        },
+        "encHeapBytes": 13424,
+        "decHeapBytes": 568
+      },
+      "ratio": 0.787
+    },
+    {
+      "n": 100,
+      "f": 0.25,
+      "k": 25,
+      "json": {
+        "bytes": 2721,
+        "encMs": {
+          "median": 0.0219,
+          "p95": 0.051,
+          "min": 0.0137
+        },
+        "decMs": {
+          "median": 0.0106,
+          "p95": 0.0174,
+          "min": 0.0103
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 64
+      },
+      "arrowG": {
+        "ipcBytes": 1112,
+        "maskBytes": 66,
+        "totalBytes": 1178,
+        "metaBytes": 664,
+        "valueBytes": 448,
+        "bytesPerChangedRow": 47.1,
+        "encMs": {
+          "median": 0.3383,
+          "p95": 0.6686,
+          "min": 0.2134
+        },
+        "decMs": {
+          "median": 0.1873,
+          "p95": 0.3341,
+          "min": 0.125
+        },
+        "encHeapBytes": -40136,
+        "decHeapBytes": -6960
+      },
+      "ratio": 0.433
+    },
+    {
+      "n": 100,
+      "f": 0.5,
+      "k": 50,
+      "json": {
+        "bytes": 5384,
+        "encMs": {
+          "median": 0.0359,
+          "p95": 0.0378,
+          "min": 0.0239
+        },
+        "decMs": {
+          "median": 0.0201,
+          "p95": 0.0318,
+          "min": 0.02
+        },
+        "encHeapBytes": 21720,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 1520,
+        "maskBytes": 116,
+        "totalBytes": 1636,
+        "metaBytes": 664,
+        "valueBytes": 856,
+        "bytesPerChangedRow": 32.7,
+        "encMs": {
+          "median": 0.2931,
+          "p95": 0.3513,
+          "min": 0.2004
+        },
+        "decMs": {
+          "median": 0.1588,
+          "p95": 0.2199,
+          "min": 0.1146
+        },
+        "encHeapBytes": 8472,
+        "decHeapBytes": -9160
+      },
+      "ratio": 0.304
+    },
+    {
+      "n": 100,
+      "f": 1,
+      "k": 100,
+      "json": {
+        "bytes": 10766,
+        "encMs": {
+          "median": 0.0779,
+          "p95": 0.0831,
+          "min": 0.0737
+        },
+        "decMs": {
+          "median": 0.0481,
+          "p95": 0.0725,
+          "min": 0.0405
+        },
+        "encHeapBytes": 64,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 2368,
+        "maskBytes": 216,
+        "totalBytes": 2584,
+        "metaBytes": 664,
+        "valueBytes": 1704,
+        "bytesPerChangedRow": 25.8,
+        "encMs": {
+          "median": 0.2919,
+          "p95": 0.6101,
+          "min": 0.187
+        },
+        "decMs": {
+          "median": 0.153,
+          "p95": 0.2166,
+          "min": 0.098
+        },
+        "encHeapBytes": 3216,
+        "decHeapBytes": 16
+      },
+      "ratio": 0.24
+    },
+    {
+      "n": 200,
+      "f": 0.001,
+      "k": 1,
+      "json": {
+        "bytes": 145,
+        "encMs": {
+          "median": 0.0061,
+          "p95": 0.0083,
+          "min": 0.0055
+        },
+        "decMs": {
+          "median": 0.001,
+          "p95": 0.001,
+          "min": 0.0009
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 704,
+        "maskBytes": 18,
+        "totalBytes": 722,
+        "metaBytes": 664,
+        "valueBytes": 40,
+        "bytesPerChangedRow": 722,
+        "encMs": {
+          "median": 0.2841,
+          "p95": 0.3894,
+          "min": 0.2062
+        },
+        "decMs": {
+          "median": 0.1954,
+          "p95": 0.234,
+          "min": 0.1386
+        },
+        "encHeapBytes": 11120,
+        "decHeapBytes": -1088
+      },
+      "ratio": 4.979
+    },
+    {
+      "n": 200,
+      "f": 0.01,
+      "k": 2,
+      "json": {
+        "bytes": 252,
+        "encMs": {
+          "median": 0.0073,
+          "p95": 0.0198,
+          "min": 0.0062
+        },
+        "decMs": {
+          "median": 0.0014,
+          "p95": 0.002,
+          "min": 0.0013
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 704,
+        "maskBytes": 20,
+        "totalBytes": 724,
+        "metaBytes": 664,
+        "valueBytes": 40,
+        "bytesPerChangedRow": 362,
+        "encMs": {
+          "median": 0.2885,
+          "p95": 0.5817,
+          "min": 0.1639
+        },
+        "decMs": {
+          "median": 0.1821,
+          "p95": 0.2292,
+          "min": 0.1404
+        },
+        "encHeapBytes": 3256,
+        "decHeapBytes": -13488
+      },
+      "ratio": 2.873
+    },
+    {
+      "n": 200,
+      "f": 0.05,
+      "k": 10,
+      "json": {
+        "bytes": 1111,
+        "encMs": {
+          "median": 0.0226,
+          "p95": 0.0353,
+          "min": 0.0189
+        },
+        "decMs": {
+          "median": 0.0139,
+          "p95": 0.0239,
+          "min": 0.0077
+        },
+        "encHeapBytes": -32,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 840,
+        "maskBytes": 36,
+        "totalBytes": 876,
+        "metaBytes": 664,
+        "valueBytes": 176,
+        "bytesPerChangedRow": 87.6,
+        "encMs": {
+          "median": 0.2098,
+          "p95": 0.449,
+          "min": 0.1555
+        },
+        "decMs": {
+          "median": 0.1249,
+          "p95": 0.2709,
+          "min": 0.0964
+        },
+        "encHeapBytes": -18360,
+        "decHeapBytes": -12536
+      },
+      "ratio": 0.788
+    },
+    {
+      "n": 200,
+      "f": 0.1,
+      "k": 20,
+      "json": {
+        "bytes": 2180,
+        "encMs": {
+          "median": 0.0263,
+          "p95": 0.032,
+          "min": 0.0241
+        },
+        "decMs": {
+          "median": 0.0177,
+          "p95": 0.0201,
+          "min": 0.0158
+        },
+        "encHeapBytes": -40,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 1008,
+        "maskBytes": 56,
+        "totalBytes": 1064,
+        "metaBytes": 664,
+        "valueBytes": 344,
+        "bytesPerChangedRow": 53.2,
+        "encMs": {
+          "median": 0.2978,
+          "p95": 0.4611,
+          "min": 0.1556
+        },
+        "decMs": {
+          "median": 0.1642,
+          "p95": 0.1956,
+          "min": 0.1067
+        },
+        "encHeapBytes": -45936,
+        "decHeapBytes": 16
+      },
+      "ratio": 0.488
+    },
+    {
+      "n": 200,
+      "f": 0.25,
+      "k": 50,
+      "json": {
+        "bytes": 5407,
+        "encMs": {
+          "median": 0.0371,
+          "p95": 0.0433,
+          "min": 0.0265
+        },
+        "decMs": {
+          "median": 0.0202,
+          "p95": 0.0222,
+          "min": 0.0201
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": -21560
+      },
+      "arrowG": {
+        "ipcBytes": 1520,
+        "maskBytes": 116,
+        "totalBytes": 1636,
+        "metaBytes": 664,
+        "valueBytes": 856,
+        "bytesPerChangedRow": 32.7,
+        "encMs": {
+          "median": 0.3082,
+          "p95": 0.4161,
+          "min": 0.1896
+        },
+        "decMs": {
+          "median": 0.1526,
+          "p95": 0.1946,
+          "min": 0.1177
+        },
+        "encHeapBytes": 16576,
+        "decHeapBytes": 16
+      },
+      "ratio": 0.303
+    },
+    {
+      "n": 200,
+      "f": 0.5,
+      "k": 100,
+      "json": {
+        "bytes": 10768,
+        "encMs": {
+          "median": 0.0724,
+          "p95": 0.0788,
+          "min": 0.069
+        },
+        "decMs": {
+          "median": 0.0613,
+          "p95": 0.0703,
+          "min": 0.0596
+        },
+        "encHeapBytes": 64,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 2368,
+        "maskBytes": 216,
+        "totalBytes": 2584,
+        "metaBytes": 664,
+        "valueBytes": 1704,
+        "bytesPerChangedRow": 25.8,
+        "encMs": {
+          "median": 0.2646,
+          "p95": 0.5266,
+          "min": 0.1691
+        },
+        "decMs": {
+          "median": 0.1638,
+          "p95": 0.2121,
+          "min": 0.1119
+        },
+        "encHeapBytes": 57168,
+        "decHeapBytes": -6536
+      },
+      "ratio": 0.24
+    },
+    {
+      "n": 200,
+      "f": 1,
+      "k": 200,
+      "json": {
+        "bytes": 21511,
+        "encMs": {
+          "median": 0.135,
+          "p95": 0.1449,
+          "min": 0.0917
+        },
+        "decMs": {
+          "median": 0.1107,
+          "p95": 0.1366,
+          "min": 0.0791
+        },
+        "encHeapBytes": -240,
+        "decHeapBytes": -32
+      },
+      "arrowG": {
+        "ipcBytes": 4064,
+        "maskBytes": 416,
+        "totalBytes": 4480,
+        "metaBytes": 664,
+        "valueBytes": 3400,
+        "bytesPerChangedRow": 22.4,
+        "encMs": {
+          "median": 0.3564,
+          "p95": 0.4623,
+          "min": 0.1989
+        },
+        "decMs": {
+          "median": 0.1614,
+          "p95": 0.2193,
+          "min": 0.1163
+        },
+        "encHeapBytes": -11032,
+        "decHeapBytes": 10792
+      },
+      "ratio": 0.208
+    },
+    {
+      "n": 500,
+      "f": 0.001,
+      "k": 1,
+      "json": {
+        "bytes": 146,
+        "encMs": {
+          "median": 0.0241,
+          "p95": 0.0271,
+          "min": 0.0146
+        },
+        "decMs": {
+          "median": 0.0009,
+          "p95": 0.0013,
+          "min": 0.0009
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 704,
+        "maskBytes": 18,
+        "totalBytes": 722,
+        "metaBytes": 664,
+        "valueBytes": 40,
+        "bytesPerChangedRow": 722,
+        "encMs": {
+          "median": 0.3082,
+          "p95": 0.4729,
+          "min": 0.1946
+        },
+        "decMs": {
+          "median": 0.1471,
+          "p95": 0.1924,
+          "min": 0.1021
+        },
+        "encHeapBytes": -5560,
+        "decHeapBytes": 10832
+      },
+      "ratio": 4.945
+    },
+    {
+      "n": 500,
+      "f": 0.01,
+      "k": 5,
+      "json": {
+        "bytes": 571,
+        "encMs": {
+          "median": 0.0186,
+          "p95": 0.02,
+          "min": 0.0144
+        },
+        "decMs": {
+          "median": 0.0042,
+          "p95": 0.0047,
+          "min": 0.004
+        },
+        "encHeapBytes": -32,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 768,
+        "maskBytes": 26,
+        "totalBytes": 794,
+        "metaBytes": 664,
+        "valueBytes": 104,
+        "bytesPerChangedRow": 158.8,
+        "encMs": {
+          "median": 0.2891,
+          "p95": 0.4486,
+          "min": 0.1665
+        },
+        "decMs": {
+          "median": 0.1512,
+          "p95": 0.1979,
+          "min": 0.1119
+        },
+        "encHeapBytes": 3008,
+        "decHeapBytes": -6144
+      },
+      "ratio": 1.391
+    },
+    {
+      "n": 500,
+      "f": 0.05,
+      "k": 25,
+      "json": {
+        "bytes": 2720,
+        "encMs": {
+          "median": 0.0355,
+          "p95": 0.0401,
+          "min": 0.033
+        },
+        "decMs": {
+          "median": 0.0193,
+          "p95": 0.02,
+          "min": 0.0164
+        },
+        "encHeapBytes": -880,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 1112,
+        "maskBytes": 66,
+        "totalBytes": 1178,
+        "metaBytes": 664,
+        "valueBytes": 448,
+        "bytesPerChangedRow": 47.1,
+        "encMs": {
+          "median": 0.3107,
+          "p95": 0.5831,
+          "min": 0.1879
+        },
+        "decMs": {
+          "median": 0.1968,
+          "p95": 0.2901,
+          "min": 0.131
+        },
+        "encHeapBytes": 6120,
+        "decHeapBytes": 16
+      },
+      "ratio": 0.433
+    },
+    {
+      "n": 500,
+      "f": 0.1,
+      "k": 50,
+      "json": {
+        "bytes": 5394,
+        "encMs": {
+          "median": 0.0344,
+          "p95": 0.055,
+          "min": 0.0324
+        },
+        "decMs": {
+          "median": 0.02,
+          "p95": 0.0323,
+          "min": 0.0198
+        },
+        "encHeapBytes": 64,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 1520,
+        "maskBytes": 116,
+        "totalBytes": 1636,
+        "metaBytes": 664,
+        "valueBytes": 856,
+        "bytesPerChangedRow": 32.7,
+        "encMs": {
+          "median": 0.4265,
+          "p95": 1.1549,
+          "min": 0.2101
+        },
+        "decMs": {
+          "median": 0.1435,
+          "p95": 0.2296,
+          "min": 0.114
+        },
+        "encHeapBytes": -21552,
+        "decHeapBytes": -35864
+      },
+      "ratio": 0.303
+    },
+    {
+      "n": 500,
+      "f": 0.25,
+      "k": 125,
+      "json": {
+        "bytes": 13439,
+        "encMs": {
+          "median": 0.0787,
+          "p95": 0.1031,
+          "min": 0.0724
+        },
+        "decMs": {
+          "median": 0.0507,
+          "p95": 0.0904,
+          "min": 0.0494
+        },
+        "encHeapBytes": 64,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 2808,
+        "maskBytes": 266,
+        "totalBytes": 3074,
+        "metaBytes": 664,
+        "valueBytes": 2144,
+        "bytesPerChangedRow": 24.6,
+        "encMs": {
+          "median": 0.3514,
+          "p95": 0.4266,
+          "min": 0.2437
+        },
+        "decMs": {
+          "median": 0.2094,
+          "p95": 0.286,
+          "min": 0.1673
+        },
+        "encHeapBytes": -73016,
+        "decHeapBytes": -6328
+      },
+      "ratio": 0.229
+    },
+    {
+      "n": 500,
+      "f": 0.5,
+      "k": 250,
+      "json": {
+        "bytes": 26867,
+        "encMs": {
+          "median": 0.1667,
+          "p95": 0.1935,
+          "min": 0.1294
+        },
+        "decMs": {
+          "median": 0.1162,
+          "p95": 0.1747,
+          "min": 0.0987
+        },
+        "encHeapBytes": 64,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 4920,
+        "maskBytes": 516,
+        "totalBytes": 5436,
+        "metaBytes": 664,
+        "valueBytes": 4256,
+        "bytesPerChangedRow": 21.7,
+        "encMs": {
+          "median": 0.3217,
+          "p95": 0.5626,
+          "min": 0.2418
+        },
+        "decMs": {
+          "median": 0.2142,
+          "p95": 1.5191,
+          "min": 0.1351
+        },
+        "encHeapBytes": -39072,
+        "decHeapBytes": -5128
+      },
+      "ratio": 0.202
+    },
+    {
+      "n": 500,
+      "f": 1,
+      "k": 500,
+      "json": {
+        "bytes": 53698,
+        "encMs": {
+          "median": 0.3281,
+          "p95": 0.3663,
+          "min": 0.242
+        },
+        "decMs": {
+          "median": 0.3756,
+          "p95": 0.4157,
+          "min": 0.2121
+        },
+        "encHeapBytes": -880,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 9168,
+        "maskBytes": 1016,
+        "totalBytes": 10184,
+        "metaBytes": 664,
+        "valueBytes": 8504,
+        "bytesPerChangedRow": 20.4,
+        "encMs": {
+          "median": 0.2473,
+          "p95": 0.4245,
+          "min": 0.1782
+        },
+        "decMs": {
+          "median": 0.1579,
+          "p95": 0.2441,
+          "min": 0.1161
+        },
+        "encHeapBytes": 17416,
+        "decHeapBytes": -3968
+      },
+      "ratio": 0.19
+    },
+    {
+      "n": 1000,
+      "f": 0.001,
+      "k": 1,
+      "json": {
+        "bytes": 146,
+        "encMs": {
+          "median": 0.034,
+          "p95": 0.0452,
+          "min": 0.0287
+        },
+        "decMs": {
+          "median": 0.0009,
+          "p95": 0.0014,
+          "min": 0.0008
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 704,
+        "maskBytes": 18,
+        "totalBytes": 722,
+        "metaBytes": 664,
+        "valueBytes": 40,
+        "bytesPerChangedRow": 722,
+        "encMs": {
+          "median": 0.2877,
+          "p95": 0.4498,
+          "min": 0.175
+        },
+        "decMs": {
+          "median": 0.1612,
+          "p95": 0.2356,
+          "min": 0.1249
+        },
+        "encHeapBytes": 608,
+        "decHeapBytes": 2584
+      },
+      "ratio": 4.945
+    },
+    {
+      "n": 1000,
+      "f": 0.01,
+      "k": 10,
+      "json": {
+        "bytes": 1108,
+        "encMs": {
+          "median": 0.0314,
+          "p95": 0.039,
+          "min": 0.0295
+        },
+        "decMs": {
+          "median": 0.0044,
+          "p95": 0.0046,
+          "min": 0.0043
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 840,
+        "maskBytes": 36,
+        "totalBytes": 876,
+        "metaBytes": 664,
+        "valueBytes": 176,
+        "bytesPerChangedRow": 87.6,
+        "encMs": {
+          "median": 0.2955,
+          "p95": 0.4559,
+          "min": 0.159
+        },
+        "decMs": {
+          "median": 0.17,
+          "p95": 0.2182,
+          "min": 0.11
+        },
+        "encHeapBytes": -18944,
+        "decHeapBytes": 3328
+      },
+      "ratio": 0.791
+    },
+    {
+      "n": 1000,
+      "f": 0.05,
+      "k": 50,
+      "json": {
+        "bytes": 5405,
+        "encMs": {
+          "median": 0.0645,
+          "p95": 0.0726,
+          "min": 0.0472
+        },
+        "decMs": {
+          "median": 0.0204,
+          "p95": 0.0382,
+          "min": 0.0198
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": -288
+      },
+      "arrowG": {
+        "ipcBytes": 1520,
+        "maskBytes": 116,
+        "totalBytes": 1636,
+        "metaBytes": 664,
+        "valueBytes": 856,
+        "bytesPerChangedRow": 32.7,
+        "encMs": {
+          "median": 0.3562,
+          "p95": 0.4424,
+          "min": 0.2528
+        },
+        "decMs": {
+          "median": 0.1443,
+          "p95": 0.401,
+          "min": 0.1177
+        },
+        "encHeapBytes": -52120,
+        "decHeapBytes": -6328
+      },
+      "ratio": 0.303
+    },
+    {
+      "n": 1000,
+      "f": 0.1,
+      "k": 100,
+      "json": {
+        "bytes": 10762,
+        "encMs": {
+          "median": 0.091,
+          "p95": 0.1093,
+          "min": 0.0696
+        },
+        "decMs": {
+          "median": 0.0692,
+          "p95": 0.0803,
+          "min": 0.0396
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": -32
+      },
+      "arrowG": {
+        "ipcBytes": 2368,
+        "maskBytes": 216,
+        "totalBytes": 2584,
+        "metaBytes": 664,
+        "valueBytes": 1704,
+        "bytesPerChangedRow": 25.8,
+        "encMs": {
+          "median": 0.2542,
+          "p95": 0.4704,
+          "min": 0.1685
+        },
+        "decMs": {
+          "median": 0.2209,
+          "p95": 0.2518,
+          "min": 0.1859
+        },
+        "encHeapBytes": 10624,
+        "decHeapBytes": 29336
+      },
+      "ratio": 0.24
+    },
+    {
+      "n": 1000,
+      "f": 0.25,
+      "k": 250,
+      "json": {
+        "bytes": 26916,
+        "encMs": {
+          "median": 0.1732,
+          "p95": 0.1943,
+          "min": 0.1362
+        },
+        "decMs": {
+          "median": 0.1098,
+          "p95": 0.1912,
+          "min": 0.0987
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 4920,
+        "maskBytes": 516,
+        "totalBytes": 5436,
+        "metaBytes": 664,
+        "valueBytes": 4256,
+        "bytesPerChangedRow": 21.7,
+        "encMs": {
+          "median": 0.3388,
+          "p95": 0.4221,
+          "min": 0.2483
+        },
+        "decMs": {
+          "median": 0.1628,
+          "p95": 0.2037,
+          "min": 0.1067
+        },
+        "encHeapBytes": 16912,
+        "decHeapBytes": -15960
+      },
+      "ratio": 0.202
+    },
+    {
+      "n": 1000,
+      "f": 0.5,
+      "k": 500,
+      "json": {
+        "bytes": 53712,
+        "encMs": {
+          "median": 0.4294,
+          "p95": 0.5017,
+          "min": 0.3549
+        },
+        "decMs": {
+          "median": 0.3835,
+          "p95": 0.5044,
+          "min": 0.2616
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": -32
+      },
+      "arrowG": {
+        "ipcBytes": 9168,
+        "maskBytes": 1016,
+        "totalBytes": 10184,
+        "metaBytes": 664,
+        "valueBytes": 8504,
+        "bytesPerChangedRow": 20.4,
+        "encMs": {
+          "median": 0.3563,
+          "p95": 0.4769,
+          "min": 0.2957
+        },
+        "decMs": {
+          "median": 0.2459,
+          "p95": 0.4054,
+          "min": 0.1322
+        },
+        "encHeapBytes": 760,
+        "decHeapBytes": -5000
+      },
+      "ratio": 0.19
+    },
+    {
+      "n": 1000,
+      "f": 1,
+      "k": 1000,
+      "json": {
+        "bytes": 107385,
+        "encMs": {
+          "median": 0.6996,
+          "p95": 1.0871,
+          "min": 0.505
+        },
+        "decMs": {
+          "median": 0.6305,
+          "p95": 0.7146,
+          "min": 0.4013
+        },
+        "encHeapBytes": -32,
+        "decHeapBytes": -288
+      },
+      "arrowG": {
+        "ipcBytes": 17664,
+        "maskBytes": 2016,
+        "totalBytes": 19680,
+        "metaBytes": 664,
+        "valueBytes": 17000,
+        "bytesPerChangedRow": 19.7,
+        "encMs": {
+          "median": 0.2957,
+          "p95": 0.7178,
+          "min": 0.2103
+        },
+        "decMs": {
+          "median": 0.1854,
+          "p95": 0.2283,
+          "min": 0.149
+        },
+        "encHeapBytes": -15136,
+        "decHeapBytes": -16576
+      },
+      "ratio": 0.183
+    },
+    {
+      "n": 5000,
+      "f": 0.001,
+      "k": 5,
+      "json": {
+        "bytes": 576,
+        "encMs": {
+          "median": 0.401,
+          "p95": 0.5164,
+          "min": 0.3143
+        },
+        "decMs": {
+          "median": 0.0024,
+          "p95": 0.0047,
+          "min": 0.0024
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 768,
+        "maskBytes": 26,
+        "totalBytes": 794,
+        "metaBytes": 664,
+        "valueBytes": 104,
+        "bytesPerChangedRow": 158.8,
+        "encMs": {
+          "median": 0.2964,
+          "p95": 0.5435,
+          "min": 0.1985
+        },
+        "decMs": {
+          "median": 0.1418,
+          "p95": 0.2224,
+          "min": 0.1155
+        },
+        "encHeapBytes": 3832,
+        "decHeapBytes": -3488
+      },
+      "ratio": 1.378
+    },
+    {
+      "n": 5000,
+      "f": 0.01,
+      "k": 50,
+      "json": {
+        "bytes": 5406,
+        "encMs": {
+          "median": 0.4882,
+          "p95": 0.6079,
+          "min": 0.3773
+        },
+        "decMs": {
+          "median": 0.02,
+          "p95": 0.0206,
+          "min": 0.0199
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 1520,
+        "maskBytes": 116,
+        "totalBytes": 1636,
+        "metaBytes": 664,
+        "valueBytes": 856,
+        "bytesPerChangedRow": 32.7,
+        "encMs": {
+          "median": 0.2554,
+          "p95": 0.4884,
+          "min": 0.1829
+        },
+        "decMs": {
+          "median": 0.164,
+          "p95": 0.2073,
+          "min": 0.1248
+        },
+        "encHeapBytes": -480,
+        "decHeapBytes": -3080
+      },
+      "ratio": 0.303
+    },
+    {
+      "n": 5000,
+      "f": 0.05,
+      "k": 250,
+      "json": {
+        "bytes": 26832,
+        "encMs": {
+          "median": 0.511,
+          "p95": 0.5675,
+          "min": 0.4074
+        },
+        "decMs": {
+          "median": 0.1597,
+          "p95": 0.1883,
+          "min": 0.0989
+        },
+        "encHeapBytes": -576,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 4920,
+        "maskBytes": 516,
+        "totalBytes": 5436,
+        "metaBytes": 664,
+        "valueBytes": 4256,
+        "bytesPerChangedRow": 21.7,
+        "encMs": {
+          "median": 0.2833,
+          "p95": 0.4246,
+          "min": 0.2164
+        },
+        "decMs": {
+          "median": 0.1702,
+          "p95": 0.2028,
+          "min": 0.1315
+        },
+        "encHeapBytes": 1568,
+        "decHeapBytes": -13144
+      },
+      "ratio": 0.203
+    },
+    {
+      "n": 5000,
+      "f": 0.1,
+      "k": 500,
+      "json": {
+        "bytes": 53694,
+        "encMs": {
+          "median": 0.7622,
+          "p95": 0.8871,
+          "min": 0.5938
+        },
+        "decMs": {
+          "median": 0.2635,
+          "p95": 0.3287,
+          "min": 0.2
+        },
+        "encHeapBytes": 64,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 9168,
+        "maskBytes": 1016,
+        "totalBytes": 10184,
+        "metaBytes": 664,
+        "valueBytes": 8504,
+        "bytesPerChangedRow": 20.4,
+        "encMs": {
+          "median": 0.2936,
+          "p95": 0.3968,
+          "min": 0.214
+        },
+        "decMs": {
+          "median": 0.1588,
+          "p95": 0.1884,
+          "min": 0.1084
+        },
+        "encHeapBytes": 34896,
+        "decHeapBytes": 14528
+      },
+      "ratio": 0.19
+    },
+    {
+      "n": 5000,
+      "f": 0.25,
+      "k": 1250,
+      "json": {
+        "bytes": 134197,
+        "encMs": {
+          "median": 1.281,
+          "p95": 1.6946,
+          "min": 1.0506
+        },
+        "decMs": {
+          "median": 0.6515,
+          "p95": 1.2987,
+          "min": 0.5013
+        },
+        "encHeapBytes": -48,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 21920,
+        "maskBytes": 2516,
+        "totalBytes": 24436,
+        "metaBytes": 664,
+        "valueBytes": 21256,
+        "bytesPerChangedRow": 19.5,
+        "encMs": {
+          "median": 0.371,
+          "p95": 0.4591,
+          "min": 0.2755
+        },
+        "decMs": {
+          "median": 0.2118,
+          "p95": 0.3475,
+          "min": 0.1332
+        },
+        "encHeapBytes": -29784,
+        "decHeapBytes": -16576
+      },
+      "ratio": 0.182
+    },
+    {
+      "n": 5000,
+      "f": 0.5,
+      "k": 2500,
+      "json": {
+        "bytes": 268369,
+        "encMs": {
+          "median": 2.2927,
+          "p95": 3.0842,
+          "min": 1.8858
+        },
+        "decMs": {
+          "median": 1.4211,
+          "p95": 1.8641,
+          "min": 1.1063
+        },
+        "encHeapBytes": 64,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 43168,
+        "maskBytes": 5016,
+        "totalBytes": 48184,
+        "metaBytes": 664,
+        "valueBytes": 42504,
+        "bytesPerChangedRow": 19.3,
+        "encMs": {
+          "median": 0.4718,
+          "p95": 1.0728,
+          "min": 0.3603
+        },
+        "decMs": {
+          "median": 0.2194,
+          "p95": 0.3759,
+          "min": 0.1583
+        },
+        "encHeapBytes": -46368,
+        "decHeapBytes": -3344
+      },
+      "ratio": 0.18
+    },
+    {
+      "n": 5000,
+      "f": 1,
+      "k": 5000,
+      "json": {
+        "bytes": 536647,
+        "encMs": {
+          "median": 3.982,
+          "p95": 6.2722,
+          "min": 3.3257
+        },
+        "decMs": {
+          "median": 2.3445,
+          "p95": 4.0542,
+          "min": 2.0415
+        },
+        "encHeapBytes": -672,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 85664,
+        "maskBytes": 8208,
+        "totalBytes": 93872,
+        "metaBytes": 664,
+        "valueBytes": 85000,
+        "bytesPerChangedRow": 18.8,
+        "encMs": {
+          "median": 0.4818,
+          "p95": 0.6378,
+          "min": 0.3194
+        },
+        "decMs": {
+          "median": 0.1958,
+          "p95": 0.3455,
+          "min": 0.1425
+        },
+        "encHeapBytes": -31608,
+        "decHeapBytes": -16576
+      },
+      "ratio": 0.175
+    },
+    {
+      "n": 10000,
+      "f": 0.001,
+      "k": 10,
+      "json": {
+        "bytes": 1112,
+        "encMs": {
+          "median": 0.993,
+          "p95": 2.2738,
+          "min": 0.8488
+        },
+        "decMs": {
+          "median": 0.0068,
+          "p95": 0.0072,
+          "min": 0.0066
+        },
+        "encHeapBytes": -32,
+        "decHeapBytes": -32
+      },
+      "arrowG": {
+        "ipcBytes": 840,
+        "maskBytes": 36,
+        "totalBytes": 876,
+        "metaBytes": 664,
+        "valueBytes": 176,
+        "bytesPerChangedRow": 87.6,
+        "encMs": {
+          "median": 0.2496,
+          "p95": 0.4475,
+          "min": 0.1456
+        },
+        "decMs": {
+          "median": 0.195,
+          "p95": 0.3236,
+          "min": 0.147
+        },
+        "encHeapBytes": 17040,
+        "decHeapBytes": -328
+      },
+      "ratio": 0.788
+    },
+    {
+      "n": 10000,
+      "f": 0.01,
+      "k": 100,
+      "json": {
+        "bytes": 10757,
+        "encMs": {
+          "median": 0.8959,
+          "p95": 1.1803,
+          "min": 0.7406
+        },
+        "decMs": {
+          "median": 0.0436,
+          "p95": 0.0984,
+          "min": 0.0396
+        },
+        "encHeapBytes": 0,
+        "decHeapBytes": 64
+      },
+      "arrowG": {
+        "ipcBytes": 2368,
+        "maskBytes": 216,
+        "totalBytes": 2584,
+        "metaBytes": 664,
+        "valueBytes": 1704,
+        "bytesPerChangedRow": 25.8,
+        "encMs": {
+          "median": 0.2899,
+          "p95": 0.4407,
+          "min": 0.149
+        },
+        "decMs": {
+          "median": 0.1465,
+          "p95": 0.2786,
+          "min": 0.1106
+        },
+        "encHeapBytes": 16992,
+        "decHeapBytes": -14672
+      },
+      "ratio": 0.24
+    },
+    {
+      "n": 10000,
+      "f": 0.05,
+      "k": 500,
+      "json": {
+        "bytes": 53711,
+        "encMs": {
+          "median": 1.3762,
+          "p95": 2.2615,
+          "min": 1.0017
+        },
+        "decMs": {
+          "median": 0.3169,
+          "p95": 0.4228,
+          "min": 0.198
+        },
+        "encHeapBytes": 64,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 9168,
+        "maskBytes": 1016,
+        "totalBytes": 10184,
+        "metaBytes": 664,
+        "valueBytes": 8504,
+        "bytesPerChangedRow": 20.4,
+        "encMs": {
+          "median": 0.2884,
+          "p95": 0.4249,
+          "min": 0.1822
+        },
+        "decMs": {
+          "median": 0.1707,
+          "p95": 0.2137,
+          "min": 0.1204
+        },
+        "encHeapBytes": -7448,
+        "decHeapBytes": -7416
+      },
+      "ratio": 0.19
+    },
+    {
+      "n": 10000,
+      "f": 0.1,
+      "k": 1000,
+      "json": {
+        "bytes": 107389,
+        "encMs": {
+          "median": 1.4101,
+          "p95": 1.9896,
+          "min": 1.2313
+        },
+        "decMs": {
+          "median": 0.6173,
+          "p95": 0.7427,
+          "min": 0.4148
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 17664,
+        "maskBytes": 2016,
+        "totalBytes": 19680,
+        "metaBytes": 664,
+        "valueBytes": 17000,
+        "bytesPerChangedRow": 19.7,
+        "encMs": {
+          "median": 0.2742,
+          "p95": 0.4426,
+          "min": 0.2009
+        },
+        "decMs": {
+          "median": 0.2298,
+          "p95": 0.281,
+          "min": 0.1248
+        },
+        "encHeapBytes": 13672,
+        "decHeapBytes": -25024
+      },
+      "ratio": 0.183
+    },
+    {
+      "n": 10000,
+      "f": 0.25,
+      "k": 2500,
+      "json": {
+        "bytes": 268386,
+        "encMs": {
+          "median": 2.7961,
+          "p95": 3.4519,
+          "min": 2.0754
+        },
+        "decMs": {
+          "median": 1.117,
+          "p95": 1.8598,
+          "min": 1.0203
+        },
+        "encHeapBytes": -32,
+        "decHeapBytes": -32
+      },
+      "arrowG": {
+        "ipcBytes": 43168,
+        "maskBytes": 5016,
+        "totalBytes": 48184,
+        "metaBytes": 664,
+        "valueBytes": 42504,
+        "bytesPerChangedRow": 19.3,
+        "encMs": {
+          "median": 0.3994,
+          "p95": 0.5156,
+          "min": 0.2487
+        },
+        "decMs": {
+          "median": 0.2175,
+          "p95": 0.4273,
+          "min": 0.1495
+        },
+        "encHeapBytes": -38880,
+        "decHeapBytes": -12440
+      },
+      "ratio": 0.18
+    },
+    {
+      "n": 10000,
+      "f": 0.5,
+      "k": 5000,
+      "json": {
+        "bytes": 536699,
+        "encMs": {
+          "median": 4.9459,
+          "p95": 6.8684,
+          "min": 3.6593
+        },
+        "decMs": {
+          "median": 3.5478,
+          "p95": 4.3506,
+          "min": 2.0984
+        },
+        "encHeapBytes": -32,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 85664,
+        "maskBytes": 8208,
+        "totalBytes": 93872,
+        "metaBytes": 664,
+        "valueBytes": 85000,
+        "bytesPerChangedRow": 18.8,
+        "encMs": {
+          "median": 0.5997,
+          "p95": 0.8818,
+          "min": 0.4075
+        },
+        "decMs": {
+          "median": 0.244,
+          "p95": 0.3628,
+          "min": 0.1489
+        },
+        "encHeapBytes": -61080,
+        "decHeapBytes": -15488
+      },
+      "ratio": 0.175
+    },
+    {
+      "n": 10000,
+      "f": 1,
+      "k": 10000,
+      "json": {
+        "bytes": 1073345,
+        "encMs": {
+          "median": 10.4514,
+          "p95": 13.3521,
+          "min": 7.9827
+        },
+        "decMs": {
+          "median": 7.5092,
+          "p95": 8.8268,
+          "min": 5.0448
+        },
+        "encHeapBytes": -32,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 170664,
+        "maskBytes": 8208,
+        "totalBytes": 178872,
+        "metaBytes": 664,
+        "valueBytes": 170000,
+        "bytesPerChangedRow": 17.9,
+        "encMs": {
+          "median": 0.9417,
+          "p95": 1.2165,
+          "min": 0.7236
+        },
+        "decMs": {
+          "median": 0.3125,
+          "p95": 0.6559,
+          "min": 0.2274
+        },
+        "encHeapBytes": -34216,
+        "decHeapBytes": -17616
+      },
+      "ratio": 0.167
+    },
+    {
+      "n": 50000,
+      "f": 0.001,
+      "k": 50,
+      "json": {
+        "bytes": 5407,
+        "encMs": {
+          "median": 5.4697,
+          "p95": 7.2101,
+          "min": 3.528
+        },
+        "decMs": {
+          "median": 0.0199,
+          "p95": 0.0202,
+          "min": 0.0197
+        },
+        "encHeapBytes": -32,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 1520,
+        "maskBytes": 132,
+        "totalBytes": 1652,
+        "metaBytes": 664,
+        "valueBytes": 856,
+        "bytesPerChangedRow": 33,
+        "encMs": {
+          "median": 0.2324,
+          "p95": 0.3573,
+          "min": 0.1923
+        },
+        "decMs": {
+          "median": 0.1328,
+          "p95": 0.1979,
+          "min": 0.0951
+        },
+        "encHeapBytes": 2896,
+        "decHeapBytes": -13776
+      },
+      "ratio": 0.306
+    },
+    {
+      "n": 50000,
+      "f": 0.01,
+      "k": 500,
+      "json": {
+        "bytes": 53738,
+        "encMs": {
+          "median": 4.7761,
+          "p95": 7.9205,
+          "min": 4.0913
+        },
+        "decMs": {
+          "median": 0.3777,
+          "p95": 0.4195,
+          "min": 0.1977
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 9168,
+        "maskBytes": 1032,
+        "totalBytes": 10200,
+        "metaBytes": 664,
+        "valueBytes": 8504,
+        "bytesPerChangedRow": 20.4,
+        "encMs": {
+          "median": 0.2612,
+          "p95": 0.3921,
+          "min": 0.2007
+        },
+        "decMs": {
+          "median": 0.1344,
+          "p95": 0.1633,
+          "min": 0.0974
+        },
+        "encHeapBytes": 13552,
+        "decHeapBytes": -17264
+      },
+      "ratio": 0.19
+    },
+    {
+      "n": 50000,
+      "f": 0.1,
+      "k": 5000,
+      "json": {
+        "bytes": 536777,
+        "encMs": {
+          "median": 9.5839,
+          "p95": 12.7867,
+          "min": 7.8618
+        },
+        "decMs": {
+          "median": 2.1509,
+          "p95": 3.0339,
+          "min": 2.0201
+        },
+        "encHeapBytes": -32,
+        "decHeapBytes": 16
+      },
+      "arrowG": {
+        "ipcBytes": 85664,
+        "maskBytes": 10032,
+        "totalBytes": 95696,
+        "metaBytes": 664,
+        "valueBytes": 85000,
+        "bytesPerChangedRow": 19.1,
+        "encMs": {
+          "median": 0.5783,
+          "p95": 0.819,
+          "min": 0.3836
+        },
+        "decMs": {
+          "median": 0.1752,
+          "p95": 0.4288,
+          "min": 0.122
+        },
+        "encHeapBytes": -85456,
+        "decHeapBytes": -13744
+      },
+      "ratio": 0.178
+    },
+    {
+      "n": 50000,
+      "f": 1,
+      "k": 50000,
+      "json": {
+        "bytes": 5367565,
+        "encMs": {
+          "median": 56.5062,
+          "p95": 78.8465,
+          "min": 43.9798
+        },
+        "decMs": {
+          "median": 36.4679,
+          "p95": 44.7482,
+          "min": 29.8164
+        },
+        "encHeapBytes": 16,
+        "decHeapBytes": -32
+      },
+      "arrowG": {
+        "ipcBytes": 850664,
+        "maskBytes": 24608,
+        "totalBytes": 875272,
+        "metaBytes": 664,
+        "valueBytes": 850000,
+        "bytesPerChangedRow": 17.5,
+        "encMs": {
+          "median": 5.7002,
+          "p95": 9.8792,
+          "min": 3.0333
+        },
+        "decMs": {
+          "median": 1.7115,
+          "p95": 3.558,
+          "min": 1.2241
+        },
+        "encHeapBytes": -45120,
+        "decHeapBytes": -13696
+      },
+      "ratio": 0.163
+    }
+  ]
+}

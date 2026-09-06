@@ -1,0 +1,1266 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "channels/sanitize-valid",
+      "fn": "sanitizeChannels",
+      "args": [
+        [
+          {
+            "url": "http://a.example/one",
+            "name": "Alpha",
+            "group": "News",
+            "logo": "http://a.example/1.png",
+            "tvgId": "alpha.tv"
+          },
+          {
+            "url": "http://b.example/two",
+            "name": "Beta",
+            "group": "Sports",
+            "logo": null,
+            "tvgId": null
+          },
+          {
+            "url": "https://c.example/three",
+            "name": "Gamma",
+            "group": null,
+            "logo": "https://c.example/3.png",
+            "tvgId": "gamma.tv"
+          }
+        ],
+        100
+      ],
+      "expected": [
+        {
+          "url": "http://a.example/one",
+          "name": "Alpha",
+          "group": "News",
+          "logo": "http://a.example/1.png",
+          "tvgId": "alpha.tv"
+        },
+        {
+          "url": "http://b.example/two",
+          "name": "Beta",
+          "group": "Sports",
+          "logo": null,
+          "tvgId": null
+        },
+        {
+          "url": "https://c.example/three",
+          "name": "Gamma",
+          "group": null,
+          "logo": "https://c.example/3.png",
+          "tvgId": "gamma.tv"
+        }
+      ]
+    },
+    {
+      "id": "channels/sanitize-drops-and-counts",
+      "fn": "sanitizeChannels",
+      "args": [
+        [
+          {
+            "url": "ftp://bad/x",
+            "name": "Nope"
+          },
+          {
+            "url": "http://ok/a",
+            "name": ""
+          },
+          {
+            "url": "http://ok/b"
+          },
+          {
+            "name": "no url"
+          },
+          {
+            "url": "http://ok/c",
+            "name": "Named",
+            "group": "G",
+            "logo": "javascript:alert(1)",
+            "tvgId": "c.tv"
+          }
+        ],
+        100
+      ],
+      "expected": [
+        {
+          "url": "http://ok/a",
+          "name": "Channel 1",
+          "group": null,
+          "logo": null,
+          "tvgId": null
+        },
+        {
+          "url": "http://ok/b",
+          "name": "Channel 2",
+          "group": null,
+          "logo": null,
+          "tvgId": null
+        },
+        {
+          "url": "http://ok/c",
+          "name": "Named",
+          "group": "G",
+          "logo": null,
+          "tvgId": "c.tv"
+        }
+      ]
+    },
+    {
+      "id": "channels/cap-3",
+      "fn": "sanitizeChannels",
+      "args": [
+        [
+          {
+            "url": "http://x/0",
+            "name": "C0"
+          },
+          {
+            "url": "http://x/1",
+            "name": "C1"
+          },
+          {
+            "url": "http://x/2",
+            "name": "C2"
+          },
+          {
+            "url": "http://x/3",
+            "name": "C3"
+          },
+          {
+            "url": "http://x/4",
+            "name": "C4"
+          },
+          {
+            "url": "http://x/5",
+            "name": "C5"
+          },
+          {
+            "url": "http://x/6",
+            "name": "C6"
+          },
+          {
+            "url": "http://x/7",
+            "name": "C7"
+          }
+        ],
+        3
+      ],
+      "expected": [
+        {
+          "url": "http://x/0",
+          "name": "C0",
+          "group": null,
+          "logo": null,
+          "tvgId": null
+        },
+        {
+          "url": "http://x/1",
+          "name": "C1",
+          "group": null,
+          "logo": null,
+          "tvgId": null
+        },
+        {
+          "url": "http://x/2",
+          "name": "C2",
+          "group": null,
+          "logo": null,
+          "tvgId": null
+        }
+      ]
+    },
+    {
+      "id": "library/add-valid",
+      "fn": "applyAddPlaylist",
+      "args": [
+        {
+          "lists": []
+        },
+        {
+          "name": "Core Mix",
+          "text": "#EXTM3U\n#EXTINF:-1 tvg-id=\"one.tv\",One\nhttp://one/stream\nhttp://two/stream\n",
+          "addedBy": "tester"
+        }
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "library": {
+          "lists": [
+            {
+              "id": "<gen:0>",
+              "name": "Core Mix",
+              "addedBy": "tester",
+              "addedAt": 1700000000000,
+              "channels": [
+                {
+                  "url": "http://one/stream",
+                  "name": "One",
+                  "group": null,
+                  "logo": null,
+                  "tvgId": "one.tv"
+                },
+                {
+                  "url": "http://two/stream",
+                  "name": "Channel 2",
+                  "group": null,
+                  "logo": null,
+                  "tvgId": null
+                }
+              ]
+            }
+          ]
+        },
+        "error": null,
+        "list": {
+          "id": "<gen:0>",
+          "name": "Core Mix",
+          "addedBy": "tester",
+          "addedAt": 1700000000000,
+          "channels": [
+            {
+              "url": "http://one/stream",
+              "name": "One",
+              "group": null,
+              "logo": null,
+              "tvgId": "one.tv"
+            },
+            {
+              "url": "http://two/stream",
+              "name": "Channel 2",
+              "group": null,
+              "logo": null,
+              "tvgId": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "library/add-not-playlist",
+      "fn": "applyAddPlaylist",
+      "args": [
+        {
+          "lists": []
+        },
+        {
+          "name": "X",
+          "text": "hello"
+        }
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "library": null,
+        "error": "not_a_playlist",
+        "list": null
+      }
+    },
+    {
+      "id": "library/add-no-channels",
+      "fn": "applyAddPlaylist",
+      "args": [
+        {
+          "lists": []
+        },
+        {
+          "name": "X",
+          "text": "#EXTM3U\n"
+        }
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "library": null,
+        "error": "no_channels",
+        "list": null
+      }
+    },
+    {
+      "id": "library/add-text-too-large",
+      "fn": "applyAddPlaylist",
+      "args": [
+        {
+          "lists": []
+        },
+        {
+          "name": "X",
+          "text": {
+            "__strLen": 8388609
+          }
+        }
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "library": null,
+        "error": "text_too_large",
+        "list": null
+      }
+    },
+    {
+      "id": "library/add-too-many-lists",
+      "fn": "applyAddPlaylist",
+      "args": [
+        {
+          "lists": [
+            {
+              "id": "l0",
+              "channels": []
+            },
+            {
+              "id": "l1",
+              "channels": []
+            },
+            {
+              "id": "l2",
+              "channels": []
+            },
+            {
+              "id": "l3",
+              "channels": []
+            },
+            {
+              "id": "l4",
+              "channels": []
+            },
+            {
+              "id": "l5",
+              "channels": []
+            },
+            {
+              "id": "l6",
+              "channels": []
+            },
+            {
+              "id": "l7",
+              "channels": []
+            },
+            {
+              "id": "l8",
+              "channels": []
+            },
+            {
+              "id": "l9",
+              "channels": []
+            },
+            {
+              "id": "l10",
+              "channels": []
+            },
+            {
+              "id": "l11",
+              "channels": []
+            },
+            {
+              "id": "l12",
+              "channels": []
+            },
+            {
+              "id": "l13",
+              "channels": []
+            },
+            {
+              "id": "l14",
+              "channels": []
+            },
+            {
+              "id": "l15",
+              "channels": []
+            },
+            {
+              "id": "l16",
+              "channels": []
+            },
+            {
+              "id": "l17",
+              "channels": []
+            },
+            {
+              "id": "l18",
+              "channels": []
+            },
+            {
+              "id": "l19",
+              "channels": []
+            },
+            {
+              "id": "l20",
+              "channels": []
+            },
+            {
+              "id": "l21",
+              "channels": []
+            },
+            {
+              "id": "l22",
+              "channels": []
+            },
+            {
+              "id": "l23",
+              "channels": []
+            }
+          ]
+        },
+        {
+          "name": "X",
+          "text": "#EXTM3U\nhttp://one/stream\n"
+        }
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "library": null,
+        "error": "too_many_lists",
+        "list": null
+      }
+    },
+    {
+      "id": "library/remove-hit",
+      "fn": "applyRemoveList",
+      "args": [
+        {
+          "lists": [
+            {
+              "id": "keep",
+              "channels": []
+            },
+            {
+              "id": "gone",
+              "channels": []
+            }
+          ]
+        },
+        "gone"
+      ],
+      "expected": {
+        "library": {
+          "lists": [
+            {
+              "id": "keep",
+              "channels": []
+            }
+          ]
+        },
+        "error": null
+      }
+    },
+    {
+      "id": "library/remove-miss",
+      "fn": "applyRemoveList",
+      "args": [
+        {
+          "lists": [
+            {
+              "id": "keep",
+              "channels": []
+            }
+          ]
+        },
+        "nope"
+      ],
+      "expected": {
+        "library": null,
+        "error": "list_not_found"
+      }
+    },
+    {
+      "id": "library/normalize-repairs",
+      "fn": "normalizeIptvLibrary",
+      "args": [
+        {
+          "lists": [
+            null,
+            {
+              "id": "",
+              "name": "X",
+              "channels": "nope",
+              "addedAt": "nope"
+            },
+            {
+              "id": "ok",
+              "name": "Ok",
+              "addedBy": "a",
+              "addedAt": 1700000000000,
+              "channels": [
+                {
+                  "url": "http://ok/1",
+                  "name": "N"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "lists": [
+          {
+            "id": "ok",
+            "name": "Ok",
+            "addedBy": "a",
+            "addedAt": 1700000000000,
+            "channels": [
+              {
+                "url": "http://ok/1",
+                "name": "N",
+                "group": null,
+                "logo": null,
+                "tvgId": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog/snapshot",
+      "fn": "catalogSnapshot",
+      "args": [
+        {
+          "lists": [
+            {
+              "id": "l1",
+              "name": "List",
+              "addedBy": "a",
+              "addedAt": 1700000000000,
+              "channels": [
+                {
+                  "url": "http://a.example/one",
+                  "name": "Alpha",
+                  "group": "News",
+                  "logo": "http://a.example/1.png",
+                  "tvgId": "alpha.tv"
+                },
+                {
+                  "url": "http://b.example/two",
+                  "name": "Beta",
+                  "group": "Sports",
+                  "logo": null,
+                  "tvgId": null
+                },
+                {
+                  "url": "https://c.example/three",
+                  "name": "Gamma",
+                  "group": null,
+                  "logo": "https://c.example/3.png",
+                  "tvgId": "gamma.tv"
+                }
+              ]
+            }
+          ],
+          "epg": {
+            "name": "Sample Guide",
+            "updatedAt": 1700000000000,
+            "channels": {
+              "alpha.tv": {
+                "names": [
+                  "Alpha",
+                  "Alpha HD"
+                ],
+                "icon": "http://a.example/1.png"
+              },
+              "gamma.tv": {
+                "names": [
+                  "Gamma"
+                ],
+                "icon": null
+              },
+              "delta.tv": {
+                "names": [
+                  "Delta"
+                ],
+                "icon": null
+              }
+            },
+            "programmes": {
+              "alpha.tv": [
+                [
+                  1699996400000,
+                  1700001800000,
+                  "Morning News"
+                ],
+                [
+                  1700001800000,
+                  1700003600000,
+                  "Noon Bulletin",
+                  "with guests"
+                ]
+              ],
+              "gamma.tv": [
+                [
+                  1700000010000,
+                  1700000020000,
+                  "Late Slot"
+                ]
+              ],
+              "delta.tv": [
+                [
+                  1699999990000,
+                  1699999995000,
+                  "Ended Show"
+                ]
+              ]
+            }
+          }
+        }
+      ],
+      "expected": {
+        "lists": [
+          {
+            "id": "l1",
+            "name": "List",
+            "addedBy": "a",
+            "channelCount": 3
+          }
+        ],
+        "epg": {
+          "name": "Sample Guide",
+          "updatedAt": 1700000000000,
+          "channels": 3,
+          "programmes": 4
+        }
+      }
+    },
+    {
+      "id": "catalog/epg-summary",
+      "fn": "epgSummary",
+      "args": [
+        {
+          "name": "Sample Guide",
+          "updatedAt": 1700000000000,
+          "channels": {
+            "alpha.tv": {
+              "names": [
+                "Alpha",
+                "Alpha HD"
+              ],
+              "icon": "http://a.example/1.png"
+            },
+            "gamma.tv": {
+              "names": [
+                "Gamma"
+              ],
+              "icon": null
+            },
+            "delta.tv": {
+              "names": [
+                "Delta"
+              ],
+              "icon": null
+            }
+          },
+          "programmes": {
+            "alpha.tv": [
+              [
+                1699996400000,
+                1700001800000,
+                "Morning News"
+              ],
+              [
+                1700001800000,
+                1700003600000,
+                "Noon Bulletin",
+                "with guests"
+              ]
+            ],
+            "gamma.tv": [
+              [
+                1700000010000,
+                1700000020000,
+                "Late Slot"
+              ]
+            ],
+            "delta.tv": [
+              [
+                1699999990000,
+                1699999995000,
+                "Ended Show"
+              ]
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "name": "Sample Guide",
+        "updatedAt": 1700000000000,
+        "channels": 3,
+        "programmes": 4
+      }
+    },
+    {
+      "id": "m3u/serialize",
+      "fn": "serializeM3U",
+      "args": [
+        [
+          {
+            "url": "http://a.example/one",
+            "name": "Alpha",
+            "group": "News",
+            "logo": "http://a.example/1.png",
+            "tvgId": "alpha.tv"
+          },
+          {
+            "url": "http://b.example/two",
+            "name": "Beta",
+            "group": "Sports",
+            "logo": null,
+            "tvgId": null
+          },
+          {
+            "url": "https://c.example/three",
+            "name": "Gamma",
+            "group": null,
+            "logo": "https://c.example/3.png",
+            "tvgId": "gamma.tv"
+          }
+        ]
+      ],
+      "expected": "#EXTM3U\n#EXTINF:-1 tvg-id=\"alpha.tv\" tvg-name=\"Alpha\" group-title=\"News\" tvg-logo=\"http://a.example/1.png\",Alpha\nhttp://a.example/one\n#EXTINF:-1 tvg-name=\"Beta\" group-title=\"Sports\",Beta\nhttp://b.example/two\n#EXTINF:-1 tvg-id=\"gamma.tv\" tvg-name=\"Gamma\" tvg-logo=\"https://c.example/3.png\",Gamma\nhttps://c.example/three\n"
+    },
+    {
+      "id": "m3u/round-trip",
+      "fn": "parseM3U",
+      "args": [
+        "#EXTM3U\n#EXTINF:-1 tvg-id=\"alpha.tv\" tvg-name=\"Alpha\" group-title=\"News\" tvg-logo=\"http://a.example/1.png\",Alpha\nhttp://a.example/one\n#EXTINF:-1 tvg-name=\"Beta\" group-title=\"Sports\",Beta\nhttp://b.example/two\n#EXTINF:-1 tvg-id=\"gamma.tv\" tvg-name=\"Gamma\" tvg-logo=\"https://c.example/3.png\",Gamma\nhttps://c.example/three\n"
+      ],
+      "expected": {
+        "entries": [
+          {
+            "url": "http://a.example/one",
+            "name": "Alpha",
+            "group": "News",
+            "logo": "http://a.example/1.png",
+            "tvgId": "alpha.tv"
+          },
+          {
+            "url": "http://b.example/two",
+            "name": "Beta",
+            "group": "Sports",
+            "logo": null,
+            "tvgId": null
+          },
+          {
+            "url": "https://c.example/three",
+            "name": "Gamma",
+            "group": null,
+            "logo": "https://c.example/3.png",
+            "tvgId": "gamma.tv"
+          }
+        ],
+        "skipped": 0,
+        "recognized": true
+      }
+    },
+    {
+      "id": "epg/set-unsorted-sorts",
+      "fn": "applySetEpg",
+      "args": [
+        {
+          "name": "Guide",
+          "channels": {
+            "z.tv": {
+              "names": [
+                "Zed"
+              ]
+            }
+          },
+          "programmes": {
+            "z.tv": [
+              [
+                1700000003000,
+                1700000004000,
+                "Later"
+              ],
+              [
+                1700000001000,
+                1700000002000,
+                "Sooner"
+              ],
+              [
+                1700000002000,
+                1700000001000,
+                "Backwards dropped"
+              ],
+              [
+                1700000002000,
+                1700000002500,
+                "Middle"
+              ]
+            ]
+          }
+        }
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "epg": {
+          "name": "Guide",
+          "updatedAt": 1700000000000,
+          "channels": {
+            "z.tv": {
+              "names": [
+                "Zed"
+              ],
+              "icon": null
+            }
+          },
+          "programmes": {
+            "z.tv": [
+              [
+                1700000001000,
+                1700000002000,
+                "Sooner"
+              ],
+              [
+                1700000002000,
+                1700000002500,
+                "Middle"
+              ],
+              [
+                1700000003000,
+                1700000004000,
+                "Later"
+              ]
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "epg/set-entities-and-caps",
+      "fn": "applySetEpg",
+      "args": [
+        {
+          "name": "Guide",
+          "channels": {
+            "e.tv": {
+              "names": [
+                "&amp; <Echo>"
+              ]
+            }
+          },
+          "programmes": {
+            "e.tv": [
+              [
+                1700000000000,
+                1700000001000,
+                "Title xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "Desc yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+              ]
+            ]
+          }
+        }
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "epg": {
+          "name": "Guide",
+          "updatedAt": 1700000000000,
+          "channels": {
+            "e.tv": {
+              "names": [
+                "&amp; <Echo>"
+              ],
+              "icon": null
+            }
+          },
+          "programmes": {
+            "e.tv": [
+              [
+                1700000000000,
+                1700000001000,
+                "Title xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "Desc yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+              ]
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "epg/normalize-null-guide",
+      "fn": "normalizeEpg",
+      "args": [
+        null
+      ],
+      "nowMs": 1700000000000,
+      "expected": null
+    },
+    {
+      "id": "time/utc",
+      "fn": "parseXmltvTime",
+      "args": [
+        "20231114093000 +0000"
+      ],
+      "expected": 1699954200000
+    },
+    {
+      "id": "time/utc-short",
+      "fn": "parseXmltvTime",
+      "args": [
+        "202311140930 +0000"
+      ],
+      "expected": 1699954200000
+    },
+    {
+      "id": "time/positive-offset",
+      "fn": "parseXmltvTime",
+      "args": [
+        "20231114120000 +0530"
+      ],
+      "expected": 1699943400000
+    },
+    {
+      "id": "time/positive-colon",
+      "fn": "parseXmltvTime",
+      "args": [
+        "20231114120000 +05:30"
+      ],
+      "expected": 1699943400000
+    },
+    {
+      "id": "time/negative-offset",
+      "fn": "parseXmltvTime",
+      "args": [
+        "20231114040000 -0800"
+      ],
+      "expected": 1699963200000
+    },
+    {
+      "id": "time/no-tz",
+      "fn": "parseXmltvTime",
+      "args": [
+        "20231114093000"
+      ],
+      "expected": 1699954200000
+    },
+    {
+      "id": "time/seconds-discarded",
+      "fn": "parseXmltvTime",
+      "args": [
+        "20231114093059 +0000"
+      ],
+      "expected": 1699954200000
+    },
+    {
+      "id": "time/rollover-month13",
+      "fn": "parseXmltvTime",
+      "args": [
+        "20231301120000 +0000"
+      ],
+      "expected": 1704110400000
+    },
+    {
+      "id": "time/rollover-day0",
+      "fn": "parseXmltvTime",
+      "args": [
+        "20231100120000 +0000"
+      ],
+      "expected": 1698753600000
+    },
+    {
+      "id": "time/rollover-hour25",
+      "fn": "parseXmltvTime",
+      "args": [
+        "202311142500 +0000"
+      ],
+      "expected": 1700010000000
+    },
+    {
+      "id": "time/garbage",
+      "fn": "parseXmltvTime",
+      "args": [
+        "not-a-time"
+      ],
+      "expected": null
+    },
+    {
+      "id": "time/empty",
+      "fn": "parseXmltvTime",
+      "args": [
+        ""
+      ],
+      "expected": null
+    },
+    {
+      "id": "time/truncated",
+      "fn": "parseXmltvTime",
+      "args": [
+        "2023"
+      ],
+      "expected": null
+    },
+    {
+      "id": "entities/decode",
+      "fn": "decodeEntities",
+      "args": [
+        "A &amp; B &lt;tag&gt; &#65; &#x42; &amp;amp; &unknown;"
+      ],
+      "expected": "A & B <tag> A B &amp; &unknown;"
+    },
+    {
+      "id": "xmltv/parse-small",
+      "fn": "fn",
+      "args": [
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<tv generator-info-name=\"t\">\n  <channel id=\"alpha.tv\"><display-name>Alpha</display-name><display-name>Alpha HD</display-name><icon src=\"http://a.example/1.png\"/></channel>\n  <channel id=\"gamma.tv\"><display-name>&#71;amma</display-name></channel>\n  <programme start=\"20231114080000 +0000\" stop=\"20231114090000 +0000\" channel=\"alpha.tv\"><title>One</title><desc>First</desc></programme>\n  <programme start=\"20231114090000 +0000\" stop=\"20231114100000 +0000\" channel=\"alpha.tv\"><title>Two</title></programme>\n  <programme start=\"20231114090000 +0000\" stop=\"20231114080000 +0000\" channel=\"gamma.tv\"><title>Backwards</title></programme>\n</tv>"
+      ],
+      "expected": {}
+    },
+    {
+      "id": "xmltv/parse-empty",
+      "fn": "fn",
+      "args": [
+        "<html><body>nope</body></html>"
+      ],
+      "expected": {}
+    },
+    {
+      "id": "xmltv/index-first-wins",
+      "fn": "fn",
+      "args": [
+        {
+          "channels": {
+            "id-b": {
+              "names": [
+                "Dup Name"
+              ]
+            },
+            "id-a": {
+              "names": [
+                "Dup Name"
+              ]
+            },
+            "id-c": {
+              "names": [
+                "  Dup  Name! "
+              ]
+            },
+            "solo": {
+              "names": [
+                "Solo"
+              ]
+            }
+          },
+          "programmes": {}
+        }
+      ],
+      "expected": {
+        "byId": {},
+        "byName": {}
+      }
+    },
+    {
+      "id": "xmltv/key-normalize",
+      "fn": "normalizeChannelKey",
+      "args": [
+        "  Alpha TV (HD)! "
+      ],
+      "expected": "alphatvhd"
+    },
+    {
+      "id": "xmltv/key-nonlatin",
+      "fn": "normalizeChannelKey",
+      "args": [
+        "日本テレビ"
+      ],
+      "expected": "日本テレビ"
+    },
+    {
+      "id": "xmltv/resolve-by-id",
+      "fn": "fn",
+      "args": [
+        {
+          "byId": {},
+          "byName": {}
+        },
+        "alpha.tv"
+      ],
+      "expected": "alpha.tv"
+    },
+    {
+      "id": "xmltv/resolve-by-name",
+      "fn": "fn",
+      "args": [
+        {
+          "byId": {},
+          "byName": {}
+        },
+        "gamma"
+      ],
+      "expected": "gamma.tv"
+    },
+    {
+      "id": "xmltv/resolve-miss",
+      "fn": "fn",
+      "args": [
+        {
+          "byId": {},
+          "byName": {}
+        },
+        "nope"
+      ],
+      "expected": null
+    },
+    {
+      "id": "nownext/current",
+      "fn": "fn",
+      "args": [
+        {
+          "byId": {},
+          "byName": {}
+        },
+        "alpha.tv",
+        1700000000000
+      ],
+      "expected": {
+        "now": {
+          "start": 1699996400000,
+          "stop": 1700001800000,
+          "title": "Morning News",
+          "desc": null
+        },
+        "next": {
+          "start": 1700001800000,
+          "stop": 1700003600000,
+          "title": "Noon Bulletin",
+          "desc": "with guests"
+        }
+      }
+    },
+    {
+      "id": "nownext/exact-start",
+      "fn": "fn",
+      "args": [
+        {
+          "byId": {},
+          "byName": {}
+        },
+        "alpha.tv",
+        1700001800000
+      ],
+      "expected": {
+        "now": {
+          "start": 1700001800000,
+          "stop": 1700003600000,
+          "title": "Noon Bulletin",
+          "desc": "with guests"
+        },
+        "next": null
+      }
+    },
+    {
+      "id": "nownext/exact-stop",
+      "fn": "fn",
+      "args": [
+        {
+          "byId": {},
+          "byName": {}
+        },
+        "alpha.tv",
+        1700003600000
+      ],
+      "expected": {
+        "now": null,
+        "next": null
+      }
+    },
+    {
+      "id": "nownext/future-only",
+      "fn": "fn",
+      "args": [
+        {
+          "byId": {},
+          "byName": {}
+        },
+        "gamma.tv",
+        1700000000000
+      ],
+      "expected": {
+        "now": null,
+        "next": {
+          "start": 1700000010000,
+          "stop": 1700000020000,
+          "title": "Late Slot",
+          "desc": null
+        }
+      }
+    },
+    {
+      "id": "nownext/past-only",
+      "fn": "fn",
+      "args": [
+        {
+          "byId": {},
+          "byName": {}
+        },
+        "delta.tv",
+        1700000000000
+      ],
+      "expected": {
+        "now": null,
+        "next": null
+      }
+    },
+    {
+      "id": "nownext/unknown-id",
+      "fn": "fn",
+      "args": [
+        {
+          "byId": {},
+          "byName": {}
+        },
+        "nope.tv",
+        1700000000000
+      ],
+      "expected": null
+    },
+    {
+      "id": "lookup/order-and-cap",
+      "fn": "fn",
+      "args": [
+        {
+          "byId": {},
+          "byName": {}
+        },
+        [
+          "alpha.tv",
+          "gamma.tv",
+          "delta.tv",
+          "nope.tv",
+          "alpha"
+        ],
+        1700000000000,
+        3
+      ],
+      "expected": [
+        {
+          "key": "alpha.tv",
+          "now": {
+            "start": 1699996400000,
+            "stop": 1700001800000,
+            "title": "Morning News",
+            "desc": null
+          },
+          "next": {
+            "start": 1700001800000,
+            "stop": 1700003600000,
+            "title": "Noon Bulletin",
+            "desc": "with guests"
+          }
+        },
+        {
+          "key": "gamma.tv",
+          "now": null,
+          "next": {
+            "start": 1700000010000,
+            "stop": 1700000020000,
+            "title": "Late Slot",
+            "desc": null
+          }
+        },
+        {
+          "key": "delta.tv",
+          "now": null,
+          "next": null
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/kubuntu/Code/game/docs/architecture/elixir/diagrams/platform.json",
+  "output": "/home/kubuntu/Code/game/docs/architecture/elixir/diagrams/platform.html",
+  "specification": {
+    "sha256": "f270aeb8a888ac4c7b017f14e2d2dee46400e242247b02eec973afa73bc2ca3c",
+    "bytes": 3669
+  },
+  "artifact": {
+    "sha256": "db0365dd23627e2ab61623a77c10880aff764d8b610ae7d01e1b8717dacd7917",
+    "bytes": 711979
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}
