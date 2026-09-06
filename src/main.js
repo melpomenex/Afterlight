@@ -598,8 +598,12 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
 // --- INTERACTION LOGIC ---
 // Sitting: the player snaps into a chair facing the screen (-z), legs folded.
 // Any movement key, walk-click, E, or travel stands them up again.
-function sitOn(seatItem) {  if (seated) return;
+function sitOn(seatItem) {
+  if (seated) return;
   seated = { x: seatItem.x, z: seatItem.z + 0.55, rotY: Math.PI };
+  // Take the keyboard back: a focused chat input would silently swallow the
+  // keys that get the player out of the chair again.
+  if (document.activeElement?.id === 'chat-input') document.activeElement.blur();
   player.position.set(seated.x, 0, seated.z);
   player.rotation.y = seated.rotY;
   player.userData.legs.forEach(leg => { leg.rotation.x = -1.35; });
@@ -879,6 +883,18 @@ $('atmosphere').onchange = () => { particles.visible = $('atmosphere').checked; 
 window.addEventListener('keydown', (e) => {
   if (e.target.matches('input,select,textarea') && e.code !== 'Escape') return;
 
+  // A seated player can always free themselves with E or any movement key —
+  // this runs even while some panel has paused the world, so sitting can
+  // never become a trap.
+  if (seated && ['KeyE', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+    standUp();
+    if (e.code !== 'KeyE') {
+      e.preventDefault();
+      return; // keep held movement out of the keys set on this press; repeats flow through normally
+    }
+    return;
+  }
+
   if (e.code === 'KeyT') {
     openDistricts();
     return;
@@ -908,10 +924,14 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyM') ui.openMarket();
   if (e.code === 'KeyV') net.sendEmote('wave');
   if (e.code === 'KeyC') $('camera').click();
-  if (e.code === 'Escape' && !paused) {
-    // In cinema view, Escape returns to the game first; settings needs a second press.
-    if (theaterUI.isWatching()) theaterUI.setWatchMode(false);
-    else toggleSettings();
+  if (e.code === 'Escape') {
+    // Esc always frees a seated player completely (cinema view + chair).
+    if (seated) standUp();
+    else if (!paused) {
+      // In cinema view, Escape returns to the game first; settings needs a second press.
+      if (theaterUI.isWatching()) theaterUI.setWatchMode(false);
+      else toggleSettings();
+    }
   }
 });
 
