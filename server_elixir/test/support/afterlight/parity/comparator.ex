@@ -47,9 +47,11 @@ defmodule Afterlight.Parity.Comparator do
             {real, bindings}
 
           :error ->
-            if Hazards.generated_id?(module, value) do
+            if token_ref?(value) do
               # Deterministic placeholder, distinct per token so input ids
-              # never collide.
+              # never collide. (The token itself, "<gen:N>", is never tested
+              # against the module's generated-id format — that format only
+              # describes REAL ids.)
               placeholder = Hazards.placeholder_for(value)
               {placeholder, :maps.put(value, placeholder, bindings)}
             else
@@ -180,4 +182,8 @@ defmodule Afterlight.Parity.Comparator do
   defp to_float(n) when is_float(n), do: n
 
   defp token?(value), do: String.starts_with?(value, "<gen:") or value == "<generated>"
+
+  # A "<gen:N>" reference (valid regardless of the module's real-id format —
+  # the format governs binding REAL ids, not token syntax).
+  defp token_ref?(value), do: Regex.match?(~r/^<gen:\d+>$/, value)
 end

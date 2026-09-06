@@ -40,3 +40,14 @@ Per case: `{fn, args, state, nowMs, seed?, expected}`. `expected` contains the f
 ## 4. Dual-consumed modules (parity mandatory — client imports them)
 
 `src/main.js` → emotes/protocol/crops/materials; `src/net/client.js` → protocol/identity; `src/render/avatars.js` → emotes/identity palette; `src/render/plants.js` → crops; `src/ui/chatPanel.js` → protocol; `src/ui/emoteWheel.js` → emotes; `src/ui/marketModal.js` → crops/materials/price fns/protocol (client previews server prices — price parity is user-visible); `src/ui/theaterScreen.js` → protocol/iptvModel/theaterModel/torrentModel; `src/world/gardenWorld.js` → crops/sprinklerCoverage/materials; `src/districts.js` → materials.
+
+## 5. Elixir-side porting traps (found during the P1 reference ports)
+
+- `Integer.to_string(n, 36)` is UPPERCASE in Elixir; JS `Number.toString(36)` is lowercase — downcase before format-matching (`itm_`/`iptv_` id regexes).
+- Legacy `:calendar` date helpers are removed on modern OTP — implement `Date.UTC` rollover arithmetic directly (days-from-civil).
+- `Regex.replace/4` replacement functions are 1-arity (whole match); re-run the regex to recover capture groups.
+- Erlang `:uri_string`/Elixir `URI` are RFC 3986, not WHATWG: `searchParams` decodes `+` as space, hostname lowercasing is ASCII-wise, duplicate query keys must be preserved by hand.
+- OTP 27+ requires explicit `+0.0`/`-0.0` float clauses (both falsy in JS truthiness).
+- JS `\w` is ASCII: use `[a-zA-Z0-9_]` (Elixir `\w` differs under unicode mode); JS `\s` matches Unicode whitespace.
+- JS `Math.round` = half toward +Infinity (`js_round = floor(x + 0.5)`); `Number(x.toFixed(3))` matched `:erlang.float_to_binary(x, decimals: 3)` on all tested values but re-verify at pin bumps.
+- Fixture integrity rule: `expected` values are RECORDED from the real implementations, never hand-authored. The classify/magnet tables originally carried assumed expectations that diverged from real JS (vimeo id lengths, `?v=` case sensitivity, base32-with-padding); they were re-recorded from truth.

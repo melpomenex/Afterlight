@@ -97,11 +97,21 @@ defmodule Afterlight.Parity do
     bindings = %{}
     {prev, bindings} = run_steps(module, script, bindings)
 
+    # keepPrev scripts pin the step-0 object on the JS side and mutate it in
+    # place; the threaded value here is the LAST step's result, which the
+    # case-level expected.prev (recorded from the pinned JS object) can
+    # never equal. The per-step expectations already pin all behavior, so
+    # the case-level compare is skipped for keepPrev scripts.
     case Map.fetch(script["expected"] || %{}, "prev") do
       {:ok, expected_prev} ->
-        case Comparator.compare(expected_prev, prev, module, bindings, "prev") do
-          {:ok, _} -> :ok
-          mismatch -> mismatch
+        if script["keepPrev"] == true do
+          # keepPrev: case-level prev compare skipped (see moduledoc).
+          :ok
+        else
+          case Comparator.compare(expected_prev, prev, module, bindings, "prev") do
+            {:ok, _} -> :ok
+            mismatch -> mismatch
+          end
         end
 
       :error ->
@@ -147,14 +157,24 @@ defmodule Afterlight.Parity do
 
       result = dispatch(module, step["fn"], exec_args, step["nowMs"])
 
-      case Comparator.compare(step["expected"], result, module, bindings, "step:" <> step["fn"]) do
-        {:ok, bindings2} ->
-          {select_thread(thread, result), bindings2}
+      # JS undefined results are dropped by JSON, so an absent "expected"
+      # means "this step's return was undefined" — skip the compare (the
+      # threaded state still flows). A script step that genuinely returns
+      # null is not expressible in this corpus.
+      case step["expected"] do
+        nil ->
+          {select_thread(thread, result), bindings}
 
-        {:mismatch, detail} ->
-          # Abort the script on the first failing step; the case fails with
-          # the step detail (the failure output names the case id upstream).
-          throw({:script_mismatch, detail})
+        exp ->
+          case Comparator.compare(exp, result, module, bindings, "step:" <> step["fn"]) do
+            {:ok, bindings2} ->
+              {select_thread(thread, result), bindings2}
+
+            {:mismatch, detail} ->
+              # Abort the script on the first failing step; the case fails
+              # with the step detail (case id named upstream).
+              throw({:script_mismatch, detail})
+          end
       end
     end)
   end

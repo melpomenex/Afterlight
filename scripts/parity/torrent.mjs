@@ -17,9 +17,9 @@ function build() {
 
   // parseMagnet: hex, base32, hostile inputs
   const magnets = [
-    ['magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Sintel', { url: 'magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Sintel', infohash: '0123456789abcdef0123456789abcdef01234567' }],
-    ['magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567', { url: 'magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567', infohash: '0123456789abcdef0123456789abcdef01234567' }],
-    ['magnet:?xt=urn:btih:MFRGGDFCMYTDE2LQGJTGKNBZGY4TQNJRGUZTANJZMU3DKOBVGY3A====', { url: 'magnet:?xt=urn:btih:MFRGGDFCMYTDE2LQGJTGKNBZGY4TQNJRGUZTANJZMU3DKOBVGY3A====', infohash: '31472420a066a10ecb72230bb8cc536c1449c47b' }],
+    ['magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Sintel'],
+    ['magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567'],
+    ['magnet:?xt=urn:btih:MFRGGDFCMYTDE2LQGJTGKNBZGY4TQNJRGUZTANJZMU3DKOBVGY3A===='],
     ['magnet:?dn=name-only', null],
     ['magnet:?xt=urn:sha1:0123456789abcdef0123456789abcdef01234567', null],
     ['magnet:?xt=urn:btih:zzzzzzzz', null],
@@ -27,10 +27,11 @@ function build() {
     ['magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef012345677', null],
     ['http://example.com/torrent', null],
     ['', null],
-    ['magnet:?xt=urn:btih:31472420a066a10ecb72230bb8cc536c1449c47b&tr=http://tracker/a&tr=http://tracker/b', { url: 'magnet:?xt=urn:btih:31472420a066a10ecb72230bb8cc536c1449c47b&tr=http://tracker/a&tr=http://tracker/b', infohash: '31472420a066a10ecb72230bb8cc536c1449c47b' }],
+    ['magnet:?xt=urn:btih:31472420a066a10ecb72230bb8cc536c1449c47b&tr=http://tracker/a&tr=http://tracker/b'],
   ];
-  for (const [url, expected] of magnets) {
-    cases.push(recordCall({ id: `magnet/${url.slice(12, 40).replace(/[^\w.-]+/g, '_') || 'empty'}`, fn: parseMagnet, args: [url], expected }));
+  // Recorded from the real JS — no hand-authored expectations.
+  for (const [url] of magnets) {
+    cases.push(recordCall({ id: `magnet/${url.slice(12, 40).replace(/[^\w.-]+/g, '_') || 'empty'}`, fn: parseMagnet, args: [url] }));
   }
 
   // sanitizeTorrentPick boundaries (integer coercion, null/absent hazards)

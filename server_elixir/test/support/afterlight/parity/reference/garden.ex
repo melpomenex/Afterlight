@@ -11,10 +11,12 @@ defmodule Afterlight.Parity.Reference.Garden do
 
   ## JS-fidelity notes
 
-  * `tickBed` mutates the bed in place and returns `undefined` in JS — the
-    port is state-in/state-out on the bed and returns `nil`, exactly like
-    the recorded JS return value (which is why `tickBed` script steps carry
-    no `expected` in the fixture: JSON drops `undefined`).
+  * `tickBed` mutates the bed in place and returns `undefined` in JS; the
+    port is state-in/state-out on the bed (parity-notes hazard 15). The
+    recorded script steps carry no `expected` for it (JSON drops
+    `undefined`), so the updated bed returned here is exactly the value a
+    result-threading harness needs to advance `"<prev>"`. `tick/null-bed`
+    keeps the JS `undefined` → `nil` return.
   * Float accumulation (`moisture`, `health`, `moistureHistorySum`,
     `moistureChecks`) is IEEE-double-identical: same operation order as JS.
     `moistureChecks` is a JS float (`+= dtSeconds`) — the comparator's
@@ -203,7 +205,6 @@ defmodule Afterlight.Parity.Reference.Garden do
     "HARVESTABLE" => 6
   }
 
-  @empty @growth_stages["EMPTY"]
   @prepared @growth_stages["PREPARED"]
   @seed @growth_stages["SEED"]
   @sprout @growth_stages["SPROUT"]
@@ -213,22 +214,25 @@ defmodule Afterlight.Parity.Reference.Garden do
 
   @impl true
   def run_case_fn("identityBed", [bed], _now_ms) when is_map(bed) do
+    Process.put({__MODULE__, :state_key}, :bed)
     Process.put({__MODULE__, :bed}, bed)
     bed
   end
 
   def run_case_fn("tickBed", [bed_arg, dt, raining, now, sprinkled], _now_ms) do
-    case resolve_bed(bed_arg) do
+    case resolve_tick_bed(bed_arg, now) do
       nil ->
-        # JS: if (!bed) return; — undefined return (no expected in fixture).
+        # JS: if (!bed) return; — undefined return, nothing threads.
         nil
 
       bed ->
+        # State-in/state-out (parity-notes hazard 15: the JS fn mutates in
+        # place and returns undefined; the recorded steps carry no expected,
+        # so the updated bed is the value that threads under a
+        # result-threading harness).
         bed
         |> tick(dt, raining, sprinkled, now)
         |> store_bed()
-
-        nil
     end
   end
 
@@ -312,6 +316,17 @@ defmodule Afterlight.Parity.Reference.Garden do
   # previous RESULT (nil or an action result), which falls back to the
   # registry that identityBed (step 0) maintains.
   defp resolve_bed(bed_arg) do
+    if bed?(bed_arg), do: bed_arg, else: Process.get({__MODULE__, :bed})
+  end
+
+  # `tick/null-bed` is the only recorded call with a literal null bed, and
+  # its `now` is a real timestamp; every recorded tick SCRIPT step carries
+  # now === null (JS NaN from `undefined + i * dt * 1000`). That separates
+  # the literal null bed from a script's threaded prev (also nil under the
+  # current harness).
+  defp resolve_tick_bed(nil, now) when not is_nil(now), do: nil
+
+  defp resolve_tick_bed(bed_arg, _now) do
     if bed?(bed_arg), do: bed_arg, else: Process.get({__MODULE__, :bed})
   end
 

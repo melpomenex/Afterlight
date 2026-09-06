@@ -26,6 +26,6 @@
 - [x] 3.3 Dependency ordering verified: 00→01→02→03→04→05→06→{07,10}; 07→08; 10→09; 09→11 (consistent DAG)
 
 ## 4. Implementation begins (this run's scope)
-- [ ] 4.1 P0 implementation: fixture exporter, fixture sets, Elixir parity runner green
-- [ ] 4.2 P1 implementation: `server_elixir/` app compiles and tests green; owns nothing
+- [x] 4.1 P0 implementation: fixture exporter, fixture sets, Elixir parity runner green
+- [x] 4.2 P1 implementation: `server_elixir/` app compiles and tests green; owns nothing
 - [ ] 4.3 P2+ implementation (future runs, in dependency order)
