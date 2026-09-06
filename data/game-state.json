@@ -20,7 +20,7 @@
         "sprinklers": 0
       },
       "currentRoom": "market",
-      "lastSeen": 1788713285805,
+      "lastSeen": 1788714420499,
       "materials": {
         "copper": 2
       }
@@ -104,7 +104,7 @@
         "sprinklers": 0
       },
       "currentRoom": "market",
-      "lastSeen": 1788713286001,
+      "lastSeen": 1788714423997,
       "materials": {}
     },
     "guest_do7zmx77d_mtpn6yfp": {
@@ -128,7 +128,7 @@
         "sprinklers": 1
       },
       "currentRoom": "market",
-      "lastSeen": 1788713472213,
+      "lastSeen": 1788714536222,
       "materials": {}
     },
     "guest_c1tlwqkzd_mtpnblwp": {
@@ -304,7 +304,7 @@
         "sprinklers": 0
       },
       "currentRoom": "market",
-      "lastSeen": 1788713285661,
+      "lastSeen": 1788714421806,
       "materials": {}
     },
     "witness_mtpy6edr": {
@@ -372,6 +372,50 @@
       "currentRoom": "market",
       "lastSeen": 1788707473554,
       "materials": {}
+    },
+    "test_probe3": {
+      "id": "test_probe3",
+      "nickname": "ProbeBot3",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788713765287,
+      "materials": {}
+    },
+    "test_probe4": {
+      "id": "test_probe4",
+      "nickname": "ProbeBot4",
+      "coins": 60,
+      "xp": 0,
+      "level": 1,
+      "reputation": 10,
+      "reservedCoins": 0,
+      "inventory": {
+        "seeds": {
+          "radish": 6,
+          "lettuce": 4,
+          "carrot": 2
+        },
+        "produce": {},
+        "reservedProduce": {},
+        "sprinklers": 0
+      },
+      "currentRoom": "market",
+      "lastSeen": 1788714394816,
+      "materials": {}
     }
   },
   "gardens": {
@@ -383,7 +427,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -396,7 +440,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -409,7 +453,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -422,7 +466,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -435,7 +479,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -448,7 +492,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -461,7 +505,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -474,7 +518,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -487,7 +531,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -500,7 +544,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -513,7 +557,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -526,7 +570,7 @@
           "cropId": null,
           "plantedAt": null,
           "lastWateredAt": null,
-          "moisture": 1,
+          "moisture": 0,
           "health": 1,
           "moistureHistorySum": 0,
           "moistureChecks": 0,
@@ -567,18 +611,7 @@
     }
   },
   "theater": {
-    "now": {
-      "id": "itm_mtq0qm99_t7dqi",
-      "kind": "hls",
-      "url": "https://iptv.bitred.cl/EUROPAEUROPA_HD/index.m3u8",
-      "videoId": null,
-      "title": "Europa Europa (AR)",
-      "playing": true,
-      "positionSec": 0,
-      "updatedAt": 1788712194912,
-      "by": "OrchardClover67",
-      "queuedBy": "OrchardClover67"
-    },
+    "now": null,
     "queue": []
   }
 }

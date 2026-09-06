@@ -378,6 +378,10 @@ export class TheaterScreenUI {
       net.on(MSG_TYPES.TORRENT_STATE, (msg) => this.applyTorrentStatus(msg));
       net.on(MSG_TYPES.THEATER_PLAYLIST_RESOLVED, (msg) => this.applyPlaylistResolved(msg));
       net.on(MSG_TYPES.THEATER_IMPORT_RESULT, (msg) => this.applyImportResult(msg));
+      // The server answers resolve attempts with a bare error message when
+      // it declines (in flight, cooldown, not a playlist). Without this,
+      // "Reading the playlist…" would hang until the local timeout.
+      net.on(MSG_TYPES.ERROR, (msg) => this.applyServerErrorMessage(msg));
     }
   }
 
@@ -1585,6 +1589,26 @@ export class TheaterScreenUI {
   cancelPlaylistResolve() {
     if (this.playlistPending?.timer) clearTimeout(this.playlistPending.timer);
     this.playlistPending = null;
+  }
+
+  /**
+   * The server's rejections arrive as a bare error message. While the
+   * player waits on a resolve (playlist or torrent) it belongs in the
+   * add-status line, and the pending wait ends — the answer, though
+   * negative, has arrived.
+   */
+  applyServerErrorMessage(msg) {
+    const text = typeof msg?.message === 'string' ? msg.message : '';
+    if (!text) return;
+    if (this.playlistPending) {
+      this.cancelPlaylistResolve();
+      if (this.roomActive) this.setAddStatus(text, true);
+      return;
+    }
+    if (this.torrentPending) {
+      this.cancelTorrentResolve();
+      if (this.roomActive) this.setAddStatus(text, true);
+    }
   }
 
   /** The resolve reply opens the preview; stale replies are ignored. */
