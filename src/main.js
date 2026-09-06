@@ -1,10 +1,12 @@
+import { createEmoteWheel } from './ui/emoteWheel.js';
+import { EMOTES, isEmote } from '../shared/emotes.js';
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import './style.css';
 import { NetworkClient } from './net/client.js';
-import { createGardenerAvatar, createKilnCompanion, RemotePlayersManager } from './render/avatars.js';
+import { createGardenerAvatar, createKilnCompanion, RemotePlayersManager, startEmote, stopEmote, updateEmote } from './render/avatars.js';
 import { buildMarketWorld } from './world/marketWorld.js';
 import { buildGardenWorld } from './world/gardenWorld.js';
 import { districts, buildDistrict, readExploration } from './districts.js';
@@ -243,6 +245,7 @@ function getOrCreateDistrictWorld(distId) {
 let nearest = null;
 let target = null;
 let seated = null; // { x, z, rotY } while the player sits in a theater seat
+let emoteWheel = null;
 let paused = false;
 let t = 0;
 let toastTimer = null;
@@ -260,6 +263,8 @@ let jumpQueued = false; // set by the Space keydown, consumed by the next steppe
 // also grounds the player and drops any live hop chain: momentum never
 // survives a state change.
 function clearJumpMomentum() {
+  emoteWheel?.close();
+  stopEmote(player);
   resetJump(jumpState);
   jumpQueued = false;
 }
@@ -541,8 +546,8 @@ function updateMillPanel() {
 }
 
 net.on(MSG_TYPES.EMOTE_BROADCAST, (msg) => {
-  toast("Emote", `${msg.nickname} waves warmly! 👋`);
-  chime([659, 880]);
+  if (msg.playerId === net.guestId || !isEmote(msg.emote)) return;
+  startEmote(remotePlayers.players.get(msg.playerId)?.avatar, msg.emote);
 });
 
 // Town chat packets; the ChatPanel registered its own handlers at setup and
@@ -971,7 +976,19 @@ function renderDistrictList() {
 $('btn-travel').onclick = openDistricts;
 $('close-districts').onclick = closeDistricts;
 $('district-dialog').addEventListener('cancel', (e) => { e.preventDefault(); closeDistricts(); });
-$('btn-emote').onclick = () => net.sendEmote('wave');
+emoteWheel = createEmoteWheel({
+  canOpen: () => !paused && !document.querySelector('dialog[open]'),
+  onOpen: () => {
+    keys.clear(); clearJumpMomentum(); target = null; marker.visible = false; press = null;
+    theaterUI.setWatchMode(false);
+  },
+  onChoose: id => {
+    startEmote(player, id);
+    net.sendEmote(id);
+    toast(EMOTES.find(e => e.id === id).label, 'Move to finish your emote.', 'EMOTE');
+  },
+});
+$('btn-emote').onclick = () => emoteWheel.open();
 $('btn-edit-nick').onclick = () => ui.openProfile();
 
 // Settings & Pause
@@ -1009,7 +1026,7 @@ $('atmosphere').onchange = () => { particles.visible = $('atmosphere').checked; 
 
 // --- KEYBOARD CONTROLS ---
 window.addEventListener('keydown', (e) => {
-  if (e.target.matches('input,select,textarea') && e.code !== 'Escape') return;
+  if (e.target.closest('input,select,textarea,[contenteditable="true"]') && e.code !== 'Escape') return;
 
   // A seated player can always free themselves with E or any movement key —
   // this runs even while some panel has paused the world, so sitting can
@@ -1057,7 +1074,6 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     theaterUI.openControls();
   }
-  if (e.code === 'KeyV') net.sendEmote('wave');
   if (e.code === 'KeyC') $('camera').click();
   if (e.code === 'Escape') {
     // Esc always frees a seated player completely (cinema view + chair).
@@ -1084,7 +1100,7 @@ window.addEventListener('blur', () => {
 let press = null; // { x, y, lastX, lastY, dragging }
 
 renderer.domElement.addEventListener('pointerdown', (e) => {
-  if (paused) return;
+  if (paused || emoteWheel?.isOpen) return;
   press = { x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, dragging: false };
   renderer.domElement.setPointerCapture(e.pointerId);
 });
@@ -1219,6 +1235,7 @@ function frame(now) {
       }
     }
 
+    if (dir.lengthSq() > 0 || jumpQueued) stopEmote(player);
     const running = keys.has('ShiftLeft') || keys.has('ShiftRight');
     const baseSpeed = running ? RUN_SPEED : WALK_SPEED;
     // Vertical physics first: a landing frame with Space held relaunches the
@@ -1246,6 +1263,8 @@ function frame(now) {
       player.position.y = jumpState.y;
       player.userData.legs.forEach(leg => { leg.rotation.x = -0.8; });
     }
+
+    updateEmote(player, dt);
 
     // Footstep cadence follows run/walk; idle, seated, or airborne is silent.
     if (moved && !jumpState.airborne) {

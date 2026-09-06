@@ -17,8 +17,10 @@
  *   - chat_error (S→C): { message }
  *
  * Theater payloads (additive):
- *   - theater_queue (C→S): { op: 'add'|'remove'|'playNow'|'skip'|'clear',
- *     url?, title?, itemId? } — queue management for the shared screen
+ *   - theater_queue (C→S): { op: 'add'|'addMany'|'remove'|'playNow'|'skip'|'clear',
+ *     url?, title?, itemId?, items? } — queue management for the shared
+ *     screen; addMany is the playlist-import batch (items capped, applied
+ *     as one state change)
  *   - theater_control (C→S): { op: 'pause'|'resume'|'seek'|'ended'|'failed',
  *     itemId?, positionSec? } — playback control from any occupant
  *   - theater_channel (C→S): { url, title } — tune to an IPTV channel by
@@ -28,6 +30,18 @@
  *   - theater_state (S→C): { theater: { now, queue }, serverNow } — full
  *     snapshot, broadcast on every applied change and sent on room join
  *   - Presence payloads additively carry `sitting: boolean` (theater seats)
+ *
+ * YouTube playlist import payloads (additive, theater room):
+ *   - theater_playlist_resolve (C→S): { requestId, listId } — ask the
+ *     server to read a public playlist; nothing reaches the shared bill
+ *     until the importer confirms the preview
+ *   - theater_playlist_resolved (S→C): { requestId, title, videos:
+ *     [{ videoId, title }] } — the preview data, sent to the requester
+ *     only (failures ride the error message with a readable reason)
+ *   - theater_import_result (S→C): { queued, skipped, didNotFit } — the
+ *     honest outcome of one applied addMany, sent to the importer only
+ *   Playlist links themselves are never bill entries: the reducer refuses
+ *   kind 'youtubePlaylist' on add/channel.
  *
  * Torrent payloads (additive, theater room):
  *   - torrent_resolve (C→S): { requestId, magnet } — ask the server's
@@ -79,6 +93,7 @@ export const MSG_TYPES = {
   THEATER_QUEUE: 'theater_queue',
   THEATER_CONTROL: 'theater_control',
   THEATER_CHANNEL: 'theater_channel',
+  THEATER_PLAYLIST_RESOLVE: 'theater_playlist_resolve',
   TORRENT_RESOLVE: 'torrent_resolve',
   TORRENT_FILES: 'torrent_files',
   TORRENT_STATE: 'torrent_state',
@@ -102,6 +117,8 @@ export const MSG_TYPES = {
   NODE_STATE: 'node_state',
   MACHINE_UPDATE: 'machine_update',
   THEATER_STATE: 'theater_state',
+  THEATER_PLAYLIST_RESOLVED: 'theater_playlist_resolved',
+  THEATER_IMPORT_RESULT: 'theater_import_result',
   IPTV_STATE: 'iptv_state',
   IPTV_LIST: 'iptv_list',
   EPG_SCHEDULE: 'epg_schedule',

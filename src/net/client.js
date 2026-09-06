@@ -165,6 +165,9 @@ export class NetworkClient {
   /** Ask the server's torrent engine to resolve a magnet to its file list. */
   sendTorrentResolve(requestId, magnet) { this.send(MSG_TYPES.TORRENT_RESOLVE, { requestId, magnet }); }
 
+  /** Ask the server to read a public YouTube playlist for the import flow. */
+  sendPlaylistResolve(requestId, listId) { this.send(MSG_TYPES.THEATER_PLAYLIST_RESOLVE, { requestId, listId }); }
+
   sendIptvListGet(listId) { this.send(MSG_TYPES.IPTV_LIST_GET, { listId }); }
 
   sendIptvListRemove(listId) { this.send(MSG_TYPES.IPTV_LIST_REMOVE, { listId }); }

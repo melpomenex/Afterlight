@@ -1112,6 +1112,30 @@ kbd {
 }
 .theater-torrent-status { margin-top: 4px; color: #c8b98a; }
 /* end torrent */
+
+/* YouTube playlist import: preview list (read-only, unlike the picker) */
+.theater-playlist-videos {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 10px 0 4px;
+}
+.theater-playlist-video {
+  background: #142223c0;
+  border: 1px solid #6b7d7440;
+  border-radius: 3px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #e8e7d9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.theater-playlist-more { color: #93a49a; font: 8px 'Space Mono', monospace; letter-spacing: 0.5px; }
+/* end playlist import */
+
 .theater-transport { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
 .theater-transport button:disabled { opacity: 0.4; cursor: default; }
 .theater-volume-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
@@ -1352,3 +1376,24 @@ body.theater-watching #chat-log {
 #settings-dialog label { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
 #settings-dialog input[type="range"] { flex: 1; accent-color: #c9a86a; }
 #settings-dialog #footsteps-value { min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Hold-to-select expression wheel; the live world remains visible behind it. */
+.emote-overlay { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: radial-gradient(circle, #10282720, #071b2570); touch-action: none; }
+.emote-overlay[hidden] { display: none; }
+.emote-wheel { position: relative; width: min(440px, 90vw, 76vh); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, #162d30f5 0 28%, #284241ed 29% 30%, #152a2aeb 31% 100%); border: 1px solid #b7c4ad55; box-shadow: 0 20px 90px #0008, inset 0 0 50px #8caa9320; color: #f0e7cc; }
+.emote-center { position: absolute; inset: 32%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 9px; pointer-events: none; }
+.emote-center small { font: 8px monospace; letter-spacing: 2px; color: #c6b47a; }
+.emote-center strong { font-size: clamp(13px, 3vw, 19px); }
+.emote-description { font-size: 11px; line-height: 1.4; color: #b9c9be; }
+.emote-stick { width: 10px; height: 10px; border: 1px solid #e6c77d; border-radius: 50%; background: #e6c77d66; }
+.emote-choice { position: absolute; left: calc(50% + var(--x)); top: calc(50% + var(--y)); transform: translate(-50%, -50%); width: 27%; height: 25%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; border: 1px solid transparent; border-radius: 24px 8px; background: transparent; color: #d9e2d1; cursor: pointer; }
+.emote-choice span { font-size: clamp(20px, 5vw, 32px); }
+.emote-choice:last-of-type span { font-size: 17px; }
+.emote-choice b { font-size: clamp(10px, 2.4vw, 13px); }
+.emote-choice small { font: 9px monospace; opacity: .55; }
+.emote-choice.selected { background: #ddbc7430; border-color: #dfbf77; color: #fff1c7; box-shadow: 0 0 25px #dfbf7722; }
+.emote-choice:focus-visible { outline: 2px solid #bbded5; outline-offset: 3px; }
+#emote-help { position: absolute; top: 101%; width: 100%; text-align: center; font-size: 12px; line-height: 1.8; color: #e1dfc9; text-shadow: 0 2px 4px #000; }
+@media (max-width: 560px) {
+  #btn-emote { position: fixed; right: 20px; top: 180px; z-index: 25; min-height: 44px; padding: 10px 16px; background: #162d30ed; border: 1px solid #c6b47a99; border-radius: 14px 4px; color: #eee1ba; }
+}

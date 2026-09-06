@@ -1,2 +1,5 @@
 .vercel
 node_modules/
+
+# Torrent download cache (disposable runtime data; see server/torrents.js)
+data/torrents/

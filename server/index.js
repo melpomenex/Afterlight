@@ -1,3 +1,4 @@
+import { isEmote } from '../shared/emotes.js';
 import http from 'node:http';
 import zlib from 'node:zlib';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -11,6 +12,7 @@ import { OrderBook } from './orderbook.js';
 import { NodesManager } from './nodes.js';
 import { MachinesManager } from './machines.js';
 import { TheaterManager } from './theater.js';
+import { resolvePlaylist } from './youtubePlaylist.js';
 import { IptvManager } from './iptv.js';
 import { TorrentManager } from './torrents.js';
 import { IPTV_LIMITS, iptvErrorText } from '../shared/iptvModel.js';
@@ -61,6 +63,11 @@ export function createServer(customStorage = null, options = {}) {
   let serverTick = 0;
   // Player ids with a torrent resolve in flight (one per connection).
   const torrentResolves = new Set();
+  // YouTube playlist resolves: one in flight per player plus a cooldown, so
+  // nobody can lean on the server as a YouTube scraper farm.
+  const playlistResolves = new Set();
+  const playlistCooldowns = new Map();
+  const PLAYLIST_RESOLVE_COOLDOWN_MS = 10_000;
 
   const server = http.createServer(async (req, res) => {
     if (req.url === '/api/health') {
@@ -819,6 +826,8 @@ export function createServer(customStorage = null, options = {}) {
       }
 
       if (msg.type === MSG_TYPES.EMOTE) {
+        if (!isEmote(msg.emote) || Date.now() - (session.lastEmoteAt || 0) < 500) return;
+        session.lastEmoteAt = Date.now();
         world.broadcastToRoom(session.currentRoom, {
           type: MSG_TYPES.EMOTE_BROADCAST,
           playerId,
@@ -862,6 +871,11 @@ export function createServer(customStorage = null, options = {}) {
           : msg;
         const res = theater.applyAction(player.nickname, payload);
         if (res.success) {
+          // Batch imports tell the importer what actually happened before
+          // the room-wide snapshot lands; single adds have nothing to add.
+          if (res.report) {
+            session.send({ type: MSG_TYPES.THEATER_IMPORT_RESULT, ...res.report });
+          }
           world.broadcastToRoom(ROOMS.THEATER, {
             type: MSG_TYPES.THEATER_STATE,
             theater: theater.snapshot(),
@@ -870,6 +884,48 @@ export function createServer(customStorage = null, options = {}) {
         } else {
           session.send({ type: MSG_TYPES.ERROR, message: theaterErrorText(res.reason) });
         }
+        return;
+      }
+
+      // --- YouTube playlist import: resolve a public playlist to its video
+      // list. Nothing reaches the shared bill here — the importer previews
+      // the reply and confirms, and only then does an addMany op queue the
+      // batch through the shared reducer. Room-guarded like the torrent
+      // resolve, one in flight per player plus a cooldown. ---
+      if (msg.type === MSG_TYPES.THEATER_PLAYLIST_RESOLVE) {
+        if (session.currentRoom !== ROOMS.THEATER) {
+          session.send({
+            type: MSG_TYPES.ERROR,
+            message: 'You need to be inside The Orpheum to import playlists.',
+          });
+          return;
+        }
+        if (playlistResolves.has(playerId)) {
+          session.send({ type: MSG_TYPES.ERROR, message: theaterErrorText('resolve_in_flight') });
+          return;
+        }
+        const lastResolve = playlistCooldowns.get(playerId) || 0;
+        if (Date.now() - lastResolve < PLAYLIST_RESOLVE_COOLDOWN_MS) {
+          session.send({ type: MSG_TYPES.ERROR, message: theaterErrorText('resolve_cooldown') });
+          return;
+        }
+        const requestId = String(msg.requestId || '');
+        playlistResolves.add(playerId);
+        playlistCooldowns.set(playerId, Date.now());
+        resolvePlaylist(msg.listId)
+          .then((result) => {
+            if (result.reason) {
+              session.send({ type: MSG_TYPES.ERROR, message: theaterErrorText(result.reason) });
+              return;
+            }
+            session.send({
+              type: MSG_TYPES.THEATER_PLAYLIST_RESOLVED,
+              requestId,
+              title: result.title,
+              videos: result.videos,
+            });
+          })
+          .finally(() => playlistResolves.delete(playerId));
         return;
       }
 
