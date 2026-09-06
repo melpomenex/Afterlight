@@ -11,8 +11,8 @@ test('old and malformed saves migrate without inventing progress', () => {
   assert.ok(readExploration({ completed: ['understory', 'saltworks'] }).completed.includes('understory'));
 });
 
-test('all sixteen districts have unique IDs, names, and complete metadata', () => {
-  assert.equal(districts.length, 16);
+test('all seventeen districts have unique IDs, names, and complete metadata', () => {
+  assert.equal(districts.length, 17);
   const ids = new Set(), names = new Set();
   for (const d of districts) {
     assert.ok(!ids.has(d.id), `duplicate district id: ${d.id}`);
@@ -49,4 +49,20 @@ for (const def of districts.slice(1)) test(`${def.name}: exits and objectives ar
   assert.ok(world.group.children.some(o => o.isInstancedMesh), 'static scenery is batched');
   world.update(3, false); world.update(4, true);
   world.group.traverse(object => assert.ok(object.position.toArray().every(Number.isFinite)));
+});
+
+test('the theater exposes its screen quad and a full house of seats', () => {
+  const world = buildDistrict(districts.find(d => d.id === 'theater'));
+  assert.ok(Array.isArray(world.screenQuad), 'theater defines a screen quad');
+  assert.equal(world.screenQuad.length, 4);
+  for (const p of world.screenQuad) {
+    assert.ok([p.x, p.y, p.z].every(Number.isFinite), `screen quad corner is finite: ${p.x},${p.y},${p.z}`);
+  }
+  assert.ok(world.items.filter(i => i.type === 'seat').length >= 30, 'theater has seats to sit in');
+});
+
+test('the rain court builds without a landmark or field note', () => {
+  const world = buildDistrict(districts.find(d => d.id === 'court'));
+  assert.ok(!world.items.some(i => i.type === 'landmark'), 'court has no landmark');
+  assert.ok(!world.items.some(i => i.type === 'field-note'), 'court has no field note');
 });

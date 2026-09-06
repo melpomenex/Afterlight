@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { MATERIAL_NODES, MATERIALS } from '../shared/materials.js';
+import { buildTheaterScenery } from './world/theaterWorld.js';
 
 export const districts = [
   { id: 'court', name: 'The Rain Court', district: 'LOWER DISTRICT / 04', subtitle: 'AFTER THE RAIN', color: '#657264', sun: '#ffe0a5', description: 'Wet stone, warm windows. Where your journey began.' },
@@ -18,6 +19,7 @@ export const districts = [
   { id: 'delta', name: 'The Reclaimed Marshes', district: 'DELTA DISTRICT / 17', subtitle: 'WHISPERS IN THE REEDS', color: '#525b45', sun: '#d9e0b2', description: 'Shallow sandbars and cattail marshes woven through stranded barges. Realign the channel beacon.', objective: 'Light the channel beacon', action: 'Strike the marsh beacon', done: 'Channel beacon lit', message: 'A warm beacon reflects across the delta shallows, cutting through the twilight mist.', landmark: [7, -4], note: [-6, 4], noteTitle: 'Delta Boatman’s Note', noteBody: '“Follow the reeds when the silt shifts. Where water moves slowly, green things thrive.”', spawn: [-9, 0] },
   { id: 'archives', name: 'The Paper Catacombs', district: 'ARCHIVE DISTRICT / 18', subtitle: 'WHISPERING VAULTS', color: '#48444a', sun: '#f5e4bd', description: 'Stone shelves holding centuries of water-resistant parchment. Light the reading desk lamp.', objective: 'Illuminate the study rotunda', action: 'Turn the reading lamp switch', done: 'Study rotunda illuminated', message: 'A soft amber globe illuminates centuries of hand-bound volumes. The silence feels like peace.', landmark: [5, -4], note: [-6, 5], noteTitle: 'Chief Archivist’s Dedication', noteBody: '“Words outlive empires, provided someone keeps the rain from dripping on the ink.”', spawn: [-9, 0] },
   { id: 'kiln-terrace', name: 'The Solar Kiln', district: 'TERRACOTTA DISTRICT / 19', subtitle: 'BAKED IN WARMTH', color: '#634b3e', sun: '#ffd09e', description: 'Baked clay tiles and parabolic sun collectors. Align the solar concentrator.', objective: 'Focus the solar concentrator', action: 'Calibrate the focal mirror', done: 'Concentrator focused', message: 'A brilliant point of concentrated sunlight gleams against the terracotta kiln. Warmth radiates.', landmark: [6, -4], note: [-5, 5], noteTitle: 'Potter’s Credo', noteBody: '“Earth, water, and sun. With these three, a broken city can remake itself cup by cup.”', spawn: [-9, 0] },
+  { id: 'theater', name: 'The Orpheum', district: 'CINEMA DISTRICT / 20', subtitle: 'PICTURES IN THE DARK', color: '#3a3345', sun: '#e8c9a0', description: 'A grand old cinema where the city gathers after dark. Queue a film, take a seat.', objective: 'Restore power to the projector', action: 'Restore the projector', done: 'Projector humming', message: 'The marquee blazes and the reel begins to turn. Take a seat — whatever plays here plays for everyone.', landmark: [8, -6], note: [-6, 7.2], noteTitle: 'The Orpheum’s house rules', noteBody: '“Anyone may change the picture. No one owns the screen. Leave the aisle lamps burning for whoever comes next.”', spawn: [-9, 0] },
 ];
 
 // Gather-node visuals. These live in a dynamic subgroup that is explicitly
@@ -487,7 +489,27 @@ function buildKilnTerraceWorld(ctx) {
   });
 }
 
+// The Rain Court is the quiet starting district: wet stone, benches, and warm
+// windows. It defines no landmark or field note.
+function buildCourtScenery(ctx) {
+  const { group, block, box, glow, lamp, random } = ctx;
+  for (const [x, z] of [[-4, -4], [4, 3]]) {
+    box(x, .45, z, 2.6, .12, .8, '#5d6658'); block(x, z, 2.6, .8);
+    box(x, .85, z + .42, 2.6, .55, .1, '#5d6658');
+    for (const dx of [-1.05, 1.05]) box(x + dx, .2, z, .12, .45, .7, '#3d463f');
+  }
+  lamp(-7, 6);
+  for (const [x, z, w, d] of [[-2, 2, 2.2, 1.4], [5, -2, 1.6, 2.4], [-6, -1, 1.3, 1.1]]) {
+    const puddle = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ color: '#367c88', transparent: true, opacity: .5, roughness: .12, metalness: .6 }));
+    puddle.rotation.x = -Math.PI / 2; puddle.position.set(x, .17, z); group.add(puddle);
+  }
+  const ivy = ['#58734c', '#47603f', '#6b8156'];
+  for (const x of [-8.5, 8]) for (let i = 0; i < 5; i++) box(x + (random() - .5) * 1.2, 1 + i * .5, -10.1, 1.5, .42, .45, ivy[i % 3]);
+  for (const [x, y] of [[-9, 3.6], [3, 4.5], [7.5, 3.2]]) glow(x, y, -10.96, .5, .8, .05, '#e8b06a', .6);
+}
+
 const DISTRICT_BUILDERS = {
+  court: buildCourtScenery,
   canal: buildCanalScenery,
   garden: buildGardenScenery,
   station: buildStationScenery,
@@ -503,6 +525,7 @@ const DISTRICT_BUILDERS = {
   delta: buildDeltaWorld,
   archives: buildArchivesWorld,
   'kiln-terrace': buildKilnTerraceWorld,
+  theater: buildTheaterScenery,
 };
 
 // Each district owns its scenery and collision map. Only the current group is rendered.
@@ -562,18 +585,25 @@ export function buildDistrict(def, completed = false) {
   if (!builder) {
     throw new Error(`Unknown district id: ${def.id}`);
   }
-  builder({ group, obstacles, items, animated, geometry, colors, material, box, block, glow, lamp, random, def, completed });
+  const ctx = { group, obstacles, items, animated, geometry, colors, material, box, block, glow, lamp, random, def, completed };
+  builder(ctx);
 
-  // Notes and landmarks remain accessible from a clear approach.
-  const [nx, nz] = def.note;
-  box(nx, .6, nz, .8, 1.2, .6, colors.dark); block(nx, nz, .8, .6);
-  glow(nx, 1.24, nz, .5, .035, .4, '#d4c9a1', .4);
-  items.push({ type: 'field-note', x: nx, z: nz, title: 'Read the field note', sub: def.noteTitle, body: def.noteBody });
-  const [lx, lz] = def.landmark;
-  const signal = glow(lx, 2.5, lz, .13, .13, .13, '#ffe0a0', 2);
-  const ring = new THREE.Mesh(new THREE.RingGeometry(.8, .84, 32), new THREE.MeshBasicMaterial({ color: '#e7c889', side: THREE.DoubleSide, transparent: true, opacity: .65 }));
-  ring.rotation.x = -Math.PI / 2; ring.position.set(lx, .25, lz); group.add(ring);
-  items.push({ type: 'landmark', x: lx, z: lz, title: def.action, sub: 'A small act of restoration' });
+  // Notes and landmarks remain accessible from a clear approach. Districts
+  // without one (the court) simply skip the block.
+  let signal = null, ring = null;
+  if (def.note) {
+    const [nx, nz] = def.note;
+    box(nx, .6, nz, .8, 1.2, .6, colors.dark); block(nx, nz, .8, .6);
+    glow(nx, 1.24, nz, .5, .035, .4, '#d4c9a1', .4);
+    items.push({ type: 'field-note', x: nx, z: nz, title: 'Read the field note', sub: def.noteTitle, body: def.noteBody });
+  }
+  if (def.landmark) {
+    const [lx, lz] = def.landmark;
+    signal = glow(lx, 2.5, lz, .13, .13, .13, '#ffe0a0', 2);
+    ring = new THREE.Mesh(new THREE.RingGeometry(.8, .84, 32), new THREE.MeshBasicMaterial({ color: '#e7c889', side: THREE.DoubleSide, transparent: true, opacity: .65 }));
+    ring.rotation.x = -Math.PI / 2; ring.position.set(lx, .25, lz); group.add(ring);
+    items.push({ type: 'landmark', x: lx, z: lz, title: def.action, sub: 'A small act of restoration' });
+  }
 
   // Gather nodes for this district (server state applied on district entry).
   // They live in a dynamic subgroup that the static batch below skips.
@@ -586,9 +616,11 @@ export function buildDistrict(def, completed = false) {
     }
   }
   function update(time, done) {
-    signal.position.y = 2.5 + Math.sin(time * 2) * .12;
-    signal.material.emissive.set(done ? '#93e9b6' : '#ffe0a0');
-    ring.material.color.set(done ? '#93e9b6' : '#e7c889');
+    if (signal) {
+      signal.position.y = 2.5 + Math.sin(time * 2) * .12;
+      signal.material.emissive.set(done ? '#93e9b6' : '#ffe0a0');
+    }
+    if (ring) ring.material.color.set(done ? '#93e9b6' : '#e7c889');
     animated.forEach(fn => fn(time, done));
   }
   update(0, completed);
@@ -597,5 +629,7 @@ export function buildDistrict(def, completed = false) {
   const batch = new THREE.InstancedMesh(geometry, new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: .62, metalness: .2 }), statics.length);
   statics.forEach((mesh, i) => { mesh.updateMatrix(); batch.setMatrixAt(i, mesh.matrix); batch.setColorAt(i, mesh.material.color); group.remove(mesh); });
   batch.castShadow = batch.receiveShadow = true; group.add(batch);
-  return { group, obstacles, items, update, setNodeStates };
+  // Districts may expose extra data (the theater's screen quad for the DOM
+  // overlay); existing consumers only read the fields above, so this is safe.
+  return { group, obstacles, items, update, setNodeStates, screenQuad: ctx.screenQuad || null };
 }
