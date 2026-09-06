@@ -32,26 +32,21 @@ impl B {
         self.v.extend_from_slice(payload);
     }
     pub fn spawn(&mut self, ids: &[u32], arch: &[u16], variant: &[u16], sref: &[u32], x: &[f32], y: &[f32], z: &[f32], yaw: &[f32]) {
+        // Interleaved 28-byte rows — the JS reference layout
+        // (shared/realtime/encoders.js readSpawnSection).
         let c = ids.len();
         let mut p = Vec::with_capacity(c * 28);
-        for id in ids {
-            p.extend_from_slice(&id.to_le_bytes());
+        for i in 0..c {
+            p.extend_from_slice(&ids[i].to_le_bytes());
+            p.extend_from_slice(&arch[i].to_le_bytes());
+            p.extend_from_slice(&variant[i].to_le_bytes());
+            p.extend_from_slice(&sref[i].to_le_bytes());
+            p.extend_from_slice(&x[i].to_bits().to_le_bytes());
+            p.extend_from_slice(&y[i].to_bits().to_le_bytes());
+            p.extend_from_slice(&z[i].to_bits().to_le_bytes());
+            p.extend_from_slice(&yaw[i].to_bits().to_le_bytes());
         }
-        for a in arch {
-            p.extend_from_slice(&a.to_le_bytes());
-        }
-        for v in variant {
-            p.extend_from_slice(&v.to_le_bytes());
-        }
-        for s in sref {
-            p.extend_from_slice(&s.to_le_bytes());
-        }
-        for col in [x, y, z, yaw] {
-            for f in col {
-                p.extend_from_slice(&f.to_bits().to_le_bytes());
-            }
-        }
-        self.sec(SEC_SPAWN, ENC_SORTED, c as u32, &p);
+        self.sec(SEC_SPAWN, ENC_DENSE, c as u32, &p);
     }
     pub fn transform(&mut self, ids: &[u32], x: &[f32], y: &[f32], z: &[f32], yaw: &[f32]) {
         let c = ids.len();
@@ -178,7 +173,7 @@ pub fn world(n: usize) -> World {
 
 pub fn snapshot_frame(w: &World, epoch: u32, seq: u32) -> Vec<u8> {
     let mut b = B::new(FT_SNAPSHOT, 0, epoch, 100, seq, seq);
-    b.spawn(&w.ids, &w.arch, &w.variant, &vec![0u32; w.n], &w.x, &w.y, &w.z, &w.yaw);
+    b.spawn(&w.ids, &w.arch, &w.variant, &vec![0xFFFF_FFFF; w.n], &w.x, &w.y, &w.z, &w.yaw);
     b.flags_dense(&w.flags);
     b.build()
 }

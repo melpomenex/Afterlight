@@ -30,7 +30,7 @@ fn snapshot_roundtrip() {
         assert_eq!(st.flags_at(slot).unwrap(), w.flags[i]);
         assert_eq!(st.archetype_at(slot).unwrap(), w.arch[i]);
         assert_eq!(st.variant_at(slot).unwrap(), w.variant[i]);
-        assert_eq!(st.string_ref_at(slot).unwrap(), 0);
+        assert_eq!(st.string_ref_at(slot).unwrap(), 0xFFFF_FFFF); // NO_STRING_REF (JS writer sentinel)
         // spawn defaults for optional components (§4)
         assert_eq!(st.motion_at(slot).unwrap(), (0.0, 0.0, 0.0));
         assert_eq!(st.anim_at(slot).unwrap(), (0, 0));
@@ -91,7 +91,7 @@ fn despawn_spawn_lifecycle() {
     // respawn a despawned id: slot reuse + defaults
     let nid = w.ids[2];
     let mut b = B::new(FT_DELTA, 0, 1, 104, 4, 3);
-    b.spawn(&[nid], &[0], &[3], &[0], &[1.5], &[0.0], &[2.5], &[0.25]);
+    b.spawn(&[nid], &[0], &[3], &[0xFFFF_FFFF], &[1.5], &[0.0], &[2.5], &[0.25]);
     assert_eq!(apply_to_store(&mut st, &b.build()), OK);
     assert_eq!(st.live_count(), w.n - 1);
     let slot = st.find_slot(nid).unwrap();
@@ -147,7 +147,7 @@ fn dense_snapshot_on_fresh_store() {
     // address slots 0..count-1 (server id == row order on a fresh store).
     let w = world(24);
     let mut b = B::new(FT_SNAPSHOT, 0, 1, 100, 1, 1);
-    b.spawn(&w.ids, &w.arch, &w.variant, &vec![0u32; w.n], &w.x, &w.y, &w.z, &w.yaw);
+    b.spawn(&w.ids, &w.arch, &w.variant, &vec![0xFFFF_FFFF; w.n], &w.x, &w.y, &w.z, &w.yaw);
     b.transform_dense(&w.x, &w.y, &w.z, &w.yaw);
     b.flags_dense(&w.flags);
     let mut st = Store::new(256).unwrap();

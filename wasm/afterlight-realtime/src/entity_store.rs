@@ -170,6 +170,8 @@ pub struct Store {
     pub server_tick: u32,
     pub has_baseline: bool,
     pub poisoned: bool,
+    /// Accumulating snapshot-chunk sequence (contract §4a); 0 = not accumulating.
+    pub chunk_seq: u32,
     // per-frame output staging handed to JS as (ptr, len) pairs. Cleared at
     // the start of every applied frame; capacity is retained, so a steady
     // tick stream performs no allocation.
@@ -238,6 +240,7 @@ impl Store {
             server_tick: 0,
             has_baseline: false,
             poisoned: false,
+            chunk_seq: 0,
             out_ids: Vec::new(),
             out_x: Vec::new(),
             out_y: Vec::new(),

@@ -77,6 +77,45 @@ fn fuzz_mutations_never_panic_and_store_stays_usable() {
         corpus.push(b.build());
     }
 
+    // §4a chunk frames: one SNAPSHOT_CHUNK chain and one DELTA_CHUNK chain so
+    // the mutation corpus covers the chunk paths (header flag bit1 = CHUNK_END
+    // on the final chunk; chunks of one logical frame share frame_sequence and
+    // DELTA_CHUNKs keep the original baseline).
+    {
+        let w = world(26);
+        let half = w.n / 2;
+        let noref = |n: usize| vec![0xFFFF_FFFF; n];
+        let mut sc1 = B::new(FT_SNAPSHOT_CHUNK, 0, 1, 200, 900, 900);
+        sc1.spawn(
+            &w.ids[..half], &w.arch[..half], &w.variant[..half], &noref(half),
+            &w.x[..half], &w.y[..half], &w.z[..half], &w.yaw[..half],
+        );
+        corpus.push(sc1.build());
+        let mut sc2 = B::new(FT_SNAPSHOT_CHUNK, 0x02, 1, 200, 900, 900); // CHUNK_END
+        sc2.spawn(
+            &w.ids[half..], &w.arch[half..], &w.variant[half..], &noref(w.n - half),
+            &w.x[half..], &w.y[half..], &w.z[half..], &w.yaw[half..],
+        );
+        corpus.push(sc2.build());
+
+        let changed: Vec<u32> = w.ids.iter().step_by(2).copied().collect();
+        let mid = changed.len() / 2;
+        let (first, second) = changed.split_at(mid);
+        for (ids, end) in [(first, 0u8), (second, 0x02u8)] {
+            let nx: Vec<f32> = ids.iter().map(|_| 2.5).collect();
+            let ny: Vec<f32> = ids.iter().map(|_| 0.0).collect();
+            let nz: Vec<f32> = ids.iter().map(|_| -3.5).collect();
+            let nyaw: Vec<f32> = ids.iter().map(|_| 1.25).collect();
+            let nf: Vec<u8> = ids.iter().map(|_| 4u8).collect();
+            // baseline 900 (== seq committed by the chunk snapshot above);
+            // sequence 901 commits on CHUNK_END only.
+            let mut dc = B::new(FT_DELTA_CHUNK, end, 1, 201, 901, 900);
+            dc.transform(ids, &nx, &ny, &nz, &nyaw);
+            dc.flags(ids, &nf);
+            corpus.push(dc.build());
+        }
+    }
+
     for it in 0..ITERATIONS {
         let frame_seed = lcg.u32();
         let (mut st, good_snap, _good_delta, changed) = good_pair(frame_seed, 16 + (frame_seed as usize) % 48);

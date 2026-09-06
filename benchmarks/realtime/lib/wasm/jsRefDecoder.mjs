@@ -45,11 +45,20 @@ const SEC_SPAWN = 1, SEC_DESPAWN = 2, SEC_TRANSFORM = 3, SEC_MOTION = 4,
   SEC_ANIM = 5, SEC_FLAGS = 6, SEC_VISUAL = 7, SEC_STRING_TABLE = 8;
 const ENC_DENSE = 0, ENC_SORTED = 1, ENC_ROARING = 2, ENC_BITSET = 3, ENC_ARROW = 4;
 const FT_SNAPSHOT = 0, FT_DELTA = 1, FT_RESYNC = 2;
+// Chunked frames (contract §4a): oversized snapshots/deltas split under the
+// 1 MiB cap; header flag bit1 (CHUNK_END) on the final chunk commits.
+const FT_SNAPSHOT_CHUNK = 3, FT_DELTA_CHUNK = 4;
+const FLAG_CHUNK_END = 2;
+// Writer sentinel (shared/realtime/applyFrame.js): valid with or without a table.
+const NO_STRING_REF = 0xFFFFFFFF;
 
-// value-column bytes per row (§2 field order); spawn = 2+2+4+16
+// value-column bytes per row (§2 field order). Spawn sections are INTERLEAVED
+// 28-byte rows (id u32, archetype u16, variant u16, stringRef u32, x/y/z/yaw
+// f32) that carry their own id, so their payload is 28 B/row regardless of
+// encoding (mirrors protocol.rs cols_per_row + the spawn special case).
 function colsPerRow(sid) {
   switch (sid) {
-    case SEC_SPAWN: return 24;
+    case SEC_SPAWN: return 28; // interleaved row: id embedded, 24 B of values
     case SEC_DESPAWN: return 0; // mask only
     case SEC_TRANSFORM: return 16;
     case SEC_MOTION: return 12;
@@ -119,6 +128,7 @@ export class JsRefStore {
     this.tickN = 0;
     this.baselineOk = false;
     this.poisoned = false;
+    this.chunkSeqN = 0; // accumulating SNAPSHOT_CHUNK sequence; 0 = not accumulating
 
     this.stIds = new Growable(Uint32Array);
     this.stX = new Growable(Float32Array);
@@ -194,9 +204,10 @@ export class JsRefStore {
     if (dv.getUint32(0, true) !== MAGIC) return STATUS.E_BAD_MAGIC;
     if (dv.getUint8(4) !== 1) return STATUS.E_BAD_VERSION;
     const ft = dv.getUint8(5);
-    if (ft > FT_RESYNC) return STATUS.E_BAD_FRAME_TYPE;
+    if (ft > FT_DELTA_CHUNK) return STATUS.E_BAD_FRAME_TYPE;
     const hflags = dv.getUint8(6);
-    if (hflags & 0xfe) return STATUS.E_BAD_HEADER;
+    if (hflags & 0xFC) return STATUS.E_BAD_HEADER; // bits 2+ reserved (bit1 = CHUNK_END, §4a)
+    const chunkEnd = (hflags & FLAG_CHUNK_END) !== 0;
     const hasStrings = (hflags & 1) !== 0;
     if (dv.getUint8(7) !== 24) return STATUS.E_BAD_HEADER;
     const epoch = dv.getUint32(8, true);
@@ -229,8 +240,13 @@ export class JsRefStore {
       if (seen.has(sid)) return STATUS.E_BAD_SECTION;
       if (enc === ENC_ROARING || enc === ENC_BITSET || enc === ENC_ARROW) return STATUS.E_ENC_UNSUPPORTED;
       if (enc !== ENC_DENSE && enc !== ENC_SORTED) return STATUS.E_BAD_ENCODING;
-      if (sid === SEC_SPAWN || sid === SEC_DESPAWN) {
-        if (enc !== ENC_SORTED) return STATUS.E_BAD_ENCODING;
+      if (sid === SEC_DESPAWN) {
+        if (enc !== ENC_SORTED) return STATUS.E_BAD_ENCODING; // mask-only section needs an id list
+      } else if (sid === SEC_SPAWN) {
+        // JS reference emits spawn rows DENSE-encoded (rows carry their ids);
+        // SORTED accepted for Rust builders. Both are interleaved 28-byte
+        // rows, so the length math is identical.
+        if (enc !== ENC_SORTED && enc !== ENC_DENSE) return STATUS.E_BAD_ENCODING;
       } else if (sid === SEC_STRING_TABLE) {
         if (!hasStrings) return STATUS.E_BAD_SECTION;
         if (enc !== ENC_DENSE) return STATUS.E_BAD_ENCODING;
@@ -257,7 +273,9 @@ export class JsRefStore {
         if (q !== end) return STATUS.E_BAD_STRING_TABLE;
         stringCount = count;
       } else {
-        const mask = enc === ENC_SORTED ? 4 * count : 0;
+        // payload_len must equal exactly mask + columns (no slack, no junk);
+        // spawn rows embed their id, so 28 B/row with no separate mask
+        const mask = sid === SEC_SPAWN || enc !== ENC_SORTED ? 0 : 4 * count;
         const expected = mask + colsPerRow(sid) * count;
         if (plen !== expected) return STATUS.E_PAYLOAD_LEN;
         const cols = start + mask;
@@ -271,6 +289,8 @@ export class JsRefStore {
           }
         }
         if (enc === ENC_SORTED) {
+          // Mirrors protocol.rs: ids are read at start + i*4 (spawn rows are
+          // interleaved 28-byte records whose id is the first u32).
           let prev = -1;
           for (let i = 0; i < count; i++) {
             const id = dv.getUint32(start + i * 4, true);
@@ -286,10 +306,23 @@ export class JsRefStore {
     if (hasStrings && !seen.has(SEC_STRING_TABLE)) return STATUS.E_BAD_SECTION;
 
     // ---------- pass 2a: semantics ----------
+    let spawnRows = 0;
+    for (const s of sections) if (s.sid === SEC_SPAWN) spawnRows += s.count;
     if (ft === FT_SNAPSHOT) {
       this.resetTo(epoch, seq, true);
       this.tickN = tick;
-    } else if (ft === FT_DELTA) {
+      this.chunkSeqN = 0; // a full snapshot aborts any chunk accumulation (§4a)
+    } else if (ft === FT_SNAPSHOT_CHUNK) {
+      // §4a: snapshots are self-validating; stale owners dropped.
+      if (epoch < this.epochN) return STATUS.OK_STALE;
+      // A sequence the store is not accumulating starts a fresh snapshot.
+      if (this.chunkSeqN !== seq) {
+        this.resetTo(epoch, seq, false);
+        this.tickN = tick;
+        this.chunkSeqN = seq;
+      }
+      if (spawnRows > this.free.length) return STATUS.E_SLOT_EXHAUSTED;
+    } else if (ft === FT_DELTA || ft === FT_DELTA_CHUNK) {
       if (this.poisoned) return STATUS.E_POISONED;
       if (epoch < this.epochN) return STATUS.OK_STALE;
       if (epoch > this.epochN) {
@@ -298,8 +331,6 @@ export class JsRefStore {
         return STATUS.OK_RESYNC_NEEDED;
       }
       if (!this.baselineOk || baseline !== this.seqN) return STATUS.OK_RESYNC_NEEDED;
-      let spawnRows = 0;
-      for (const s of sections) if (s.sid === SEC_SPAWN) spawnRows += s.count;
       if (spawnRows > this.free.length) return STATUS.E_SLOT_EXHAUSTED;
     } else {
       return STATUS.E_BAD_FRAME_TYPE;
@@ -361,6 +392,24 @@ export class JsRefStore {
       this.tickN = tick;
       this.epochN = epoch;
       this.baselineOk = true;
+    } else if (ft === FT_DELTA_CHUNK) {
+      // Baseline-checked like DELTA; every chunk keeps the original baseline
+      // (sequence commits only on CHUNK_END).
+      this.tickN = tick;
+      if (chunkEnd) {
+        this.seqN = seq;
+        this.baselineOk = true;
+      }
+    } else if (ft === FT_SNAPSHOT_CHUNK) {
+      this.tickN = tick;
+      if (chunkEnd) {
+        // The chunk chain rebuilt the store from scratch: any poison from a
+        // failed earlier chain is gone, and the delta baseline commits here.
+        this.poisoned = false;
+        this.seqN = seq;
+        this.baselineOk = true;
+        this.chunkSeqN = 0;
+      }
     }
     return STATUS.OK;
   }
@@ -384,15 +433,19 @@ export class JsRefStore {
     const base = s.start + mask;
     switch (s.sid) {
       case SEC_SPAWN: {
-        const arch = s.start + 4 * c;
-        const variant = arch + 2 * c;
-        const sref = variant + 2 * c;
-        const xc = sref + 4 * c;
+        // Interleaved 28-byte rows — the JS reference layout
+        // (shared/realtime/encoders.js writeSpawnSection): per row
+        // id u32, archetype u16, variant u16, stringRef u32, x/y/z/yaw f32.
         for (let i = 0; i < c; i++) {
-          const id = dv.getUint32(s.start + i * 4, true);
+          const o = s.start + i * 28;
+          const id = dv.getUint32(o, true);
           if (this.idToSlot.has(id)) return STATUS.E_ID_EXISTS;
-          const sr = dv.getUint32(sref + i * 4, true);
-          if (stringCount > 0 ? sr >= stringCount : sr !== 0) return STATUS.E_BAD_STRING_TABLE;
+          const sr = dv.getUint32(o + 8, true);
+          // 0xFFFFFFFF = NO_STRING_REF (the writer's sentinel for
+          // non-players): valid with or without a string table
+          if (stringCount > 0 ? sr !== NO_STRING_REF && sr >= stringCount : sr !== NO_STRING_REF) {
+            return STATUS.E_BAD_STRING_TABLE;
+          }
           if (this.free.length === 0) return STATUS.E_SLOT_EXHAUSTED;
           const slot = this.free.pop();
           this.slotId[slot] = id;
@@ -405,13 +458,13 @@ export class JsRefStore {
           this.flags[slot] = 0;
           this.idToSlot.set(id, slot);
           this.liveCount++;
-          this.archetype[slot] = dv.getUint16(arch + i * 2, true);
-          this.variant[slot] = dv.getUint16(variant + i * 2, true);
+          this.archetype[slot] = dv.getUint16(o + 4, true);
+          this.variant[slot] = dv.getUint16(o + 6, true);
           this.stringRef[slot] = sr;
-          this.x[slot] = dv.getFloat32(xc + i * 4, true);
-          this.y[slot] = dv.getFloat32(xc + 4 * c + i * 4, true);
-          this.z[slot] = dv.getFloat32(xc + 8 * c + i * 4, true);
-          this.yaw[slot] = dv.getFloat32(xc + 12 * c + i * 4, true);
+          this.x[slot] = dv.getFloat32(o + 12, true);
+          this.y[slot] = dv.getFloat32(o + 16, true);
+          this.z[slot] = dv.getFloat32(o + 20, true);
+          this.yaw[slot] = dv.getFloat32(o + 24, true);
           this.stSpawnIds.pushU32(id);
           this.stSpawnArch.pushU32(this.archetype[slot]);
           this.stSpawnVariant.pushU32(this.variant[slot]);
