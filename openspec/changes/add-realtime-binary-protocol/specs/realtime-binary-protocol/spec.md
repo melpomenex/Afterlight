@@ -57,7 +57,7 @@ The client SHALL track, per room, the accepted `room_epoch` and `frame_sequence`
 
 ### Requirement: Density-selected section encodings
 
-Section encodings (DENSE, SORTED_IDS, ROARING, BITSET, ARROW_RECORD_BATCH) SHALL be selectable per section per frame, and the reference writer SHALL select between compact sorted ids, Roaring masks, and dense/omitted masks using thresholds measured by the benchmark harness, recorded with their justifying numbers in the selector source. Readers SHALL accept any valid encoding per section independent of the writer's policy, so selection policy can evolve without a protocol version bump.
+Section encodings (DENSE, SORTED_IDS, ROARING, BITSET, DELTA_VARINT, ARROW_RECORD_BATCH) SHALL be selectable per section per frame, and the reference writer SHALL select between compact sorted ids (tiny sets), delta-varint (bytes-optimal mid regime, measured in `results/varint.*`), Roaring masks, and dense/omitted masks using thresholds measured by the benchmark harness, recorded with their justifying numbers in the selector source. Readers SHALL accept any valid encoding per section independent of the writer's policy, so selection policy can evolve without a protocol version bump.
 
 #### Scenario: Policy changes without breakage
 

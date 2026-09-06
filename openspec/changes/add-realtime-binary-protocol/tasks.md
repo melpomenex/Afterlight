@@ -29,6 +29,11 @@
 - [x] 3.7 Tests: 50k-entity chunked join, delta-chunk baseline continuity, unknown-type rejection.
 - [x] 3.8 Contract §4a amendment + live 50,002-entity browser verification (worker path).
 
+## 3b. Delta-varint (v1 promotion, measured)
+
+- [x] 3.9 DELTA_VARINT encoding (delta + LEB128) in shared/realtime: writer, reader, despawn masks; strictly-ascending validation; truncated/overlong varint bounded rejection.
+- [x] 3.10 Frame-level study `results/varint.*`: varint 0.762x sorted bytes at every scale, ~10% under roaring frames, decode parity — writer policy updated (sorted k<8, varint k>=8, dense at fullness >= 0.85).
+
 ## 4. Tooling + server contract
 
 - [x] 4.1 `tools/realtime/frame-dump.mjs` — decode a captured frame to readable metadata + entity table.

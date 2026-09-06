@@ -12,6 +12,7 @@ import { readHeader, readSections } from '../../shared/realtime/frame.js';
 import { serializeRoaring, deserializeRoaring } from '../../shared/realtime/roaring.js';
 import { buildHelloRt, parseHelloRt, buildWelcomeRt, parseWelcomeRt } from '../../shared/realtime/negotiation.js';
 import { writeChunkedFrames } from '../../shared/realtime/writer.js';
+import { chooseFrameShape, DENSE_FULLNESS, SORTED_TO_VARINT_K } from '../../shared/realtime/chooseEncoding.js';
 import { FRAME_TYPE, ENCODING, MAGIC, LIMITS } from '../../shared/realtime/constants.js';
 
 const spawn2 = [
@@ -254,6 +255,57 @@ test('chunked delta keeps baseline continuity until CHUNK_END', () => {
   }
   assert.equal(session.frameSequence, 6);
   assert.equal(store.count, 2); // unknown ids skipped; store usable throughout
+});
+
+test('density policy follows the measured thresholds', () => {
+  // fullness >= 0.85 -> dense snapshot
+  assert.deepEqual(chooseFrameShape(1000, 900), { frameType: 'FULL_SNAPSHOT', transformEncoding: 'DENSE', flagsEncoding: 'DENSE' });
+  // k < 8 -> sorted ids
+  assert.deepEqual(chooseFrameShape(5000, 7).transformEncoding, 'SORTED_IDS');
+  assert.deepEqual(chooseFrameShape(5000, 8).transformEncoding, 'DELTA_VARINT');
+  assert.equal(SORTED_TO_VARINT_K, 8);
+  assert.equal(DENSE_FULLNESS, 0.85);
+});
+
+test('delta-varint sections round-trip and shrink the mask', () => {
+  const store = new EntityStore(64);
+  const session = { epoch: 0, frameSequence: 0 };
+  applyFrame(store, snapshot().bytes, session);
+  const ids = Uint32Array.from([101, 102]);
+  const d = writeFrame({
+    frameType: FRAME_TYPE.DELTA, roomEpoch: 0, serverTick: 2, frameSequence: 6, baselineSequence: 5,
+    transform: { encoding: ENCODING.DELTA_VARINT, ids, count: 2, columns: { x: [5, 6], y: [0, 0], z: [7, 8], yaw: [1, 2] } },
+    flags: { encoding: ENCODING.DELTA_VARINT, ids, count: 2, columns: { flags: [1, 4] } },
+  });
+  assert.ok(d.ok, d.reason);
+  const r = applyFrame(store, d.bytes, session);
+  assert.equal(r.kind, 'applied');
+  assert.equal(r.entries.length, 4); // 2 transform rows + 2 flags rows
+  assert.equal(store.flags[store.slot(101)], 1);
+  assert.equal(store.flags[store.slot(102)], 4);
+});
+
+test('truncated varint stream is rejected without throwing', () => {
+  const store = new EntityStore(64);
+  const session = { epoch: 0, frameSequence: 0 };
+  applyFrame(store, snapshot().bytes, session);
+  // hand-craft: transform section claims 3 rows but only 2 varints fit the mask
+  const colBytes = 16 * 3;
+  const b = new Uint8Array(24 + 12 + 2 + colBytes);
+  const v = new DataView(b.buffer);
+  v.setUint32(0, MAGIC, true);
+  v.setUint8(4, 1); v.setUint8(5, FRAME_TYPE.DELTA); v.setUint8(7, 24);
+  v.setUint32(8, 0, true); v.setUint32(12, 1, true); v.setUint32(16, 6, true); v.setUint32(20, 5, true);
+  v.setUint8(24, 3); v.setUint8(25, ENCODING.DELTA_VARINT);
+  v.setUint32(28, 3, true); // count = 3
+  v.setUint32(32, 2 + colBytes, true); // payload: 2 varints + 3 full column rows
+  b[36] = 5;
+  b[37] = 7;
+  const r = applyFrame(store, b, session);
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /varint/);
+  // store stays usable
+  assert.equal(applyFrame(store, snapshot().bytes, { epoch: 0, frameSequence: 0 }).kind, 'applied');
 });
 
 test('old readers reject unknown frame types cleanly (never misapply)', () => {

@@ -50,7 +50,16 @@ decisively right**, contract §6).
 
 - fullness ≥ 0.85 → FULL_SNAPSHOT with DENSE sections (byte break-even ≈ 0.81; grid brackets it)
 - k < 8 → SORTED_IDS (cross-over to roaring measured at exactly k = 8)
-- else → ROARING (CRoaring-portable bytes; our reader interops both directions)
+- else → DELTA_VARINT (v1 promotion, §2 below: ~24% smaller than sorted frames, ~10% smaller than roaring frames, decode parity)
+
+### Mask encoding history
+
+The k ≥ 8 slot originally shipped with ROARING (frame model 80+21k vs
+sorted 48+25k). The v1 varint study superseded it: DELTA_VARINT frames
+measured smaller than roaring frames at every fixture point (roaring/varint
+= 1.10–1.16) with decode parity, so the writer's mid tier moved to varint.
+Roaring remains reader-supported for interop and unsampled clustered id
+distributions.
 
 ### Arrow (F/G) — ADOPT SELECTIVELY (snapshots only)
 
@@ -66,22 +75,26 @@ try/catch rejection wrapper per governance.
 
 ## 2. Sparse masks (Roaring vs simpler)
 
-**Decision: REJECT Roaring for the writer's default policy in the sampled
-regimes; KEEP the CRoaring-compatible reader + the encoding enum.**
-(`results/masks.*`, 36 cells, N up to 200k)
+**Decision: REJECT Roaring for the writer's default policy; ADOPT
+DELTA_VARINT (v1) as the bytes-optimal delta mask; KEEP the CRoaring-compatible
+reader + the encoding enum.**
+(`results/masks.*` standalone masks; `results/varint.*` frame-level, v1 study)
 
-- delta-varint wins bytes sparse/mid (density < ~0.12): e.g. N=200k/c=30: 72 B vs sorted 120, bitset 87,443, roaring 148
-- bitset wins bytes at density ≥ ~0.12 (won at 0.171–0.283): N=50k/c=30k: 21,867 B vs varint 30,001, roaring 24,608
-- sorted u32 wins DECODE in 36/36 cells (~9.6 GB/s — a straight aligned walk); roaring decode via wasm 1.4–39 µs
-- roaring-wasm's iterator is SLOWER than naive JS over sorted Uint32Array in 36/36 cells (2.1 vs 9.0 ns/id at c=30,000)
-- 0/36 cells: roaring wins bytes; 0/36: roaring wins decode
-
-Roaring's claimed win regime (clustered/skewed ids) is unsampled by uniform
-fixtures — hence reader+enum retained, policy does not default to it except
-via the k ≥ 8 frame-model crossover (§1), where it is measured smaller than
-sorted on the same fixtures. delta-varint (not in v0's enum) is the leading
-v1 bytes candidate; adding it is a contract-versioned addition, measured
-first.
+- Frame-level (v1 study, contract fixtures): DELTA_VARINT frames are
+  **0.762× sorted's bytes at every measured scale** (k = 20..5,000) and
+  ~10% smaller than Roaring frames (roaring/varint = 1.10–1.16), with
+  decode-time parity (ratio 0.89–1.13, microseconds absolute).
+- Standalone-mask study (pre-varint): delta-varint wins bytes sparse/mid
+  (density < ~0.12); bitset wins bytes at density ≥ ~0.12; sorted u32 wins
+  DECODE in 36/36 cells; roaring won bytes in **0/36** cells and decode in
+  **0/36**; roaring-wasm's iterator is slower than naive JS over a sorted
+  Uint32Array in 36/36 cells.
+- Sorted u32 keeps the tiny-k slot (k < 8): a straight aligned u32 walk is
+  the fastest decode and the byte penalty is ~20 B total.
+- Roaring's claimed win regime (clustered/skewed ids) is unsampled by
+  uniform fixtures — reader + enum retained; the writer no longer selects it.
+- BITSET stays reader-supported; at frame level varint's simplicity won the
+  policy slot.
 
 ## 3. Rust/WASM decode
 

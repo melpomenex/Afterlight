@@ -71,7 +71,9 @@ offset size field
 0      1    section_id (1 lifecycle-spawn, 2 lifecycle-despawn, 3 transform,
                   4 motion, 5 anim, 6 flags, 7 visual, 8 string-table)
 1      1    encoding (0 DENSE, 1 SORTED_IDS, 2 ROARING, 3 BITSET,
-                  4 ARROW_RECORD_BATCH)
+                  4 ARROW_RECORD_BATCH, 5 DELTA_VARINT — v1 promotion,
+                  delta + LEB128 over ascending ids, measured winner in the
+                  sparse/mid regimes: results/varint.*)
 2      2    reserved 0
 4      4    entity_count (u32; rows in this section)
 8      4    payload_len (u32; bytes of payload including any embedded mask)
