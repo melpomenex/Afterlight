@@ -1,9 +1,68 @@
 import { MSG_TYPES, serialize, parse } from '../../shared/protocol.js';
 import { generateDefaultNickname, sanitizeNickname } from '../../shared/identity.js';
+import { createPhoenixTransport } from './phoenixClient.js';
 
 const GUEST_KEY = 'afterlight-gardener-guest-id';
 const NICK_KEY = 'afterlight-gardener-nickname';
 
+/**
+ * Default transport: the original raw WebSocket to the Node server. The
+ * facade drives it through lifecycle callbacks; `client.ws` stays the live
+ * socket for callers that inspect it.
+ */
+function createNodeTransport(client, wsUrl) {
+  return {
+    isOpen: () => !!(client.ws && client.ws.readyState === WebSocket.OPEN),
+    isConnecting: () => !!(client.ws && client.ws.readyState === WebSocket.CONNECTING),
+    connect() {
+      if (this.isOpen() || this.isConnecting()) return;
+      let ws;
+      try {
+        ws = new WebSocket(wsUrl);
+      } catch (e) {
+        console.warn('WebSocket init failed, scheduling reconnect:', e.message);
+        client.scheduleReconnect();
+        return;
+      }
+      client.ws = ws;
+      ws.binaryType = 'arraybuffer'; // binary fast path (realtime data plane); text frames unaffected
+      ws.onopen = () => client.handleOpen();
+      ws.onmessage = (event) => {
+        // Binary frames belong to the negotiated realtime data plane
+        // (docs/architecture/realtime/contract.md); they are never JSON.
+        // Without a handleBinary hook this drops exactly as before.
+        if (typeof event.data !== 'string') {
+          if (client.handleBinary) client.handleBinary(event.data);
+          return;
+        }
+        const msg = parse(event.data);
+        if (!msg || !msg.type) return;
+        client.handleFrame(msg);
+      };
+      ws.onclose = () => client.handleClose();
+      ws.onerror = (err) => client.handleError(err);
+    },
+    send(frame) {
+      client.ws.send(serialize(frame));
+    },
+    close() {
+      if (client.ws) client.ws.close();
+    },
+  };
+}
+
+/**
+ * NetworkClient — the public network facade.
+ *
+ * All gameplay semantics live here and hold for every transport: multiple
+ * handlers per type in registration order, silent-drop sends while closed,
+ * the ~12 Hz movement self-throttle, hello-then-desiredRoom replay on every
+ * (re)connect, and the HTTP side channel derived from the WS URL.
+ *
+ * Transports (pluggable, chosen at build time via VITE_TRANSPORT):
+ *   'node'    — raw WebSocket to the Node server (default; unchanged behavior)
+ *   'phoenix' — Phoenix Channels via src/net/phoenixClient.js (P2 gateway)
+ */
 export class NetworkClient {
   constructor(wsUrl = null) {
     this.wsUrl = wsUrl || this.getDefaultUrl();
@@ -18,6 +77,10 @@ export class NetworkClient {
     this.reconnectTimer = null;
     this.lastMovementSend = 0;
     this.desiredRoom = null;
+    this.transportMode = import.meta.env?.VITE_TRANSPORT === 'phoenix' ? 'phoenix' : 'node';
+    this.transport = this.transportMode === 'phoenix'
+      ? createPhoenixTransport(this, this.wsUrl)
+      : createNodeTransport(this, this.wsUrl);
   }
 
   getDefaultUrl() {
@@ -66,53 +129,48 @@ export class NetworkClient {
   }
 
   connect() {
-    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
-      return;
+    if (this.transport.isOpen() || this.transport.isConnecting()) return;
+    this.transport.connect();
+  }
+
+  // -- transport lifecycle callbacks ---------------------------------------
+
+  /** Transport is ready to carry frames (Node: socket open; Phoenix: joined). */
+  handleOpen() {
+    this.connected = true;
+    this.reconnectAttempts = 0;
+    this.send(MSG_TYPES.HELLO, {
+      guestId: this.guestId,
+      nickname: this.nickname,
+      // additive realtime capability advertisement (contract §5); absent
+      // unless the fast path is flag-enabled, so legacy servers see nothing
+      ...(this.rtHello ? { rt: this.rtHello } : {}),
+    });
+    // Re-join the remembered room on every (re)connect. This also covers a
+    // joinRoom() requested before the handshake finished: send() drops
+    // packets until the transport is open, so the request is replayed here.
+    if (this.desiredRoom) {
+      this.send(MSG_TYPES.JOIN_ROOM, { roomId: this.desiredRoom });
     }
+    this.connectListeners.forEach(fn => fn());
+  }
 
-    try {
-      this.ws = new WebSocket(this.wsUrl);
-    } catch (e) {
-      console.warn('WebSocket init failed, scheduling reconnect:', e.message);
-      this.scheduleReconnect();
-      return;
+  /** One flat frame `{type, ...fields}` from the transport. */
+  handleFrame(msg) {
+    const handlers = this.handlers.get(msg.type);
+    if (handlers) {
+      handlers.forEach(fn => fn(msg));
     }
+  }
 
-    this.ws.onopen = () => {
-      this.connected = true;
-      this.reconnectAttempts = 0;
-      this.send(MSG_TYPES.HELLO, {
-        guestId: this.guestId,
-        nickname: this.nickname,
-      });
-      // Re-join the remembered room on every (re)connect. This also covers a
-      // joinRoom() requested before the handshake finished: send() drops
-      // packets until the socket is OPEN, so the request is replayed here.
-      if (this.desiredRoom) {
-        this.send(MSG_TYPES.JOIN_ROOM, { roomId: this.desiredRoom });
-      }
-      this.connectListeners.forEach(fn => fn());
-    };
+  handleClose() {
+    this.connected = false;
+    this.disconnectListeners.forEach(fn => fn());
+    this.scheduleReconnect();
+  }
 
-    this.ws.onmessage = (event) => {
-      const msg = parse(event.data);
-      if (!msg || !msg.type) return;
-
-      const handlers = this.handlers.get(msg.type);
-      if (handlers) {
-        handlers.forEach(fn => fn(msg));
-      }
-    };
-
-    this.ws.onclose = () => {
-      this.connected = false;
-      this.disconnectListeners.forEach(fn => fn());
-      this.scheduleReconnect();
-    };
-
-    this.ws.onerror = (err) => {
-      console.warn('NetworkClient socket error:', err);
-    };
+  handleError(err) {
+    console.warn('NetworkClient transport error:', err);
   }
 
   scheduleReconnect() {
@@ -141,8 +199,8 @@ export class NetworkClient {
   }
 
   send(type, payload = {}) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(serialize({ type, ...payload }));
+    if (this.transport.isOpen()) {
+      this.transport.send({ type, ...payload });
     }
   }
 
@@ -177,7 +235,9 @@ export class NetworkClient {
   /**
    * Base URL of the game server's HTTP side, derived from the WS URL
    * (ws://host:3001/ws -> http://host:3001). Uploads (playlists, program
-   * guide files) ride HTTP POST, not WS frames.
+   * guide files) ride HTTP POST, not WS frames. Through the Phoenix gateway
+   * the gateway reverse-proxies /api/theater/* to Node, so this origin
+   * logic is unchanged on both transports.
    */
   get apiBase() {
     try {
