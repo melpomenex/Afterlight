@@ -16,7 +16,7 @@ After P5, Phoenix owns the theater bill (`theater_rooms`/`theater_items`) in Pos
 
 Exit gate (P7): killing either sidecar mid-session leaves game chat, rooms, and economy fully functional; expired, foreign-participant, wrong-file, and tampered grants are rejected by the sidecar; a relayed IRC message replay cannot double-deliver.
 
-Depends on: `add-ash-theater-catalog-domains` (P5 — bill rows in `theater_items` are the reap-exemption source and the authorization context playback grants scope to; without the PG bill there is nothing server-side to bind a grant to). Phase P7, between `add-ash-gardens-economy-restoration` (P6) and `add-conferencing-media-spike` (P8).
+Depends on: `add-ash-theater-catalog-domains` (P5 — bill rows in `theater_items` are the reap-exemption source and the authorization context playback grants scope to; without the PG bill there is nothing server-side to bind a grant to). The IRC adapter requirements additionally depend on `add-social-chat-relay` (07a) landing in the same P7 window — the adapter is defined over `Afterlight.Social`; if 07a slips, the IRC adapter lands with it. Phase P7, between `add-ash-gardens-economy-restoration` (P6) and `add-conferencing-media-spike` (P8).
 
 ## Capabilities
 
@@ -35,7 +35,7 @@ Depends on: `add-ash-theater-catalog-domains` (P5 — bill rows in `theater_item
 - **Modified (Node sidecars)**: `server/torrents.js` — grant validation middleware (stateless HMAC verify: expiry, participant, infohash, fileIndex), exempt-from-reap infohash list endpoint, resolve endpoint now accepts only authenticated adapter calls; `server/irc.js` + the bridge in `server/chat.js` — adapter authentication, message IDs on relayed events, echo suppression keys.
 - **Client**: minimal — `src/net/client.js` appends the grant query parameter to the torrent stream URL it already builds from `apiBase`; handlers for `torrent_files`/`torrent_state` and chat types unchanged.
 - **Data model**: none (no new tables — bill exemption reads the existing P5 `theater_items`; `data/torrents/library.json` remains sidecar-owned).
-- **Protocol changes**: stream URLs gain a `grant` query parameter; `torrent_resolve`/`torrent_files`/`torrent_state` and all chat message shapes are unchanged; no new WS message types.
+- **Protocol changes**: stream URLs gain a `grant` query parameter; grants travel as a targeted gateway message on the existing game channel — one additive targeted `torrent_grant` event carrying `{infohash, fileIndex, grant, expiresAtMs}` (a NEW message type, additive only). Otherwise no changes to existing message shapes: `torrent_resolve`/`torrent_files`/`torrent_state` and all chat message shapes are unchanged.
 - **Security**: removes the last unauthenticated HTTP surface (`/api/theater/torrent/*` with any-Origin CORS); sidecar secrets provisioned via private config, never in client payloads or logs.
 - **Tests**: new grant-validation suite (expired/foreign/wrong-file/tampered rejected), sidecar-kill integration tests (game chat continues, theater degrades gracefully), IRC loop-prevention replay test; existing `npm test` suite stays green.
 - **Docs**: `docs/architecture/elixir/ownership.md` rows 17–18 gain P7 status notes; `protocol-catalog.md` HTTP surface section annotated with the grant requirement; `media.md` §Specialty services linked as the design source.

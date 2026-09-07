@@ -9,7 +9,7 @@ The adversarial review found chat had no owning change: P2 relayed it, P3 explic
 - Delivery: `chat_message {channel, from, fromKind, text, ts, action?}` broadcast ALL with the sender echoed exactly once — today this is a property of the IRCd fan-out (the synthetic session's PRIVMSG is fanned out by the IRC server, which excludes the sender); degraded mode (IRC off) delivers in-game directly. `chat_dm` goes to both parties with `echo: true` on the sender's copy only. `fromKind` is `player`, `irc`, or `system`. `chat_presence {channel, event, who, fromKind, ts}` join/part broadcast ALL.
 - IRC: `server/irc.js` is the embedded IRC server; `server/chat.js` bridges every player as a synthetic IRC session and translates IRC events back into `chat_message`/`chat_dm`/`chat_presence`. The bridge halves (game sessions, ring) and the IRC halves (event translation) live in one file today.
 - `add-node-specialty-adapters` (same P7 window) defines the authenticated adapter with message IDs + origin-scoped echo suppression; this change is its chat-side consumer.
-- P6 has already moved `hello` to Phoenix, so `Social` composes `chat_history` directly in the connection order; no Node round-trip remains for chat after this change.
+- P6 has already moved `hello` to Phoenix (P6 owns hello/welcome composition per its task list — the handoff P4 delegated), so `Social` composes `chat_history` directly in the connection order; no Node round-trip remains for chat after this change.
 
 ## Goals / Non-Goals
 

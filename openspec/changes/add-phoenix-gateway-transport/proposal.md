@@ -18,7 +18,7 @@ This change is migration phase P2 (per `docs/architecture/elixir/ownership.md` �
 - **Identity/security hardening.** Token verification at connect, authorization on every channel join, identity always derived from the verified session (client-supplied player ids are never trust), connect rate limits, and tokens never logged.
 - **Slow-receiver posture made explicit.** During the proxy phase Node's current send behavior is retained (there are no `bufferedAmount` checks today; protocol-catalog §2 documents the absence). The gateway documents this retained posture, adds transport-level timeouts, and defers full outbound bounding to the P3 room runtime.
 
-Depends on: `add-elixir-phoenix-foundation` (pending — provides the Mix app, supervision tree, Endpoint, Repo/config, and CI this change builds on; neither change moves any durable authority).
+Depends on: `add-elixir-phoenix-foundation` (landed — this change builds on its Mix app, supervision tree, Endpoint, Repo/config, and CI; it amends the foundation's minimal-tree/no-game-traffic posture, see Modified Capabilities; neither change moves any durable authority).
 
 ## Capabilities
 
@@ -28,7 +28,7 @@ Depends on: `add-elixir-phoenix-foundation` (pending — provides the Mix app, s
 
 ### Modified Capabilities
 
-- (none — no capability has been archived yet. The umbrella's `migration-governance` requirements (single-writer routing, client preservation) are satisfied by this change, not altered; `gateway-transport` is the capability that operationalizes them for P2.)
+- `elixir-foundation`: the "minimal supervision tree, owning nothing" requirement is amended from P2 on — the tree additionally starts the gateway's transient session registry and connect rate limiter, and the Endpoint accepts game protocol traffic through the P2 socket surface (`/ws` → UserSocket → GameChannel). Full MODIFIED delta in `specs/elixir-foundation/spec.md`. (No capability has been archived yet, so this delta merges when the foundation spec archives; recording it here and as a delta file keeps the archived spec from contradicting the shipped system.) `migration-governance` requirements are satisfied by this change, not altered; `gateway-transport` is the new capability.
 
 ## Impact
 

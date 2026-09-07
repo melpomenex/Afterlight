@@ -4,7 +4,7 @@
 
 Transient world state — room membership, movement, presence, emotes — is owned by supervised OTP room processes in `Afterlight.World` instead of Maps inside the Node server. The compatibility target is the exact wire behavior documented in `docs/architecture/elixir/protocol-catalog.md` (message catalog §1, transport semantics §2): the same room-id strings, the same membership payloads, the same 10 Hz full-roster flush — with two deliberate tightenings (a server-side bounds clamp and a clean duplicate-transport close) and deliberate fixes to Node's ghost-session quirk. Node remains authoritative for all durable domains, the chat relay, and weather, which continue through the P2 boundary proxy (weather authority transfers at the P6 group flip, not here).
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Room lifecycle and identity
 
@@ -27,7 +27,7 @@ The system SHALL run one supervised RoomServer process per active room under a D
 
 ### Requirement: Join and membership semantics
 
-Room joins SHALL reproduce the documented Node semantics exactly: the joiner receives a full roster `presence_update` of existing members with entries `{id, nickname, x, z, rotY, walking, sitting}`; the room receives `presence_join` carrying the joiner's `{id, nickname, x, z, rotY, walking, sitting}` with the joiner excluded; a duplicate `join_room` for the current room SHALL be a presence no-op; and `presence_leave {playerId}` SHALL fire to the room on travel and on disconnect. While the world domain is routed to the runtime, it SHALL be the single writer of presence: the Node proxy SHALL forward `join_room` to the Node shadow session for membership context (Node still gates domain actions on the current room) and SHALL suppress Node-emitted presence frames, while Node's join-time domain snapshots (`garden_state`, `theater_state`, `iptv_state`, `node_state`, `machine_update`) are still relayed to the joiner after the roster send.
+Room joins SHALL reproduce the documented Node semantics exactly: the joiner receives a full roster `presence_update` of existing members with entries `{id, nickname, x, z, rotY, walking, sitting}`; the room receives `presence_join` carrying the joiner's `{id, nickname, x, z, rotY, walking, sitting}` with the joiner excluded; a duplicate `join_room` for the current room SHALL be a presence no-op; and `presence_leave {playerId}` SHALL fire to the room on travel and on disconnect. While the world domain is routed to the runtime, it SHALL be the single writer of presence: the Node proxy SHALL forward `join_room` to the Node shadow session for membership context (Node still gates domain actions on the current room) and SHALL suppress Node-emitted presence frames, while Node's join-time domain snapshots (`garden_state`, `theater_state`, `iptv_state`, `node_state`, `machine_update`) are still relayed to the joiner after the roster send. A successful `set_nickname` SHALL be propagated to the owning RoomServer so roster entries, later joins' rosters, and `emote_broadcast` nicknames reflect the new name immediately — the Node baseline reads nickname live at emit time, and a stale name after a mid-session rename would be an undeclared parity failure.
 
 #### Scenario: Joiner sees the roster, others see the join
 
@@ -48,6 +48,11 @@ Room joins SHALL reproduce the documented Node semantics exactly: the joiner rec
 
 - **WHEN** a player joins the theater through the gateway with the world runtime active
 - **THEN** they receive the World roster first and the Node-owned `theater_state`/`iptv_state` snapshots afterwards, each exactly once
+
+#### Scenario: Mid-session rename is visible everywhere
+
+- **WHEN** a member's `set_nickname` succeeds while the world runtime owns their room presence
+- **THEN** subsequent rosters served to later joiners and that member's next `emote_broadcast` carry the new nickname, matching the Node baseline's live-read behavior
 
 ### Requirement: Movement validation
 
@@ -89,7 +94,7 @@ The runtime SHALL flush dirty rooms every 100 ms with FULL roster snapshots (`pr
 
 ### Requirement: Emotes
 
-The runtime SHALL validate `emote` against the six-id allow-list (`wave`, `dance`, `cheer`, `heart`, `bow`, `shrug`), enforce the 500 ms per-session cooldown, and broadcast `emote_broadcast {playerId, nickname, emote}` to the room. Rejected emotes SHALL not produce broadcasts.
+The runtime SHALL validate `emote` against the six-id allow-list (`wave`, `dance`, `cheer`, `heart`, `bow`, `shrug`), enforce the 500 ms per-session cooldown, and broadcast `emote_broadcast {playerId, nickname, emote}` to the room. Rejected emotes SHALL not produce broadcasts. The cooldown SHALL be keyed to the transport session, not the surviving roster entry: the Node baseline holds the cooldown on the session object, so a reconnect may emote immediately, and a roster-entry-keyed cooldown that survives reconnect would be an undeclared tightening.
 
 #### Scenario: Allowed emote relays with nickname
 
@@ -117,7 +122,7 @@ The runtime SHALL NOT own weather in this phase: Node remains the weather writer
 
 ### Requirement: Duplicate-connect resolution
 
-When a second transport authenticates for an identity that already has a live connection, the newest connection SHALL win and the older transport SHALL be closed with a documented close reason; the room roster SHALL reflect exactly one member for the identity throughout, with no ghost members left behind by the stale connection's close (deliberately fixing Node's overwrite-then-evict quirk, and recorded as the second wire-visible tightening).
+When a second transport authenticates for an identity that already has a live connection, the newest connection SHALL win and the older transport SHALL be closed with a documented supersession close reason; the room roster SHALL reflect exactly one member for the identity throughout, with no ghost members left behind by the stale connection's close (deliberately fixing Node's overwrite-then-evict quirk, and recorded as the second wire-visible tightening). Because `NetworkClient` auto-reconnects on any disconnect, the supersession close SHALL be terminal for the losing transport's reconnect logic — the client facade SHALL treat this close reason as stop-retrying (or, where the facade cannot be taught the reason, identity-keyed reconnect backoff SHALL prevent mutual eviction) — so two live tabs or an adversarial holder of a broadcast guestId cannot produce a perpetual supersession loop. The recorded client-impact analysis in `docs/architecture/elixir/protocol-catalog.md` §"Declared tightenings" SHALL cover the two-live-tabs and adversarial-supersede cases explicitly, including the leave/join traffic each supersession incident produces.
 
 #### Scenario: Stale duplicate is closed cleanly
 
@@ -129,14 +134,24 @@ When a second transport authenticates for an identity that already has a live co
 - **WHEN** the superseded transport's close is processed after the new connection is established
 - **THEN** the surviving member remains in the room roster and continues receiving presence and snapshots
 
+#### Scenario: Supersession cannot loop
+
+- **WHEN** the superseded client's auto-reconnect fires after losing a duplicate-connect race
+- **THEN** the reconnect attempt is suppressed (terminal close reason) or deferred by identity-keyed backoff, so the same two transports cannot evict each other indefinitely
+
 ### Requirement: Failure containment and recovery
 
-A crashing RoomServer SHALL be restarted by its DynamicSupervisor with empty transient state, and affected members SHALL be resnapshotted: their room subscription is closed with a retryable reason, and their client's `desiredRoom` replay rejoins the restarted room to receive a fresh roster and snapshots. Other rooms SHALL be unaffected, and no durable state SHALL be read or written during recovery — the only loss is transient poses.
+A crashing RoomServer SHALL be restarted by its DynamicSupervisor with empty transient state, and affected members SHALL be resnapshotted. Because the gateway transport multiplexes every room on a single `game:v1` topic, there is no per-room client subscription to close: recovery SHALL close the affected members' full transports — the only client-observable disconnect lever — and their clients' `desiredRoom` replay rejoins the restarted room to receive a fresh roster and join-time snapshots. While a transport has no live World membership (crash window, or any flip window below), the gateway SHALL refuse durable domain commands for it rather than letting Node's shadow `currentRoom` authorize actions for a player no room owns — room membership has one authority at every instant. Other rooms SHALL be unaffected, and no durable state SHALL be read or written during recovery — the only loss is transient poses.
 
 #### Scenario: Room crash degrades to resnapshot
 
 - **WHEN** a RoomServer process crashes while holding members
-- **THEN** the supervisor restarts it, each member's transport is closed for that room with a retryable reason, and a client rejoin yields a correct fresh room view
+- **THEN** the supervisor restarts it, each member's transport is closed (full transport close, firing the client's reconnect/rejoin path), and a client rejoin yields a correct fresh room view
+
+#### Scenario: No durable actions without live membership
+
+- **WHEN** a durable command (`garden_action`, `node_harvest`, market order) arrives from a transport during the crash recovery window, before its rejoin has restored World membership
+- **THEN** the gateway refuses it with a retryable response instead of forwarding it on the strength of Node's shadow room state
 
 #### Scenario: Durable domains survive a room crash
 
@@ -173,10 +188,15 @@ The chat relay (`chat_send`, `chat_message`, `chat_dm`, `chat_history`, `chat_pr
 
 ### Requirement: Rollback to Node world proxy
 
-The domain router SHALL be able to flip the world domain back to the Node proxy by configuration alone: presence suppression stops and `server/world.js` resumes ownership unchanged (weather was never suppressed — it stayed Node's writer throughout P3). This is a pure transport change — no durable state moves in either direction — and SHALL be allowed to reset transient poses (the same reset as a Node restart today), which the rollback documentation SHALL state honestly.
+The domain router SHALL be able to flip the world domain back to the Node proxy by configuration alone: presence suppression stops and `server/world.js` resumes ownership unchanged (weather was never suppressed — it stayed Node's writer throughout P3). This is a pure transport change — no durable state moves in either direction — and SHALL be allowed to reset transient poses (the same reset as a Node restart today), which the rollback documentation SHALL state honestly. Flip choreography is normative in BOTH directions (node→phoenix and phoenix→node): a flip SHALL force-close the transports of clients whose live membership the outgoing owner holds, so every session re-derives membership from the new owner via its `desiredRoom` replay before any `movement` is accepted. The incoming owner SHALL reject `movement` from an identity with no live roster entry rather than accept a ghost pose, and the reject SHALL NOT be client-visible beyond the reconnect the flip itself causes (spec-compliant clients reconnect and resnapshot; there is no observable intermediate state).
 
 #### Scenario: Router flip back restores Node behavior
 
 - **WHEN** the world router entry is flipped back to `node` and clients reconnect
 - **THEN** movement, presence, and emotes behave exactly as served by Node, with presence suppression disabled; weather is unchanged because it was Node's writer throughout this phase
 - **AND** no durable state needs migrating or cleaning up in either direction
+
+#### Scenario: Live clients re-derive membership at flip time
+
+- **WHEN** the world domain flips while clients are connected to a populated room
+- **THEN** each affected transport is closed by the gateway, the client's desiredRoom replay joins the room under the new owner, and movement from a not-yet-rejoined identity is refused rather than ghosted
