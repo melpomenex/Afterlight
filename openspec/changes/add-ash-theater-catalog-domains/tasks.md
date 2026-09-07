@@ -38,7 +38,7 @@
 
 - [ ] 7.1 Implement `mix afterlight.import_theater_catalog` per design D6: per-file snapshot+hash into `system_imports`, `normalizeTheaterState`-equivalent repair, upsert idempotency, chunked bulk EPG insert with first-wins dedup, count validation (theater idle tolerance; 2 lists/16k channels; 12k EPG channels/1.3k with programmes) exiting non-zero on mismatch, partial-file tolerance per domain.
 - [ ] 7.2 Implement `mix afterlight.export_theater` and `mix afterlight.export_catalog` (reverse export under write freeze) and document both in the cutover runbook BEFORE the flip.
-- [ ] 7.3 Update `docs/architecture/elixir/ownership.md` rows #12–#15 (cut over in P5; #18 torrent bill-rows note) and the `protocol-catalog.md` §3 persistence map and §4 HTTP surface (uploads now Phoenix-hosted).
+- [ ] 7.3 Update `docs/architecture/elixir/ownership.md` rows #12–#15 (cut over in P5; #18 torrent bill-rows note) and the `protocol-catalog.md` §3 persistence map and §4 HTTP surface (uploads now Phoenix-hosted), and add §6 "Declared tightenings" rows for: the generation guard on ended/failed reports (rejected `item_mismatch` where Node auto-advances a re-promoted same-id item — same client inputs, different message sequence), the SSRF fetch refusals (private-address block, redirect cap — Node performed these fetches), and the `expected_revision: absent (gateway-validated)` interim envelope semantics from the P4 infrastructure.
 
 ## 8. Tests
 

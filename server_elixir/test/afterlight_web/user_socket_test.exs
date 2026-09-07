@@ -1,5 +1,5 @@
 defmodule AfterlightWeb.UserSocketTest do
-  use ExUnit.Case, async: false
+  use Afterlight.DataCase, async: false
 
   import Phoenix.ChannelTest
 

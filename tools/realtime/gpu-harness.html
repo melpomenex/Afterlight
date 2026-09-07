@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Afterlight GPU rendering harness — WebGPU fastpath vs WebGL control</title>
+<!--
+  openspec change add-realtime-gpu-rendering, tasks 3.2 + 4.2.
+  Standalone harness page: static-servable, no build step required. Nothing
+  in the live game imports this page. See tools/realtime/README.md.
+
+  Arms:
+    CONTROL      WebGLRenderer + CPUThreeBackend (src/realtime/gpu/backend.js)
+    ACCELERATED  WebGPURenderer (three/webgpu) drawing state from
+                 createWebGPUThreeBackend (src/realtime/gpu/webgpuBackend.js),
+                 gated on renderer_webgpu_fastpath (default OFF everywhere).
+
+  The import map resolves the bare 'three' / 'three/webgpu' specifiers used by
+  this page AND transitively by src/realtime/gpu/backend.js. Both entry points
+  share node_modules/three/build/three.core.js, so scene-graph classes are the
+  SAME classes in both arms; only the renderer differs. Under `npm run dev`
+  Vite rewrites the bare specifiers itself and the map is inert.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "three": "/node_modules/three/build/three.module.js",
+    "three/webgpu": "/node_modules/three/build/three.webgpu.js"
+  }
+}
+</script>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    background: #141d1b; color: #e8e2cf; margin: 1.25rem;
+    font: 14px/1.5 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  h1 { font-size: 1rem; letter-spacing: 0.12em; color: #d8b865; margin: 0 0 0.25rem; }
+  h2 { font-size: 0.78rem; letter-spacing: 0.1em; margin: 0 0 0.5rem; color: #bcd6cf; }
+  .sub { color: #7d8f89; font-size: 0.78rem; margin: 0 0 1rem; }
+  .panel {
+    background: rgba(20, 40, 38, 0.7); border: 1px solid #2e4440;
+    border-radius: 4px 12px 4px 12px; padding: 0.85rem 1rem; margin: 0.85rem 0;
+  }
+  .ok { color: #9fd6a8; } .bad { color: #e08c7a; } .warn { color: #d8b865; } .dim { color: #7d8f89; }
+  #post-notice { border-color: #6b5a2c; background: rgba(64, 52, 22, 0.45); }
+  #post-notice .tag { color: #d8b865; letter-spacing: 0.1em; font-size: 0.78rem; }
+  #post-notice p { margin: 0.4rem 0 0; }
+  #controls { display: flex; flex-wrap: wrap; gap: 0.6rem 1.1rem; align-items: center; }
+  #controls label { display: inline-flex; gap: 0.4rem; align-items: center; white-space: nowrap; }
+  select, button {
+    background: #1b2b28; color: #e8e2cf; border: 1px solid #3a544e;
+    border-radius: 4px; padding: 0.25rem 0.6rem; font: inherit;
+  }
+  button { cursor: pointer; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid #d8b865; outline-offset: 1px; }
+  #panes { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+  @media (max-width: 980px) { #panes { grid-template-columns: 1fr; } }
+  .pane .wrap {
+    background: #0d1211; border: 1px solid #263632; border-radius: 4px;
+    aspect-ratio: 4 / 3; overflow: hidden; position: relative;
+  }
+  .pane canvas { display: block; width: 100%; height: 100%; }
+  .pane .empty {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    text-align: center; padding: 1.5rem; color: #7d8f89; white-space: pre-line;
+  }
+  .pane .stat { margin-top: 0.45rem; font-size: 0.75rem; color: #9fb4ae; white-space: pre-wrap; }
+  #log { max-height: 15rem; overflow: auto; margin: 0; white-space: pre-wrap; font-size: 0.75rem; }
+</style>
+</head>
+<body>
+<h1>GPU RENDERING HARNESS — ACCELERATED (WebGPU) VS CONTROL (WebGL)</h1>
+<p class="sub">openspec add-realtime-gpu-rendering · tasks 3.2 + 4.2 · standalone page — nothing in the live game imports this.
+Both arms consume the SAME deterministic world (fixtures-style) and the SAME delta packs at a 10 Hz tick.
+The accelerated arm exists only while <code>renderer_webgpu_fastpath</code> resolves true — default off everywhere.</p>
+
+<div class="panel" id="flag-banner">resolving flags…</div>
+
+<div class="panel" id="post-notice">
+  <span class="tag">POST-CHAIN VISUAL DELTA — READ BEFORE COMPARING SCREENSHOTS</span>
+  <p>The live game renders with ACES filmic tone mapping and an UnrealBloomPass composer (EffectComposer). This
+  harness reproduces <strong>neither</strong>, in <strong>either</strong> arm: the control arm is a plain
+  WebGLRenderer with <code>NoToneMapping</code>, no composer, no bloom, no shadow maps; the accelerated arm is a
+  WebGPURenderer with explicit <code>NoToneMapping</code> and the same absence. The WebGL bloom composer is
+  deliberately not reproduced — a future live-game integration must solve the TSL post chain as a separate gated
+  change. Screenshots from this page document the <em>rendering-path delta</em>, not parity with the live game.</p>
+</div>
+
+<div class="panel" id="controls">
+  <label>population
+    <select id="sel-population" aria-label="Entity population">
+      <option value="100">100</option>
+      <option value="1000">1000</option>
+      <option value="10000">10000</option>
+    </select>
+  </label>
+  <label>view
+    <select id="sel-view" aria-label="Arm view mode">
+      <option value="both" selected>side by side</option>
+      <option value="control">control only (capture valid)</option>
+      <option value="accel">accelerated only (capture valid)</option>
+    </select>
+  </label>
+  <label><input type="checkbox" id="chk-orbit" checked> orbit camera</label>
+  <button id="btn-rebuild" type="button">rebuild arms</button>
+  <button id="btn-tickpause" type="button">pause ticks</button>
+  <button id="btn-drill" type="button" disabled>device-loss drill</button>
+  <button id="btn-report" type="button">download JSON report</button>
+</div>
+
+<div id="panes">
+  <section class="pane" id="pane-control" aria-label="Control arm">
+    <h2 id="lbl-control">CONTROL ARM — WebGLRenderer + CPUThreeBackend</h2>
+    <div class="wrap" id="cvs-control-wrap"><div class="empty">building…</div></div>
+    <div class="stat" id="st-control">-</div>
+  </section>
+  <section class="pane" id="pane-gpu" aria-label="Accelerated arm">
+    <h2 id="lbl-gpu">ACCELERATED ARM — WebGPURenderer + WebGPUThreeBackend</h2>
+    <div class="wrap" id="cvs-gpu-wrap"><div class="empty">waiting for flag…</div></div>
+    <div class="stat" id="st-gpu">-</div>
+  </section>
+</div>
+
+<div class="panel">
+  <div class="dim" id="st-boot">booting…</div>
+  <pre id="log" aria-label="Harness event log"></pre>
+</div>
+
+<script type="module" src="./gpu-harness.main.js"></script>
+</body>
+</html>

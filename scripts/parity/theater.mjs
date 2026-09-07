@@ -9,6 +9,7 @@ import {
   classifySource,
   createTheaterState,
   effectivePositionSec,
+  newItemId,
   normalizeTheaterState,
   parseM3U,
 } from '../../shared/theaterModel.js';
@@ -71,6 +72,12 @@ function build() {
     ['https://example.com/' + 'a'.repeat(2100), null],
     ['', null],
     ['https://例え.jp/clip.mp4', { kind: 'file' }],
+    ['data:text/html,boom', null],
+    ['javascript:void(0)', null],
+    ['file:///etc/passwd', null],
+    ['https://www.youtube.com/watch?v=toolongvideoid12345', null],
+    ['https://www.youtube.com/watch?v=', null],
+    ['https://player.vimeo.com/video/123456789', { kind: 'vimeo', videoId: '123456789' }],
   ];
   // Expected values are RECORDED from the real JS (never hand-authored):
   // parity fixtures must pin what the implementation does, not what we
@@ -138,12 +145,37 @@ function build() {
     op: 'addMany',
     items: [{ url: FILE }],
   }, ACTOR], nowMs: T0 }));
+  cases.push(recordCall({
+    id: 'reducer/addMany-with-didNotFit',
+    fn: applyTheaterAction,
+    args: [
+      (() => {
+        let st = createTheaterState();
+        st = withFrozenClock(T0, () => applyTheaterAction(st, add(FILE), ACTOR, T0)).state;
+        for (let i = 0; i < 49; i++) st = withFrozenClock(T0, () => applyTheaterAction(st, add(`${FILE}?v=${i}`), ACTOR, T0)).state;
+        return st;
+      })(),
+      {
+        op: 'addMany',
+        items: [
+          { url: `${FILE}?v=fit` },
+          { url: `${FILE}?v=overflow1` },
+          { url: `${FILE}?v=overflow2` },
+        ],
+      },
+      ACTOR,
+    ],
+    nowMs: T0,
+  }));
 
   // remove / playNow / skip / clear on the seeded state
   cases.push(recordCall({ id: 'reducer/remove-queued', fn: applyTheaterAction, args: [base(), { op: 'remove', itemId: '<gen:2>' }, ACTOR], nowMs: T0 }));
+  cases.push(recordCall({ id: 'reducer/remove-live', fn: applyTheaterAction, args: [base(), { op: 'remove', itemId: '<gen:0>' }, ACTOR], nowMs: T0 }));
   cases.push(recordCall({ id: 'reducer/remove-missing', fn: applyTheaterAction, args: [base(), { op: 'remove', itemId: 'itm_nope' }, ACTOR], nowMs: T0 }));
   cases.push(recordCall({ id: 'reducer/playNow-displaces-live', fn: applyTheaterAction, args: [base(), { op: 'playNow', itemId: '<gen:2>' }, ACTOR], nowMs: T0 }));
+  cases.push(recordCall({ id: 'reducer/playNow-missing', fn: applyTheaterAction, args: [base(), { op: 'playNow', itemId: 'itm_nope' }, ACTOR], nowMs: T0 }));
   cases.push(recordCall({ id: 'reducer/skip', fn: applyTheaterAction, args: [base(), { op: 'skip' }, ACTOR], nowMs: T0 }));
+  cases.push(recordCall({ id: 'reducer/skip-nothing-playing', fn: applyTheaterAction, args: [createTheaterState(), { op: 'skip' }, ACTOR], nowMs: T0 }));
   cases.push(recordCall({ id: 'reducer/clear', fn: applyTheaterAction, args: [base(), { op: 'clear' }, ACTOR], nowMs: T0 }));
   cases.push(recordCall({ id: 'reducer/invalid-op', fn: applyTheaterAction, args: [createTheaterState(), { op: 'explode' }, ACTOR], nowMs: T0 }));
   cases.push(recordCall({ id: 'reducer/null-action', fn: applyTheaterAction, args: [createTheaterState(), null, ACTOR], nowMs: T0 }));
@@ -155,6 +187,7 @@ function build() {
     withFrozenClock(T1, () => applyTheaterAction(base(), { op: 'pause' }, ACTOR, T1)).state,
     { op: 'resume' }, ACTOR,
   ], nowMs: T1 + 5_000 }));
+  cases.push(recordCall({ id: 'reducer/resume-nothing-playing', fn: applyTheaterAction, args: [createTheaterState(), { op: 'resume' }, ACTOR], nowMs: T1 }));
   cases.push(recordCall({ id: 'reducer/seek', fn: applyTheaterAction, args: [base(), { op: 'seek', positionSec: 42.5 }, ACTOR], nowMs: T1 }));
   cases.push(recordCall({ id: 'reducer/seek-negative-clamps', fn: applyTheaterAction, args: [base(), { op: 'seek', positionSec: -30 }, ACTOR], nowMs: T1 }));
   cases.push(recordCall({ id: 'reducer/seek-nonfinite', fn: applyTheaterAction, args: [base(), { op: 'seek', positionSec: 'soon' }, ACTOR], nowMs: T1 }));
@@ -167,12 +200,21 @@ function build() {
   // ended / failed with id guard (item_mismatch)
   cases.push(recordCall({ id: 'reducer/ended-advances', fn: applyTheaterAction, args: [base(), { op: 'ended', itemId: '<gen:0>' }, ACTOR], nowMs: T1 }));
   cases.push(recordCall({ id: 'reducer/ended-wrong-id', fn: applyTheaterAction, args: [base(), { op: 'ended', itemId: 'itm_stale' }, ACTOR], nowMs: T1 }));
+  cases.push(recordCall({ id: 'reducer/ended-nothing-playing', fn: applyTheaterAction, args: [createTheaterState(), { op: 'ended', itemId: 'itm_none' }, ACTOR], nowMs: T1 }));
   cases.push(recordCall({ id: 'reducer/failed-advances', fn: applyTheaterAction, args: [base(), { op: 'failed', itemId: '<gen:0>' }, ACTOR], nowMs: T1 }));
+  cases.push(recordCall({ id: 'reducer/failed-wrong-id', fn: applyTheaterAction, args: [base(), { op: 'failed', itemId: 'itm_stale' }, ACTOR], nowMs: T1 }));
+  cases.push(recordCall({ id: 'reducer/failed-nothing-playing', fn: applyTheaterAction, args: [createTheaterState(), { op: 'failed', itemId: 'itm_none' }, ACTOR], nowMs: T1 }));
 
   // channel op (iptv url / torrent pick)
   cases.push(recordCall({ id: 'reducer/channel-yt', fn: applyTheaterAction, args: [base(), { op: 'channel', url: YT2, title: 'Take Over' }, ACTOR], nowMs: T1 }));
   cases.push(recordCall({ id: 'reducer/channel-torrent-pick', fn: applyTheaterAction, args: [base(), { op: 'channel', url: MAGNET, title: 'Sintel', ...PICK }, ACTOR], nowMs: T1 }));
+  cases.push(recordCall({ id: 'reducer/channel-torrent-no-pick', fn: applyTheaterAction, args: [base(), { op: 'channel', url: MAGNET }, ACTOR], nowMs: T1 }));
+  cases.push(recordCall({ id: 'reducer/channel-torrent-bad-pick-ext', fn: applyTheaterAction, args: [base(), { op: 'channel', url: MAGNET, title: 'Sintel', ...PICK, filePath: 'Sintel/readme.txt' }, ACTOR], nowMs: T1 }));
+  cases.push(recordCall({ id: 'reducer/channel-playlist-use-import', fn: applyTheaterAction, args: [base(), { op: 'channel', url: 'https://www.youtube.com/playlist?list=PL1234567890abcdef' }, ACTOR], nowMs: T1 }));
   cases.push(recordCall({ id: 'reducer/channel-invalid', fn: applyTheaterAction, args: [base(), { op: 'channel', url: 'nope' }, ACTOR], nowMs: T1 }));
+
+  // newItemId with pinned clock and seed
+  cases.push(recordCall({ id: 'reducer/new-item-id-pinned', fn: newItemId, args: [T0], seed: 0.123456789 }));
 
   // multi-step: add → pause at T0 → (time passes) → seek at T1 → ended at T1
   cases.push(recordScript({

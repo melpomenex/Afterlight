@@ -19,7 +19,7 @@
 
 ## 4. Verification
 
-- [ ] 4.1 Headless worker tests (port mocks): coalescing, lifecycle preservation, reset, crash fallback.
-- [ ] 4.2 Allocation bench: allocations/tick flat over 600 ticks; crossover analysis JSON-vs-pipeline by population (`results/pipeline.*`).
-- [ ] 4.3 `tools/realtime/harness.html`: side-by-side legacy vs accelerated against the echo server; store-level parity assertion; screenshots for visual sanity.
+- [x] 4.1 Headless worker tests (port mocks): coalescing, lifecycle preservation, reset, crash fallback.
+- [x] 4.2 Allocation bench: allocations/tick flat over 600 ticks; crossover analysis JSON-vs-pipeline by population (`results/pipeline.*`).
+- [x] 4.3 `tools/realtime/harness.html`: side-by-side legacy vs accelerated against the echo server; store-level parity assertion; screenshots for visual sanity.
 - [x] 4.4 If required, minimal `vite.config.js` for worker bundling only, documented as a scoped exception.

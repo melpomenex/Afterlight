@@ -3,6 +3,7 @@ import http from 'node:http';
 import zlib from 'node:zlib';
 import { WebSocketServer, WebSocket } from 'ws';
 import { MSG_TYPES, ROOMS, WEATHER, parse, serialize } from '../shared/protocol.js';
+import { parseHelloRt, buildWelcomeRt } from '../shared/realtime/negotiation.js';
 import { sanitizeNickname, resolveDuplicateNickname } from '../shared/identity.js';
 import { Storage } from './storage.js';
 import { initBaselineProbe } from './baselineProbe.js';
@@ -60,7 +61,8 @@ export function createServer(customStorage = null, options = {}) {
   // on the IRC port) with the game world bridged into it. IRC_DISABLED=1
   // skips the TCP listener; the bridge then relays in-game only.
   const irc = new IrcServer();
-  const chat = new ChatBridge({ world, irc: irc.enabled ? irc : null });
+  const chatRelayEnabled = options.chatRelayEnabled ?? (process.env.CHAT_RELAY_DISABLED !== '1' && process.env.NODE_CHAT_RELAY !== '0');
+  const chat = new ChatBridge({ world, irc: irc.enabled ? irc : null, enabled: chatRelayEnabled });
   if (irc.enabled && irc.ready) {
     irc.ready.then(
       (port) => console.log(`Afterlight IRC relay listening on ${irc.host || '0.0.0.0'}:${port} (#afterlight)`),
@@ -503,6 +505,7 @@ export function createServer(customStorage = null, options = {}) {
           z: 3,
           rotY: 0,
           walking: false,
+          rt: parseHelloRt(msg),
           // Default room: every connected player belongs to at least the
           // Market Court; the client's JOIN_ROOM moves them elsewhere.
           currentRoom: ROOMS.MARKET,
@@ -514,7 +517,7 @@ export function createServer(customStorage = null, options = {}) {
         world.addClient(playerId, clientSession);
 
         // Send welcome
-        clientSession.send({
+        const welcomeMsg = {
           type: MSG_TYPES.WELCOME,
           player,
           weather: currentWeather,
@@ -523,7 +526,9 @@ export function createServer(customStorage = null, options = {}) {
           orderBook: orderbook.getBookSnapshot(),
           theater: theater.snapshot(),
           iptv: iptv.snapshot(),
-        });
+        };
+        if (clientSession.rt) welcomeMsg.rt = buildWelcomeRt();
+        clientSession.send(welcomeMsg);
 
         // Send initial garden state
         const garden = gardens.getOrCreateGarden(playerId);

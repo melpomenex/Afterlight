@@ -1,7 +1,6 @@
 defmodule Afterlight.DataCase do
   @moduledoc """
-  SQL sandbox case for conferencing (and later) Ash/Postgres tests.
-  Tagged `:database` and excluded from the default `mix test` run.
+  SQL sandbox case for Ash/Postgres integration tests (accounts, conferencing).
   """
 
   use ExUnit.CaseTemplate
@@ -9,6 +8,8 @@ defmodule Afterlight.DataCase do
   using do
     quote do
       alias Afterlight.Repo
+      import Ecto
+      import Ecto.Query
       import Afterlight.DataCase
     end
   end

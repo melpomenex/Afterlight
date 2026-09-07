@@ -8,6 +8,12 @@ defmodule Afterlight.Repo.Migrations.CreateConferencing do
   use Ecto.Migration
 
   def up do
+    # Legacy main shipped a simpler conferencing schema under the same
+    # table names; drop before Ash tables are created (idempotent).
+    execute("DROP TABLE IF EXISTS media_grants CASCADE")
+    execute("DROP TABLE IF EXISTS call_memberships CASCADE")
+    execute("DROP TABLE IF EXISTS calls CASCADE")
+
     create table(:media_grants, primary_key: false) do
       add(:id, :uuid, null: false, default: fragment("gen_random_uuid()"), primary_key: true)
       add(:player_id, :text, null: false)

@@ -1,0 +1,84 @@
+defmodule Afterlight.World.Frames do
+  @moduledoc """
+  Frame construction for the room runtime (task 3.4, design D9): channel
+  handlers never build frames, and neither does the RoomServer — every
+  outbound frame is rendered by the configured realtime encoder
+  (`Afterlight.Realtime.FrameEncoder` behaviour; `Encoders.JSON` selected
+  unconditionally in P3) through the additive world-frame renderers that
+  change landed there.
+
+  This module is the RoomServer's seam onto that encoder: it projects room
+  members into plain pose entries and delegates. The rendered frames are
+  the frozen catalog wire shapes — string keys, no internal fields (the
+  flush carries no `tick`) — so non-negotiating clients are untouched.
+  Unit tests pin the emitted `presence_update` shapes field-for-field
+  (`test/afterlight/world/frames_test.exs`, realtime encoder cases) and
+  the JSON is byte-compared against the catalog literal. The BinarySoA
+  flip stays a config change away (`:world_frame_encoder`): it swaps the
+  encoder, and the binary data plane change owns the guest-id → actor-id
+  mapping the soa-v1 layout requires (design D9).
+  """
+
+  @doc """
+  The 10 Hz dirty-room flush: FULL roster in join order, no delta encoding,
+  entries in the flush shape `{id, x, z, rotY, walking, sitting, airborne}`
+  (no nickname). The `tick` argument is accepted for call-site stability
+  and deliberately NOT rendered — the catalog frame carries no internal
+  fields (the server-tick bookkeeping lives in telemetry, not on the wire).
+  """
+  @spec flush([map], non_neg_integer) :: %{String.t() => term}
+  def flush(members, _tick \\ 0) do
+    encoder().flush(Enum.map(members, &flush_entry/1))
+  end
+
+  @doc "Full roster sent to the JOINER on join — entries carry nicknames (catalog §1 asymmetry)."
+  @spec join_roster([map]) :: %{String.t() => term}
+  def join_roster(members) do
+    encoder().join_roster(Enum.map(members, &roster_entry/1))
+  end
+
+  @doc "Room broadcast when a member joins — joiner excluded by the caller."
+  @spec presence_join(map) :: %{String.t() => term}
+  def presence_join(member) do
+    encoder().presence_join(roster_entry(member))
+  end
+
+  @spec presence_leave(String.t()) :: %{String.t() => term}
+  def presence_leave(player_id) do
+    encoder().presence_leave(player_id)
+  end
+
+  @spec emote_broadcast(String.t(), String.t(), String.t()) :: %{String.t() => term}
+  def emote_broadcast(player_id, nickname, emote) do
+    encoder().emote_broadcast(player_id, nickname, emote)
+  end
+
+  # Flush entry: {id, x, z, rotY, walking, sitting, airborne} — no nickname.
+  # Coordinates are relayed verbatim (Node echoes the numbers it stored; no
+  # integer→float widening, so the JSON bytes match the Node baseline).
+  defp flush_entry(member) do
+    pose = member.pose
+
+    %{
+      id: member.player_id,
+      x: pose.x,
+      z: pose.z,
+      rot_y: pose.rot_y,
+      walking: pose.walking,
+      sitting: pose.sitting,
+      airborne: pose.airborne
+    }
+  end
+
+  # Join-shape entry: adds the nickname and omits airborne.
+  defp roster_entry(member) do
+    member
+    |> flush_entry()
+    |> Map.delete(:airborne)
+    |> Map.put(:nickname, member.nickname)
+  end
+
+  defp encoder do
+    Application.get_env(:afterlight, :world_frame_encoder, Afterlight.Realtime.Encoders.JSON)
+  end
+end

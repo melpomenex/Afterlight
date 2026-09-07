@@ -1,0 +1,576 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "clean-text/empty",
+      "fn": "cleanText",
+      "args": [
+        ""
+      ],
+      "expected": ""
+    },
+    {
+      "id": "clean-text/null",
+      "fn": "cleanText",
+      "args": [
+        null
+      ],
+      "expected": ""
+    },
+    {
+      "id": "clean-text/undefined",
+      "fn": "cleanText",
+      "args": [
+        null
+      ],
+      "expected": ""
+    },
+    {
+      "id": "clean-text/number",
+      "fn": "cleanText",
+      "args": [
+        123
+      ],
+      "expected": "123"
+    },
+    {
+      "id": "clean-text/control-null",
+      "fn": "cleanText",
+      "args": [
+        "a\u0000b"
+      ],
+      "expected": "ab"
+    },
+    {
+      "id": "clean-text/control-bell",
+      "fn": "cleanText",
+      "args": [
+        "alert\u0007!"
+      ],
+      "expected": "alert!"
+    },
+    {
+      "id": "clean-text/control-vertical-tab",
+      "fn": "cleanText",
+      "args": [
+        "a\u000bb"
+      ],
+      "expected": "ab"
+    },
+    {
+      "id": "clean-text/control-del",
+      "fn": "cleanText",
+      "args": [
+        "ab"
+      ],
+      "expected": "ab"
+    },
+    {
+      "id": "clean-text/control-range",
+      "fn": "cleanText",
+      "args": [
+        "a\u0001\u0002\u0003\u0004\u0005\u0006\b\u000e\u001fz"
+      ],
+      "expected": "az"
+    },
+    {
+      "id": "clean-text/whitespace-newlines",
+      "fn": "cleanText",
+      "args": [
+        "a\r\nb\nc"
+      ],
+      "expected": "a b c"
+    },
+    {
+      "id": "clean-text/whitespace-tabs-spaces",
+      "fn": "cleanText",
+      "args": [
+        "a\t\t  b\t  c"
+      ],
+      "expected": "a   b   c"
+    },
+    {
+      "id": "clean-text/whitespace-trim",
+      "fn": "cleanText",
+      "args": [
+        "   hello world   \n\t  "
+      ],
+      "expected": "hello world"
+    },
+    {
+      "id": "clean-text/whitespace-cr-only",
+      "fn": "cleanText",
+      "args": [
+        "a\rb\rc"
+      ],
+      "expected": "abc"
+    },
+    {
+      "id": "clean-text/multibyte-preserved",
+      "fn": "cleanText",
+      "args": [
+        "Hello 🌱  moss & stone! 🌧️"
+      ],
+      "expected": "Hello 🌱  moss & stone! 🌧️"
+    },
+    {
+      "id": "chat/error-empty",
+      "fn": "parseChat",
+      "args": [
+        ""
+      ],
+      "expected": {
+        "error": "Say something first."
+      }
+    },
+    {
+      "id": "chat/error-whitespace",
+      "fn": "parseChat",
+      "args": [
+        "   \t\n  "
+      ],
+      "expected": {
+        "error": "Say something first."
+      }
+    },
+    {
+      "id": "chat/error-control-only",
+      "fn": "parseChat",
+      "args": [
+        "\u0000\u0001\u0002"
+      ],
+      "expected": {
+        "error": "Say something first."
+      }
+    },
+    {
+      "id": "chat/raw-cap-exact-600",
+      "fn": "parseChat",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "expected": {
+        "kind": "message",
+        "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "id": "chat/raw-cap-over-601",
+      "fn": "parseChat",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "expected": {
+        "error": "That message is too long (400 characters max)."
+      }
+    },
+    {
+      "id": "chat/raw-cap-multibyte-600",
+      "fn": "parseChat",
+      "args": [
+        "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+      ],
+      "expected": {
+        "kind": "message",
+        "text": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+      }
+    },
+    {
+      "id": "chat/raw-cap-multibyte-601",
+      "fn": "parseChat",
+      "args": [
+        "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+      ],
+      "expected": {
+        "error": "That message is too long (400 characters max)."
+      }
+    },
+    {
+      "id": "chat/sanitize-cap-exact-400",
+      "fn": "parseChat",
+      "args": [
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      ],
+      "expected": {
+        "kind": "message",
+        "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    {
+      "id": "chat/sanitize-cap-slice-500",
+      "fn": "parseChat",
+      "args": [
+        "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+      ],
+      "expected": {
+        "kind": "message",
+        "text": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+      }
+    },
+    {
+      "id": "chat/multibyte-boundary-2byte",
+      "fn": "parseChat",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaé"
+      ],
+      "expected": {
+        "kind": "message",
+        "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaé"
+      }
+    },
+    {
+      "id": "chat/multibyte-boundary-3byte",
+      "fn": "parseChat",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa中"
+      ],
+      "expected": {
+        "kind": "message",
+        "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa中"
+      }
+    },
+    {
+      "id": "chat/multibyte-boundary-astral-exact",
+      "fn": "parseChat",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa🌟"
+      ],
+      "expected": {
+        "kind": "message",
+        "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa🌟"
+      }
+    },
+    {
+      "id": "chat/multibyte-boundary-astral-surplus",
+      "fn": "parseChat",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa🌟🌟"
+      ],
+      "expected": {
+        "kind": "message",
+        "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa🌟"
+      }
+    },
+    {
+      "id": "chat/cmd-me-valid",
+      "fn": "parseChat",
+      "args": [
+        "/me smiles warmly",
+        {
+          "sender": "Wren",
+          "players": [
+            "Mossy"
+          ],
+          "ircNicks": [
+            "IrcRelay"
+          ]
+        }
+      ],
+      "expected": {
+        "kind": "me",
+        "text": "smiles warmly"
+      }
+    },
+    {
+      "id": "chat/cmd-me-bare",
+      "fn": "parseChat",
+      "args": [
+        "/me",
+        {
+          "sender": "Wren",
+          "players": [
+            "Mossy"
+          ],
+          "ircNicks": [
+            "IrcRelay"
+          ]
+        }
+      ],
+      "expected": {
+        "error": "Usage: /me <action>"
+      }
+    },
+    {
+      "id": "chat/cmd-me-empty-arg",
+      "fn": "parseChat",
+      "args": [
+        "/me    ",
+        {
+          "sender": "Wren",
+          "players": [
+            "Mossy"
+          ],
+          "ircNicks": [
+            "IrcRelay"
+          ]
+        }
+      ],
+      "expected": {
+        "error": "Usage: /me <action>"
+      }
+    },
+    {
+      "id": "chat/cmd-msg-valid-player",
+      "fn": "parseChat",
+      "args": [
+        "/msg Mossy hello there",
+        {
+          "sender": "Wren",
+          "players": [
+            "Mossy"
+          ],
+          "ircNicks": [
+            "IrcRelay"
+          ]
+        }
+      ],
+      "expected": {
+        "kind": "dm",
+        "target": "Mossy",
+        "targetKind": "player",
+        "text": "hello there"
+      }
+    },
+    {
+      "id": "chat/cmd-msg-case-insensitive",
+      "fn": "parseChat",
+      "args": [
+        "/msg mossy hello",
+        {
+          "sender": "Wren",
+          "players": [
+            "Mossy"
+          ],
+          "ircNicks": [
+            "IrcRelay"
+          ]
+        }
+      ],
+      "expected": {
+        "kind": "dm",
+        "target": "Mossy",
+        "targetKind": "player",
+        "text": "hello"
+      }
+    },
+    {
+      "id": "chat/cmd-query-synonym",
+      "fn": "parseChat",
+      "args": [
+        "/query Mossy secret message",
+        {
+          "sender": "Wren",
+          "players": [
+            "Mossy"
+          ],
+          "ircNicks": [
+            "IrcRelay"
+          ]
+        }
+      ],
+      "expected": {
+        "kind": "dm",
+        "target": "Mossy",
+        "targetKind": "player",
+        "text": "secret message"
+      }
+    },
+    {
+      "id": "chat/cmd-msg-valid-irc",
+      "fn": "parseChat",
+      "args": [
+        "/msg IrcRelay hello IRC",
+        {
+          "sender": "Wren",
+          "players": [
+            "Mossy"
+          ],
+          "ircNicks": [
+            "IrcRelay"
+          ]
+        }
+      ],
+      "expected": {
+        "kind": "dm",
+        "target": "IrcRelay",
+        "targetKind": "irc",
+        "text": "hello IRC"
+      }
+    },
+    {
+      "id": "chat/cmd-msg-bare",
+      "fn": "parseChat",
+      "args": [
+        "/msg",
+        {
+          "sender": "Wren",
+          "players": [
+            "Mossy"
+          ],
+          "ircNicks": [
+            "IrcRelay"
+          ]
+        }
+      ],
+      "expected": {
+        "error": "Usage: /msg <name> <message>"
+      }
+    },
+    {
+      "id": "chat/cmd-msg-missing-body",
+      "fn": "parseChat",
+      "args": [
+        "/msg Mossy",
+        {
+          "sender": "Wren",
+          "players": [
+            "Mossy"
+          ],
+          "ircNicks": [
+            "IrcRelay"
+          ]
+        }
+      ],
+      "expected": {
+        "error": "Usage: /msg <name> <message>"
+      }
+    },
+    {
+      "id": "chat/cmd-msg-self",
+      "fn": "parseChat",
+      "args": [
+        "/msg Wren hello self",
+        {
+          "sender": "Wren",
+          "players": [
+            "Mossy"
+          ],
+          "ircNicks": [
+            "IrcRelay"
+          ]
+        }
+      ],
+      "expected": {
+        "error": "No one called Wren is around right now."
+      }
+    },
+    {
+      "id": "chat/cmd-msg-self-case",
+      "fn": "parseChat",
+      "args": [
+        "/msg WREN hello self",
+        {
+          "sender": "Wren",
+          "players": [
+            "Mossy"
+          ],
+          "ircNicks": [
+            "IrcRelay"
+          ]
+        }
+      ],
+      "expected": {
+        "error": "No one called WREN is around right now."
+      }
+    },
+    {
+      "id": "chat/cmd-msg-absent-target",
+      "fn": "parseChat",
+      "args": [
+        "/msg Ghost boo",
+        {
+          "sender": "Wren",
+          "players": [
+            "Mossy"
+          ],
+          "ircNicks": [
+            "IrcRelay"
+          ]
+        }
+      ],
+      "expected": {
+        "error": "No one called Ghost is around right now."
+      }
+    },
+    {
+      "id": "chat/cmd-help",
+      "fn": "parseChat",
+      "args": [
+        "/help",
+        {
+          "sender": "Wren",
+          "players": [
+            "Mossy"
+          ],
+          "ircNicks": [
+            "IrcRelay"
+          ]
+        }
+      ],
+      "expected": {
+        "kind": "help",
+        "text": "Commands: /msg <name> <text> whispers directly · /me <action> acts it out."
+      }
+    },
+    {
+      "id": "chat/cmd-unknown",
+      "fn": "parseChat",
+      "args": [
+        "/dance",
+        {
+          "sender": "Wren",
+          "players": [
+            "Mossy"
+          ],
+          "ircNicks": [
+            "IrcRelay"
+          ]
+        }
+      ],
+      "expected": {
+        "error": "Unknown command /dance. Try /msg <name> <text> or /me <action>."
+      }
+    },
+    {
+      "id": "chat/cmd-unknown-with-args",
+      "fn": "parseChat",
+      "args": [
+        "/shout hello",
+        {
+          "sender": "Wren",
+          "players": [
+            "Mossy"
+          ],
+          "ircNicks": [
+            "IrcRelay"
+          ]
+        }
+      ],
+      "expected": {
+        "error": "Unknown command /shout. Try /msg <name> <text> or /me <action>."
+      }
+    },
+    {
+      "id": "chat/msg-regular",
+      "fn": "parseChat",
+      "args": [
+        "Hello from the courtyard!"
+      ],
+      "expected": {
+        "kind": "message",
+        "text": "Hello from the courtyard!"
+      }
+    },
+    {
+      "id": "chat/msg-regular-whitespace",
+      "fn": "parseChat",
+      "args": [
+        "  Hello   from   the   courtyard!  "
+      ],
+      "expected": {
+        "kind": "message",
+        "text": "Hello   from   the   courtyard!"
+      }
+    }
+  ]
+}

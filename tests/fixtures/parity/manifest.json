@@ -12,7 +12,7 @@
     {
       "file": "theater-model.json",
       "module": "Afterlight.Parity.Reference.Theater",
-      "caseCount": 97,
+      "caseCount": 115,
       "hazards": {
         "url-whatwg": [
           "classify/*"
@@ -155,7 +155,7 @@
     {
       "file": "identity-nodes-machines.json",
       "module": "Afterlight.Parity.Reference.Misc",
-      "caseCount": 49,
+      "caseCount": 54,
       "hazards": {
         "bitops32": [
           "palette/*"
@@ -169,8 +169,13 @@
         ],
         "generated-ids": [
           "nick/dup-ladder-exhausted",
-          "nick/sanitize-7",
-          "nick/sanitize-8"
+          "nick/sanitize-5",
+          "nick/sanitize-8",
+          "nick/sanitize-9"
+        ],
+        "ascii-folding": [
+          "nick/ascii-only-after-sanitize",
+          "nick/dup-case"
         ],
         "error-strings": [
           "nodes/*",
@@ -190,6 +195,51 @@
         ],
         "json-roundtrip": [
           "protocol/*"
+        ]
+      }
+    },
+    {
+      "file": "world.json",
+      "module": "Afterlight.Parity.Reference.World",
+      "caseCount": 25,
+      "hazards": {
+        "number-coercion": [
+          "movement/flags-coerced",
+          "movement/rot-string"
+        ],
+        "null-undefined-absent": [
+          "movement/flags-omitted",
+          "movement/null-pose"
+        ],
+        "error-strings": [
+          "emote/*"
+        ],
+        "flag-coercion": [
+          "shape/*"
+        ]
+      }
+    },
+    {
+      "file": "chat-relay.json",
+      "module": "Afterlight.Parity.Reference.Chat",
+      "caseCount": 44,
+      "hazards": {
+        "control-chars": [
+          "clean-text/control-*"
+        ],
+        "whitespace-collapse": [
+          "clean-text/whitespace-*"
+        ],
+        "caps-truncation": [
+          "chat/raw-cap-*",
+          "chat/sanitize-cap-*",
+          "chat/multibyte-*"
+        ],
+        "command-parsing": [
+          "chat/cmd-*"
+        ],
+        "error-strings": [
+          "chat/error-*"
         ]
       }
     }

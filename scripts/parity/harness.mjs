@@ -32,6 +32,17 @@ export function withFrozenClock(nowMs, fn) {
   }
 }
 
+/** Freeze `Math.random()` to return `seed` for the duration of fn(). */
+export function withFrozenRandom(seed, fn) {
+  const realRandom = Math.random;
+  Math.random = () => seed;
+  try {
+    return fn();
+  } finally {
+    Math.random = realRandom;
+  }
+}
+
 /**
  * Begin tokenizing generated ids for a new case. While active, `tokenize()`
  * replaces every generated id with a stable `<gen:N>` token, assigning tokens
@@ -109,6 +120,7 @@ export function compactArgs(value) {
     return value.length > MAX_ARG_STR ? { __strLen: value.length } : value;
   }
   if (Array.isArray(value)) return value.map(compactArgs);
+  if (value instanceof Set) return Array.from(value).map(compactArgs);
   if (value && typeof value === 'object') {
     const out = {};
     for (const [k, v] of Object.entries(value)) out[k] = compactArgs(v);
@@ -156,7 +168,8 @@ export function recordCall({ id, fn, args, nowMs, seed, expected, mask }) {
     tokenize(structuredClone(realArgs));
     const execArgs = detokenizeArgs(structuredClone(realArgs));
     const run = () => fn(...execArgs);
-    const result = nowMs === undefined ? run() : withFrozenClock(nowMs, run);
+    const runWithSeed = seed !== undefined ? () => withFrozenRandom(seed, run) : run;
+    const result = nowMs === undefined ? runWithSeed() : withFrozenClock(nowMs, runWithSeed);
     const clean = mask ? mask(result) : result;
     const recorded = {
       id,

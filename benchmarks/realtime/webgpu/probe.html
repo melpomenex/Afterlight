@@ -282,7 +282,7 @@ async function main() {
     const baseline = makeBaseline(N, (0x414C5254 ^ N) >>> 0);
     const positions = device2.createBuffer({ size: N * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
     const deltaBuf = device2.createBuffer({ size: 16 + N * 20, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
-    const staging = device2.createBuffer({ size: N * 16, usage: GPUBufferUsage.MAP_WRITE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST });
+    const staging = device2.createBuffer({ size: N * 16, usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST });
     const res = {
       N, baseline, positions, deltaBuf, staging,
       fullSrc: baseline.slice(),   // upload source for full mode (baseline + per-iteration changed entries)

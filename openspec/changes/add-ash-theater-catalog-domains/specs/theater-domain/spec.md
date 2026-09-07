@@ -18,7 +18,7 @@ Each theater room SHALL have a single authoritative timeline (`now` item plus or
 #### Scenario: Revision never moves backward
 
 - **WHEN** two accepted mutations are applied in any order
-- **THEN** each committed revision is strictly greater than the previous one and snapshots carry the revision they describe
+- **THEN** each committed revision is strictly greater than the previous one and post-commit publication carries the revision in outbox events and gateway-session bookkeeping; the wire snapshot remains field-identical to the Node implementation (no payload field additions)
 
 ### Requirement: Reducer-exact operations with stable error reasons
 
@@ -102,6 +102,12 @@ Playlist resolution SHALL preserve the interactive contract (one request in flig
 
 - **WHEN** a recorded pre-flip session and a post-flip session are compared for identical player inputs
 - **THEN** the message sequences carry the same types, field sets, and error reasons, and the unchanged theater screen renders both identically
+
+#### Scenario: Welcome never serves frozen theater state
+
+- **WHEN** a client connects after the theater/catalog flip
+- **THEN** the `theater` and `iptv` slices of its join-time `welcome` are composed by the Elixir side (or absent, with state delivered on theater join), never copied from the frozen Node state
+- **AND** the payload matches the pre-flip `welcome` field-for-field (full parity scenario in the change's verification evidence)
 
 ### Requirement: Rollback honesty for the theater
 

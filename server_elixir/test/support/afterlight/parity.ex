@@ -31,7 +31,9 @@ defmodule Afterlight.Parity do
     {"market.json", Afterlight.Parity.Reference.Market},
     {"garden-crops.json", Afterlight.Parity.Reference.Garden},
     {"iptv-xmltv.json", Afterlight.Parity.Reference.Catalog},
-    {"identity-nodes-machines.json", Afterlight.Parity.Reference.Misc}
+    {"identity-nodes-machines.json", Afterlight.Parity.Reference.Misc},
+    {"world.json", Afterlight.Parity.Reference.World},
+    {"chat-relay.json", Afterlight.Parity.Reference.Chat}
   ]
 
   def fixture_files, do: @fixture_files
@@ -124,7 +126,9 @@ defmodule Afterlight.Parity do
 
   def run_case(module, %{"fn" => fname} = json_case) do
     {args, bindings} = prepare_args(json_case["args"] || [], module, %{})
+    if is_number(json_case["seed"]), do: Process.put({__MODULE__, :case_seed}, json_case["seed"])
     result = dispatch(module, fname, args, json_case["nowMs"])
+    Process.delete({__MODULE__, :case_seed})
     case Comparator.compare(json_case["expected"], result, module, bindings, "expected") do
       {:ok, _} -> :ok
       mismatch -> mismatch

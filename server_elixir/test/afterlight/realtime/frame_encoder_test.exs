@@ -88,4 +88,95 @@ defmodule Afterlight.Realtime.FrameEncoderTest do
     # behaviour_check via protocol-consistent reflection
     FrameEncoder.behaviour_info(:callbacks) |> Enum.all?(fn {f, a} -> function_exported?(mod, f, a) end)
   end
+
+  # -- P3 world frame renderers (add-world-room-runtime, task 3.4 / D9).
+  # Additive cases only: the debug encode/2 assertions above are unchanged. --
+
+  defp pose_entry(opts) do
+    opts_map = Map.new(opts)
+
+    opts_map =
+      case Map.pop(opts_map, :rotY) do
+        {nil, m} -> m
+        {rot_y, m} -> Map.put(m, :rot_y, rot_y)
+      end
+
+    Map.merge(
+      %{id: "guest_a", x: 1.5, z: -2.5, rot_y: 0.75, walking: false, sitting: false, airborne: false},
+      opts_map
+    )
+  end
+
+  describe "world frame renderers (D9)" do
+    test "flush renders the catalog flush shape — no nickname, no internal tick" do
+      frame = JSON.flush([pose_entry(walking: true, airborne: true)])
+
+      assert frame == %{
+               "type" => "presence_update",
+               "players" => [
+                 %{
+                   "id" => "guest_a",
+                   "x" => 1.5,
+                   "z" => -2.5,
+                   "rotY" => 0.75,
+                   "walking" => true,
+                   "sitting" => false,
+                   "airborne" => true
+                 }
+               ]
+             }
+
+      # Byte-equivalence with the frozen catalog shape (JSON.stringify of
+      # the Node literal): same field sets, same values, nothing extra.
+      catalog = %{
+        "type" => "presence_update",
+        "players" => [
+          %{"id" => "guest_a", "x" => 1.5, "z" => -2.5, "rotY" => 0.75, "walking" => true, "sitting" => false, "airborne" => true}
+        ]
+      }
+
+      assert Jason.encode!(frame) == Jason.encode!(catalog)
+      refute Jason.encode!(frame) =~ "tick"
+    end
+
+    test "join_roster entries carry nicknames and omit airborne; nil nickname is dropped" do
+      entry = pose_entry(id: "guest_b", nickname: "Kiln", rotY: 1.0)
+      frame = JSON.join_roster([entry])
+
+      assert frame["type"] == "presence_update"
+      assert hd(frame["players"]) == %{
+               "id" => "guest_b",
+               "nickname" => "Kiln",
+               "x" => 1.5,
+               "z" => -2.5,
+               "rotY" => 1.0,
+               "walking" => false,
+               "sitting" => false
+             }
+
+      dropped = JSON.join_roster([pose_entry(nickname: nil)])
+      refute Map.has_key?(hd(dropped["players"]), "nickname")
+      assert hd(dropped["players"])["id"] == "guest_a"
+    end
+
+    test "presence_join nests the join-shape player" do
+      frame = JSON.presence_join(pose_entry(id: "guest_c", nickname: "Mossy", sitting: true))
+      assert frame["type"] == "presence_join"
+      assert frame["player"]["id"] == "guest_c"
+      assert frame["player"]["nickname"] == "Mossy"
+      assert frame["player"]["sitting"] == true
+      refute Map.has_key?(frame["player"], "airborne")
+    end
+
+    test "presence_leave and emote_broadcast are the exact catalog frames" do
+      assert JSON.presence_leave("guest_a") == %{"type" => "presence_leave", "playerId" => "guest_a"}
+
+      assert JSON.emote_broadcast("guest_a", "Mossy", "wave") == %{
+               "type" => "emote_broadcast",
+               "playerId" => "guest_a",
+               "nickname" => "Mossy",
+               "emote" => "wave"
+             }
+    end
+  end
 end

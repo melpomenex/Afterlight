@@ -76,23 +76,12 @@ defmodule Afterlight.Parity.Reference.Misc do
 
   @behaviour Afterlight.Parity.Reference
 
+  alias Afterlight.Accounts.ReducerSupport
   alias Afterlight.Parity.Hazards
 
   @t0 1_700_000_000_000
 
-  ## -- shared/identity.js ----------------------------------------------------
-
-  @adjectives ~w(
-    Mossy Quiet Copper Rainy Amber Misty Rust Golden
-    Silver Fern Bramble Cobble Thistle Breezy Dusky Dappled
-    Dewy Hedge Orchard Verdant Gilded Pebble Autumnal Gleaming
-  )
-
-  @produce_nouns ~w(
-    Radish Turnip Basil Leek Carrot Kale Tomato Berry
-    Sorrel Chive Sprout Fennel Parsnip Pepper Clover Borage
-    Sage Mint Beet Chard
-  )
+  ## -- shared/identity.js palette (sanitize/dedup live in ReducerSupport) --
 
   @palettes [
     %{"coat" => "#7a4e32", "apron" => "#b8a682", "hat" => "#473d32", "boots" => "#2b231c"},
@@ -137,12 +126,14 @@ defmodule Afterlight.Parity.Reference.Misc do
   @playlist_id_re ~r/^[A-Za-z0-9_-]{12,}$/
 
   @impl true
-  def run_case_fn("generateDefaultNickname", [seed], _now_ms), do: generate_default_nickname(seed)
+  def run_case_fn("generateDefaultNickname", [seed], _now_ms),
+    do: ReducerSupport.generate_default_nickname(seed)
 
-  def run_case_fn("sanitizeNickname", [input], _now_ms), do: sanitize_nickname(input)
+  def run_case_fn("sanitizeNickname", [input], _now_ms),
+    do: ReducerSupport.sanitize_nickname(input, case_rng())
 
   def run_case_fn("resolveDuplicateNickname", [desired, active], _now_ms),
-    do: resolve_duplicate_nickname(desired, active)
+    do: ReducerSupport.resolve_duplicate_nickname(desired, active, case_rng())
 
   def run_case_fn("generatePlayerPalette", [id], _now_ms), do: generate_player_palette(id)
 
@@ -245,132 +236,11 @@ defmodule Afterlight.Parity.Reference.Misc do
   def run_case_fn(fname, args, _now_ms),
     do: raise("misc port: unknown fixture fn #{fname}/#{length(args)}")
 
-  ## -- shared/identity.js -----------------------------------------------------
-
-  defp generate_default_nickname(seed) do
-    adj_idx = trunc(abs(:math.sin(seed * 999)) * length(@adjectives))
-    noun_idx = trunc(abs(:math.cos(seed * 888)) * length(@produce_nouns))
-    num = trunc(abs(:math.sin(seed * 777)) * 90) + 10
-
-    # JS indexes past the array end render as "undefined" in the template
-    # literal (seed 0: Math.cos(0) * 20 === 20).
-    adj = Enum.at(@adjectives, adj_idx) || "undefined"
-    noun = Enum.at(@produce_nouns, noun_idx) || "undefined"
-
-    "#{adj}#{noun}#{num}"
-  end
-
-  defp sanitize_nickname(input) when is_binary(input) do
-    # JS string ops run over UTF-16 code units; the port mirrors that by
-    # decoding to a unit list up front (byte-level regex would corrupt
-    # astral sequences).
-    units =
-      input
-      |> :unicode.characters_to_binary(:utf8, {:utf16, :big})
-      |> utf16_units()
-      # Strip HTML tags <[^>]*>, then control chars.
-      |> strip_tags()
-      |> Enum.reject(&js_control_unit?/1)
-      |> js_trim()
-
-    clean =
-      units
-      # Remove non-word chars except whitespace and dashes, collapse spaces.
-      |> Enum.reject(&js_non_word_unit?/1)
-      |> collapse_spaces()
-
-    clean =
-      if length(clean) > 20 do
-        clean |> Enum.take(20) |> js_trim()
-      else
-        clean
-      end
-
-    if length(clean) < 3 do
-      # JS calls generateDefaultNickname() with Math.random(); the fixture
-      # masks the result with "<generated>" (matches any binary).
-      generate_default_nickname(0.42)
-    else
-      :unicode.characters_to_binary(:unicode.characters_to_binary(clean, :utf8, {:utf16, :big}), {
-        :utf16,
-        :big
-      }, :utf8)
+  defp case_rng do
+    case Process.get({Afterlight.Parity, :case_seed}) do
+      seed when is_number(seed) -> fn -> seed end
+      _ -> &ReducerSupport.default_rng/0
     end
-  end
-
-  defp sanitize_nickname(_input), do: generate_default_nickname(0.42)
-
-  defp utf16_units(bin, acc \\ [])
-  defp utf16_units(<<u::16, rest::binary>>, acc), do: utf16_units(rest, [u | acc])
-  defp utf16_units(<<>>, acc), do: Enum.reverse(acc)
-
-  defp strip_tags([?< | rest]), do: strip_tags(skip_to_close(rest))
-  defp strip_tags([u | rest]), do: [u | strip_tags(rest)]
-  defp strip_tags([]), do: []
-
-  # <[^>]*> requires the closing >; an unterminated tag stays literal.
-  defp skip_to_close([?> | rest]), do: rest
-  defp skip_to_close([_u | rest]), do: skip_to_close(rest)
-  defp skip_to_close([]), do: []
-
-  defp js_control_unit?(u), do: u in 0x00..0x1F or u in 0x7F..0x9F
-
-  # ASCII \w plus JS \s (Unicode whitespace incl. BOM) and the dash.
-  defp js_non_word_unit?(u) do
-    word? = u in ?A..?Z or u in ?a..?z or u in ?0..?9 or u == ?_
-    not (word? or js_ws_unit?(u) or u == ?-)
-  end
-
-  defp js_ws_unit?(u),
-    do: u in [0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x20, 0xA0, 0x1680, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF] or
-          u in 0x2000..0x200A
-
-  defp js_trim(units) do
-    units
-    |> Enum.drop_while(&js_ws_unit?/1)
-    |> Enum.reverse()
-    |> Enum.drop_while(&js_ws_unit?/1)
-    |> Enum.reverse()
-  end
-
-  defp collapse_spaces(units) do
-    Enum.reduce(units, {[], false}, fn u, {acc, in_ws} ->
-      cond do
-        js_ws_unit?(u) and in_ws -> {acc, true}
-        js_ws_unit?(u) -> {[0x20 | acc], true}
-        true -> {[u | acc], false}
-      end
-    end)
-    |> elem(0)
-    |> Enum.reverse()
-  end
-
-  defp resolve_duplicate_nickname(desired, active) do
-    base = sanitize_nickname(desired)
-    lower_base = String.downcase(base)
-
-    ladder =
-      Enum.find(2..99, fn i ->
-        not dup_claimed?(active, lower_base, "#{base}#{i}")
-      end)
-
-    case ladder do
-      nil ->
-        # Ladder exhausted: random 3-digit suffix, masked "<generated>".
-        suffix = 100 + rem(:erlang.phash2({base, active}), 900)
-        "#{base}#{suffix}"
-
-      i ->
-        "#{base}#{i}"
-    end
-  end
-
-  # The recorded Set arg serializes to {}; the recorded expecteds imply the
-  # desired base itself counts as claimed (this fn only runs for colliding
-  # desired names server-side).
-  defp dup_claimed?(active, lower_base, candidate) do
-    lower = String.downcase(candidate)
-    Map.has_key?(active, lower) or lower == lower_base
   end
 
   defp generate_player_palette(id) do

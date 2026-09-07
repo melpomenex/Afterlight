@@ -1,5 +1,5 @@
 defmodule AfterlightWeb.LogAuditTest do
-  use ExUnit.Case, async: false
+  use Afterlight.DataCase, async: false
 
   import ExUnit.CaptureLog
   import Phoenix.ChannelTest

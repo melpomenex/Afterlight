@@ -25,6 +25,17 @@ defmodule Afterlight.Gateway.NodeProxy do
     * upstream close → the channel is told `:relay_down` (it pushes
       `error {message: "relay_down"}` and closes the socket) and this
       proxy stops. Client socket exit → the upstream is closed.
+    * supersession is TERMINAL (design D6/D8, deliberate tightening #2):
+      `supersede/1` puts the losing proxy into the `:stopping` state and
+      closes its upstream; when that close is observed, the channel is
+      told `:superseded` — the documented terminal close reason the
+      client facade stops retrying on — never the retryable
+      `:relay_down` (a retry there would make two live tabs evict each
+      other forever). The losing proxy stays alive until the close is
+      observed so `establish/3` still waits out Node's removeClient
+      processing. A proxy superseded while still `:connecting` never
+      promotes to `:up`: its fresh upstream is closed and the channel
+      notified the moment the socket appears.
     * newest-connection-wins (design D6): `establish/3` registers this
       proxy as the live transport for its guest_id; if another proxy was
       registered, its upstream is closed FIRST and `establish/3` waits
@@ -102,7 +113,11 @@ defmodule Afterlight.Gateway.NodeProxy do
       after
         timeout ->
           Process.demonitor(ref, [:flush])
-          Logger.warning("gateway proxy supersede timeout guest=#{guest_id} old=#{inspect(previous)}")
+
+          Logger.warning(
+            "gateway proxy supersede timeout guest=#{guest_id} old=#{inspect(previous)}"
+          )
+
           :ok
       end
     else
@@ -122,7 +137,11 @@ defmodule Afterlight.Gateway.NodeProxy do
     :exit, _ -> {:error, :relay_down}
   end
 
-  @doc "Marks the proxy superseded: its upstream is closed, then it stops."
+  @doc """
+  Marks the proxy superseded (terminal, design D8): its upstream is
+  closed and the proxy enters the `:stopping` state; when the close is
+  observed the channel is told `:superseded`, never `:relay_down`.
+  """
   @spec supersede(pid) :: :ok
   def supersede(proxy_pid), do: GenServer.call(proxy_pid, :supersede)
 
@@ -160,16 +179,33 @@ defmodule Afterlight.Gateway.NodeProxy do
       {:ok, pid} ->
         state = %{state | upstream_pid: pid}
 
-        # An `upstream_up` may have been queued before this continue ran
-        # (adapters that connect asynchronously); honor it now.
         state =
           if state.early_up == pid do
-            maybe_supersede_new_upstream(%{state | early_up: nil, status: :up})
+            # An `upstream_up` was queued before this continue ran (async
+            # adapter): the upstream is genuinely ready.
+            upstream_ready(%{state | early_up: nil})
           else
-            maybe_supersede_new_upstream(state)
+            # Async adapter: upstream_up will follow — the proxy stays
+            # :connecting (outbound keeps queueing). A terminal proxy's
+            # fresh socket is still closed immediately.
+            maybe_close_superseded(state)
           end
 
-        {:noreply, if(state.status == :up, do: flush_queue(state), else: state)}
+        cond do
+          state.status == :stopping ->
+            # Superseded before/while connecting: the fresh upstream is
+            # closed and the losing channel already has its terminal
+            # `superseded`; stop so the winning session's establish wait
+            # completes.
+            {:stop, :shutdown, state}
+
+          state.status == :up ->
+            {:noreply, flush_queue(state)}
+
+          true ->
+            # Async adapter: upstream_up will follow.
+            {:noreply, state}
+        end
 
       {:error, reason} ->
         Logger.warning(
@@ -191,7 +227,9 @@ defmodule Afterlight.Gateway.NodeProxy do
         end
 
       :connecting ->
-        {:reply, :ok, %{state | queue: :queue.in(Jason.encode!(frame), state.queue)}}
+        new_state = %{state | queue: :queue.in(Jason.encode!(frame), state.queue)}
+        emit_queue_depth(new_state)
+        {:reply, :ok, new_state}
 
       :stopping ->
         {:reply, {:error, :relay_down}, state}
@@ -201,12 +239,19 @@ defmodule Afterlight.Gateway.NodeProxy do
   def handle_call(:supersede, _from, state) do
     case state.status do
       :up ->
+        # Terminal supersession (design D8): enter :stopping BEFORE the
+        # close we just triggered is observed, so the resulting
+        # upstream_down reports the documented terminal `superseded`
+        # close reason instead of the retryable `relay_down`. The proxy
+        # stays alive until that close arrives — establish/3 must not
+        # return before Node has processed the old disconnect.
         close_upstream(state)
-        {:reply, :ok, state}
+        {:reply, :ok, %{state | status: :stopping}}
 
       :connecting ->
-        # Upstream may not exist yet; it is closed the moment it appears
-        # (see maybe_supersede_new_upstream/1).
+        # Upstream may not exist yet; when it appears it is closed and
+        # the channel notified without ever promoting to :up (see
+        # upstream_ready/1).
         {:reply, :ok, %{state | status: :stopping}}
 
       :stopping ->
@@ -221,8 +266,11 @@ defmodule Afterlight.Gateway.NodeProxy do
   end
 
   def handle_info({:upstream_up, pid}, %{upstream_pid: pid} = state) do
-    case maybe_supersede_new_upstream(%{state | status: :up}) do
-      %{status: :stopping} = state -> {:noreply, state}
+    case upstream_ready(state) do
+      # Superseded while connecting: the fresh upstream was closed and the
+      # channel has the terminal reason; the proxy stops so the winning
+      # session's establish wait completes.
+      %{status: :stopping} = state -> {:stop, :shutdown, state}
       new_state -> {:noreply, flush_queue(new_state)}
     end
   end
@@ -237,7 +285,15 @@ defmodule Afterlight.Gateway.NodeProxy do
       "gateway relay upstream closed corr=#{state.correlation_id} guest=#{state.guest_id} reason=#{inspect(reason)}"
     )
 
-    notify_relay_down(state)
+    if state.status == :stopping do
+      # This proxy lost a duplicate-connect race (design D6/D8): the
+      # channel gets the documented terminal `superseded` close reason,
+      # not the generic retryable `relay_down`.
+      send(state.channel_pid, :superseded)
+    else
+      notify_relay_down(state)
+    end
+
     {:stop, :shutdown, %{state | upstream_pid: nil}}
   end
 
@@ -263,14 +319,26 @@ defmodule Afterlight.Gateway.NodeProxy do
 
   ## Internals
 
-  # If the proxy was superseded while :connecting, close the fresh
-  # upstream immediately so the old session tears down cleanly.
-  defp maybe_supersede_new_upstream(%{status: :stopping} = state) do
+  # The upstream signalled ready (or its `upstream_up` was already queued).
+  # A proxy superseded while still :connecting must never promote to :up
+  # (that would leave TWO live sessions for one identity): the fresh
+  # upstream is closed and the losing channel gets the terminal
+  # `superseded` close reason right away (design D8) — nothing was ever
+  # forwarded on this socket, so no ordering is owed to Node. The caller
+  # stops the proxy on :stopping.
+  defp upstream_ready(%{status: :stopping} = state), do: maybe_close_superseded(state)
+
+  defp upstream_ready(state), do: %{state | status: :up}
+
+  # Terminal teardown of a fresh upstream, without the :up promotion the
+  # async-adapter connect path must not perform.
+  defp maybe_close_superseded(%{status: :stopping} = state) do
     close_upstream(state)
+    notify_superseded(state)
     state
   end
 
-  defp maybe_supersede_new_upstream(state), do: state
+  defp maybe_close_superseded(state), do: state
 
   defp flush_queue(state) do
     case :queue.out(state.queue) do
@@ -303,13 +371,22 @@ defmodule Afterlight.Gateway.NodeProxy do
       # Node drops malformed JSON (parses to null) and only ever sends
       # typed flat objects; junk is dropped, never forwarded.
       _ ->
-        Logger.warning("gateway relay dropped malformed upstream frame corr=#{state.correlation_id}")
+        Logger.warning(
+          "gateway relay dropped malformed upstream frame corr=#{state.correlation_id}"
+        )
+
         :ok
     end
   end
 
   defp notify_relay_down(state) do
     send(state.channel_pid, :relay_down)
+  end
+
+  # Terminal supersession close reason (design D8, deliberate tightening
+  # #2): the losing transport's facade stops retrying on it.
+  defp notify_superseded(state) do
+    send(state.channel_pid, :superseded)
   end
 
   defp close_upstream(%{upstream_pid: nil}), do: :ok
@@ -325,5 +402,13 @@ defmodule Afterlight.Gateway.NodeProxy do
       secret when is_binary(secret) -> [{"x-afterlight-boundary", secret}]
       _ -> []
     end
+  end
+
+  defp emit_queue_depth(state) do
+    :telemetry.execute(
+      [:afterlight, :gateway, :proxy, :queue_depth],
+      %{depth: :queue.len(state.queue)},
+      %{guest_id: state.guest_id}
+    )
   end
 end

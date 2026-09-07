@@ -51,11 +51,37 @@ if config_env() != :test do
         "afterlight-dev-only-token-secret-please-do-not-use-in-prod-1111111111111111"
       end
 
+  # P3 world flip (add-world-room-runtime): AFTERLIGHT_WORLD_OWNER=phoenix
+  # routes the world rows through Afterlight.World; "node" (default) keeps
+  # the runtime dormant. Rollback is the env back to "node" — a pure
+  # transport change (protocol-catalog §"World disposition"). The flip is
+  # applied at boot; the canonical flip procedure is a gateway restart,
+  # which force-closes all transports so every client re-derives
+  # membership from the incoming owner via its desiredRoom replay.
+  routing =
+    :afterlight
+    |> Application.get_env(:gateway, [])
+    |> Keyword.get(:routing, %{"ping" => :terminate_pong})
+
+  routing =
+    if System.get_env("AFTERLIGHT_WORLD_OWNER", "node") == "phoenix" do
+      Map.merge(routing, %{"join_room" => :phoenix, "movement" => :phoenix, "emote" => :phoenix})
+    else
+      routing
+    end
+
+  routing =
+    if System.get_env("AFTERLIGHT_CHAT_OWNER", "node") == "phoenix" do
+      Map.merge(routing, %{"chat_send" => :phoenix})
+    else
+      routing
+    end
+
   config :afterlight, :gateway,
     node_ws_url: System.get_env("AFTERLIGHT_NODE_WS_URL") || "ws://127.0.0.1:3001/ws",
     proxy_target: System.get_env("AFTERLIGHT_NODE_HTTP_URL") || "http://127.0.0.1:3001",
-    # nil in dev = no boundary header sent (D5 secret-less acceptance).
     boundary_secret: System.get_env("AFTERLIGHT_BOUNDARY_SECRET"),
     token_secret: token_secret,
-    token_max_age_secs: String.to_integer(System.get_env("AFTERLIGHT_TOKEN_MAX_AGE") || "43200")
+    token_max_age_secs: String.to_integer(System.get_env("AFTERLIGHT_TOKEN_MAX_AGE") || "43200"),
+    routing: routing
 end

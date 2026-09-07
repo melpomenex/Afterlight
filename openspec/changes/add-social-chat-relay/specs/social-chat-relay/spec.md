@@ -36,7 +36,7 @@ The game chat relay — channel messages, DMs, `/me`//`/msg` commands, history, 
 
 ### Requirement: Ephemeral 50-of-100 history ring
 
-`Afterlight.Social` SHALL keep an in-memory ring of the last 100 accepted channel messages and SHALL deliver the last 50 as targeted `chat_history {channel, messages}` after `garden_state` in the documented connection order (`hello` → `welcome` → `garden_state` → `chat_history` → join snapshots). The ring SHALL be ephemeral: this change SHALL NOT add persistence — a restart losing history is current behavior, and any persistence is a declared follow-up change requiring its own behavior-change justification.
+`Afterlight.Social` SHALL keep an in-memory ring of the last 100 accepted channel messages and SHALL deliver the last 50 as targeted `chat_history {channel, messages}` after `garden_state` in the documented connection order (`hello` → `welcome` → `garden_state` → `chat_history` → join snapshots). Accepted IRC-originated channel messages SHALL enter the same ring, marked with their `fromKind` (e.g. `"irc"`), so `chat_history` parity holds — today the Node bridge writes IRC messages into the ring. The ring SHALL be ephemeral: this change SHALL NOT add persistence — a restart losing history is current behavior, and any persistence is a declared follow-up change requiring its own behavior-change justification.
 
 #### Scenario: Reconnecting player gets the tail
 
@@ -73,7 +73,7 @@ Exchange with the retained Node IRC sidecar (`server/irc.js` + bridge) SHALL cro
 
 ### Requirement: Server-side routing and rollback honesty
 
-The gateway router SHALL decide the `chat_*` disposition server-side (clients cannot choose), and the flip SHALL disable the Node game-relay portions of `server/chat.js` in the same release per the single-writer rule. It SHALL be possible to flip the `chat_*` entries back to the Node relay by configuration alone before the compatibility layer is removed; history accumulated on the Elixir side SHALL NOT be expected to survive the flip back (it is ephemeral on both sides), which the rollback documentation SHALL state honestly.
+The gateway router SHALL decide the `chat_*` disposition server-side (clients cannot choose), and the flip SHALL disable the Node game-relay portions of `server/chat.js` in the same release per the single-writer rule. It SHALL be possible to flip the `chat_*` entries back to the Node relay by configuration alone before the compatibility layer is removed: the disabled Node game-relay halves SHALL be retained as a config-gated path until `remove-node-server-authority` (P11), and the config-only rollback guarantee SHALL explicitly expire at P11, when P11 deletes them; history accumulated on the Elixir side SHALL NOT be expected to survive the flip back (it is ephemeral on both sides), which the rollback documentation SHALL state honestly.
 
 #### Scenario: Router flip is invisible to compliant clients
 

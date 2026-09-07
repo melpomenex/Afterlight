@@ -44,17 +44,28 @@ function deltaFrame(seq, baseline, tick, rows) {
 }
 
 test('flags: defaults off; url overrides storage; binary gates the rest', () => {
-  const d = resolveFlagsFrom({});
-  assert.deepEqual(d, { realtime_binary: false, realtime_wasm: false, realtime_worker: false, renderer_webgpu_fastpath: false });
-  const s = resolveFlagsFrom({ storage: { getItem: () => JSON.stringify({ realtime_binary: true, realtime_worker: true }) } });
+  const d = resolveFlagsFrom({ env: {} });
+  assert.deepEqual(d, {
+    realtime_binary: false,
+    realtime_wasm: false,
+    realtime_worker: false,
+    renderer_webgpu_fastpath: false,
+    rt_entity_seam: false,
+  });
+  const s = resolveFlagsFrom({
+    env: {},
+    storage: { getItem: () => JSON.stringify({ realtime_binary: true, realtime_worker: true }) },
+  });
   assert.equal(s.realtime_binary, true);
   assert.equal(s.realtime_worker, true);
+  assert.equal(s.rt_entity_seam, true, 'entity seam follows binary');
   const both = resolveFlagsFrom({
+    env: {},
     search: '?rt_worker=0&rt_binary=1',
     storage: { getItem: () => JSON.stringify({ realtime_binary: true, realtime_worker: true }) },
   });
   assert.equal(both.realtime_worker, false, 'url overrides storage');
-  const gated = resolveFlagsFrom({ search: '?rt_wasm=1&rt_worker=1' });
+  const gated = resolveFlagsFrom({ env: {}, search: '?rt_wasm=1&rt_worker=1' });
   assert.equal(gated.realtime_wasm, false, 'wasm requires binary');
 });
 

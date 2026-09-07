@@ -22,10 +22,10 @@
 
 ## 3. Validation and review
 - [x] 3.1 `openspec validate` (strict) passes for the umbrella and all twelve subordinate changes
-- [ ] 3.2 Adversarial architecture review of all specs; gaps fixed (split-brain, dual writes, rollback honesty, client preservation)
+- [x] 3.2 Adversarial architecture review of all specs; gaps fixed (split-brain, dual writes, rollback honesty, client preservation)
 - [x] 3.3 Dependency ordering verified: 00→01→02→03→04→05→06→{07,10}; 07→08; 10→09; 09→11 (consistent DAG)
 
 ## 4. Implementation begins (this run's scope)
 - [x] 4.1 P0 implementation: fixture exporter, fixture sets, Elixir parity runner green
 - [x] 4.2 P1 implementation: `server_elixir/` app compiles and tests green; owns nothing
-- [ ] 4.3 P2+ implementation (future runs, in dependency order)
+- [x] 4.3 P2+ implementation begun (dependency order): P2 gateway transport + verification harnesses; P3 world room runtime; P4 accounts domain (Ash GuestSession/Player); P7 social chat relay on Phoenix. **Remaining:** P5 theater catalog, P6 gardens economy, P7 IRC sidecar adapter wiring, P8–P11 per ownership matrix.
