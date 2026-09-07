@@ -9,6 +9,14 @@ import { sanitizeMovement } from '../../shared/worldModel.js';
 import { EMOTES, isEmote, EMOTE_DURATION } from '../../shared/emotes.js';
 import { recordCall } from './harness.mjs';
 
+function emotesTable() {
+  return EMOTES;
+}
+
+function emoteDuration() {
+  return EMOTE_DURATION;
+}
+
 function build() {
   const cases = [];
 
@@ -94,14 +102,6 @@ function flushEntry(session) {
     sitting: !!session.sitting,
     airborne: !!session.airborne,
   };
-}
-
-function emotesTable() {
-  return EMOTES;
-}
-
-function emoteDuration() {
-  return EMOTE_DURATION;
 }
 
 export const worldCases = build();
