@@ -8,7 +8,7 @@
 - [x] 1.4 Protocol change lands (`add-realtime-binary-protocol`) with codecs + tests, no live wiring.
 - [x] 1.5 Decode change lands (`add-realtime-wasm-decoder`) with crate, fuzz, and wasm-vs-JS verdict.
 - [x] 1.6 Pipeline change lands (`add-realtime-worker-pipeline`) behind `realtime_worker`.
-- [ ] 1.7 Rendering change lands (`add-realtime-gpu-rendering`) behind `renderer_webgpu_fastpath` with visual-parity evidence.
+- [x] 1.7 Rendering change lands (`add-realtime-gpu-rendering`) behind `renderer_webgpu_fastpath` with visual-parity evidence.
 
 ## 2. Gates before any default flips (future change, out of scope here)
 
