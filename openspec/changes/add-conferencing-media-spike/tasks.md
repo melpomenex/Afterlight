@@ -1,13 +1,13 @@
 ## 1. Ash Conferencing domain (durable metadata)
 
 - [x] 1.1 Create the `Afterlight.Conferencing` Ash domain with `Call`, `CallMembership` and `MediaGrant` resources and migrations per design D9 (`calls`: room key, mode, status, max_participants, worker, created_by, timestamps; `call_memberships`: unique (call_id, player_id), state, joined/left timestamps; `media_grants`: jti, call_id, player_id, worker_id, can_publish_audio/video/screen, issued/expires/revoked timestamps, reason — grant tokens never persisted).
-- [ ] 1.2 Implement domain actions with policies: `authorize_join` (server-verified identity + room/call membership + moderation state + capacity check) and `issue_media_grant` (signed short-lived grant bound to call + participant + worker + per-track publish permissions), plus `revoke_grant`, `remove_participant` and `close_call`.
-- [ ] 1.3 Implement grant renewal (re-issue over the authorized topic while membership holds) and an expiry/reaper sweep that cleans abandoned grants, memberships and worker allocations.
-- [ ] 1.4 DB/unit tests: capacity boundary (8th in, 9th rejected), grant binding fields enforced, expiry honored, revocation recorded, leave/close idempotency, no grant tokens in any persisted column.
+- [x] 1.2 Implement domain actions with policies: `authorize_join` (server-verified identity + room/call membership + moderation state + capacity check) and `issue_media_grant` (signed short-lived grant bound to call + participant + worker + per-track publish permissions), plus `revoke_grant`, `remove_participant` and `close_call`.
+- [x] 1.3 Implement grant renewal (re-issue over the authorized topic while membership holds) and an expiry/reaper sweep that cleans abandoned grants, memberships and worker allocations.
+- [x] 1.4 DB/unit tests: capacity boundary (8th in, 9th rejected), grant binding fields enforced, expiry honored, revocation recorded, leave/close idempotency, no grant tokens in any persisted column.
 
 ## 2. SFU adapter and media worker
 
-- [ ] 2.1 Define the `Afterlight.Media.SFU` behaviour exposing `allocate_call`, `join`, `publish`, `subscribe`, `remove_participant`, `close_call` plus authenticated signaling callbacks; document it as the only media seam.
+- [x] 2.1 Define the `Afterlight.Media.SFU` behaviour exposing `allocate_call`, `join`, `publish`, `subscribe`, `remove_participant`, `close_call` plus authenticated signaling callbacks; document it as the only media seam.
 - [ ] 2.2 Implement the Membrane/ExWebRTC prototype behind the behaviour: Opus audio and agreed browser video codecs, audio-only operation, RTCP feedback and keyframe requests, bandwidth adaptation, and single screen-share lifecycle; pin tested OTP/Elixir/plugin versions in the implementation.
 - [ ] 2.3 Implement independent grant validation at the worker: verify signature, binding (call, participant, worker, permissions) and expiry on every allocate/join/publish/subscribe; reject forged IDs and SDP-without-grant; add a revocation check consulted on use.
 - [ ] 2.4 Run the media worker as a separate release with its own supervision and config; implement the regional allocator, admission control on projected egress and subscription count, and the four-camera-subscription receiver cap; one call per worker, never split.

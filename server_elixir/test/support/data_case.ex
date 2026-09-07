@@ -1,5 +1,8 @@
 defmodule Afterlight.DataCase do
-  @moduledoc false
+  @moduledoc """
+  SQL sandbox case for Ash/Postgres integration tests (accounts, conferencing).
+  """
+
   use ExUnit.CaseTemplate
 
   using do

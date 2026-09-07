@@ -32,6 +32,18 @@ config :afterlight, :gateway,
   # real-upstream tests are tagged :integration and excluded by default.
   upstream_adapter: GatewayTest.FakeUpstream
 
+# P8 conferencing — still flagged off (no call surface), but tests that
+# exercise the domain pass enabled?: true on the actor. Grant secret is
+# a test-only pin; never a real token material in logs.
+config :afterlight, :conferencing,
+  enabled: false,
+  grant_ttl_secs: 300,
+  reconnect_grace_secs: 30,
+  reaper_interval_ms: 60_000,
+  expiry_leeway_secs: 5,
+  default_max_participants: 8,
+  grant_secret: "afterlight-test-conferencing-grant-secret-not-for-prod-0000"
+
 # Real-Node integration tests run only when AFTERLIGHT_INTEGRATION=1.
 config :afterlight, :integration_tests, System.get_env("AFTERLIGHT_INTEGRATION") == "1"
 

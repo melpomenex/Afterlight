@@ -27,6 +27,7 @@ defmodule Afterlight.Application do
       # P3 world room runtime + P7 social chat (retained alongside P4 accounts).
       Afterlight.World.Supervisor,
       Afterlight.Social.Supervisor,
+      Afterlight.Conferencing.Reaper,
       AfterlightWeb.Endpoint
     ]
 

@@ -48,6 +48,7 @@ defmodule Afterlight.MixProject do
       {:ash, "~> 3.31.3"},
       {:ash_postgres, "~> 2.10.0"},
       {:ash_phoenix, "~> 2.3.24"},
+      # Ash.Policy.Authorizer needs a SAT solver; pure-Elixir, no NIF.
       {:simple_sat, "~> 0.1"},
       {:jason, "~> 1.4"},
       {:telemetry, "~> 1.4"},

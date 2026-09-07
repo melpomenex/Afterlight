@@ -1,15 +1,38 @@
 defmodule Afterlight.Conferencing.CallMembership do
-  @moduledoc """
-  Ash resource representing a participant's membership in a call.
-  Unique per (call_id, player_id).
-  """
+  @moduledoc "One player in one call. Unique on (call_id, player_id)."
+
   use Ash.Resource,
+    otp_app: :afterlight,
     domain: Afterlight.Conferencing,
-    data_layer: AshPostgres.DataLayer
+    data_layer: AshPostgres.DataLayer,
+    authorizers: [Ash.Policy.Authorizer]
 
   postgres do
     table "call_memberships"
     repo Afterlight.Repo
+  end
+
+  actions do
+    defaults [:read]
+
+    create :record do
+      primary? true
+      accept [:call_id, :player_id, :state, :joined_at, :left_at]
+      upsert? true
+      upsert_identity :unique_member
+      upsert_fields [:state, :joined_at, :left_at]
+    end
+
+    update :set_state do
+      accept [:state, :left_at]
+    end
+  end
+
+  policies do
+    policy always() do
+      forbid_unless actor_present()
+      authorize_if always()
+    end
   end
 
   attributes do
@@ -21,20 +44,18 @@ defmodule Afterlight.Conferencing.CallMembership do
     end
 
     attribute :state, :atom do
-      constraints [one_of: [:joined, :left, :removed]]
+      constraints one_of: [:joined, :left, :removed]
       default :joined
       allow_nil? false
       public? true
     end
 
     attribute :joined_at, :utc_datetime_usec do
-      default &DateTime.utc_now/0
       allow_nil? false
       public? true
     end
 
     attribute :left_at, :utc_datetime_usec do
-      allow_nil? true
       public? true
     end
 
@@ -46,35 +67,10 @@ defmodule Afterlight.Conferencing.CallMembership do
     belongs_to :call, Afterlight.Conferencing.Call do
       allow_nil? false
       attribute_writable? true
-      public? true
     end
   end
 
   identities do
-    identity :unique_call_player, [:call_id, :player_id]
-  end
-
-  actions do
-    defaults [:read, :destroy]
-
-    create :create do
-      primary? true
-      accept [:call_id, :player_id, :state, :joined_at, :left_at]
-    end
-
-    update :update do
-      primary? true
-      accept [:state, :left_at]
-    end
-
-    update :leave do
-      change set_attribute(:state, :left)
-      change set_attribute(:left_at, &DateTime.utc_now/0)
-    end
-
-    update :remove do
-      change set_attribute(:state, :removed)
-      change set_attribute(:left_at, &DateTime.utc_now/0)
-    end
+    identity :unique_member, [:call_id, :player_id]
   end
 end
