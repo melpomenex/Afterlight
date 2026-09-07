@@ -23,6 +23,12 @@ defmodule Afterlight.Application do
       AfterlightWeb.Telemetry,
       {Finch, name: Afterlight.Finch, pools: %{default: [count: 8, size: 32]}},
       {DynamicSupervisor, name: Afterlight.Gateway.ProxySupervisor},
+      # P3 world room runtime (add-world-room-runtime): Registry +
+      # DynamicSupervisor for per-room owner processes. Dormant until the
+      # gateway's world routing rows flip to :phoenix — rooms start lazily
+      # on first join and own nothing at boot.
+      Afterlight.World.Supervisor,
+      Afterlight.Social.Supervisor,
       AfterlightWeb.Endpoint
     ]
 

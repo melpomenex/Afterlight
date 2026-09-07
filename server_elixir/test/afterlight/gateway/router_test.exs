@@ -12,34 +12,111 @@ defmodule Afterlight.Gateway.RouterTest do
     epg_lookup ping
   )
 
+  @world_types ~w(join_room movement emote)
+
+  @base_routing %{
+    "ping" => :terminate_pong,
+    "join_room" => :node,
+    "movement" => :node,
+    "emote" => :node
+  }
+
+  @world_routing %{
+    "ping" => :terminate_pong,
+    "join_room" => :phoenix,
+    "movement" => :phoenix,
+    "emote" => :phoenix
+  }
+
   describe "disposition/1 — the P2 table (design D4)" do
     test "ping is terminated at the gateway" do
-      assert Router.disposition("ping") == :terminate_pong
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
+          assert Router.disposition("ping") == :terminate_pong
+          :ok
+        end)
     end
 
-    test "every game domain is relayed to Node" do
-      for type <- @catalog_types -- ["ping"] do
-        assert Router.disposition(type) == :node, "expected #{type} => :node"
-      end
+    test "every game domain is relayed to Node while the rows are :node" do
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
+          for type <- @catalog_types -- ["ping"] do
+            assert Router.disposition(type) == :node, "expected #{type} => :node"
+          end
+
+          :ok
+        end)
     end
 
     test "unknown types default to :node (Node ignores unknown types)" do
-      assert Router.disposition("hologram_deparse") == :node
-      assert Router.disposition("") == :node
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
+          assert Router.disposition("hologram_deparse") == :node
+          assert Router.disposition("") == :node
+          :ok
+        end)
     end
 
     test "non-binary input defaults to :node" do
       assert Router.disposition(nil) == :node
       assert Router.disposition(:hello) == :node
     end
+  end
 
-    test "a config row pointing at :phoenix still relays to Node while no Phoenix handler exists (P2)" do
+  describe "disposition/1 — the P3 verbatim contract (add-world-room-runtime)" do
+    test "a :phoenix routing row reports the configured owner verbatim" do
       :ok =
         GatewayTest.ConfigLock.with_lock(:routing, %{"theater_queue" => :phoenix, "ping" => :terminate_pong}, fn ->
-          # No Phoenix theater handler exists yet in P2: the row must not
-          # black-hole game traffic, so disposition stays :node.
-          assert Router.disposition("theater_queue") == :node
+          # P3 removed the P2 clamp (router moduledoc): disposition reports
+          # the row verbatim, so a :phoenix row without a live handler WOULD
+          # black-hole that traffic. That is why the world handler landed
+          # before the flip and the world rows default to :node.
+          assert Router.disposition("theater_queue") == :phoenix
           assert Router.disposition("ping") == :terminate_pong
+          :ok
+        end)
+    end
+
+    test "world rows default to :node in the base config (runtime dormant)" do
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
+          for type <- @world_types do
+            assert Router.disposition(type) == :node, "expected #{type} => :node by default"
+          end
+
+          assert Router.world_owner() == :node
+          refute Router.world_phx?()
+          :ok
+        end)
+    end
+
+    test "world_owner/0 and world_phx?/0 track the join_room routing row" do
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @world_routing, fn ->
+          assert Router.world_owner() == :phoenix
+          assert Router.world_phx?() == true
+
+          for type <- @world_types do
+            assert Router.disposition(type) == :phoenix, "expected #{type} => :phoenix when flipped"
+          end
+
+          :ok
+        end)
+    end
+
+    test "flipping back to :node restores the dormant posture in both directions" do
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @world_routing, fn ->
+          assert Router.world_phx?() == true
+          :ok
+        end)
+
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
+          # Rollback: suppression and the flip are keyed on the SAME row, so
+          # they toggle together in this direction too (design D6).
+          assert Router.world_owner() == :node
+          refute Router.world_phx?()
           :ok
         end)
     end
@@ -50,6 +127,57 @@ defmodule Afterlight.Gateway.RouterTest do
       assert Router.dispatch("ping", %{"t" => 42}) == {:pong, 42}
       assert Router.dispatch("ping", %{t: "abc"}) == {:pong, "abc"}
       assert Router.dispatch("ping", %{}) == {:pong, nil}
+    end
+
+    test "world rows dispatch to the world runtime when flipped" do
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @world_routing, fn ->
+          assert {:world, "join_room", %{"roomId" => "market"}} =
+                   Router.dispatch("join_room", %{"roomId" => "market"})
+
+          assert {:world, "movement", %{"x" => 1.5}} = Router.dispatch("movement", %{"x" => 1.5})
+          assert {:world, "emote", %{"emote" => "wave"}} = Router.dispatch("emote", %{"emote" => "wave"})
+          :ok
+        end)
+    end
+
+    test "chat rows dispatch to the chat runtime when flipped" do
+      chat_routing = Map.merge(@base_routing, %{"chat_send" => :phoenix})
+
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, chat_routing, fn ->
+          assert Router.chat_owner() == :phoenix
+          assert Router.chat_phx?() == true
+
+          assert {:chat, "chat_send", %{"text" => "hello"}} =
+                   Router.dispatch("chat_send", %{"text" => "hello"})
+
+          :ok
+        end)
+    end
+
+    test "chat rows dispatch to the relay while dormant (:node)" do
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
+          assert Router.chat_owner() == :node
+          refute Router.chat_phx?()
+
+          assert {:relay, %{"type" => "chat_send", "text" => "hello"}} =
+                   Router.dispatch("chat_send", %{"text" => "hello"})
+
+          :ok
+        end)
+    end
+
+    test "world rows dispatch to the relay while dormant (:node)" do
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
+          assert {:relay, %{"type" => "join_room", "roomId" => "market"}} =
+                   Router.dispatch("join_room", %{"roomId" => "market"})
+
+          assert {:relay, %{"type" => "movement"}} = Router.dispatch("movement", nil)
+          :ok
+        end)
     end
 
     test "relay dispatch rebuilds the flat Node frame with string keys" do
