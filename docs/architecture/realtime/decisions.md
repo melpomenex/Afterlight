@@ -180,6 +180,17 @@ world's real ids so every row applies.)
 **Decision: NOT STARTED (deliberately).** Binary architecture must function
 over the established Phoenix/WS transport first, per program charter.
 
+## 7. Entity render backend (WebGPU fast path)
+
+**Decision: ADOPT SELECTIVELY — CPU seam ships; WebGPU backend UNPARKED for
+the harness only (headed n=50, both arms built); live default REJECT.**
+Full record: `docs/architecture/realtime/gpu-rendering.md` (change
+`add-realtime-gpu-rendering`). SwiftShader scatter remains FAILED (0/15);
+headed harness evidence is in
+`openspec/changes/add-realtime-gpu-rendering/evidence/harness-headed.json`.
+`renderer_webgpu_fastpath` stays harness-only and default OFF. Local player
+and Kiln stay on the traditional path.
+
 ## Interop verification
 
 `shared/realtime/roaring.js` (dependency-free) was cross-validated against

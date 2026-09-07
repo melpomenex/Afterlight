@@ -1,0 +1,16 @@
+{
+  "flagOn": false,
+  "gpuKind": "not-constructed",
+  "gpuRendererKind": "none",
+  "frames": {
+    "n": 50,
+    "count": 120,
+    "medianMs": 0,
+    "p95Ms": 0.10000002384185791,
+    "gpuKind": "not-constructed"
+  },
+  "booted": true,
+  "scene": "fifty",
+  "n": 50,
+  "lastCpuMs": 0
+}
