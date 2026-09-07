@@ -29,9 +29,9 @@
 
 ## 5. Elixir parity runner (executable once `add-elixir-phoenix-foundation` provides the Mix app)
 
-- [ ] 5.1 Create `server_elixir/test/parity/` with the `Afterlight.Parity` runner: loads `tests/fixtures/parity/manifest.json` + case files from the repo root (path resolved relative to the Mix project and taken from config), walks the manifest, dispatches fixture file → reference module, applies the numeric-tolerant / order-sensitive comparators, and fails with fixture file + case id on any mismatch.
-- [ ] 5.2 Implement the `Afterlight.Parity.Reference.*` ports for every pinned function plus the shared hazard helpers (`js_round/1` as floor(x + 0.5), `js_to_number/1`, UTF-16 code-unit truncation, 32-bit mask, `Date.UTC` rollover semantics); name and document them as test-side parity references, never authority.
-- [ ] 5.3 Wire the parity suite into `mix test` (config paths + test helper) and verify it is green against the committed fixtures from a clean checkout with no Node runtime available at test time.
+- [x] 5.1 Create `server_elixir/test/parity/` with the `Afterlight.Parity` runner: loads `tests/fixtures/parity/manifest.json` + case files from the repo root (path resolved relative to the Mix project and taken from config), walks the manifest, dispatches fixture file → reference module, applies the numeric-tolerant / order-sensitive comparators, and fails with fixture file + case id on any mismatch.
+- [x] 5.2 Implement the `Afterlight.Parity.Reference.*` ports for every pinned function plus the shared hazard helpers (`js_round/1` as floor(x + 0.5), `js_to_number/1`, UTF-16 code-unit truncation, 32-bit mask, `Date.UTC` rollover semantics); name and document them as test-side parity references, never authority.
+- [x] 5.3 Wire the parity suite into `mix test` (config paths + test helper) and verify it is green against the committed fixtures from a clean checkout with no Node runtime available at test time.
 
 ## 6. Verification
 
