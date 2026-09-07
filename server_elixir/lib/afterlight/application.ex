@@ -18,8 +18,9 @@ defmodule Afterlight.Application do
     Afterlight.Gateway.RateLimit.init()
 
     children = [
-      Afterlight.Repo,
-      {Phoenix.PubSub, name: Afterlight.PubSub},
+    Afterlight.Repo,
+    Afterlight.Accounts.Supervisor,
+    {Phoenix.PubSub, name: Afterlight.PubSub},
       AfterlightWeb.Telemetry,
       {Finch, name: Afterlight.Finch, pools: %{default: [count: 8, size: 32]}},
       {DynamicSupervisor, name: Afterlight.Gateway.ProxySupervisor},
