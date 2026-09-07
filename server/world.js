@@ -1,4 +1,5 @@
-import { MSG_TYPES, serialize } from '../shared/protocol.js';
+import { MSG_TYPES, serialize, ROOMS } from '../shared/protocol.js';
+import { sanitizeMovement } from '../shared/worldModel.js';
 
 export class WorldManager {
   constructor() {
@@ -87,26 +88,21 @@ export class WorldManager {
     });
   }
 
-  updateMovement(playerId, { x, z, rotY, walking, sitting, airborne }) {
+  updateMovement(playerId, pose) {
     const session = this.clients.get(playerId);
     if (!session) return;
 
     // Movement from a player without a room has nowhere to go; drop it.
     if (!session.currentRoom) return;
 
-    // Validate coordinates are finite
-    if (!Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(rotY)) {
+    // Validate coordinates are finite and coerce relay flags (pure rule in
+    // shared/worldModel.js — also the Node-baseline parity reference).
+    const sanitized = sanitizeMovement(pose);
+    if (!sanitized) {
       return;
     }
 
-    session.x = x;
-    session.z = z;
-    session.rotY = rotY;
-    session.walking = !!walking;
-    // Theater seats: additive presence flag, no persistence.
-    session.sitting = !!sitting;
-    // Jumping: additive presence flag like sitting — relayed, never stored.
-    session.airborne = !!airborne;
+    Object.assign(session, sanitized);
     session.moved = true;
     this.dirtyMovementRooms.add(session.currentRoom);
   }

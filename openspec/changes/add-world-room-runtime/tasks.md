@@ -16,6 +16,8 @@
 - [ ] 3.2 Implement the 100 ms flush tick per room: broadcast one FULL-roster `presence_update` with entries `{id, x, z, rotY, walking, sitting, airborne}` only when the room is dirty; no delta encoding.
 - [ ] 3.3 Bound per-transport outbound (config ceiling, informed by the P2 queue-depth telemetry): disconnect stalled consumers with a retryable reason once the bound is hit; clients resnapshot via desiredRoom replay; replace the documented P2 unbounded posture in the protocol catalog.
 
+- [ ] 3.4 Route all RoomServer outbound frames through `Afterlight.Realtime.FrameEncoder` with `Encoders.JSON` (D9): no frame construction in channel handlers; unit test that the emitted legacy `presence_update` shape is byte-equivalent to the catalog shape; leave `BinarySoA` + `hello.rt`/`welcome.rt` negotiation to the gated integration change (relay `hello.rt` verbatim, emit no `welcome.rt`).
+
 ## 4. Emotes and weather relay
 
 - [ ] 4.1 Implement emote handling in the RoomServer: 6-id allow-list matching `shared/emotes.js` (parity-checked against fixtures), 500 ms per-session cooldown, room-scoped `emote_broadcast {playerId, nickname, emote}`, silent rejection of unknown/spam emotes.
