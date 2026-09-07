@@ -44,10 +44,10 @@ defmodule Afterlight.Realtime.FrameEncoderTest do
     <<10::32-little, 20::32-little, 30::32-little, x1::32-float-little, _::binary>> = tpayload
     assert x1 == 1.0
 
-    # flags section
+    # flags section (columnar: id table, then one contiguous u8 column)
     <<6::8, 1::8, 0::16, 3::32-little, flen::32-little, fpayload::binary-size(flen)>> = rest
     assert flen == 3 * 4 + 3 * 1
-    <<10::32-little, 1::8, _::binary>> = fpayload
+    <<10::32-little, 20::32-little, 30::32-little, 1::8, 0::8, 4::8>> = fpayload
   end
 
   test "frame decodes back to the same semantic values (round-trip)" do
@@ -78,6 +78,8 @@ defmodule Afterlight.Realtime.FrameEncoderTest do
   test "encoders satisfy the behaviour" do
     assert Code.ensure_loaded?(BinarySoA)
     assert function_exported?(BinarySoA, :encode, 2)
+    # Elixir's built-in JSON module loads lazily — ensure_loaded? first.
+    assert Code.ensure_loaded?(JSON)
     assert function_exported?(JSON, :encode, 2)
     assert Enum.all?([BinarySoA, JSON], &implements_encode?/1)
   end
