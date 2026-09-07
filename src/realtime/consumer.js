@@ -10,6 +10,11 @@ export class PackConsumer {
     this.guestIds = new Map(); // entityId -> guestId string
     this._scratch = { id: 0, entityId: 0, x: 0, z: 0, rotY: 0, walking: false, sitting: false, airborne: false };
     this.lastPack = null;
+    // Optional EntityRenderBackend (see src/realtime/gpu/README.md). The live
+    // wireRealtime path does not attach one. Local player and Kiln stay on
+    // onEntry even when a backend is present.
+    this.entityBackend = handlers.entityBackend ?? null;
+    this.excludedIds = handlers.excludedIds ?? null;
   }
 
   consume(pack, core = null) {
@@ -36,6 +41,12 @@ export class PackConsumer {
       }
       this.handlers.onEntry?.(entry);
     }
+    // Seam: compact pack → backend (GPU or CPU). Exclusions are applied
+    // inside the backend so Kiln / local player never enter GPU buffers.
+    this.entityBackend?.applyDeltaPack?.(pack, {
+      guestIds: this.guestIds,
+      excludedIds: this.excludedIds,
+    });
   }
 
   reset() {

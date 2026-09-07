@@ -6,7 +6,9 @@
 // realtime_binary  — accept negotiated binary frames (decode via shared/realtime)
 // realtime_wasm    — prefer the WASM decoder when binary is on (JS decoder fallback)
 // realtime_worker  — decode in a Web Worker when binary is on (main-thread fallback)
-// renderer_webgpu_fastpath — experimental GPU entity backend (future change)
+// renderer_webgpu_fastpath — experimental GPU entity backend, harness-only.
+// Default OFF. The live renderer (main.js / wireRealtime) never constructs
+// WebGPUThreeBackend from this flag.
 
 const KEYS = ['realtime_binary', 'realtime_wasm', 'realtime_worker', 'renderer_webgpu_fastpath'];
 
