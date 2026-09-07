@@ -113,7 +113,11 @@ defmodule Afterlight.Gateway.NodeProxy do
       after
         timeout ->
           Process.demonitor(ref, [:flush])
-          Logger.warning("gateway proxy supersede timeout guest=#{guest_id} old=#{inspect(previous)}")
+
+          Logger.warning(
+            "gateway proxy supersede timeout guest=#{guest_id} old=#{inspect(previous)}"
+          )
+
           :ok
       end
     else
@@ -365,7 +369,10 @@ defmodule Afterlight.Gateway.NodeProxy do
       # Node drops malformed JSON (parses to null) and only ever sends
       # typed flat objects; junk is dropped, never forwarded.
       _ ->
-        Logger.warning("gateway relay dropped malformed upstream frame corr=#{state.correlation_id}")
+        Logger.warning(
+          "gateway relay dropped malformed upstream frame corr=#{state.correlation_id}"
+        )
+
         :ok
     end
   end

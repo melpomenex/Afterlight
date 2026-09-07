@@ -143,8 +143,18 @@ class FlatClient {
     }
   }
 
-  /** Resolves with the first frame matching predicate. */
-  waitFor(predicate, { timeoutMs = 6000, label = 'frame' } = {}) {
+  /**
+   * Resolves with the first frame matching predicate. Forward-only by
+   * default; `backlog: true` ALSO matches frames already received (needed
+   * once: the Node baseline emits `presence_join` at hello time while the
+   * world runtime emits it at join_room time — the trigger differs, the
+   * stream must converge).
+   */
+  waitFor(predicate, { timeoutMs = 6000, label = 'frame', backlog = false } = {}) {
+    if (backlog) {
+      const hit = this.frames.find(predicate);
+      if (hit) return Promise.resolve(hit);
+    }
     return new Promise((resolve, reject) => {
       const seen = [];
       if (!this.handlers.has('*')) this.handlers.set('*', []);
@@ -413,6 +423,7 @@ class Ledger {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const isFlag = (v) => typeof v === 'boolean';
+const samePos = (a, b) => typeof a === 'number' && typeof b === 'number' && Math.abs(a - b) < 1e-6;
 
 function fieldSetExact(obj, expected, label) {
   const keys = Object.keys(obj).sort();
@@ -495,14 +506,16 @@ async function runWorldLeg({ flavor, mk, ledger, worldOwner }) {
   };
 
   function normalizeActor(p) {
-    // Clamp both legs' coordinates into the walkable bounds BEFORE compare:
-    // the gateway runtime applies the documented tightening #1 (bounds
-    // clamp), Node does not — normalizing here makes the clamp the only
-    // declared difference instead of a diff failure. rotY/flags stay exact.
+    // Coordinates are normalized to typeof tokens in the DIFF: exact pose
+    // values are timing-dependent (which movement lands in which 100 ms
+    // tick) and the declared tightening #1 (bounds clamp) makes the probe
+    // pose legitimately differ. Exact-value assertions live per-leg instead
+    // (newest-burst pose, clamp/verbatim probe, roster/flush field sets).
+    // Flags stay EXACT: flag parity is a catalog requirement.
     return {
-      x: clamp(p.x, BOUNDS.xMin, BOUNDS.xMax),
-      z: clamp(p.z, BOUNDS.zMin, BOUNDS.zMax),
-      rotY: typeof p.rotY === 'number' ? p.rotY : 'nonnumber',
+      x: typeof p.x === 'number' ? 'num' : 'nonnum',
+      z: typeof p.z === 'number' ? 'num' : 'nonnum',
+      rotY: typeof p.rotY === 'number' ? 'num' : 'nonnum',
       walking: isFlag(p.walking) ? p.walking : 'notbool',
       sitting: isFlag(p.sitting) ? p.sitting : 'notbool',
       airborne: p.airborne === undefined ? 'ABSENT' : isFlag(p.airborne) ? p.airborne : 'notbool',
@@ -511,6 +524,11 @@ async function runWorldLeg({ flavor, mk, ledger, worldOwner }) {
 
   const clamp = (v, min, max) => (typeof v === 'number' ? (v < min ? min : v > max ? max : v) : 'nonnumber');
 
+  // A roster frame's entries carry the JOIN shape (nickname present, no
+  // airborne); a 10 Hz flush entry carries airborne and no nickname. The
+  // predicates below pin roster-ness so a flush can never satisfy them.
+  const isJoinShaped = (p) => p && p.nickname !== undefined && p.airborne === undefined;
+
   // --- clients -------------------------------------------------------------
   const obs = await mk(obsId, obsNick);
   tap(obs);
@@ -518,15 +536,17 @@ async function runWorldLeg({ flavor, mk, ledger, worldOwner }) {
   tap(main);
 
   try {
-    // 1. hello → welcome; identity continuity (guestId verbatim).
+    // 1. observer: hello → welcome; join market; settle a KNOWN pose so
+    //    both legs' rosters list the observer at identical coordinates
+    //    (Node sessions spawn at (0,3), world members at the origin).
     const obsWelcome = await obs.waitFor((f) => f.type === 'welcome', { label: 'observer welcome' });
     ledger.pass(`${flavor}: observer hello → welcome`, `weather=${obsWelcome.weather}`);
-
-    // 2. observer joins market first (roster probe target).
     obs.push('join_room', { roomId: 'market' });
     await obs.waitFor((f) => f.type === 'presence_update' && Array.isArray(f.players), { label: 'observer market roster' });
+    obs.push('movement', { x: 5.5, z: 2.5, rotY: 0.5, walking: false, sitting: false, airborne: false });
+    await sleep(150); // let the pose land before anyone reads a roster
 
-    // 3. main hello → welcome; guestId continuity on this path.
+    // 2. main hello → welcome; guestId continuity on this path.
     const welcome = await main.waitFor((f) => f.type === 'welcome', { label: 'main welcome' });
     if (welcome.player?.id === mainId) ledger.pass(`${flavor}: hello guestId adopted verbatim (welcome.player.id)`);
     else ledger.fail(`${flavor}: hello guestId adopted verbatim (welcome.player.id)`, `got ${JSON.stringify(welcome.player?.id)}`);
@@ -537,24 +557,33 @@ async function runWorldLeg({ flavor, mk, ledger, worldOwner }) {
     if (missingSnap.length === 0) ledger.pass(`${flavor}: welcome carries all Node snapshot fields`);
     else ledger.fail(`${flavor}: welcome carries all Node snapshot fields`, `missing ${missingSnap.join(',')}`);
 
-    // 4. join market: roster to joiner (JOIN shape), presence_join to room.
+    // The Node baseline auto-joins market at hello; the world runtime joins
+    // at join_room. Move BEFORE the explicit join so both legs' presence
+    // payloads about MAIN carry the same last-known pose.
+    main.push('movement', { x: -2.5, z: 4.5, rotY: 0.25, walking: false, sitting: false, airborne: false });
+    await sleep(120);
+
+    // 3. join market: roster to the joiner (JOIN shape), presence_join to
+    //    the room (joiner excluded — asserted by frame shape below).
     main.push('join_room', { roomId: 'market' });
     const roster = await main.waitFor(
-      (f) => f.type === 'presence_update' && Array.isArray(f.players) && f.players.some((p) => p.id === obsId),
-      { label: 'roster containing observer' },
+      (f) => f.type === 'presence_update' && Array.isArray(f.players) && f.players.some((p) => p.id === obsId && isJoinShaped(p)),
+      { label: 'joiner roster with a join-shaped observer entry' },
     );
     const obsEntry = roster.players.find((p) => p.id === obsId);
+    if (samePos(obsEntry.x, 5.5) && samePos(obsEntry.z, 2.5)) ledger.pass(`${flavor}: roster lists the observer at its last-known pose`, 'x=5.5 z=2.5');
+    else ledger.fail(`${flavor}: roster lists the observer at its last-known pose`, `x=${obsEntry.x} z=${obsEntry.z}`);
     const rosterShapeErr = fieldSetExact(obsEntry, JOIN_SHAPE, 'join-roster entry');
     if (!rosterShapeErr) ledger.pass(`${flavor}: joiner roster entry is the join shape {${JOIN_SHAPE.join(',')}}`);
     else ledger.fail(`${flavor}: joiner roster entry is the join shape`, rosterShapeErr);
 
-    const pjoin = await obs.waitFor((f) => f.type === 'presence_join' && f.player?.id === mainId, { label: 'observer presence_join for main' });
+    const pjoin = await obs.waitFor((f) => f.type === 'presence_join' && f.player?.id === mainId, { label: 'observer presence_join for main', backlog: true });
     const pjoinErr = fieldSetExact(pjoin.player, JOIN_SHAPE, 'presence_join player');
-    if (!pjoinErr) ledger.pass(`${flavor}: presence_join carries the join shape, joiner excluded from echo`);
+    if (!pjoinErr) ledger.pass(`${flavor}: presence_join carries the join shape`);
     else ledger.fail(`${flavor}: presence_join carries the join shape`, pjoinErr);
 
-    // 5. movement burst (5 poses, ≥80 ms apart like the client throttle):
-    //    at most ONE entry per actor per flush, newest pose survives.
+    // 4. movement burst (5 poses): at most ONE entry per actor per flush,
+    //    the NEWEST pose survives (coalescing by overwrite).
     const burst = [1, 2, 3, 4, 5].map((i) => ({ x: i * 0.5, z: -1 - i * 0.25, rotY: 0.1 * i, walking: true, sitting: false, airborne: false }));
     main.push('movement', burst[0]);
     await sleep(90);
@@ -564,7 +593,7 @@ async function runWorldLeg({ flavor, mk, ledger, worldOwner }) {
     }
     const last = burst[burst.length - 1];
     const flush = await obs.waitFor(
-      (f) => f.type === 'presence_update' && f.players?.some((p) => p.id === mainId && p.x === last.x && p.z === last.z),
+      (f) => f.type === 'presence_update' && f.players?.some((p) => p.id === mainId && samePos(p.x, last.x) && samePos(p.z, last.z)),
       { label: 'flush carrying the newest burst pose', timeoutMs: 4000 },
     );
     const mainFlushEntries = flush.players.filter((p) => p.id === mainId);
@@ -576,9 +605,12 @@ async function runWorldLeg({ flavor, mk, ledger, worldOwner }) {
     if (flush.players.some((p) => p.id === obsId)) ledger.pass(`${flavor}: flush is a FULL roster snapshot (all members listed)`);
     else ledger.fail(`${flavor}: flush is a FULL roster snapshot (all members listed)`);
 
-    // 6. duplicate join_room: presence no-op, roster still returned.
+    // 5. duplicate join_room: presence no-op, roster still returned.
     main.push('join_room', { roomId: 'market' });
-    await main.waitFor((f) => f.type === 'presence_update' && Array.isArray(f.players), { label: 'roster re-ack on duplicate join' });
+    await main.waitFor(
+      (f) => f.type === 'presence_update' && Array.isArray(f.players) && f.players.some((p) => p.id === obsId && isJoinShaped(p)),
+      { label: 'roster re-ack on duplicate join' },
+    );
     const churn = await obs.collectFor((f) => (f.type === 'presence_join' || f.type === 'presence_leave') && (f.player?.id === mainId || f.playerId === mainId), 450);
     if (churn.length === 0) ledger.pass(`${flavor}: duplicate join_room is a presence no-op`);
     else ledger.fail(`${flavor}: duplicate join_room is a presence no-op`, `observer saw ${churn.map((f) => f.type).join(',')}`);
@@ -653,15 +685,19 @@ async function runWorldLeg({ flavor, mk, ledger, worldOwner }) {
     //    roster-then-snapshots ordering at the joiner.
     main.push('join_room', { roomId: 'theater' });
     await main.waitFor(
-      (f) => f.type === 'presence_update' && Array.isArray(f.players) && f.players.some((p) => p.id === obsId),
-      { label: 'theater roster containing observer', timeoutMs: 5000 },
+      (f) => f.type === 'presence_update' && Array.isArray(f.players) && f.players.some((p) => p.id === obsId && isJoinShaped(p)),
+      { label: 'theater roster with a join-shaped observer entry', timeoutMs: 5000 },
     );
-    const tState = await main.waitFor((f) => f.type === 'theater_state', { label: 'theater_state snapshot' });
-    const iState = await main.waitFor((f) => f.type === 'iptv_state', { label: 'iptv_state snapshot' });
+    const tState = await main.waitFor((f) => f.type === 'theater_state', { label: 'theater_state snapshot', timeoutMs: 5000 });
+    const iState = await main.waitFor((f) => f.type === 'iptv_state', { label: 'iptv_state snapshot', timeoutMs: 5000 });
     if (tState && iState) {
+      // The last JOIN-SHAPED roster before the first theater_state must be
+      // the travel roster (flush entries carry no nickname and never match).
       const theaterIdx = main.frames.findIndex((f) => f.type === 'theater_state');
-      const lastRosterBefore = main.frames.map((f) => f.type).lastIndexOf('presence_update', theaterIdx);
-      if (lastRosterBefore !== -1 && lastRosterBefore < theaterIdx)
+      const lastRosterBefore = main.frames.findIndex(
+        (f, i) => i < theaterIdx && f.type === 'presence_update' && f.players?.some((p) => p.id === obsId && isJoinShaped(p)),
+      );
+      if (lastRosterBefore !== -1)
         ledger.pass(`${flavor}: join ordering — roster presence_update before Node snapshots`);
       else ledger.fail(`${flavor}: join ordering — roster presence_update before Node snapshots`);
     }
@@ -673,7 +709,10 @@ async function runWorldLeg({ flavor, mk, ledger, worldOwner }) {
 
     // 10. observer follows to theater so the reconnect rejoin is observable.
     obs.push('join_room', { roomId: 'theater' });
-    await obs.waitFor((f) => f.type === 'presence_update' && f.players?.some((p) => p.id === mainId), { label: 'observer theater roster containing main', timeoutMs: 5000 });
+    await obs.waitFor(
+      (f) => f.type === 'presence_update' && Array.isArray(f.players) && f.players.some((p) => p.id === mainId && isJoinShaped(p)),
+      { label: 'observer theater roster containing main', timeoutMs: 5000 },
+    );
 
     // 11. forced disconnect: exactly one presence_leave, no ghost.
     main.close();
@@ -692,7 +731,7 @@ async function runWorldLeg({ flavor, mk, ledger, worldOwner }) {
       ledger.pass(`${flavor}: reconnect keeps guestId continuity (fresh welcome.player.id matches)`);
     again.push('join_room', { roomId: 'theater' }); // desiredRoom replay
     const reRoster = await again.waitFor(
-      (f) => f.type === 'presence_update' && Array.isArray(f.players) && f.players.some((p) => p.id === obsId),
+      (f) => f.type === 'presence_update' && Array.isArray(f.players) && f.players.some((p) => p.id === obsId && isJoinShaped(p)),
       { label: 'fresh roster after desiredRoom replay', timeoutMs: 5000 },
     );
     const reObsEntries = reRoster.players.filter((p) => p.id === obsId);
