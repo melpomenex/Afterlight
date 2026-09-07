@@ -29,6 +29,18 @@ config :afterlight, AfterlightWeb.Endpoint,
 # deterministic values in test.exs, which is why this block is skipped
 # under :test — runtime.exs evaluates after per-env configs).
 if config_env() != :test do
+  conferencing_secret =
+    System.get_env("AFTERLIGHT_CONFERENCING_GRANT_SECRET") ||
+      if config_env() == :prod do
+        nil
+      else
+        "afterlight-dev-only-conferencing-grant-secret-not-for-prod-2222"
+      end
+
+  config :afterlight, :conferencing,
+    enabled: System.get_env("AFTERLIGHT_CONFERENCING") == "1",
+    grant_secret: conferencing_secret
+
   token_secret =
     System.get_env("AFTERLIGHT_TOKEN_SECRET") ||
       if config_env() == :prod do

@@ -23,6 +23,7 @@ defmodule Afterlight.Application do
       AfterlightWeb.Telemetry,
       {Finch, name: Afterlight.Finch, pools: %{default: [count: 8, size: 32]}},
       {DynamicSupervisor, name: Afterlight.Gateway.ProxySupervisor},
+      Afterlight.Conferencing.Reaper,
       AfterlightWeb.Endpoint
     ]
 

@@ -5,7 +5,19 @@ config :afterlight,
   # Repo-root-relative path to the parity fixture corpus exported by
   # scripts/export-parity-fixtures.mjs (P0).
   parity_fixtures_path: "../tests/fixtures/parity",
-  ecto_repos: [Afterlight.Repo]
+  ecto_repos: [Afterlight.Repo],
+  ash_domains: [Afterlight.Conferencing]
+
+# P8 conferencing spike — OFF by default. Enabling this must not change
+# game rooms, economy, theater playback, or watch-together.
+config :afterlight, :conferencing,
+  enabled: false,
+  grant_ttl_secs: 300,
+  reconnect_grace_secs: 30,
+  reaper_interval_ms: 60_000,
+  expiry_leeway_secs: 5,
+  default_max_participants: 8,
+  grant_secret: nil
 
 # P2 gateway transport (add-phoenix-gateway-transport). Compile-time
 # defaults only — every secret/env read lives in runtime.exs; test.exs
