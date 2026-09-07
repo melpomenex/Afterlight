@@ -14,7 +14,8 @@ defmodule Afterlight.Gateway.NodeProxyTest do
       DynamicSupervisor.start_child(Afterlight.Gateway.ProxySupervisor, %{
         id: {NodeProxy, make_ref()},
         start:
-          {NodeProxy, :start_link, [[guest_id: guest_id, channel_pid: channel_pid, adapter: adapter]]},
+          {NodeProxy, :start_link,
+           [[guest_id: guest_id, channel_pid: channel_pid, adapter: adapter]]},
         restart: :temporary
       })
 

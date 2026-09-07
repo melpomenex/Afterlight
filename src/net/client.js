@@ -135,6 +135,10 @@ export class NetworkClient {
   }
 
   connect() {
+    // Terminal close (D8): a superseded transport stays dead — scheduleReconnect
+    // already refuses to retry, and nothing else may reopen the race from this
+    // session either. A reload constructs a fresh client and starts a new race.
+    if (this.superseded) return;
     if (this.transport.isOpen() || this.transport.isConnecting()) return;
     this.transport.connect();
   }

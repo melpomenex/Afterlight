@@ -66,15 +66,19 @@ defmodule Afterlight.Gateway.RouterTest do
   describe "disposition/1 — the P3 verbatim contract (add-world-room-runtime)" do
     test "a :phoenix routing row reports the configured owner verbatim" do
       :ok =
-        GatewayTest.ConfigLock.with_lock(:routing, %{"theater_queue" => :phoenix, "ping" => :terminate_pong}, fn ->
-          # P3 removed the P2 clamp (router moduledoc): disposition reports
-          # the row verbatim, so a :phoenix row without a live handler WOULD
-          # black-hole that traffic. That is why the world handler landed
-          # before the flip and the world rows default to :node.
-          assert Router.disposition("theater_queue") == :phoenix
-          assert Router.disposition("ping") == :terminate_pong
-          :ok
-        end)
+        GatewayTest.ConfigLock.with_lock(
+          :routing,
+          %{"theater_queue" => :phoenix, "ping" => :terminate_pong},
+          fn ->
+            # P3 removed the P2 clamp (router moduledoc): disposition reports
+            # the row verbatim, so a :phoenix row without a live handler WOULD
+            # black-hole that traffic. That is why the world handler landed
+            # before the flip and the world rows default to :node.
+            assert Router.disposition("theater_queue") == :phoenix
+            assert Router.disposition("ping") == :terminate_pong
+            :ok
+          end
+        )
     end
 
     test "world rows default to :node in the base config (runtime dormant)" do
@@ -97,7 +101,8 @@ defmodule Afterlight.Gateway.RouterTest do
           assert Router.world_phx?() == true
 
           for type <- @world_types do
-            assert Router.disposition(type) == :phoenix, "expected #{type} => :phoenix when flipped"
+            assert Router.disposition(type) == :phoenix,
+                   "expected #{type} => :phoenix when flipped"
           end
 
           :ok
@@ -136,7 +141,10 @@ defmodule Afterlight.Gateway.RouterTest do
                    Router.dispatch("join_room", %{"roomId" => "market"})
 
           assert {:world, "movement", %{"x" => 1.5}} = Router.dispatch("movement", %{"x" => 1.5})
-          assert {:world, "emote", %{"emote" => "wave"}} = Router.dispatch("emote", %{"emote" => "wave"})
+
+          assert {:world, "emote", %{"emote" => "wave"}} =
+                   Router.dispatch("emote", %{"emote" => "wave"})
+
           :ok
         end)
     end
@@ -181,7 +189,9 @@ defmodule Afterlight.Gateway.RouterTest do
     end
 
     test "relay dispatch rebuilds the flat Node frame with string keys" do
-      assert {:relay, frame} = Router.dispatch("movement", %{"x" => 1.5, "z" => -2.0, "walking" => true})
+      assert {:relay, frame} =
+               Router.dispatch("movement", %{"x" => 1.5, "z" => -2.0, "walking" => true})
+
       assert frame == %{"type" => "movement", "x" => 1.5, "z" => -2.0, "walking" => true}
     end
 
