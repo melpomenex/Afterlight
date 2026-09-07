@@ -12,6 +12,8 @@ P2 (add-phoenix-gateway-transport) put the existing client's traffic through the
 
 Client contract constraints: room-id strings (`market`, `theater`, `garden:<playerId>`, `foundry`, `trestle`, `frost-spire`) are on the wire; the snapshot ordering `join_room` → roster → room snapshots is load-bearing; Node gates `garden_action` (room ownership) and `node_harvest` (district match) on `session.currentRoom`, so Node must keep learning about room membership even after the world flip. `runtime.md` prescribes Registry + DynamicSupervisor + room owner GenServers, bounded mailboxes, newest-movement-per-actor coalescing, and Presence-for-coarse-membership-only-if-adopted.
 
+The parallel (now-archived) `add-realtime-binary-protocol` change ships an additive binary data plane (`afterlight-soa-v1`): pure codecs in `shared/realtime/`, the `Afterlight.Realtime.FrameEncoder` behaviour with `Encoders.JSON`/`Encoders.BinarySoA`, and capability-negotiation fields (`hello.rt` / `welcome.rt`) specified but deliberately not wired into live traffic. This change consumes that seam.
+
 ## Goals / Non-Goals
 
 **Goals**
@@ -94,3 +96,7 @@ Client contract constraints: room-id strings (`market`, `theater`, `garden:<play
 4. Exit gate: two clients see equivalent state, reconnect resnapshots, no mailbox growth; ownership matrix rows #3/#4 annotated as delivered (#22 weather stays Node until the P6 group flip).
 
 Phase gate (exit P3): supervised rooms own movement/membership/emotes; reconnect resnapshots; no unbounded mailbox growth; Node keeps every durable domain, the chat relay, and weather.
+
+### D9 — Emission goes through the FrameEncoder behaviour; binary fanout stays a config flip away (reconciliation with add-realtime-binary-protocol)
+*Decision:* RoomServer outbound frames (join rosters, flushes, presence events) are produced through `Afterlight.Realtime.FrameEncoder` with `Encoders.JSON` selected unconditionally in P3 — its output is the legacy `presence_update` shape, so the frozen catalog and non-negotiating clients are untouched. P3 relays any client-sent `hello.rt` field verbatim (additive, Node ignores it) but emits no `welcome.rt` and no binary frames: per that change's own gate, live binary adoption (negotiation + delta extraction + the BinarySoA flip behind config) is a separate gated change built on P3's room runtime.
+*Alternative Considered:* (a) Wiring BinarySoA fanout for negotiating clients now — rejected: stacks a wire-format change onto a runtime-ownership change and doubles the P3 gate. (b) Hand-building frames in the RoomServer and bolting the encoder on later — rejected: the whole point of the behaviour is that channel handlers never touch frame construction; retrofitting ownership code is costlier than starting on the seam.
