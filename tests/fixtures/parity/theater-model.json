@@ -400,6 +400,62 @@
       }
     },
     {
+      "id": "classify/data_text_html_boom",
+      "fn": "classifySource",
+      "args": [
+        "data:text/html,boom"
+      ],
+      "expected": null
+    },
+    {
+      "id": "classify/javascript_void_0_",
+      "fn": "classifySource",
+      "args": [
+        "javascript:void(0)"
+      ],
+      "expected": null
+    },
+    {
+      "id": "classify/file_etc_passwd",
+      "fn": "classifySource",
+      "args": [
+        "file:///etc/passwd"
+      ],
+      "expected": null
+    },
+    {
+      "id": "classify/https_www.youtube.com_watch_v_toolongvid",
+      "fn": "classifySource",
+      "args": [
+        "https://www.youtube.com/watch?v=toolongvideoid12345"
+      ],
+      "expected": {
+        "kind": "youtube",
+        "url": "https://www.youtube.com/watch?v=toolongvideoid12345",
+        "videoId": "toolongvideoid12345"
+      }
+    },
+    {
+      "id": "classify/https_www.youtube.com_watch_v_",
+      "fn": "classifySource",
+      "args": [
+        "https://www.youtube.com/watch?v="
+      ],
+      "expected": null
+    },
+    {
+      "id": "classify/https_player.vimeo.com_video_123456789",
+      "fn": "classifySource",
+      "args": [
+        "https://player.vimeo.com/video/123456789"
+      ],
+      "expected": {
+        "kind": "vimeo",
+        "url": "https://player.vimeo.com/video/123456789",
+        "videoId": "123456789"
+      }
+    },
+    {
       "id": "reducer/seed-state",
       "kind": "script",
       "steps": [
@@ -1354,6 +1410,860 @@
       }
     },
     {
+      "id": "reducer/addMany-with-didNotFit",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": {
+            "id": "<gen:0>",
+            "kind": "file",
+            "url": "https://example.com/media/clip.mp4",
+            "videoId": null,
+            "title": "A video link",
+            "playing": true,
+            "positionSec": 0,
+            "updatedAt": 1700000000000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": [
+            {
+              "id": "<gen:1>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=0",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:2>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=1",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:3>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=2",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:4>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=3",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:5>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=4",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:6>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=5",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:7>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=6",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:8>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=7",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:9>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=8",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:10>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=9",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:11>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=10",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:12>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=11",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:13>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=12",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:14>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=13",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:15>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=14",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:16>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=15",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:17>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=16",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:18>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=17",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:19>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=18",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:20>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=19",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:21>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=20",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:22>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=21",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:23>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=22",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:24>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=23",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:25>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=24",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:26>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=25",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:27>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=26",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:28>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=27",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:29>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=28",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:30>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=29",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:31>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=30",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:32>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=31",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:33>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=32",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:34>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=33",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:35>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=34",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:36>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=35",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:37>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=36",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:38>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=37",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:39>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=38",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:40>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=39",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:41>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=40",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:42>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=41",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:43>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=42",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:44>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=43",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:45>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=44",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:46>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=45",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:47>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=46",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:48>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=47",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:49>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=48",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            }
+          ]
+        },
+        {
+          "op": "addMany",
+          "items": [
+            {
+              "url": "https://example.com/media/clip.mp4?v=fit"
+            },
+            {
+              "url": "https://example.com/media/clip.mp4?v=overflow1"
+            },
+            {
+              "url": "https://example.com/media/clip.mp4?v=overflow2"
+            }
+          ]
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "state": {
+          "now": {
+            "id": "<gen:0>",
+            "kind": "file",
+            "url": "https://example.com/media/clip.mp4",
+            "videoId": null,
+            "title": "A video link",
+            "playing": true,
+            "positionSec": 0,
+            "updatedAt": 1700000000000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": [
+            {
+              "id": "<gen:1>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=0",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:2>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=1",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:3>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=2",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:4>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=3",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:5>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=4",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:6>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=5",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:7>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=6",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:8>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=7",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:9>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=8",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:10>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=9",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:11>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=10",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:12>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=11",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:13>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=12",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:14>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=13",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:15>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=14",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:16>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=15",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:17>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=16",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:18>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=17",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:19>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=18",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:20>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=19",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:21>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=20",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:22>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=21",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:23>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=22",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:24>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=23",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:25>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=24",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:26>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=25",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:27>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=26",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:28>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=27",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:29>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=28",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:30>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=29",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:31>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=30",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:32>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=31",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:33>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=32",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:34>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=33",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:35>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=34",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:36>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=35",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:37>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=36",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:38>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=37",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:39>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=38",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:40>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=39",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:41>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=40",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:42>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=41",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:43>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=42",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:44>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=43",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:45>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=44",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:46>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=45",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:47>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=46",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:48>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=47",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:49>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=48",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:50>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4?v=fit",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            }
+          ]
+        },
+        "error": null,
+        "report": {
+          "queued": 1,
+          "skipped": 0,
+          "didNotFit": 2
+        }
+      }
+    },
+    {
       "id": "reducer/remove-queued",
       "fn": "applyTheaterAction",
       "args": [
@@ -1417,6 +2327,77 @@
               "url": "https://example.com/media/clip.mp4",
               "videoId": null,
               "title": "A video link",
+              "queuedBy": "parity_actor"
+            }
+          ]
+        },
+        "error": null
+      }
+    },
+    {
+      "id": "reducer/remove-live",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": {
+            "id": "<gen:0>",
+            "kind": "youtube",
+            "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "videoId": "dQw4w9WgXcQ",
+            "title": "Never Gonna Give You Up",
+            "playing": true,
+            "positionSec": 0,
+            "updatedAt": 1700000000000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": [
+            {
+              "id": "<gen:1>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:2>",
+              "kind": "youtube",
+              "url": "https://youtu.be/abc12345678",
+              "videoId": "abc12345678",
+              "title": "Second",
+              "queuedBy": "parity_actor"
+            }
+          ]
+        },
+        {
+          "op": "remove",
+          "itemId": "<gen:0>"
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "state": {
+          "now": {
+            "id": "<gen:1>",
+            "kind": "file",
+            "url": "https://example.com/media/clip.mp4",
+            "videoId": null,
+            "title": "A video link",
+            "playing": true,
+            "positionSec": 0,
+            "updatedAt": 1700000000000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": [
+            {
+              "id": "<gen:2>",
+              "kind": "youtube",
+              "url": "https://youtu.be/abc12345678",
+              "videoId": "abc12345678",
+              "title": "Second",
               "queuedBy": "parity_actor"
             }
           ]
@@ -1552,6 +2533,54 @@
       }
     },
     {
+      "id": "reducer/playNow-missing",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": {
+            "id": "<gen:0>",
+            "kind": "youtube",
+            "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "videoId": "dQw4w9WgXcQ",
+            "title": "Never Gonna Give You Up",
+            "playing": true,
+            "positionSec": 0,
+            "updatedAt": 1700000000000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": [
+            {
+              "id": "<gen:1>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:2>",
+              "kind": "youtube",
+              "url": "https://youtu.be/abc12345678",
+              "videoId": "abc12345678",
+              "title": "Second",
+              "queuedBy": "parity_actor"
+            }
+          ]
+        },
+        {
+          "op": "playNow",
+          "itemId": "itm_nope"
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "state": null,
+        "error": "item_not_found"
+      }
+    },
+    {
       "id": "reducer/skip",
       "fn": "applyTheaterAction",
       "args": [
@@ -1619,6 +2648,25 @@
           ]
         },
         "error": null
+      }
+    },
+    {
+      "id": "reducer/skip-nothing-playing",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": null,
+          "queue": []
+        },
+        {
+          "op": "skip"
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "state": null,
+        "error": "nothing_playing"
       }
     },
     {
@@ -1880,6 +2928,25 @@
           ]
         },
         "error": null
+      }
+    },
+    {
+      "id": "reducer/resume-nothing-playing",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": null,
+          "queue": []
+        },
+        {
+          "op": "resume"
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000060000,
+      "expected": {
+        "state": null,
+        "error": "nothing_playing"
       }
     },
     {
@@ -2259,6 +3326,26 @@
       }
     },
     {
+      "id": "reducer/ended-nothing-playing",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": null,
+          "queue": []
+        },
+        {
+          "op": "ended",
+          "itemId": "itm_none"
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000060000,
+      "expected": {
+        "state": null,
+        "error": "nothing_playing"
+      }
+    },
+    {
       "id": "reducer/failed-advances",
       "fn": "applyTheaterAction",
       "args": [
@@ -2327,6 +3414,74 @@
           ]
         },
         "error": null
+      }
+    },
+    {
+      "id": "reducer/failed-wrong-id",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": {
+            "id": "<gen:0>",
+            "kind": "youtube",
+            "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "videoId": "dQw4w9WgXcQ",
+            "title": "Never Gonna Give You Up",
+            "playing": true,
+            "positionSec": 0,
+            "updatedAt": 1700000000000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": [
+            {
+              "id": "<gen:1>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:2>",
+              "kind": "youtube",
+              "url": "https://youtu.be/abc12345678",
+              "videoId": "abc12345678",
+              "title": "Second",
+              "queuedBy": "parity_actor"
+            }
+          ]
+        },
+        {
+          "op": "failed",
+          "itemId": "itm_stale"
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000060000,
+      "expected": {
+        "state": null,
+        "error": "item_mismatch"
+      }
+    },
+    {
+      "id": "reducer/failed-nothing-playing",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": null,
+          "queue": []
+        },
+        {
+          "op": "failed",
+          "itemId": "itm_none"
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000060000,
+      "expected": {
+        "state": null,
+        "error": "nothing_playing"
       }
     },
     {
@@ -2498,6 +3653,155 @@
       }
     },
     {
+      "id": "reducer/channel-torrent-no-pick",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": {
+            "id": "<gen:0>",
+            "kind": "youtube",
+            "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "videoId": "dQw4w9WgXcQ",
+            "title": "Never Gonna Give You Up",
+            "playing": true,
+            "positionSec": 0,
+            "updatedAt": 1700000000000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": [
+            {
+              "id": "<gen:1>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:2>",
+              "kind": "youtube",
+              "url": "https://youtu.be/abc12345678",
+              "videoId": "abc12345678",
+              "title": "Second",
+              "queuedBy": "parity_actor"
+            }
+          ]
+        },
+        {
+          "op": "channel",
+          "url": "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Sintel"
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000060000,
+      "expected": {
+        "state": null,
+        "error": "no_file_chosen"
+      }
+    },
+    {
+      "id": "reducer/channel-torrent-bad-pick-ext",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": {
+            "id": "<gen:0>",
+            "kind": "youtube",
+            "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "videoId": "dQw4w9WgXcQ",
+            "title": "Never Gonna Give You Up",
+            "playing": true,
+            "positionSec": 0,
+            "updatedAt": 1700000000000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": [
+            {
+              "id": "<gen:1>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:2>",
+              "kind": "youtube",
+              "url": "https://youtu.be/abc12345678",
+              "videoId": "abc12345678",
+              "title": "Second",
+              "queuedBy": "parity_actor"
+            }
+          ]
+        },
+        {
+          "op": "channel",
+          "url": "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Sintel",
+          "title": "Sintel",
+          "torrentName": "Sintel",
+          "fileIndex": 1,
+          "filePath": "Sintel/readme.txt",
+          "fileBytes": 1293149503
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000060000,
+      "expected": {
+        "state": null,
+        "error": "no_file_chosen"
+      }
+    },
+    {
+      "id": "reducer/channel-playlist-use-import",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": {
+            "id": "<gen:0>",
+            "kind": "youtube",
+            "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "videoId": "dQw4w9WgXcQ",
+            "title": "Never Gonna Give You Up",
+            "playing": true,
+            "positionSec": 0,
+            "updatedAt": 1700000000000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": [
+            {
+              "id": "<gen:1>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:2>",
+              "kind": "youtube",
+              "url": "https://youtu.be/abc12345678",
+              "videoId": "abc12345678",
+              "title": "Second",
+              "queuedBy": "parity_actor"
+            }
+          ]
+        },
+        {
+          "op": "channel",
+          "url": "https://www.youtube.com/playlist?list=PL1234567890abcdef"
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000060000,
+      "expected": {
+        "state": null,
+        "error": "use_import"
+      }
+    },
+    {
       "id": "reducer/channel-invalid",
       "fn": "applyTheaterAction",
       "args": [
@@ -2544,6 +3848,15 @@
         "state": null,
         "error": "invalid_url"
       }
+    },
+    {
+      "id": "reducer/new-item-id-pinned",
+      "fn": "newItemId",
+      "args": [
+        1700000000000
+      ],
+      "seed": 0.123456789,
+      "expected": "<gen:0>"
     },
     {
       "id": "reducer/lifecycle-add-pause-seek-ended",

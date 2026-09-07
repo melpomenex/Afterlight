@@ -16,27 +16,101 @@
 
 import { MSG_TYPES } from '../shared/protocol.js';
 
-const CHAT_HARD_LIMIT = 600; // raw submissions above this are rejected
-const CHAT_MAX_CHARS = 400; // sanitized messages are capped here
-const HISTORY_KEEP = 100; // ring buffer size
-const HISTORY_DELIVER = 50; // sent to each player on connect
-const DEFAULT_CHANNEL = '#afterlight';
+export const CHAT_HARD_LIMIT = 600; // raw submissions above this are rejected
+export const CHAT_MAX_CHARS = 400; // sanitized messages are capped here
+export const HISTORY_KEEP = 100; // ring buffer size
+export const HISTORY_DELIVER = 50; // sent to each player on connect
+export const DEFAULT_CHANNEL = '#afterlight';
 
-function cleanText(text) {
+export function cleanText(text) {
   return String(text ?? '')
     .replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, '') // control chars
     .replace(/[\r\n\t]+/g, ' ')
     .trim();
 }
 
+export function parseChat(rawText, { sender = '', players = [], ircNicks = [] } = {}) {
+  const text = typeof rawText === 'string' ? rawText : '';
+  if (!text.trim()) {
+    return { error: 'Say something first.' };
+  }
+  if (text.length > CHAT_HARD_LIMIT) {
+    return {
+      error: `That message is too long (${CHAT_MAX_CHARS} characters max).`,
+    };
+  }
+
+  const clean = cleanText(text).slice(0, CHAT_MAX_CHARS);
+  if (!clean) {
+    return { error: 'Say something first.' };
+  }
+
+  if (clean.startsWith('/')) {
+    const spaceIdx = clean.indexOf(' ');
+    const command = (spaceIdx === -1 ? clean : clean.slice(0, spaceIdx)).toLowerCase();
+    const args = spaceIdx === -1 ? '' : clean.slice(spaceIdx + 1).trim();
+
+    if (command === '/me') {
+      if (!args) {
+        return { error: 'Usage: /me <action>' };
+      }
+      return { kind: 'me', text: args };
+    }
+
+    if (command === '/msg' || command === '/query') {
+      const targetSpaceIdx = args.indexOf(' ');
+      const target = targetSpaceIdx === -1 ? args : args.slice(0, targetSpaceIdx);
+      const body = targetSpaceIdx === -1 ? '' : args.slice(targetSpaceIdx + 1).trim();
+      if (!target || !body) {
+        return { error: 'Usage: /msg <name> <message>' };
+      }
+
+      const senderLower = (sender || '').toLowerCase();
+      const targetLower = target.toLowerCase();
+
+      // Another online player (case-insensitive, not self)?
+      const matchedPlayer = players.find(
+        (p) => p.toLowerCase() === targetLower && p.toLowerCase() !== senderLower
+      );
+      if (matchedPlayer) {
+        return { kind: 'dm', target: matchedPlayer, targetKind: 'player', text: body };
+      }
+
+      // External IRC connection (not self)?
+      const matchedIrc = ircNicks.find(
+        (n) => n.toLowerCase() === targetLower && n.toLowerCase() !== senderLower
+      );
+      if (matchedIrc) {
+        return { kind: 'dm', target: matchedIrc, targetKind: 'irc', text: body };
+      }
+
+      return { error: `No one called ${target} is around right now.` };
+    }
+
+    if (command === '/help') {
+      return {
+        kind: 'help',
+        text: 'Commands: /msg <name> <text> whispers directly · /me <action> acts it out.',
+      };
+    }
+
+    return {
+      error: `Unknown command ${command}. Try /msg <name> <text> or /me <action>.`,
+    };
+  }
+
+  return { kind: 'message', text: clean };
+}
+
 export class ChatBridge {
-  constructor({ world, irc = null }) {
+  constructor({ world, irc = null, enabled = true }) {
     this.world = world;
     this.irc = irc;
+    this.enabled = Boolean(enabled);
     this.sessions = new Map(); // playerId -> { conn|null, player, ircNick }
     this.nickToPlayer = new Map(); // lower(ircNick) -> playerId
     this.history = []; // channel message ring buffer
-    this.unlisten = irc ? irc.onEvent((evt) => this.#onIrcEvent(evt)) : null;
+    this.unlisten = (irc && this.enabled) ? irc.onEvent((evt) => this.#onIrcEvent(evt)) : null;
   }
 
   /** Tear down subscriptions (used by tests / clean shutdown). */
@@ -48,6 +122,7 @@ export class ChatBridge {
   // --- player lifecycle -----------------------------------------------------
 
   playerConnected(playerId, player, session) {
+    if (!this.enabled) return;
     this.playerDisconnected(playerId); // defensive: stale session from a racing reconnect
 
     let entry = { conn: null, player, session, ircNick: player.nickname };
@@ -88,6 +163,7 @@ export class ChatBridge {
   }
 
   playerDisconnected(playerId) {
+    if (!this.enabled) return;
     const entry = this.sessions.get(playerId);
     if (!entry) return;
     this.sessions.delete(playerId);
@@ -105,6 +181,7 @@ export class ChatBridge {
   // --- outbound (game -> relay) ----------------------------------------------
 
   handlePlayerChat(playerId, rawText) {
+    if (!this.enabled) return;
     const entry = this.sessions.get(playerId);
     if (!entry) return;
 
@@ -238,6 +315,7 @@ export class ChatBridge {
   // --- inbound (relay -> game) -----------------------------------------------
 
   #onIrcEvent(evt) {
+    if (!this.enabled) return;
     if (evt.type === 'privmsg') {
       const fromPlayer = evt.conn.bridgeMeta?.playerId;
       const entry = fromPlayer ? this.sessions.get(fromPlayer) : null;

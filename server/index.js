@@ -60,7 +60,8 @@ export function createServer(customStorage = null, options = {}) {
   // on the IRC port) with the game world bridged into it. IRC_DISABLED=1
   // skips the TCP listener; the bridge then relays in-game only.
   const irc = new IrcServer();
-  const chat = new ChatBridge({ world, irc: irc.enabled ? irc : null });
+  const chatRelayEnabled = options.chatRelayEnabled ?? (process.env.CHAT_RELAY_DISABLED !== '1' && process.env.NODE_CHAT_RELAY !== '0');
+  const chat = new ChatBridge({ world, irc: irc.enabled ? irc : null, enabled: chatRelayEnabled });
   if (irc.enabled && irc.ready) {
     irc.ready.then(
       (port) => console.log(`Afterlight IRC relay listening on ${irc.host || '0.0.0.0'}:${port} (#afterlight)`),
