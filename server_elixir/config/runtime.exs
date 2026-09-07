@@ -20,6 +20,22 @@ secret_key_base =
 config :afterlight, AfterlightWeb.Endpoint,
   secret_key_base: secret_key_base,
   server: System.get_env("PHX_SERVER") == "true",
+  check_origin:
+    case System.get_env("PHX_CHECK_ORIGIN") do
+      "false" ->
+        false
+
+      origins when is_binary(origins) and origins != "" ->
+        origins |> String.split(",", trim: true)
+
+      _ ->
+        [
+          "//localhost:5173",
+          "//localhost:4173",
+          "//127.0.0.1:5173",
+          "//*.vercel.app"
+        ]
+    end,
   http: [
     ip:
       case System.get_env("PHX_IP") do
