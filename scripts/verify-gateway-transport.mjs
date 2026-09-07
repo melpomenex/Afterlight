@@ -219,8 +219,11 @@ try {
   assertEq(order.join(','), 'first,second', 'duplicate handlers fire in registration order');
   ok('ping → pong at gateway; duplicate onMessage wrappers run in order');
 
-  // Join market: B is already present so A's first join emits presence_join;
-  // a second join_room from A is a no-op for everyone else.
+  // hello already puts both actors in market. Move A out first so the
+  // subsequent market join is a real membership change for B.
+  const aLeft = a.col.wait((f) => f.type === 'theater_state', 'A leaves market via theater');
+  a.channel.push('join_room', { roomId: 'theater' });
+  await aLeft;
   const bRoster = b.col.wait(
     (f) => f.type === 'presence_update' && Array.isArray(f.players),
     'B market roster',
@@ -272,12 +275,13 @@ try {
   await bGround;
   ok('airborne true relays; omitted/false flag reads grounded for the peer');
 
-  // Self-echo identity: A still receives own roster row; client would filter
-  // with `p.id !== net.guestId` (src/main.js). Continuity is the contract.
-  const selfRoster = a.col.frames
-    .filter((f) => f.type === 'presence_update')
-    .some((f) => poseOf(f, 'guest_p2_alpha'));
-  assertOk(selfRoster, 'A receives own presence_update row (client self-filters by guestId)');
+  // Self-echo identity: join snapshots omit the joiner; the 10 Hz flush
+  // includes everyone. Wait for A's own row after the movement above.
+  await a.col.wait(
+    (f) => f.type === 'presence_update' && poseOf(f, 'guest_p2_alpha'),
+    'A own presence_update row',
+    12000,
+  );
   ok('self-echo filtering identity: guestId on welcome matches presence self row');
 
   // Chat both directions.

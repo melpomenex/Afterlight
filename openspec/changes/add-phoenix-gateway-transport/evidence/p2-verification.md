@@ -1,61 +1,72 @@
 # P2 verification evidence (`add-phoenix-gateway-transport`)
 
-Recorded by the remaining-verification pass (tasks 6.3–7.2). Honest: scripted clients, not two human browsers.
+Date: 2026-09-07. Branch: `cursor/p2-phoenix-verify-025d`. Honest: **scripted Phoenix clients**, not two human browsers.
 
-Environment (this run): Linux cloud agent, Node from `nvm`, Elixir 1.18.4 / OTP 27.3 via `elixir-lang.org/install.sh`, PostgreSQL 16 on `:5432` (`DATABASE_URL=ecto://afterlight:afterlight@127.0.0.1:5432/afterlight_*`). Repo HEAD at commit time is listed in the git log of this change branch.
+Environment: Linux cloud agent; Node 22; Elixir 1.18.4 / OTP 27.3 (`elixir-lang.org/install.sh`); PostgreSQL 16 on `:5432` (`DATABASE_URL=ecto://afterlight:afterlight@127.0.0.1:5432/afterlight_*`). No GUI browser.
 
-## 6.3 Two-browser Phoenix transport
+## 6.3 Two-browser Phoenix transport — **blocked / unchecked**
 
-**Not a two-browser run.** No GUI browsers in this environment.
+No two-browser session was run (no browser tooling in this agent).
 
-Automated stand-in: `node scripts/verify-gateway-transport.mjs` — two Phoenix Channels sessions through a real gateway (`mix phx.server`) and throwaway Node server.
+Automated stand-in **passed**: `node scripts/verify-gateway-transport.mjs` (exit 0, 14 `ok` lines, ~3 s after servers up).
 
-| Item | Automated? | Result |
-|---|---|---|
-| Join | yes (two guests) | pending this file's run log |
-| Travel between rooms | yes (market / theater / garden) | pending |
-| Emotes with remote rendering | wire `emote_broadcast` to the other session; **no Three.js pose** | pending |
-| Chat both directions | yes | pending |
-| Theater playback state | `theater_state` after `theater_channel`; **no DOM overlay / cinema CSS** | pending |
-| Garden join | `garden:<guestId>` → `garden_state` | pending |
-| Market actions | `market_buy` + `inventory_state` | pending |
-| Forced reconnect, desiredRoom, welcome, roster, no ghost | yes (scripted disconnect + re-hello) | pending |
-| Human two-browser visual equivalence | **blocked** | unchecked in tasks.md |
+```
+ok  proxied /api/health (gateway → boundary → Node)
+ok  two sessions: hello → welcome with guestId continuity
+ok  ping → pong at gateway; duplicate onMessage wrappers run in order
+ok  join market; duplicate join_room is a presence no-op
+ok  airborne true relays; omitted/false flag reads grounded for the peer
+ok  self-echo filtering identity: guestId on welcome matches presence self row
+ok  chat both directions through the relay
+ok  emote_broadcast relayed to the other session (remote rendering input)
+ok  theater join snapshots + shared theater_state after theater_channel
+ok  bare error {message} delivered flat (theaterScreen consumer shape)
+ok  garden:<guestId> join returns garden_state
+ok  market_buy applied through the proxy
+ok  reconnect: fresh welcome, exactly one self in roster (newest-wins)
+ok  rollback rehearsal: secret-less client → Node :ws still gets welcome
+P2 SCRIPT PASS: Phoenix two-client relay + §5 checks + Node rollback path.
+```
 
-## 6.4 Protocol-catalog §5 on the Phoenix path
+Still **not** verified: Three.js remote emote poses, cinema/homography overlay, two windows of equivalent pixels, click-to-walk, Kiln.
 
-Covered in the same script plus existing `tests/transport-adapter.test.js` (facade, Node default).
+## 6.4 Protocol-catalog §5 on the Phoenix path — **verified (scripted)**
 
-| §5 item | How | Result |
-|---|---|---|
-| Self-echo via guestId continuity | welcome.player.id === hello guestId; self row in presence_update | pending |
-| Duplicate-handler ordering | stacked `channel.onMessage` wrappers on pong | pending |
-| Airborne flag edge | peer sees `airborne: true` then grounded when flag omitted | pending |
-| `error` consumers | flat `{type:'error', message:'insufficient_coins'}` (theaterScreen reads `msg.message`) | pending |
-| Duplicate `join_room` no-op | second join does not emit another `presence_join` | pending |
+Same script, both sessions on `ws://127.0.0.1:4101/ws` with signed tokens.
 
-## 6.5 Load note
+| §5 item | Result |
+|---|---|
+| Self-echo / guestId continuity | welcome.player.id === hello guestId; A receives own row on 10 Hz flush (client would skip via `p.id !== net.guestId`) |
+| Duplicate-handler order | stacked `channel.onMessage` wrappers on gateway `pong` fired first then second |
+| Airborne flag | peer saw `airborne: true` then grounded when the field was omitted (`!!` coerce) |
+| Bare `error` | `{type:'error', message:'insufficient_coins'}` — same shape `theaterScreen.applyServerErrorMessage` reads |
+| Duplicate `join_room` | second market join did not emit another `presence_join` for A |
 
-**Unbounded send retained (P2):** documented in `docs/architecture/elixir/protocol-catalog.md` §2. Node `ws.send` has no `bufferedAmount` checks (`server/world.js`, `server/index.js`). `Afterlight.Gateway.NodeProxy` queues with `:queue` while connecting and never bounds it (design D7).
+Facade unit coverage remains in `tests/transport-adapter.test.js` (Node default transport). One of those tests failed in this environment: `facade: movement throttle caps at ~80ms spacing` (`0 !== 1`) because `lastMovementSend` starts at `0` and `performance.now() < 80` drops the first packet. Not fixed here (no NodeProxy/client rewrite).
 
-**Telemetry counter:** grep of `server_elixir/lib` found **no** `[:afterlight, :gateway, …]` / `queue_depth` execute. `AfterlightWeb.Telemetry` still only VM + Phoenix endpoint summaries. Task 6.5 is **not** fully met; NodeProxy was not edited (no P2 functional bug).
+## 6.5 Load note — **partial / unchecked**
 
-**Measurement:** `mix test` `NodeProxyTest` “outbound frames queue while the upstream is connecting, flush in order” — 2 frames accepted with zero upstream sends, then flushed in seq order after `announce`. That is connecting-queue growth, not a TCP stalled-consumer soak. A live stalled-socket byte-queue measurement was **not** taken.
+**Unbounded send retained:** recorded in `docs/architecture/elixir/protocol-catalog.md` §2. Node `ws.send` has no `bufferedAmount` checks. `NodeProxy` uses `:queue` with no cap while connecting (`flush_queue/1`). Bounding remains P3.
 
-## 6.6 Full-suite gate
+**Telemetry counter:** **not present.** `rg` over `server_elixir/lib` finds only `[:vm, :total_run_queue_lengths]`. No `[:afterlight, :gateway, :queue_depth]`. NodeProxy was not edited.
+
+**Measurement taken:** `mix test test/afterlight/gateway/node_proxy_test.exs` — 9 tests, 0 failures, including “outbound frames queue while the upstream is connecting, flush in order” (2 frames accepted with zero upstream sends, then flushed seq 1 then 2). That is connecting-queue growth, not a TCP stalled-consumer soak. No live `bufferedAmount` / mailbox-depth time series.
+
+## 6.6 Full-suite gate — **unchecked**
 
 | Command | Result |
 |---|---|
-| `npm test` | pending |
-| `mix test` (exclude integration) | pending |
-| Two-browser gate | **not recorded as pass** (scripted substitute only) |
+| `mix test` (exclude `:integration`) | **green**: 83 tests, 0 failures, 1 excluded (2026-09-07) |
+| `npm test` full | **not green here**: after `npm install`, `tests/torrents.test.js` hung (webtorrent); killed after 10+ min. Without phoenix installed, 244 tests / 7 fail (`phoenix` missing + `engine_unavailable`). |
+| `node --test` excluding `torrents.test.js` | 229 tests, **1 fail** (movement throttle, above) |
+| Two-browser P2 exit | **not recorded** |
 
-## 7.2 Rollback
+## 7.2 Rollback — **verified (docs + scripted rehearsal)**
 
-Documented in:
+Docs:
 
-- repository `README.md` → Optional Phoenix gateway transport → Rolling back to the Node socket
-- `server_elixir/README.md` → P2 rollback
-- `docs/architecture/elixir/README.md` → P2 transport rollback
+- `README.md` — Rolling back to the Node socket (P2)
+- `server_elixir/README.md` — P2 rollback (transport only)
+- `docs/architecture/elixir/README.md` — P2 transport rollback
 
-Rehearsal: end of `scripts/verify-gateway-transport.mjs` opens a **secret-less** WebSocket to Node and asserts `hello` → `welcome`. That is the P2 rollback path (direct clients remain accepted).
+Rehearsal: script opens a **secret-less** WebSocket to throwaway Node `:3901` after Phoenix checks and asserts `hello` → `welcome` for `guest_p2_rollback`. That is the P2 direct-client path. Vite `VITE_TRANSPORT=node` UI reboot was not run.
