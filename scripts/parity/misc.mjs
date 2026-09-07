@@ -95,13 +95,31 @@ function build() {
   nickInputs.push('AB'.repeat(12));
   nickInputs.push('');
   nickInputs.push('a');
+  nickInputs.push('punctuation!@#$%^&*()_+'); // [\w\s-] whitelist stripping
   for (const [i, input] of nickInputs.entries()) {
     cases.push(recordCall({ id: `nick/sanitize-${i}`, fn: sanitizeNickname, args: [input], mask: maskNick }));
   }
+
+  // <3-char fallback with pinned seed
+  cases.push(recordCall({ id: 'nick/sanitize-fallback-pinned-empty', fn: sanitizeNickname, args: [''], seed: 0.5 }));
+  cases.push(recordCall({ id: 'nick/sanitize-fallback-pinned-short', fn: sanitizeNickname, args: ['ab'], seed: 0.1 }));
+
+  // lower() vs toLowerCase() divergence / ASCII guarantee cases
+  for (const [i, unicodeInput] of ['MÖSSY', 'İpek', 'straße', 'éclat', 'Ωmega'].entries()) {
+    cases.push(recordCall({ id: `nick/divergence-ascii-${i}`, fn: sanitizeNickname, args: [unicodeInput] }));
+  }
+
+  // resolveDuplicateNickname: free base, ladder 2..99 in order, exhausted ladder with pinned seed, lowercase collision, active vs historical
   const ladder = new Set(['wren', ...Array.from({ length: 98 }, (_, i) => `wren${i + 2}`)]);
-  cases.push(recordCall({ id: 'nick/dup-ladder-exhausted', fn: resolveDuplicateNickname, args: ['wren', ladder], mask: maskWren }));
+  cases.push(recordCall({ id: 'nick/dup-free-base', fn: resolveDuplicateNickname, args: ['wren', new Set(['other'])] }));
   cases.push(recordCall({ id: 'nick/dup-two', fn: resolveDuplicateNickname, args: ['wren', new Set(['wren'])] }));
+  cases.push(recordCall({ id: 'nick/dup-ladder-three', fn: resolveDuplicateNickname, args: ['wren', new Set(['wren', 'wren2'])] }));
   cases.push(recordCall({ id: 'nick/dup-case', fn: resolveDuplicateNickname, args: ['Wren', new Set(['wren'])] }));
+  cases.push(recordCall({ id: 'nick/dup-case-candidate', fn: resolveDuplicateNickname, args: ['Wren', new Set(['wren', 'wren2'])] }));
+  cases.push(recordCall({ id: 'nick/dup-active-vs-historical', fn: resolveDuplicateNickname, args: ['wren', new Set(['historical_other'])] }));
+  cases.push(recordCall({ id: 'nick/dup-ladder-exhausted', fn: resolveDuplicateNickname, args: ['wren', ladder], mask: maskWren }));
+  cases.push(recordCall({ id: 'nick/dup-ladder-exhausted-pinned', fn: resolveDuplicateNickname, args: ['wren', ladder], seed: 0.5 }));
+
   const palettes = ['guest_abc123', 'Astral🌟Id', '\u{1F3AF}\u{1F3AF}', '', 'x'];
   for (const [i, id] of palettes.entries()) {
     cases.push(recordCall({ id: `palette/${i}`, fn: generatePlayerPalette, args: [id] }));

@@ -77,6 +77,12 @@ export class NetworkClient {
     this.reconnectTimer = null;
     this.lastMovementSend = 0;
     this.desiredRoom = null;
+    // Terminal close (deliberate tightening #2, add-world-room-runtime D8):
+    // an `error {message: "superseded"}` frame means a newer connection for
+    // this guest identity won the duplicate-connect race and this transport
+    // was closed. Reconnecting would make two live tabs evict each other
+    // forever, so the facade stops retrying; a reload starts a fresh race.
+    this.superseded = false;
     this.transportMode = import.meta.env?.VITE_TRANSPORT === 'phoenix' ? 'phoenix' : 'node';
     this.transport = this.transportMode === 'phoenix'
       ? createPhoenixTransport(this, this.wsUrl)
@@ -157,6 +163,9 @@ export class NetworkClient {
 
   /** One flat frame `{type, ...fields}` from the transport. */
   handleFrame(msg) {
+    if (msg.type === 'error' && msg.message === 'superseded') {
+      this.superseded = true;
+    }
     const handlers = this.handlers.get(msg.type);
     if (handlers) {
       handlers.forEach(fn => fn(msg));
@@ -174,6 +183,7 @@ export class NetworkClient {
   }
 
   scheduleReconnect() {
+    if (this.superseded) return; // terminal close: never fight the winner
     if (this.reconnectTimer) return;
     const delay = Math.min(10000, 1000 * Math.pow(1.5, this.reconnectAttempts));
     this.reconnectAttempts++;

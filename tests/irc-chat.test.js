@@ -26,10 +26,10 @@ async function waitFor(predicate, description, timeout = 5000, step = 25) {
   assert.ok(predicate(), `Timed out waiting for: ${description}`);
 }
 
-async function listen({ ircDisabled = false } = {}) {
+async function listen({ ircDisabled = false, chatRelayEnabled = true } = {}) {
   const previous = process.env.IRC_DISABLED;
   if (ircDisabled) process.env.IRC_DISABLED = '1';
-  const handle = createServer(new Storage(`/tmp/test-irc-chat-${Date.now()}-${Math.random().toString(36).slice(2)}.json`));
+  const handle = createServer(new Storage(`/tmp/test-irc-chat-${Date.now()}-${Math.random().toString(36).slice(2)}.json`), { chatRelayEnabled });
   if (ircDisabled) {
     if (previous === undefined) delete process.env.IRC_DISABLED;
     else process.env.IRC_DISABLED = previous;
@@ -449,6 +449,29 @@ test('health endpoint reports the IRC port additively', async () => {
     const body = await res.json();
     assert.equal(body.status, 'ok');
     assert.equal(body.ircPort, handle.irc.boundPort);
+  } finally {
+    handle.close();
+  }
+});
+
+test('Node game-relay can be disabled via chatRelayEnabled while IRC server remains bound', async () => {
+  const { handle, wsUrl, ircPort } = await listen({ chatRelayEnabled: false });
+  try {
+    assert.ok(ircPort > 0, 'IRC server bound and listening');
+    assert.equal(handle.chat.enabled, false, 'ChatBridge is disabled');
+    const ws = new WebSocket(wsUrl);
+    const inbox = [];
+    ws.on('message', (data) => inbox.push(parse(data)));
+    await new Promise((resolve) => ws.on('open', resolve));
+    ws.send(serialize({ type: MSG_TYPES.HELLO, guestId: 'guest_relay_off', nickname: 'QuietBot' }));
+    await waitFor(() => inbox.some(m => m.type === MSG_TYPES.WELCOME), 'welcome received');
+    // Chat history is NOT delivered when Node game-relay is disabled
+    assert.equal(inbox.some(m => m.type === MSG_TYPES.CHAT_HISTORY), false);
+    // CHAT_SEND is ignored by disabled ChatBridge
+    ws.send(serialize({ type: MSG_TYPES.CHAT_SEND, text: 'hello quiet world' }));
+    await new Promise(r => setTimeout(r, 100));
+    assert.equal(inbox.some(m => m.type === MSG_TYPES.CHAT_MESSAGE), false);
+    ws.close();
   } finally {
     handle.close();
   }

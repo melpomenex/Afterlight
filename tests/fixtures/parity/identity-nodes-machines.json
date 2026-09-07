@@ -118,31 +118,357 @@
       "expected": "<generated>"
     },
     {
-      "id": "nick/dup-ladder-exhausted",
+      "id": "nick/sanitize-10",
+      "fn": "sanitizeNickname",
+      "args": [
+        "punctuation!@#$%^&*()_+"
+      ],
+      "expected": "punctuation_"
+    },
+    {
+      "id": "nick/sanitize-fallback-pinned-empty",
+      "fn": "sanitizeNickname",
+      "args": [
+        ""
+      ],
+      "seed": 0.5,
+      "expected": "MossySprout88"
+    },
+    {
+      "id": "nick/sanitize-fallback-pinned-short",
+      "fn": "sanitizeNickname",
+      "args": [
+        "ab"
+      ],
+      "seed": 0.1,
+      "expected": "DuskyPepper77"
+    },
+    {
+      "id": "nick/divergence-ascii-0",
+      "fn": "sanitizeNickname",
+      "args": [
+        "MÖSSY"
+      ],
+      "expected": "MSSY"
+    },
+    {
+      "id": "nick/divergence-ascii-1",
+      "fn": "sanitizeNickname",
+      "args": [
+        "İpek"
+      ],
+      "expected": "pek"
+    },
+    {
+      "id": "nick/divergence-ascii-2",
+      "fn": "sanitizeNickname",
+      "args": [
+        "straße"
+      ],
+      "expected": "strae"
+    },
+    {
+      "id": "nick/divergence-ascii-3",
+      "fn": "sanitizeNickname",
+      "args": [
+        "éclat"
+      ],
+      "expected": "clat"
+    },
+    {
+      "id": "nick/divergence-ascii-4",
+      "fn": "sanitizeNickname",
+      "args": [
+        "Ωmega"
+      ],
+      "expected": "mega"
+    },
+    {
+      "id": "nick/dup-free-base",
       "fn": "resolveDuplicateNickname",
       "args": [
         "wren",
-        {}
+        [
+          "other"
+        ]
       ],
-      "expected": "<generated>"
+      "expected": "wren"
     },
     {
       "id": "nick/dup-two",
       "fn": "resolveDuplicateNickname",
       "args": [
         "wren",
-        {}
+        [
+          "wren"
+        ]
       ],
       "expected": "wren2"
+    },
+    {
+      "id": "nick/dup-ladder-three",
+      "fn": "resolveDuplicateNickname",
+      "args": [
+        "wren",
+        [
+          "wren",
+          "wren2"
+        ]
+      ],
+      "expected": "wren3"
     },
     {
       "id": "nick/dup-case",
       "fn": "resolveDuplicateNickname",
       "args": [
         "Wren",
-        {}
+        [
+          "wren"
+        ]
       ],
       "expected": "Wren2"
+    },
+    {
+      "id": "nick/dup-case-candidate",
+      "fn": "resolveDuplicateNickname",
+      "args": [
+        "Wren",
+        [
+          "wren",
+          "wren2"
+        ]
+      ],
+      "expected": "Wren3"
+    },
+    {
+      "id": "nick/dup-active-vs-historical",
+      "fn": "resolveDuplicateNickname",
+      "args": [
+        "wren",
+        [
+          "historical_other"
+        ]
+      ],
+      "expected": "wren"
+    },
+    {
+      "id": "nick/dup-ladder-exhausted",
+      "fn": "resolveDuplicateNickname",
+      "args": [
+        "wren",
+        [
+          "wren",
+          "wren2",
+          "wren3",
+          "wren4",
+          "wren5",
+          "wren6",
+          "wren7",
+          "wren8",
+          "wren9",
+          "wren10",
+          "wren11",
+          "wren12",
+          "wren13",
+          "wren14",
+          "wren15",
+          "wren16",
+          "wren17",
+          "wren18",
+          "wren19",
+          "wren20",
+          "wren21",
+          "wren22",
+          "wren23",
+          "wren24",
+          "wren25",
+          "wren26",
+          "wren27",
+          "wren28",
+          "wren29",
+          "wren30",
+          "wren31",
+          "wren32",
+          "wren33",
+          "wren34",
+          "wren35",
+          "wren36",
+          "wren37",
+          "wren38",
+          "wren39",
+          "wren40",
+          "wren41",
+          "wren42",
+          "wren43",
+          "wren44",
+          "wren45",
+          "wren46",
+          "wren47",
+          "wren48",
+          "wren49",
+          "wren50",
+          "wren51",
+          "wren52",
+          "wren53",
+          "wren54",
+          "wren55",
+          "wren56",
+          "wren57",
+          "wren58",
+          "wren59",
+          "wren60",
+          "wren61",
+          "wren62",
+          "wren63",
+          "wren64",
+          "wren65",
+          "wren66",
+          "wren67",
+          "wren68",
+          "wren69",
+          "wren70",
+          "wren71",
+          "wren72",
+          "wren73",
+          "wren74",
+          "wren75",
+          "wren76",
+          "wren77",
+          "wren78",
+          "wren79",
+          "wren80",
+          "wren81",
+          "wren82",
+          "wren83",
+          "wren84",
+          "wren85",
+          "wren86",
+          "wren87",
+          "wren88",
+          "wren89",
+          "wren90",
+          "wren91",
+          "wren92",
+          "wren93",
+          "wren94",
+          "wren95",
+          "wren96",
+          "wren97",
+          "wren98",
+          "wren99"
+        ]
+      ],
+      "expected": "<generated>"
+    },
+    {
+      "id": "nick/dup-ladder-exhausted-pinned",
+      "fn": "resolveDuplicateNickname",
+      "args": [
+        "wren",
+        [
+          "wren",
+          "wren2",
+          "wren3",
+          "wren4",
+          "wren5",
+          "wren6",
+          "wren7",
+          "wren8",
+          "wren9",
+          "wren10",
+          "wren11",
+          "wren12",
+          "wren13",
+          "wren14",
+          "wren15",
+          "wren16",
+          "wren17",
+          "wren18",
+          "wren19",
+          "wren20",
+          "wren21",
+          "wren22",
+          "wren23",
+          "wren24",
+          "wren25",
+          "wren26",
+          "wren27",
+          "wren28",
+          "wren29",
+          "wren30",
+          "wren31",
+          "wren32",
+          "wren33",
+          "wren34",
+          "wren35",
+          "wren36",
+          "wren37",
+          "wren38",
+          "wren39",
+          "wren40",
+          "wren41",
+          "wren42",
+          "wren43",
+          "wren44",
+          "wren45",
+          "wren46",
+          "wren47",
+          "wren48",
+          "wren49",
+          "wren50",
+          "wren51",
+          "wren52",
+          "wren53",
+          "wren54",
+          "wren55",
+          "wren56",
+          "wren57",
+          "wren58",
+          "wren59",
+          "wren60",
+          "wren61",
+          "wren62",
+          "wren63",
+          "wren64",
+          "wren65",
+          "wren66",
+          "wren67",
+          "wren68",
+          "wren69",
+          "wren70",
+          "wren71",
+          "wren72",
+          "wren73",
+          "wren74",
+          "wren75",
+          "wren76",
+          "wren77",
+          "wren78",
+          "wren79",
+          "wren80",
+          "wren81",
+          "wren82",
+          "wren83",
+          "wren84",
+          "wren85",
+          "wren86",
+          "wren87",
+          "wren88",
+          "wren89",
+          "wren90",
+          "wren91",
+          "wren92",
+          "wren93",
+          "wren94",
+          "wren95",
+          "wren96",
+          "wren97",
+          "wren98",
+          "wren99"
+        ]
+      ],
+      "seed": 0.5,
+      "expected": "wren550"
     },
     {
       "id": "palette/0",

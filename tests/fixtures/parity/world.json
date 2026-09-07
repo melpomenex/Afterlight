@@ -1,0 +1,397 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "movement/valid-full",
+      "fn": "sanitizeMovement",
+      "args": [
+        {
+          "x": 1.5,
+          "z": -2.5,
+          "rotY": 0.75,
+          "walking": true,
+          "sitting": false,
+          "airborne": true
+        }
+      ],
+      "expected": {
+        "x": 1.5,
+        "z": -2.5,
+        "rotY": 0.75,
+        "walking": true,
+        "sitting": false,
+        "airborne": true
+      }
+    },
+    {
+      "id": "movement/flags-coerced",
+      "fn": "sanitizeMovement",
+      "args": [
+        {
+          "x": 0,
+          "z": 0,
+          "rotY": 0,
+          "walking": 1,
+          "sitting": "yes"
+        }
+      ],
+      "expected": {
+        "x": 0,
+        "z": 0,
+        "rotY": 0,
+        "walking": true,
+        "sitting": true,
+        "airborne": false
+      }
+    },
+    {
+      "id": "movement/flags-omitted",
+      "fn": "sanitizeMovement",
+      "args": [
+        {
+          "x": 3,
+          "z": 4,
+          "rotY": 1
+        }
+      ],
+      "expected": {
+        "x": 3,
+        "z": 4,
+        "rotY": 1,
+        "walking": false,
+        "sitting": false,
+        "airborne": false
+      }
+    },
+    {
+      "id": "movement/negative-nan",
+      "fn": "sanitizeMovement",
+      "args": [
+        {
+          "x": null,
+          "z": 0,
+          "rotY": 0
+        }
+      ],
+      "expected": null
+    },
+    {
+      "id": "movement/z-infinity",
+      "fn": "sanitizeMovement",
+      "args": [
+        {
+          "x": 1,
+          "z": null,
+          "rotY": 0
+        }
+      ],
+      "expected": null
+    },
+    {
+      "id": "movement/rot-string",
+      "fn": "sanitizeMovement",
+      "args": [
+        {
+          "x": 1,
+          "z": 2,
+          "rotY": "left"
+        }
+      ],
+      "expected": null
+    },
+    {
+      "id": "movement/null-pose",
+      "fn": "sanitizeMovement",
+      "args": [
+        null
+      ],
+      "expected": null
+    },
+    {
+      "id": "movement/bounds-edge-upper",
+      "fn": "sanitizeMovement",
+      "args": [
+        {
+          "x": 11.3,
+          "z": 10.3,
+          "rotY": 0
+        }
+      ],
+      "expected": {
+        "x": 11.3,
+        "z": 10.3,
+        "rotY": 0,
+        "walking": false,
+        "sitting": false,
+        "airborne": false
+      }
+    },
+    {
+      "id": "movement/bounds-edge-lower",
+      "fn": "sanitizeMovement",
+      "args": [
+        {
+          "x": -11.3,
+          "z": -9.5,
+          "rotY": 0
+        }
+      ],
+      "expected": {
+        "x": -11.3,
+        "z": -9.5,
+        "rotY": 0,
+        "walking": false,
+        "sitting": false,
+        "airborne": false
+      }
+    },
+    {
+      "id": "movement/outside-bounds-passes-validation",
+      "fn": "sanitizeMovement",
+      "args": [
+        {
+          "x": 50,
+          "z": -50,
+          "rotY": 0
+        }
+      ],
+      "expected": {
+        "x": 50,
+        "z": -50,
+        "rotY": 0,
+        "walking": false,
+        "sitting": false,
+        "airborne": false
+      }
+    },
+    {
+      "id": "emotes/table",
+      "fn": "emotesTable",
+      "args": [],
+      "expected": [
+        {
+          "id": "wave",
+          "label": "Hello there",
+          "icon": "👋",
+          "hint": "A little warmth goes a long way"
+        },
+        {
+          "id": "dance",
+          "label": "Rust shuffle",
+          "icon": "♫",
+          "hint": "Still got some rhythm in these gears"
+        },
+        {
+          "id": "cheer",
+          "label": "We did it!",
+          "icon": "✦",
+          "hint": "Small repairs. Big celebrations."
+        },
+        {
+          "id": "heart",
+          "label": "Much love",
+          "icon": "♡",
+          "hint": "For your favorite fellow gardener"
+        },
+        {
+          "id": "bow",
+          "label": "After you",
+          "icon": "❧",
+          "hint": "A gracious little thank-you"
+        },
+        {
+          "id": "shrug",
+          "label": "Who knows?",
+          "icon": "¯\\_(ツ)_/¯",
+          "hint": "Some mysteries can wait"
+        }
+      ]
+    },
+    {
+      "id": "emotes/duration",
+      "fn": "emoteDuration",
+      "args": [],
+      "expected": 3.2
+    },
+    {
+      "id": "emote/is-emote-wave",
+      "fn": "isEmote",
+      "args": [
+        "wave"
+      ],
+      "expected": true
+    },
+    {
+      "id": "emote/is-emote-dance",
+      "fn": "isEmote",
+      "args": [
+        "dance"
+      ],
+      "expected": true
+    },
+    {
+      "id": "emote/is-emote-cheer",
+      "fn": "isEmote",
+      "args": [
+        "cheer"
+      ],
+      "expected": true
+    },
+    {
+      "id": "emote/is-emote-heart",
+      "fn": "isEmote",
+      "args": [
+        "heart"
+      ],
+      "expected": true
+    },
+    {
+      "id": "emote/is-emote-bow",
+      "fn": "isEmote",
+      "args": [
+        "bow"
+      ],
+      "expected": true
+    },
+    {
+      "id": "emote/is-emote-shrug",
+      "fn": "isEmote",
+      "args": [
+        "shrug"
+      ],
+      "expected": true
+    },
+    {
+      "id": "emote/is-emote-floss",
+      "fn": "isEmote",
+      "args": [
+        "floss"
+      ],
+      "expected": false
+    },
+    {
+      "id": "emote/is-emote-WAVE",
+      "fn": "isEmote",
+      "args": [
+        "WAVE"
+      ],
+      "expected": false
+    },
+    {
+      "id": "emote/is-emote-empty",
+      "fn": "isEmote",
+      "args": [
+        ""
+      ],
+      "expected": false
+    },
+    {
+      "id": "shape/join-roster-entry",
+      "fn": "joinRosterEntry",
+      "args": [
+        {
+          "player": {
+            "id": "guest_shapes",
+            "nickname": "Mossy"
+          },
+          "x": 2.5,
+          "z": -3.5,
+          "rotY": 1.25,
+          "walking": true,
+          "sitting": false,
+          "airborne": true
+        }
+      ],
+      "expected": {
+        "id": "guest_shapes",
+        "nickname": "Mossy",
+        "x": 2.5,
+        "z": -3.5,
+        "rotY": 1.25,
+        "walking": true,
+        "sitting": false
+      }
+    },
+    {
+      "id": "shape/flush-entry",
+      "fn": "flushEntry",
+      "args": [
+        {
+          "player": {
+            "id": "guest_shapes",
+            "nickname": "Mossy"
+          },
+          "x": 2.5,
+          "z": -3.5,
+          "rotY": 1.25,
+          "walking": true,
+          "sitting": false,
+          "airborne": true
+        }
+      ],
+      "expected": {
+        "id": "guest_shapes",
+        "x": 2.5,
+        "z": -3.5,
+        "rotY": 1.25,
+        "walking": true,
+        "sitting": false,
+        "airborne": true
+      }
+    },
+    {
+      "id": "shape/join-roster-coerced",
+      "fn": "joinRosterEntry",
+      "args": [
+        {
+          "player": {
+            "id": "guest_coerced",
+            "nickname": "Fern"
+          },
+          "x": -8,
+          "z": 6.25,
+          "rotY": -0.5,
+          "walking": 1,
+          "sitting": "yes",
+          "airborne": 0
+        }
+      ],
+      "expected": {
+        "id": "guest_coerced",
+        "nickname": "Fern",
+        "x": -8,
+        "z": 6.25,
+        "rotY": -0.5,
+        "walking": 1,
+        "sitting": true
+      }
+    },
+    {
+      "id": "shape/flush-coerced",
+      "fn": "flushEntry",
+      "args": [
+        {
+          "player": {
+            "id": "guest_coerced",
+            "nickname": "Fern"
+          },
+          "x": -8,
+          "z": 6.25,
+          "rotY": -0.5,
+          "walking": 1,
+          "sitting": "yes",
+          "airborne": 0
+        }
+      ],
+      "expected": {
+        "id": "guest_coerced",
+        "x": -8,
+        "z": 6.25,
+        "rotY": -0.5,
+        "walking": 1,
+        "sitting": true,
+        "airborne": false
+      }
+    }
+  ]
+}
