@@ -19,10 +19,14 @@ defmodule Afterlight.Application do
 
     children = [
       Afterlight.Repo,
+      Afterlight.Accounts.Supervisor,
       {Phoenix.PubSub, name: Afterlight.PubSub},
       AfterlightWeb.Telemetry,
       {Finch, name: Afterlight.Finch, pools: %{default: [count: 8, size: 32]}},
       {DynamicSupervisor, name: Afterlight.Gateway.ProxySupervisor},
+      # P3 world room runtime + P7 social chat (retained alongside P4 accounts).
+      Afterlight.World.Supervisor,
+      Afterlight.Social.Supervisor,
       Afterlight.Conferencing.Reaper,
       AfterlightWeb.Endpoint
     ]

@@ -1,11 +1,14 @@
 import { MSG_TYPES, serialize, ROOMS } from '../shared/protocol.js';
 import { sanitizeMovement } from '../shared/worldModel.js';
+import { encodeFlush } from '../shared/realtime/nodeBinaryFlush.js';
 
 export class WorldManager {
   constructor() {
     this.clients = new Map(); // playerId -> ClientSession
     this.rooms = new Map(); // roomId -> Set<playerId>
     this.dirtyMovementRooms = new Set();
+    this.roomRtSeq = new Map();
+    this.roomRtTick = new Map();
   }
 
   addClient(playerId, clientSession) {
@@ -130,10 +133,33 @@ export class WorldManager {
       }
 
       if (updates.length > 0) {
-        this.broadcastToRoom(roomId, {
-          type: MSG_TYPES.PRESENCE_UPDATE,
-          players: updates,
-        });
+        const tick = (this.roomRtTick.get(roomId) ?? 0) + 1;
+        this.roomRtTick.set(roomId, tick);
+        const seq = (this.roomRtSeq.get(roomId) ?? 0) + 1;
+        this.roomRtSeq.set(roomId, seq);
+
+        let rtPayload = null;
+        try {
+          rtPayload = Buffer.from(encodeFlush(updates, tick, seq)).toString('base64');
+        } catch {
+          rtPayload = null;
+        }
+
+        const legacyMsg = { type: MSG_TYPES.PRESENCE_UPDATE, players: updates, tick };
+        let legacyPacket = null;
+
+        for (const pid of roomPlayers) {
+          const s = this.clients.get(pid);
+          if (!s) continue;
+          s.moved = false;
+          if (s.ws.readyState !== 1) continue;
+          if (s.rt && rtPayload) {
+            s.send({ type: 'rt_binary', tick, data: rtPayload });
+          } else {
+            if (!legacyPacket) legacyPacket = serialize(legacyMsg);
+            s.ws.send(legacyPacket);
+          }
+        }
       }
     }
     this.dirtyMovementRooms.clear();

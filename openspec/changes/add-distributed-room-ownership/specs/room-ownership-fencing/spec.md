@@ -8,18 +8,18 @@ Define the distributed single-writer contract for room instances when Afterlight
 
 ### Requirement: Measured precondition for multi-node operation
 
-Multi-node room operation SHALL be implemented and enabled only after recorded load/observability evidence (P10) demonstrates that single-node operation is insufficient — for capacity, fanout, or availability reasons — and the evidence artifact SHALL be referenced by the implementing change. Absent that evidence, the system SHALL remain single-node with this capability's fencing unimplemented, and this gate SHALL NOT be waived.
+This gate governs enabling a second room node, not landing the machinery: the single-node lease/epoch/drain substrate — the `room_leases` table, lease renewal, in-transaction fencing, and deploy-drain hooks — SHALL land while the system is still single-node, so that P10's failure-injection suite has a substrate to exercise (P10 requires partitioning a room owner from the database, stale-epoch commands, and drain — unsatisfiable if this capability could not land first; the substrate precedes the suite, P9 being P10's practical predecessor). Running a second room node SHALL be enabled only after recorded load/observability evidence (P10) demonstrates that single-node operation is insufficient — for capacity, fanout, or availability reasons — and the evidence artifact SHALL be referenced by the change enabling the second node. Absent that evidence, the system SHALL remain single-node with the substrate landed but inert, and this gate SHALL NOT be waived.
 
 #### Scenario: Evidence defers the change
 
 - **WHEN** the P10 profile shows single-node operation meeting the accepted targets with headroom
 - **THEN** multi-node room ownership is not enabled and single-node remains the supported topology
-- **AND** the deferral decision is recorded against the evidence artifact
+- **AND** the deferral decision is recorded against the evidence artifact, with the single-node substrate landed and exercised by the P10 failure-injection suite
 
 #### Scenario: Evidence justifies enablement
 
 - **WHEN** the recorded evidence shows a ceiling or availability need a single node cannot meet
-- **THEN** the fencing requirements below are implemented and proven under partition before a second node serves rooms
+- **THEN** the fencing requirements below, already landed as single-node substrate, are proven under partition before a second node serves rooms
 
 ### Requirement: Lease acquisition with epoch fencing
 
@@ -73,7 +73,7 @@ An owner that cannot renew its lease SHALL stop accepting durable mutations imme
 
 ### Requirement: Epoch-enforced client discard
 
-Room snapshots and command responses SHALL carry the room's current epoch. Clients SHALL track the newest epoch seen per room and SHALL discard messages bearing an older epoch, so output in flight from a deposed owner cannot overwrite successor state.
+ALL room-scoped frames SHALL carry the room's current epoch: `presence_update` (the 10 Hz flush), `presence_join`/`presence_leave`, `theater_state`, `torrent_state`, room snapshots, and command responses. Clients SHALL track the newest epoch seen per room and SHALL apply the same discard rule — a frame bearing an epoch lower than the newest seen for that room is dropped — to each of these frame types, so output in flight from a deposed owner (including its 10 Hz presence flush) cannot overwrite successor state. Alternatively or additionally, the gateway SHALL suppress output from an owner whose lease it has lost. The epoch-discard rule and any directed reconnection SHALL preserve the client's existing contract: `desiredRoom` reconnect replay, snapshot-before-delta ordering, and self-echo filtering.
 
 #### Scenario: Stale-epoch snapshot discarded
 
@@ -103,7 +103,7 @@ Deploys SHALL use bounded drain: a draining node SHALL reject new room allocatio
 
 ### Requirement: Parties pinned together
 
-Members of a party SHALL be routed to the same room instance and node so that failover or drain moves the party as a unit, and instance switching caused by failover SHALL be visible to users.
+Forward-looking note: no party subsystem exists in the protocol catalog or the ownership matrix. Party co-location arrives with whatever change introduces parties; until then this requirement is vacuous and SHALL NOT be read as depending on an existing subsystem. If and when parties exist, members of a party SHALL be routed to the same room instance and node so that failover or drain moves the party as a unit, and instance switching caused by failover SHALL be visible to users.
 
 #### Scenario: Party fails over as a unit
 

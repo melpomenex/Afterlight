@@ -1,0 +1,20 @@
+{
+  "flagOn": true,
+  "url": "http://localhost:5100/tools/realtime/gpu-harness.html?rt_webgpu_fastpath=1",
+  "browser": "Brave (Chromium, headed)",
+  "scene": "fifty",
+  "n": 50,
+  "frames": {
+    "count": 126,
+    "medianMs": 0.2,
+    "p95Ms": 0.3,
+    "gpuKind": "webgpu",
+    "gpuRendererKind": "WebGPURenderer"
+  },
+  "controlArm": "CPUThreeBackend + WebGLRenderer",
+  "acceleratedArm": "WebGPUThreeBackend + WebGPURenderer",
+  "visualNotes": "Both arms drew 50 remote instances on the ground plane. Local player and Kiln excluded. No bloom/HUD/theater overlay in either arm (documented harness delta).",
+  "screenshot": "harness-headed-fifty.png",
+  "capturedAt": "2026-09-07",
+  "recordedBy": "headed manual capture"
+}

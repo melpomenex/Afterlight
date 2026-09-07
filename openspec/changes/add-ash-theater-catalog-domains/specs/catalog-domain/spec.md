@@ -82,7 +82,7 @@ The server-side playlist URL fetch SHALL restrict schemes to http/https, cap red
 
 ### Requirement: Snapshot-hashed idempotent import
 
-`mix afterlight.import_theater_catalog` SHALL snapshot-copy and SHA-256-hash each source file (`game-state.json` theater section, `iptv.json`, `epg.json`) BEFORE reading, record the hashes so a second run against the same snapshots is a no-op, repair the theater section through the `normalizeTheaterState`-equivalent port before insert, bulk-import channels and programmes with the first-wins rule, and validate counts against the snapshots (lists and total channels; EPG channels and programme-bearing channels), exiting non-zero on any mismatch. A partial file (missing catalog or EPG section) SHALL be reported as "nothing to import" for that domain and not block the others.
+`mix afterlight.import_theater_catalog` SHALL snapshot-copy and SHA-256-hash each source file (`game-state.json` theater section, `iptv.json`, `epg.json`) BEFORE reading, record the hashes so a second run against the same snapshots is a no-op, repair the theater section through the `normalizeTheaterState`-equivalent port before insert, bulk-import channels and programmes with the first-wins rule, and validate import output against the SNAPSHOT contents (lists and total channels; EPG channels and programme-bearing channels — counts/totals taken from the snapshot itself, with the recorded audit figures of 2 lists / 16k channels and 12k EPG channels / 1.3k with programmes cited as expected magnitudes only, not gates), exiting non-zero on any mismatch. A partial file (missing catalog or EPG section) SHALL be reported as "nothing to import" for that domain and not block the others; however, a missing or empty `iptv.json` / `epg.json` SNAPSHOT FILE at cutover SHALL block the flip unless absence is operator-attested (the live files exist today; a silently missing file must not permit a zero-catalog cutover) — "nothing to import" applies only to genuinely empty sections within a present file.
 
 #### Scenario: Second import is a no-op
 
@@ -93,6 +93,11 @@ The server-side playlist URL fetch SHALL restrict schemes to http/https, cap red
 
 - **WHEN** the imported channel count differs from the `iptv.json` snapshot count, or EPG programme-bearing channels differ from the snapshot
 - **THEN** the task exits non-zero with a domain-level report and the catalog cutover is blocked
+
+#### Scenario: Missing snapshot file blocks the flip
+
+- **WHEN** the cutover snapshot lacks `iptv.json` or `epg.json` entirely and no operator attestation of absence is recorded
+- **THEN** import validation fails and the flip is blocked, rather than proceeding as a zero-catalog import
 
 #### Scenario: Idle theater imports cleanly
 

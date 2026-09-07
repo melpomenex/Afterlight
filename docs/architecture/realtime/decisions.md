@@ -147,6 +147,14 @@ for a WebGPU-capable run; running it is the first task of any future GPU
 milestone. Per governance, a park verdict closes this evaluation honestly
 rather than manufacturing justification.
 
+2026-09-07 amendment (executed under browser tooling, `results/webgpu.*`):
+Chromium 152 headless `--enable-unsafe-webgpu` now yields an adapter here
+(google/swiftshader, software) — full/partial uploads validate bit-exact
+(30/30 XOR cells) and the render-read check passes, but scatter fails the
+checksum 0/15 with non-deterministic GPU state for identical inputs, so the
+PARK stands for scatter and no performance numbers are claimed; the run also
+exposed a spec-invalid staging-buffer usage in the probe, fixed same-day.
+
 ## 5. Web Workers
 
 **Decision: ADOPT for large per-tick row counts (≥ ~10k–50k changed rows) and
@@ -171,6 +179,19 @@ world's real ids so every row applies.)
 
 **Decision: NOT STARTED (deliberately).** Binary architecture must function
 over the established Phoenix/WS transport first, per program charter.
+
+## 7. Entity render backend (WebGPU fast path)
+
+**Decision: ADOPT SELECTIVELY — CPU seam ships; WebGPU backend UNPARKED for
+the harness only (headed n=50, both arms built); live default REJECT; live
+experimental instanced proxies when `?rt_webgpu_fastpath=1` + entity seam
+(InstancedMesh on WebGL, composer unchanged).**
+Full record: `docs/architecture/realtime/gpu-rendering.md` (change
+`add-realtime-gpu-rendering`). SwiftShader scatter remains FAILED (0/15);
+headed harness evidence is in
+`openspec/changes/add-realtime-gpu-rendering/evidence/harness-headed.json`.
+`renderer_webgpu_fastpath` stays opt-in and default OFF. Local player
+and Kiln stay on the traditional path.
 
 ## Interop verification
 

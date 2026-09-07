@@ -22,4 +22,4 @@
 ## 4. Verdict
 
 - [x] 4.1 Decision record in `docs/architecture/realtime/decisions.md`: benefit / cost / benchmark / verdict (adopt / adopt-selectively / reject).
-- [ ] 4.2 Fallback path exercised: JS decoder consumes the same frames when the wasm module is absent or fails to instantiate.
+- [x] 4.2 Fallback path exercised: JS decoder consumes the same frames when the wasm module is absent or fails to instantiate.

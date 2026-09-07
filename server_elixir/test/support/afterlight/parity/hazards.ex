@@ -36,11 +36,12 @@ defmodule Afterlight.Parity.Hazards do
   # -- JS-compatibility primitives -------------------------------------------
 
   @doc """
-  JS Math.round: half toward +Infinity (Elixir round/2 is half-even,
-  trunc(round(x)) is half away from zero).
+  JS Math.round: floor(x + 0.5) — half toward +Infinity (Elixir round/2 is
+  half-even; trunc(x + 0.5) is half away from zero and diverges on negative
+  fractions, e.g. Math.round(-2.7) === -3).
   """
   def js_round(x) when is_float(x) or is_integer(x) do
-    trunc(x + 0.5)
+    :math.floor(x + 0.5)
   end
 
   @doc """

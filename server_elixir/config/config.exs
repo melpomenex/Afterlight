@@ -6,7 +6,12 @@ config :afterlight,
   # scripts/export-parity-fixtures.mjs (P0).
   parity_fixtures_path: "../tests/fixtures/parity",
   ecto_repos: [Afterlight.Repo],
-  ash_domains: [Afterlight.Conferencing]
+  ash_domains: [Afterlight.Accounts, Afterlight.Conferencing],
+  accounts: [
+    claim_window_grace_ms: 2_592_000_000,
+    reaper_interval_ms: 60_000,
+    outbox_interval_ms: 1_000
+  ]
 
 # P8 conferencing spike — OFF by default. Enabling this must not change
 # game rooms, economy, theater playback, or watch-together.
@@ -72,7 +77,7 @@ config :afterlight, AfterlightWeb.Endpoint,
   pubsub_server: Afterlight.PubSub,
   http: [ip: {127, 0, 0, 1}, port: 4000]
 
-config :phoenix, :json_library, Jason
+config :ash, :missed_notifications, :ignore
 
 # Per-env overrides (test.exs pins deterministic gateway values; dev/prod
 # runtime knobs live in runtime.exs).

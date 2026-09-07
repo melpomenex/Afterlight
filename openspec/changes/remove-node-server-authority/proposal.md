@@ -15,7 +15,7 @@ Phase P11 — the migration's closing gate (`docs/architecture/elixir/ownership.
 
 Exit gate (P11): the audit checklist is complete with evidence for every row, the sweep is green end-to-end, the re-baseline is recorded, and no code path can route a game-domain write to Node.
 
-Depends on: `add-distributed-room-ownership` (P9 — retirement happens only after multi-node safety is proven, so removing Node's dormant paths cannot be a covert rollback hatch); presupposes the full P0–P8 sequence and the P10 suites used in the final sweep, per the umbrella `port-backend-to-elixir` ordering.
+Depends on: `add-distributed-room-ownership` (P9 — retirement happens only after multi-node safety is proven, so removing Node's dormant paths cannot be a covert rollback hatch). P9's own measured gate may legitimately park multi-node operation when P10 evidence shows single-node suffices; in that case retirement proceeds on the recorded P10 deferral evidence plus the P9 single-node lease substrate, and the hard dependency applies only to the multi-node end-state. Presupposes the full P0–P8 sequence and the P10 suites used in the final sweep, per the umbrella `port-backend-to-elixir` ordering.
 
 ## Capabilities
 

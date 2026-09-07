@@ -93,11 +93,12 @@ scene.add(particles);
 const net = new NetworkClient();
 const remotePlayers = new RemotePlayersManager(scene);
 
-// Realtime binary fast path — flag-gated and default-off (rt flags in
-// src/realtime/flags.js); with no flags the wire call is a no-op and the
-// game is byte-identical to the legacy path. See add-realtime-live-wiring.
+/** @type {import('./realtime/wire.js').wireRealtime | null} */
+let rtWire = null;
+
+// Realtime binary + entity seam — flag-gated, default-off (src/realtime/flags.js).
 import('./realtime/wire.js').then(({ wireRealtime }) => {
-  wireRealtime({ net, remotePlayers });
+  rtWire = wireRealtime({ net, remotePlayers, guestId: net.guestId, scene });
 }).catch(() => { /* module unavailable: legacy path */ });
 
 let activeTool = 'hands'; // 'hands' | 'hoe' | 'seed' | 'water' | 'harvest'
@@ -423,6 +424,7 @@ net.on(MSG_TYPES.WELCOME, (msg) => {
 });
 
 net.on(MSG_TYPES.PRESENCE_JOIN, (msg) => {
+  if (rtWire?.consumePresenceJoin?.(msg)) return;
   if (msg.player && msg.player.id !== net.guestId) {
     remotePlayers.setPlayer(msg.player);
     toast("Gardener Arrived", `${msg.player.nickname} entered the area.`);
@@ -430,12 +432,14 @@ net.on(MSG_TYPES.PRESENCE_JOIN, (msg) => {
 });
 
 net.on(MSG_TYPES.PRESENCE_LEAVE, (msg) => {
+  if (rtWire?.consumePresenceLeave?.(msg)) return;
   if (msg.playerId) {
     remotePlayers.removePlayer(msg.playerId);
   }
 });
 
 net.on(MSG_TYPES.PRESENCE_UPDATE, (msg) => {
+  if (rtWire?.consumePresenceUpdate?.(msg)) return;
   if (Array.isArray(msg.players)) {
     for (const p of msg.players) {
       if (p.id !== net.guestId) {
@@ -1310,8 +1314,9 @@ function frame(now) {
       kiln.userData.legs?.forEach(leg => leg.rotation.x *= 0.8);
     }
 
-    // Update remote players
-    remotePlayers.update(dt, t);
+    // Update remote players (entity seam owns interpolation when active)
+    if (rtWire?.update) rtWire.update(dt, t);
+    else remotePlayers.update(dt, t);
 
     // Update active world
     const isDone = exploration.completed.includes(currentRoomId);

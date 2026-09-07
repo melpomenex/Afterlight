@@ -27,6 +27,29 @@ const DEFAULT_NICK_SHAPE = /^[A-Z][a-z]+[A-Z][a-z]+\d\d$/;
 const maskNick = (v) => (typeof v === 'string' && DEFAULT_NICK_SHAPE.test(v) ? '<generated>' : v);
 const maskWren = (v) => (typeof v === 'string' && /^wren\d{3,}$/.test(v) ? '<generated>' : v);
 
+function pinRandom(seed, fn) {
+  const wrapped = (...args) => {
+    const real = Math.random;
+    Math.random = () => seed;
+    try {
+      return fn(...args);
+    } finally {
+      Math.random = real;
+    }
+  };
+  Object.defineProperty(wrapped, 'name', { value: fn.name });
+  return wrapped;
+}
+
+function resolveDup(desired, activeList) {
+  return resolveDuplicateNickname(desired, new Set(activeList));
+}
+Object.defineProperty(resolveDup, 'name', { value: 'resolveDuplicateNickname' });
+
+function nickList(set) {
+  return [...set];
+}
+
 function stubStorage() {
   return { state: {}, save() {} };
 }
@@ -96,12 +119,45 @@ function build() {
   nickInputs.push('');
   nickInputs.push('a');
   for (const [i, input] of nickInputs.entries()) {
-    cases.push(recordCall({ id: `nick/sanitize-${i}`, fn: sanitizeNickname, args: [input], mask: maskNick }));
+    const seed = 0.42;
+    const fn = (i === 5 || i === 6 || i === 8 || i === 9) ? pinRandom(seed, sanitizeNickname) : sanitizeNickname;
+    cases.push(recordCall({
+      id: `nick/sanitize-${i}`,
+      fn,
+      args: [input],
+      ...(fn !== sanitizeNickname ? { seed } : {}),
+      mask: fn === sanitizeNickname ? maskNick : undefined,
+    }));
   }
-  const ladder = new Set(['wren', ...Array.from({ length: 98 }, (_, i) => `wren${i + 2}`)]);
-  cases.push(recordCall({ id: 'nick/dup-ladder-exhausted', fn: resolveDuplicateNickname, args: ['wren', ladder], mask: maskWren }));
-  cases.push(recordCall({ id: 'nick/dup-two', fn: resolveDuplicateNickname, args: ['wren', new Set(['wren'])] }));
-  cases.push(recordCall({ id: 'nick/dup-case', fn: resolveDuplicateNickname, args: ['Wren', new Set(['wren'])] }));
+  // UTF-16 truncation keeps remaining ASCII; astral pair counts as 2 units.
+  cases.push(recordCall({
+    id: 'nick/sanitize-utf16-keep-ascii',
+    fn: sanitizeNickname,
+    args: [`Hello${'🌟'.repeat(6)}WorldExtra`],
+  }));
+  // Post-sanitize output is ASCII [\w\s-], so SQL lower() and JS toLowerCase agree.
+  cases.push(recordCall({
+    id: 'nick/ascii-only-after-sanitize',
+    fn: sanitizeNickname,
+    args: ['Mossy🌟Radish!!! Café'],
+  }));
+  const ladder = nickList(new Set(['wren', ...Array.from({ length: 98 }, (_, i) => `wren${i + 2}`)]));
+  const exhaustedSeed = 0.5;
+  cases.push(recordCall({
+    id: 'nick/dup-ladder-exhausted',
+    fn: pinRandom(exhaustedSeed, resolveDup),
+    args: ['wren', ladder],
+    seed: exhaustedSeed,
+  }));
+  cases.push(recordCall({ id: 'nick/dup-free-base', fn: resolveDup, args: ['wren', nickList(new Set(['other']))] }));
+  cases.push(recordCall({ id: 'nick/dup-two', fn: resolveDup, args: ['wren', nickList(new Set(['wren']))] }));
+  cases.push(recordCall({ id: 'nick/dup-ladder-mid', fn: resolveDup, args: ['wren', nickList(new Set(['wren', 'wren2']))] }));
+  cases.push(recordCall({ id: 'nick/dup-case', fn: resolveDup, args: ['Wren', nickList(new Set(['wren']))] }));
+  cases.push(recordCall({
+    id: 'nick/dup-historical-ignored',
+    fn: resolveDup,
+    args: ['MistyPepper94', nickList(new Set(['liveOther']))],
+  }));
   const palettes = ['guest_abc123', 'Astral🌟Id', '\u{1F3AF}\u{1F3AF}', '', 'x'];
   for (const [i, id] of palettes.entries()) {
     cases.push(recordCall({ id: `palette/${i}`, fn: generatePlayerPalette, args: [id] }));
@@ -242,7 +298,8 @@ export const miscHazards = {
   'bitops32': ['palette/*'],
   'utf16-slicing': ['nick/sanitize-*', 'palette/*'],
   'libm-trig': ['nick/default-seed-*'],
-  'generated-ids': ['nick/dup-ladder-exhausted', 'nick/sanitize-7', 'nick/sanitize-8'],
+  'generated-ids': ['nick/dup-ladder-exhausted', 'nick/sanitize-5', 'nick/sanitize-8', 'nick/sanitize-9'],
+  'ascii-folding': ['nick/ascii-only-after-sanitize', 'nick/dup-case'],
   'error-strings': ['nodes/*', 'mill/*', 'yt/*'],
   'key-order': ['yt/classic-renderers', 'yt/lockup-view-models'],
   'timestamps': ['nodes/*'],

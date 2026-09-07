@@ -32,7 +32,7 @@
 - [x] 4.5 Add IPTV import (paste text, file upload, URL fetch with CORS error message), local saved-lists storage in localStorage, channel guide dialog (names/groups), channel prev/next flipping, and the "import a list first" prompt
 - [x] 4.6 Wire `interact()` branches for `theater_screen`/projector items, `net.on(THEATER_STATE)` registration, and `src/net/client.js` send wrappers
 - [x] 4.7 Add `hls.js` to `package.json` and verify the main bundle stays under the existing warning threshold thanks to dynamic import
-- [ ] 4.8 Cinema view (user addition): seated watching reflows the screen into a large stage with the chat panel docked beside it, HUD hidden, seamless return via stand/Esc; CSS-only chat docking under `body.theater-watching`, watch bar with now-playing title, homography suspended while watching
+- [x] 4.8 Cinema view (user addition): seated watching reflows the screen into a large stage with the chat panel docked beside it, HUD hidden, seamless return via stand/Esc; CSS-only chat docking under `body.theater-watching`, watch bar with now-playing title, homography suspended while watching
 
 ## 5. Tests
 

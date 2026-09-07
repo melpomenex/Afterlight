@@ -1,0 +1,1297 @@
+{
+  "env": {
+    "date": "2026-09-07T00:33:33.255Z",
+    "host": "linux 7.0.0-30-generic x64, 24 cpus",
+    "browser": "Chromium 152.0.7977.64 (ubuntu snap), --headless=new --no-sandbox",
+    "userAgent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+    "driver": "CDP (Page/Runtime.evaluate polling of window.__probeResults and #status); no --virtual-time-budget, so wall-clock numbers are real but unquoted anyway (checksum FAILED for scatter)",
+    "page": "benchmarks/realtime/webgpu/probe.html served on http://127.0.0.1:8899 (python3 -m http.server)",
+    "probe": "afterlight-webgpu-transform-upload-v0"
+  },
+  "citationPolicy": "Scatter checksum FAILED on every adapter-bearing rung -> the run is INVALIDATED per the probe contract; no µs numbers are quoted here or in webgpu.md. Checksum pass/fail, adapter identity, and the render-read check are the deliverables.",
+  "probeBugFoundAndFixed": {
+    "date": "2026-09-07T00:33:33.255Z",
+    "bug": "probe.html allocN() created the tsCopyRun staging buffer with usage MAP_WRITE|COPY_SRC|COPY_DST — spec-invalid (MAP_WRITE may only combine with COPY_SRC). Dawn rejected creation; every subsequent staging writeBuffer/copyBufferToBuffer cascaded [Invalid Buffer] device errors, which failed renderCheck (zero-errors requirement) on the pre-fix run even though cell checksums were unaffected.",
+    "fix": "staging usage reduced to COPY_SRC|COPY_DST (writeBuffer needs COPY_DST, copyBufferToBuffer needs COPY_SRC; no mapping used). Post-fix runs: 0 device errors, renderCheck passed.",
+    "note": "The Node mock-device validation (45/45 bit-exact) could not catch a usage-flag spec violation — only real Dawn under browser tooling did. This is part of the task 3.4 payoff."
+  },
+  "ladder": [
+    {
+      "rung": 1,
+      "flags": "(none — plain headless)",
+      "outcome": {
+        "supported": false,
+        "reason": "requestAdapter() returned null: no usable WebGPU adapter. Try the README flag ladder: --enable-unsafe-webgpu, --use-angle=swiftshader, or --use-gl=angle --use-webgpu-adapter=swiftshader; check chrome://gpu.",
+        "correctness": "not-run",
+        "adapter": null,
+        "cells": 0
+      },
+      "screenshot": "results/webgpu-probe-plain.png"
+    },
+    {
+      "rung": 2,
+      "flags": "--enable-unsafe-webgpu",
+      "primary": true,
+      "outcome": {
+        "supported": true,
+        "adapter": {
+          "vendor": "google",
+          "architecture": "swiftshader",
+          "device": "",
+          "description": ""
+        },
+        "correctness": "FAILED",
+        "checksumTally": {
+          "full": {
+            "ok": 15,
+            "fail": 0
+          },
+          "partial": {
+            "ok": 15,
+            "fail": 0
+          },
+          "scatter": {
+            "ok": 0,
+            "fail": 15
+          }
+        },
+        "deviceErrors": 0,
+        "renderCheckPassed": true,
+        "timestampQuery": true,
+        "tsEncoderWriteTimestamp": true,
+        "totalMs": 15822,
+        "scatterTwinSameInputs": {
+          "expectedXor": "0x045e4c2a",
+          "actualXors": [
+            "0x7db5926d",
+            "0x801f402e"
+          ]
+        }
+      },
+      "screenshot": "results/webgpu-probe-swiftshader.png",
+      "note": "first rung to yield an adapter (SwiftShader, software); full matrix below"
+    },
+    {
+      "rung": 3,
+      "flags": "--enable-unsafe-webgpu --use-angle=swiftshader",
+      "outcome": {
+        "supported": true,
+        "adapter": {
+          "vendor": "google",
+          "architecture": "swiftshader",
+          "device": "",
+          "description": ""
+        },
+        "correctness": "FAILED",
+        "checksumTally": {
+          "full": {
+            "ok": 15,
+            "fail": 0
+          },
+          "partial": {
+            "ok": 15,
+            "fail": 0
+          },
+          "scatter": {
+            "ok": 0,
+            "fail": 15
+          }
+        },
+        "deviceErrors": 0,
+        "renderCheckPassed": true,
+        "timestampQuery": true,
+        "tsEncoderWriteTimestamp": true,
+        "totalMs": 16389,
+        "scatterTwinSameInputs": {
+          "expectedXor": "0x045e4c2a",
+          "actualXors": [
+            "0x801f402e",
+            "0x801f402e"
+          ]
+        }
+      },
+      "screenshot": "results/webgpu-probe-swiftshader-angle.png",
+      "note": "identical verdict to rung 2"
+    },
+    {
+      "rung": 4,
+      "flags": "--enable-unsafe-webgpu --use-gl=angle --use-webgpu-adapter=swiftshader",
+      "outcome": {
+        "supported": true,
+        "adapter": {
+          "vendor": "google",
+          "architecture": "swiftshader",
+          "device": "",
+          "description": ""
+        },
+        "correctness": "FAILED",
+        "checksumTally": {
+          "full": {
+            "ok": 15,
+            "fail": 0
+          },
+          "partial": {
+            "ok": 15,
+            "fail": 0
+          },
+          "scatter": {
+            "ok": 0,
+            "fail": 15
+          }
+        },
+        "deviceErrors": 0,
+        "renderCheckPassed": true,
+        "timestampQuery": true,
+        "tsEncoderWriteTimestamp": true,
+        "totalMs": 16313,
+        "scatterTwinSameInputs": {
+          "expectedXor": "0x045e4c2a",
+          "actualXors": [
+            "0x801f402e",
+            "0x801f402e"
+          ]
+        }
+      },
+      "screenshot": "results/webgpu-probe-swiftshader-pinned.png",
+      "note": "identical verdict to rung 2 (older explicit-pin flag style)"
+    }
+  ],
+  "verdict": {
+    "adapter": "google/swiftshader (software rendering) via --enable-unsafe-webgpu on Chromium 152 — an update to the PARK text (\"no adapter obtainable\"): the plain rung still yields none, the unsafe-webgpu rung now does.",
+    "fullPartial": "checksum-validated bit-exact on the software adapter: full 15/15 cells, partial 15/15 cells (XOR over all N vec4s vs CPU mirror).",
+    "scatter": "checksum FAILED 0/15 cells on every rung, with non-deterministic GPU state: identical inputs (N=1000, changed=1000 vs requested 10000 clamped to 1000 — same seed, same expectedXor) produced different actualXor within a single run. SwiftShader cannot validate or time the scatter kernel; real-GPU validation remains required.",
+    "renderRead": "instanced draw of 50000 quads reading positions[instance_index] from the persistent buffer passed on all adapter-bearing rungs (submit completed, zero device/validation errors).",
+    "parkStatus": "PARK stands — strengthened for scatter; the only new validated facts are software-rendered correctness of the direct-write paths and the render-read coherence."
+  },
+  "primaryRun": {
+    "supported": true,
+    "reason": null,
+    "meta": {
+      "probe": "afterlight-webgpu-transform-upload-v0",
+      "contract": "docs/architecture/realtime/contract.md §2 (entity model) §7 (client layering)",
+      "date": "2026-09-07T00:33:33.255Z",
+      "userAgent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36"
+    },
+    "adapter": {
+      "vendor": "google",
+      "architecture": "swiftshader",
+      "device": "",
+      "description": ""
+    },
+    "adapterFeatures": [
+      "depth32float-stencil8",
+      "rg11b10ufloat-renderable",
+      "bgra8unorm-storage",
+      "texture-compression-bc",
+      "core-features-and-limits",
+      "chromium-experimental-sampling-resource-table",
+      "chromium-experimental-timestamp-query-inside-passes",
+      "float32-filterable",
+      "indirect-first-instance",
+      "texture-compression-astc-sliced-3d",
+      "float32-blendable",
+      "subgroup-size-control",
+      "texture-compression-unaligned",
+      "texture-compression-astc",
+      "texture-compression-etc2",
+      "depth-clip-control",
+      "texture-compression-bc-sliced-3d",
+      "timestamp-query",
+      "clip-distances",
+      "texture-component-swizzle",
+      "subgroups"
+    ],
+    "device": {
+      "features": [
+        "core-features-and-limits",
+        "timestamp-query"
+      ],
+      "maxStorageBufferBindingSize": 134217728,
+      "maxBufferSize": 268435456,
+      "maxComputeInvocationsPerWorkgroup": 256,
+      "maxComputeWorkgroupSizeX": 256,
+      "maxComputeWorkgroupsPerDimension": 65535
+    },
+    "timestampQuery": true,
+    "timestampPeriodAssumedNs": 1,
+    "timingNotes": [],
+    "errors": [],
+    "deviceLost": null,
+    "correctness": "FAILED",
+    "renderCheck": {
+      "passed": true,
+      "instances": 50000,
+      "validationError": null,
+      "note": "one instanced draw of N quads; vertex stage reads positions[instance_index] from the persistent storage buffer (Three.js InstancedMesh analogue; draw submitted and completed with no device errors)"
+    },
+    "matrix": [
+      {
+        "N": 1000,
+        "requestedChanged": 1,
+        "changed": 1,
+        "clamped": false,
+        "modes": {
+          "full": {
+            "mode": "full",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 16000,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 0.29999998211860657,
+            "wallMinUs": 0,
+            "wallMaxUs": 5.0999999940395355,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0xbef68759",
+              "actualXor": "0xbef68759",
+              "elements": 1000
+            },
+            "gpuMedianUs": 2.92,
+            "gpuMinUs": 1.66,
+            "gpuScope": "one staging->positions copyBufferToBuffer of the whole buffer, encoder.writeTimestamp bracket (GPU-side analogue of the writeBuffer frame)"
+          },
+          "partial": {
+            "mode": "partial",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 16,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 0.29999998211860657,
+            "wallMinUs": 0,
+            "wallMaxUs": 3.7999999821186066,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0xbef68759",
+              "actualXor": "0xbef68759",
+              "elements": 1000
+            },
+            "gpuMedianUs": 1.42,
+            "gpuMinUs": 0.84,
+            "gpuScope": "1 staging->positions copyBufferToBuffer call of 16 B each, encoder.writeTimestamp bracket (GPU-side analogue of the per-entity writeBuffer anti-pattern)"
+          },
+          "scatter": {
+            "mode": "scatter",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 36,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock + gpu-timestamps",
+            "wallMedianUs": 2.300000011920929,
+            "wallMinUs": 0.10000002384185791,
+            "wallMaxUs": 4.800000011920929,
+            "gpuMedianUs": 27.735,
+            "gpuMinUs": 7.991,
+            "gpuScope": "scatter compute pass elapsed, bracketed by encoder.writeTimestamp (delta writeBuffer excluded: writeBuffer is not encoder-visible)",
+            "checksum": {
+              "passed": false,
+              "expectedXor": "0xbef68759",
+              "actualXor": "0x41cb7934",
+              "elements": 1000
+            }
+          }
+        }
+      },
+      {
+        "N": 1000,
+        "requestedChanged": 10,
+        "changed": 10,
+        "clamped": false,
+        "modes": {
+          "full": {
+            "mode": "full",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 16000,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 0.19999998807907104,
+            "wallMinUs": 0,
+            "wallMaxUs": 3,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0x039c5d66",
+              "actualXor": "0x039c5d66",
+              "elements": 1000
+            },
+            "gpuMedianUs": 2.39,
+            "gpuMinUs": 1.32,
+            "gpuScope": "one staging->positions copyBufferToBuffer of the whole buffer, encoder.writeTimestamp bracket (GPU-side analogue of the writeBuffer frame)"
+          },
+          "partial": {
+            "mode": "partial",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 160,
+            "writeBufferCallsPerFrame": 10,
+            "timing": "wall-clock",
+            "wallMedianUs": 0.19999998807907104,
+            "wallMinUs": 0,
+            "wallMaxUs": 2.4000000059604645,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0x039c5d66",
+              "actualXor": "0x039c5d66",
+              "elements": 1000
+            },
+            "gpuMedianUs": 2.93,
+            "gpuMinUs": 2.02,
+            "gpuScope": "10 staging->positions copyBufferToBuffer calls of 16 B each, encoder.writeTimestamp bracket (GPU-side analogue of the per-entity writeBuffer anti-pattern)"
+          },
+          "scatter": {
+            "mode": "scatter",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 216,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock + gpu-timestamps",
+            "wallMedianUs": 2.300000011920929,
+            "wallMinUs": 0.10000002384185791,
+            "wallMaxUs": 3.699999988079071,
+            "gpuMedianUs": 27.155,
+            "gpuMinUs": 11.89,
+            "gpuScope": "scatter compute pass elapsed, bracketed by encoder.writeTimestamp (delta writeBuffer excluded: writeBuffer is not encoder-visible)",
+            "checksum": {
+              "passed": false,
+              "expectedXor": "0x039c5d66",
+              "actualXor": "0xc3206f51",
+              "elements": 1000
+            }
+          }
+        }
+      },
+      {
+        "N": 1000,
+        "requestedChanged": 100,
+        "changed": 100,
+        "clamped": false,
+        "modes": {
+          "full": {
+            "mode": "full",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 16000,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 0.19999998807907104,
+            "wallMinUs": 0,
+            "wallMaxUs": 2.5,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0xf8e42af3",
+              "actualXor": "0xf8e42af3",
+              "elements": 1000
+            },
+            "gpuMedianUs": 1.4,
+            "gpuMinUs": 1.06,
+            "gpuScope": "one staging->positions copyBufferToBuffer of the whole buffer, encoder.writeTimestamp bracket (GPU-side analogue of the writeBuffer frame)"
+          },
+          "partial": {
+            "mode": "partial",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 1600,
+            "writeBufferCallsPerFrame": 100,
+            "timing": "wall-clock",
+            "wallMedianUs": 2.2999999821186066,
+            "wallMinUs": 0.09999999403953552,
+            "wallMaxUs": 3.2000000178813934,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0xf8e42af3",
+              "actualXor": "0xf8e42af3",
+              "elements": 1000
+            },
+            "gpuMedianUs": 16.431,
+            "gpuMinUs": 12.911,
+            "gpuScope": "100 staging->positions copyBufferToBuffer calls of 16 B each, encoder.writeTimestamp bracket (GPU-side analogue of the per-entity writeBuffer anti-pattern)"
+          },
+          "scatter": {
+            "mode": "scatter",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 2016,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock + gpu-timestamps",
+            "wallMedianUs": 2.300000011920929,
+            "wallMinUs": 0.09999999403953552,
+            "wallMaxUs": 3.300000011920929,
+            "gpuMedianUs": 28.141,
+            "gpuMinUs": 10.99,
+            "gpuScope": "scatter compute pass elapsed, bracketed by encoder.writeTimestamp (delta writeBuffer excluded: writeBuffer is not encoder-visible)",
+            "checksum": {
+              "passed": false,
+              "expectedXor": "0xf8e42af3",
+              "actualXor": "0xc158e552",
+              "elements": 1000
+            }
+          }
+        }
+      },
+      {
+        "N": 1000,
+        "requestedChanged": 1000,
+        "changed": 1000,
+        "clamped": false,
+        "modes": {
+          "full": {
+            "mode": "full",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 16000,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 0.09999999403953552,
+            "wallMinUs": 0,
+            "wallMaxUs": 2.2999999821186066,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0x045e4c2a",
+              "actualXor": "0x045e4c2a",
+              "elements": 1000
+            },
+            "gpuMedianUs": 1.5550000000000002,
+            "gpuMinUs": 1.04,
+            "gpuScope": "one staging->positions copyBufferToBuffer of the whole buffer, encoder.writeTimestamp bracket (GPU-side analogue of the writeBuffer frame)"
+          },
+          "partial": {
+            "mode": "partial",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 16000,
+            "writeBufferCallsPerFrame": 1000,
+            "timing": "wall-clock",
+            "wallMedianUs": 3.0999999940395355,
+            "wallMinUs": 2.699999988079071,
+            "wallMaxUs": 4,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0x045e4c2a",
+              "actualXor": "0x045e4c2a",
+              "elements": 1000
+            },
+            "gpuMedianUs": 180.80849999999998,
+            "gpuMinUs": 111.852,
+            "gpuScope": "1000 staging->positions copyBufferToBuffer calls of 16 B each, encoder.writeTimestamp bracket (GPU-side analogue of the per-entity writeBuffer anti-pattern)"
+          },
+          "scatter": {
+            "mode": "scatter",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 20016,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock + gpu-timestamps",
+            "wallMedianUs": 2.2999999821186066,
+            "wallMinUs": 0.29999998211860657,
+            "wallMaxUs": 2.5,
+            "gpuMedianUs": 50.1415,
+            "gpuMinUs": 31.321,
+            "gpuScope": "scatter compute pass elapsed, bracketed by encoder.writeTimestamp (delta writeBuffer excluded: writeBuffer is not encoder-visible)",
+            "checksum": {
+              "passed": false,
+              "expectedXor": "0x045e4c2a",
+              "actualXor": "0x7db5926d",
+              "elements": 1000
+            }
+          }
+        }
+      },
+      {
+        "N": 1000,
+        "requestedChanged": 10000,
+        "changed": 1000,
+        "clamped": true,
+        "modes": {
+          "full": {
+            "mode": "full",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 16000,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 0.10000002384185791,
+            "wallMinUs": 0,
+            "wallMaxUs": 2.300000011920929,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0x045e4c2a",
+              "actualXor": "0x045e4c2a",
+              "elements": 1000
+            },
+            "gpuMedianUs": 1.0350000000000001,
+            "gpuMinUs": 0.67,
+            "gpuScope": "one staging->positions copyBufferToBuffer of the whole buffer, encoder.writeTimestamp bracket (GPU-side analogue of the writeBuffer frame)"
+          },
+          "partial": {
+            "mode": "partial",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 16000,
+            "writeBufferCallsPerFrame": 1000,
+            "timing": "wall-clock",
+            "wallMedianUs": 3.0999999940395355,
+            "wallMinUs": 2.7999999821186066,
+            "wallMaxUs": 5.199999988079071,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0x045e4c2a",
+              "actualXor": "0x045e4c2a",
+              "elements": 1000
+            },
+            "gpuMedianUs": 125.162,
+            "gpuMinUs": 112.643,
+            "gpuScope": "1000 staging->positions copyBufferToBuffer calls of 16 B each, encoder.writeTimestamp bracket (GPU-side analogue of the per-entity writeBuffer anti-pattern)"
+          },
+          "scatter": {
+            "mode": "scatter",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 20016,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock + gpu-timestamps",
+            "wallMedianUs": 2.2999999821186066,
+            "wallMinUs": 0.29999998211860657,
+            "wallMaxUs": 2.4000000059604645,
+            "gpuMedianUs": 46.321,
+            "gpuMinUs": 31.701,
+            "gpuScope": "scatter compute pass elapsed, bracketed by encoder.writeTimestamp (delta writeBuffer excluded: writeBuffer is not encoder-visible)",
+            "checksum": {
+              "passed": false,
+              "expectedXor": "0x045e4c2a",
+              "actualXor": "0x801f402e",
+              "elements": 1000
+            }
+          }
+        }
+      },
+      {
+        "N": 10000,
+        "requestedChanged": 1,
+        "changed": 1,
+        "clamped": false,
+        "modes": {
+          "full": {
+            "mode": "full",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 160000,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 0.20000001788139343,
+            "wallMinUs": 0.09999999403953552,
+            "wallMaxUs": 2.5,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0xc2040193",
+              "actualXor": "0xc2040193",
+              "elements": 10000
+            },
+            "gpuMedianUs": 4.6355,
+            "gpuMinUs": 4.14,
+            "gpuScope": "one staging->positions copyBufferToBuffer of the whole buffer, encoder.writeTimestamp bracket (GPU-side analogue of the writeBuffer frame)"
+          },
+          "partial": {
+            "mode": "partial",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 16,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 0.09999999403953552,
+            "wallMinUs": 0,
+            "wallMaxUs": 0.699999988079071,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0xc2040193",
+              "actualXor": "0xc2040193",
+              "elements": 10000
+            },
+            "gpuMedianUs": 0.87,
+            "gpuMinUs": 0.52,
+            "gpuScope": "1 staging->positions copyBufferToBuffer call of 16 B each, encoder.writeTimestamp bracket (GPU-side analogue of the per-entity writeBuffer anti-pattern)"
+          },
+          "scatter": {
+            "mode": "scatter",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 36,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock + gpu-timestamps",
+            "wallMedianUs": 0.20000001788139343,
+            "wallMinUs": 0.09999999403953552,
+            "wallMaxUs": 2.4000000059604645,
+            "gpuMedianUs": 11.791,
+            "gpuMinUs": 7.27,
+            "gpuScope": "scatter compute pass elapsed, bracketed by encoder.writeTimestamp (delta writeBuffer excluded: writeBuffer is not encoder-visible)",
+            "checksum": {
+              "passed": false,
+              "expectedXor": "0xc2040193",
+              "actualXor": "0x432586ff",
+              "elements": 10000
+            }
+          }
+        }
+      },
+      {
+        "N": 10000,
+        "requestedChanged": 10,
+        "changed": 10,
+        "clamped": false,
+        "modes": {
+          "full": {
+            "mode": "full",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 160000,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 0.29999998211860657,
+            "wallMinUs": 0.09999999403953552,
+            "wallMaxUs": 2.4000000059604645,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0x7ad04f3c",
+              "actualXor": "0x7ad04f3c",
+              "elements": 10000
+            },
+            "gpuMedianUs": 4.755,
+            "gpuMinUs": 4.19,
+            "gpuScope": "one staging->positions copyBufferToBuffer of the whole buffer, encoder.writeTimestamp bracket (GPU-side analogue of the writeBuffer frame)"
+          },
+          "partial": {
+            "mode": "partial",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 160,
+            "writeBufferCallsPerFrame": 10,
+            "timing": "wall-clock",
+            "wallMedianUs": 0.09999999403953552,
+            "wallMinUs": 0,
+            "wallMaxUs": 2.2999999821186066,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0x7ad04f3c",
+              "actualXor": "0x7ad04f3c",
+              "elements": 10000
+            },
+            "gpuMedianUs": 2.28,
+            "gpuMinUs": 1.81,
+            "gpuScope": "10 staging->positions copyBufferToBuffer calls of 16 B each, encoder.writeTimestamp bracket (GPU-side analogue of the per-entity writeBuffer anti-pattern)"
+          },
+          "scatter": {
+            "mode": "scatter",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 216,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock + gpu-timestamps",
+            "wallMedianUs": 2.25,
+            "wallMinUs": 0,
+            "wallMaxUs": 2.9000000059604645,
+            "gpuMedianUs": 24.476,
+            "gpuMinUs": 10.7,
+            "gpuScope": "scatter compute pass elapsed, bracketed by encoder.writeTimestamp (delta writeBuffer excluded: writeBuffer is not encoder-visible)",
+            "checksum": {
+              "passed": false,
+              "expectedXor": "0x7ad04f3c",
+              "actualXor": "0xc6ed9823",
+              "elements": 10000
+            }
+          }
+        }
+      },
+      {
+        "N": 10000,
+        "requestedChanged": 100,
+        "changed": 100,
+        "clamped": false,
+        "modes": {
+          "full": {
+            "mode": "full",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 160000,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 0.20000001788139343,
+            "wallMinUs": 0.09999999403953552,
+            "wallMaxUs": 2.5,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0xffd1aa54",
+              "actualXor": "0xffd1aa54",
+              "elements": 10000
+            },
+            "gpuMedianUs": 5.175000000000001,
+            "gpuMinUs": 3.63,
+            "gpuScope": "one staging->positions copyBufferToBuffer of the whole buffer, encoder.writeTimestamp bracket (GPU-side analogue of the writeBuffer frame)"
+          },
+          "partial": {
+            "mode": "partial",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 1600,
+            "writeBufferCallsPerFrame": 100,
+            "timing": "wall-clock",
+            "wallMedianUs": 2.2999999821186066,
+            "wallMinUs": 0.09999999403953552,
+            "wallMaxUs": 2.5999999940395355,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0xffd1aa54",
+              "actualXor": "0xffd1aa54",
+              "elements": 10000
+            },
+            "gpuMedianUs": 19.7255,
+            "gpuMinUs": 13.33,
+            "gpuScope": "100 staging->positions copyBufferToBuffer calls of 16 B each, encoder.writeTimestamp bracket (GPU-side analogue of the per-entity writeBuffer anti-pattern)"
+          },
+          "scatter": {
+            "mode": "scatter",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 2016,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock + gpu-timestamps",
+            "wallMedianUs": 2.2000000178813934,
+            "wallMinUs": 0.19999998807907104,
+            "wallMaxUs": 3.5999999940395355,
+            "gpuMedianUs": 27.22,
+            "gpuMinUs": 12.33,
+            "gpuScope": "scatter compute pass elapsed, bracketed by encoder.writeTimestamp (delta writeBuffer excluded: writeBuffer is not encoder-visible)",
+            "checksum": {
+              "passed": false,
+              "expectedXor": "0xffd1aa54",
+              "actualXor": "0xc43778e3",
+              "elements": 10000
+            }
+          }
+        }
+      },
+      {
+        "N": 10000,
+        "requestedChanged": 1000,
+        "changed": 1000,
+        "clamped": false,
+        "modes": {
+          "full": {
+            "mode": "full",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 160000,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 0.20000001788139343,
+            "wallMinUs": 0.09999999403953552,
+            "wallMaxUs": 2.5,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0x87b34c65",
+              "actualXor": "0x87b34c65",
+              "elements": 10000
+            },
+            "gpuMedianUs": 5.82,
+            "gpuMinUs": 4.85,
+            "gpuScope": "one staging->positions copyBufferToBuffer of the whole buffer, encoder.writeTimestamp bracket (GPU-side analogue of the writeBuffer frame)"
+          },
+          "partial": {
+            "mode": "partial",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 16000,
+            "writeBufferCallsPerFrame": 1000,
+            "timing": "wall-clock",
+            "wallMedianUs": 3,
+            "wallMinUs": 2.699999988079071,
+            "wallMaxUs": 3.699999988079071,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0x87b34c65",
+              "actualXor": "0x87b34c65",
+              "elements": 10000
+            },
+            "gpuMedianUs": 274.795,
+            "gpuMinUs": 125.303,
+            "gpuScope": "1000 staging->positions copyBufferToBuffer calls of 16 B each, encoder.writeTimestamp bracket (GPU-side analogue of the per-entity writeBuffer anti-pattern)"
+          },
+          "scatter": {
+            "mode": "scatter",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 20016,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock + gpu-timestamps",
+            "wallMedianUs": 2.2999999821186066,
+            "wallMinUs": 2.0999999940395355,
+            "wallMaxUs": 2.5,
+            "gpuMedianUs": 46.956,
+            "gpuMinUs": 34.391,
+            "gpuScope": "scatter compute pass elapsed, bracketed by encoder.writeTimestamp (delta writeBuffer excluded: writeBuffer is not encoder-visible)",
+            "checksum": {
+              "passed": false,
+              "expectedXor": "0x87b34c65",
+              "actualXor": "0x3ee068a3",
+              "elements": 10000
+            }
+          }
+        }
+      },
+      {
+        "N": 10000,
+        "requestedChanged": 10000,
+        "changed": 10000,
+        "clamped": false,
+        "modes": {
+          "full": {
+            "mode": "full",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 160000,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 0.29999999701976776,
+            "wallMinUs": 0.09999999403953552,
+            "wallMaxUs": 2.800000011920929,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0xf6bfe5c5",
+              "actualXor": "0xf6bfe5c5",
+              "elements": 10000
+            },
+            "gpuMedianUs": 5.3,
+            "gpuMinUs": 4.42,
+            "gpuScope": "one staging->positions copyBufferToBuffer of the whole buffer, encoder.writeTimestamp bracket (GPU-side analogue of the writeBuffer frame)"
+          },
+          "partial": {
+            "mode": "partial",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 160000,
+            "writeBufferCallsPerFrame": 10000,
+            "timing": "wall-clock",
+            "wallMedianUs": 9.900000005960464,
+            "wallMinUs": 8.5,
+            "wallMaxUs": 13,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0xf6bfe5c5",
+              "actualXor": "0xf6bfe5c5",
+              "elements": 10000
+            },
+            "gpuMedianUs": 1264.7199999999998,
+            "gpuMinUs": 1151.123,
+            "gpuScope": "10000 staging->positions copyBufferToBuffer calls of 16 B each, encoder.writeTimestamp bracket (GPU-side analogue of the per-entity writeBuffer anti-pattern)"
+          },
+          "scatter": {
+            "mode": "scatter",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 200016,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock + gpu-timestamps",
+            "wallMedianUs": 2.4000000059604645,
+            "wallMinUs": 2.2999999821186066,
+            "wallMaxUs": 2.7000000178813934,
+            "gpuMedianUs": 149.598,
+            "gpuMinUs": 127.912,
+            "gpuScope": "scatter compute pass elapsed, bracketed by encoder.writeTimestamp (delta writeBuffer excluded: writeBuffer is not encoder-visible)",
+            "checksum": {
+              "passed": false,
+              "expectedXor": "0xf6bfe5c5",
+              "actualXor": "0xf52264d4",
+              "elements": 10000
+            }
+          }
+        }
+      },
+      {
+        "N": 50000,
+        "requestedChanged": 1,
+        "changed": 1,
+        "clamped": false,
+        "modes": {
+          "full": {
+            "mode": "full",
+            "iterations": 60,
+            "warmup": 4,
+            "truncated": false,
+            "bytesPerFrame": 800000,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 0.5,
+            "wallMinUs": 0.3999999761581421,
+            "wallMaxUs": 0.9000000059604645,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0xbbff5201",
+              "actualXor": "0xbbff5201",
+              "elements": 50000
+            },
+            "gpuMedianUs": 39.480000000000004,
+            "gpuMinUs": 30.831,
+            "gpuScope": "one staging->positions copyBufferToBuffer of the whole buffer, encoder.writeTimestamp bracket (GPU-side analogue of the writeBuffer frame)"
+          },
+          "partial": {
+            "mode": "partial",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 16,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 0.09999999403953552,
+            "wallMinUs": 0,
+            "wallMaxUs": 0.30000001192092896,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0xba2a8491",
+              "actualXor": "0xba2a8491",
+              "elements": 50000
+            },
+            "gpuMedianUs": 0.87,
+            "gpuMinUs": 0.63,
+            "gpuScope": "1 staging->positions copyBufferToBuffer call of 16 B each, encoder.writeTimestamp bracket (GPU-side analogue of the per-entity writeBuffer anti-pattern)"
+          },
+          "scatter": {
+            "mode": "scatter",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 36,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock + gpu-timestamps",
+            "wallMedianUs": 2.2000000178813934,
+            "wallMinUs": 0,
+            "wallMaxUs": 2.5,
+            "gpuMedianUs": 18.2605,
+            "gpuMinUs": 6.9,
+            "gpuScope": "scatter compute pass elapsed, bracketed by encoder.writeTimestamp (delta writeBuffer excluded: writeBuffer is not encoder-visible)",
+            "checksum": {
+              "passed": false,
+              "expectedXor": "0xba2a8491",
+              "actualXor": "0xc5b27e0a",
+              "elements": 50000
+            }
+          }
+        }
+      },
+      {
+        "N": 50000,
+        "requestedChanged": 10,
+        "changed": 10,
+        "clamped": false,
+        "modes": {
+          "full": {
+            "mode": "full",
+            "iterations": 60,
+            "warmup": 4,
+            "truncated": false,
+            "bytesPerFrame": 800000,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 2.7000000178813934,
+            "wallMinUs": 2.5999999940395355,
+            "wallMaxUs": 3,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0x82a38d0d",
+              "actualXor": "0x82a38d0d",
+              "elements": 50000
+            },
+            "gpuMedianUs": 38.375,
+            "gpuMinUs": 29.511,
+            "gpuScope": "one staging->positions copyBufferToBuffer of the whole buffer, encoder.writeTimestamp bracket (GPU-side analogue of the writeBuffer frame)"
+          },
+          "partial": {
+            "mode": "partial",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 160,
+            "writeBufferCallsPerFrame": 10,
+            "timing": "wall-clock",
+            "wallMedianUs": 0.09999999403953552,
+            "wallMinUs": 0,
+            "wallMaxUs": 0.30000001192092896,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0xfe04012d",
+              "actualXor": "0xfe04012d",
+              "elements": 50000
+            },
+            "gpuMedianUs": 2.855,
+            "gpuMinUs": 1.98,
+            "gpuScope": "10 staging->positions copyBufferToBuffer calls of 16 B each, encoder.writeTimestamp bracket (GPU-side analogue of the per-entity writeBuffer anti-pattern)"
+          },
+          "scatter": {
+            "mode": "scatter",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 216,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock + gpu-timestamps",
+            "wallMedianUs": 2.25,
+            "wallMinUs": 0.09999999403953552,
+            "wallMaxUs": 4.5999999940395355,
+            "gpuMedianUs": 20.786,
+            "gpuMinUs": 9.59,
+            "gpuScope": "scatter compute pass elapsed, bracketed by encoder.writeTimestamp (delta writeBuffer excluded: writeBuffer is not encoder-visible)",
+            "checksum": {
+              "passed": false,
+              "expectedXor": "0xfe04012d",
+              "actualXor": "0xc11515c3",
+              "elements": 50000
+            }
+          }
+        }
+      },
+      {
+        "N": 50000,
+        "requestedChanged": 100,
+        "changed": 100,
+        "clamped": false,
+        "modes": {
+          "full": {
+            "mode": "full",
+            "iterations": 60,
+            "warmup": 4,
+            "truncated": false,
+            "bytesPerFrame": 800000,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 2.7000000178813934,
+            "wallMinUs": 2.5999999940395355,
+            "wallMaxUs": 3.2000000178813934,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0x7e3cebec",
+              "actualXor": "0x7e3cebec",
+              "elements": 50000
+            },
+            "gpuMedianUs": 69.316,
+            "gpuMinUs": 58.961,
+            "gpuScope": "one staging->positions copyBufferToBuffer of the whole buffer, encoder.writeTimestamp bracket (GPU-side analogue of the writeBuffer frame)"
+          },
+          "partial": {
+            "mode": "partial",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 1600,
+            "writeBufferCallsPerFrame": 100,
+            "timing": "wall-clock",
+            "wallMedianUs": 2.300000011920929,
+            "wallMinUs": 0.09999999403953552,
+            "wallMaxUs": 2.9000000059604645,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0x874afd1b",
+              "actualXor": "0x874afd1b",
+              "elements": 50000
+            },
+            "gpuMedianUs": 15.220500000000001,
+            "gpuMinUs": 13.63,
+            "gpuScope": "100 staging->positions copyBufferToBuffer calls of 16 B each, encoder.writeTimestamp bracket (GPU-side analogue of the per-entity writeBuffer anti-pattern)"
+          },
+          "scatter": {
+            "mode": "scatter",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 2016,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock + gpu-timestamps",
+            "wallMedianUs": 2.2000000178813934,
+            "wallMinUs": 0.09999999403953552,
+            "wallMaxUs": 3.300000011920929,
+            "gpuMedianUs": 26.086,
+            "gpuMinUs": 9.21,
+            "gpuScope": "scatter compute pass elapsed, bracketed by encoder.writeTimestamp (delta writeBuffer excluded: writeBuffer is not encoder-visible)",
+            "checksum": {
+              "passed": false,
+              "expectedXor": "0x874afd1b",
+              "actualXor": "0x4353e130",
+              "elements": 50000
+            }
+          }
+        }
+      },
+      {
+        "N": 50000,
+        "requestedChanged": 1000,
+        "changed": 1000,
+        "clamped": false,
+        "modes": {
+          "full": {
+            "mode": "full",
+            "iterations": 60,
+            "warmup": 4,
+            "truncated": false,
+            "bytesPerFrame": 800000,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 2.9000000059604645,
+            "wallMinUs": 2.699999988079071,
+            "wallMaxUs": 3.4000000059604645,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0x96c0f662",
+              "actualXor": "0x96c0f662",
+              "elements": 50000
+            },
+            "gpuMedianUs": 39.4555,
+            "gpuMinUs": 19.66,
+            "gpuScope": "one staging->positions copyBufferToBuffer of the whole buffer, encoder.writeTimestamp bracket (GPU-side analogue of the writeBuffer frame)"
+          },
+          "partial": {
+            "mode": "partial",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 16000,
+            "writeBufferCallsPerFrame": 1000,
+            "timing": "wall-clock",
+            "wallMedianUs": 3,
+            "wallMinUs": 2.7999999821186066,
+            "wallMaxUs": 3.699999988079071,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0x79552414",
+              "actualXor": "0x79552414",
+              "elements": 50000
+            },
+            "gpuMedianUs": 126.19749999999999,
+            "gpuMinUs": 121.762,
+            "gpuScope": "1000 staging->positions copyBufferToBuffer calls of 16 B each, encoder.writeTimestamp bracket (GPU-side analogue of the per-entity writeBuffer anti-pattern)"
+          },
+          "scatter": {
+            "mode": "scatter",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 20016,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock + gpu-timestamps",
+            "wallMedianUs": 2.2999999821186066,
+            "wallMinUs": 0.19999998807907104,
+            "wallMaxUs": 3.5,
+            "gpuMedianUs": 43.346000000000004,
+            "gpuMinUs": 27.7,
+            "gpuScope": "scatter compute pass elapsed, bracketed by encoder.writeTimestamp (delta writeBuffer excluded: writeBuffer is not encoder-visible)",
+            "checksum": {
+              "passed": false,
+              "expectedXor": "0x79552414",
+              "actualXor": "0x3c15e716",
+              "elements": 50000
+            }
+          }
+        }
+      },
+      {
+        "N": 50000,
+        "requestedChanged": 10000,
+        "changed": 10000,
+        "clamped": false,
+        "modes": {
+          "full": {
+            "mode": "full",
+            "iterations": 60,
+            "warmup": 4,
+            "truncated": false,
+            "bytesPerFrame": 800000,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock",
+            "wallMedianUs": 2.7999999821186066,
+            "wallMinUs": 2.5999999940395355,
+            "wallMaxUs": 3.2000000178813934,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0x8cbecb8f",
+              "actualXor": "0x8cbecb8f",
+              "elements": 50000
+            },
+            "gpuMedianUs": 58.596,
+            "gpuMinUs": 42.84,
+            "gpuScope": "one staging->positions copyBufferToBuffer of the whole buffer, encoder.writeTimestamp bracket (GPU-side analogue of the writeBuffer frame)"
+          },
+          "partial": {
+            "mode": "partial",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 160000,
+            "writeBufferCallsPerFrame": 10000,
+            "timing": "wall-clock",
+            "wallMedianUs": 11,
+            "wallMinUs": 8.899999976158142,
+            "wallMaxUs": 15.300000011920929,
+            "checksum": {
+              "passed": true,
+              "expectedXor": "0xfac2c787",
+              "actualXor": "0xfac2c787",
+              "elements": 50000
+            },
+            "gpuMedianUs": 1707.1745,
+            "gpuMinUs": 1305.637,
+            "gpuScope": "10000 staging->positions copyBufferToBuffer calls of 16 B each, encoder.writeTimestamp bracket (GPU-side analogue of the per-entity writeBuffer anti-pattern)"
+          },
+          "scatter": {
+            "mode": "scatter",
+            "iterations": 150,
+            "warmup": 5,
+            "truncated": false,
+            "bytesPerFrame": 200016,
+            "writeBufferCallsPerFrame": 1,
+            "timing": "wall-clock + gpu-timestamps",
+            "wallMedianUs": 2.4000000059604645,
+            "wallMinUs": 0.7999999821186066,
+            "wallMaxUs": 2.699999988079071,
+            "gpuMedianUs": 155.01850000000002,
+            "gpuMinUs": 114.052,
+            "gpuScope": "scatter compute pass elapsed, bracketed by encoder.writeTimestamp (delta writeBuffer excluded: writeBuffer is not encoder-visible)",
+            "checksum": {
+              "passed": false,
+              "expectedXor": "0xfac2c787",
+              "actualXor": "0x47011474",
+              "elements": 50000
+            }
+          }
+        }
+      }
+    ],
+    "totalMs": 15822.09999999404,
+    "tsEncoderWriteTimestamp": true
+  }
+}

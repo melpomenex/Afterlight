@@ -47,4 +47,7 @@ config :afterlight, :conferencing,
 # Real-Node integration tests run only when AFTERLIGHT_INTEGRATION=1.
 config :afterlight, :integration_tests, System.get_env("AFTERLIGHT_INTEGRATION") == "1"
 
-config :logger, level: :warning
+config :afterlight, :accounts,
+  claim_window_grace_ms: 2_592_000_000,
+  reaper_interval_ms: 86_400_000,
+  outbox_interval_ms: 86_400_000

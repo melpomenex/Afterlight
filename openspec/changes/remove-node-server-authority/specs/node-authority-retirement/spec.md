@@ -8,7 +8,7 @@ Close the Node → Elixir migration with an evidence-backed retirement of the No
 
 ### Requirement: Evidence-backed authority audit
 
-The retirement SHALL be gated on a row-by-row audit against `docs/architecture/elixir/ownership.md`: for every migrated row (accounts, nicknames, movement, room membership, gardens, wallets/inventory, NPC market, order book, contracts, gather nodes, shared machines, theater bill, playlist import, IPTV, EPG, chat relay, weather), the Node write path SHALL be disabled and verified disabled with recorded evidence (test, runtime probe, or code-deletion proof). Rows 17–18 (IRC bridge + IRC server, torrent engine) SHALL be audited as retained sidecars with their authenticated adapter boundaries intact, proving the retirement did not overreach.
+The retirement SHALL be gated on a row-by-row audit against `docs/architecture/elixir/ownership.md` covering ALL 22 ownership rows: for every migrated row (accounts, nicknames, movement, room membership, gardens, wallets/inventory, NPC market, order book, contracts, gather nodes, shared machines, theater bill, playlist import, IPTV, EPG, chat relay, weather), the Node write path SHALL be disabled and verified disabled with recorded evidence (test, runtime probe, or code-deletion proof). Rows 17–18 (IRC bridge + IRC server, torrent engine) SHALL be audited as retained sidecars with their authenticated adapter boundaries intact, proving the retirement did not overreach. Rows 19–21 (conferencing signaling, conferencing media, recordings) SHALL be audited as explicit audit lines recording that they are Elixir-native since P8 with no Node write path ever existing, so the closing gate is provably exhaustive.
 
 #### Scenario: A dormant write path is caught
 
@@ -49,7 +49,7 @@ The transitional compatibility machinery — the Node proxy boundary, dual-run c
 
 ### Requirement: Read-only snapshot retention and data hygiene
 
-`data/game-state.json`, `data/iptv.json`, and `data/epg.json` SHALL be retained as read-only snapshots of their pre-cutover state, each with a recorded hash captured at retirement, and nothing in the runtime SHALL write them again. The `data/` cleanup policy SHALL state that original data files are never deleted; only regenerable caches (e.g., the torrent cache directory) MAY be cleared, and sidecar-owned files remain written only by their sidecar.
+`data/game-state.json`, `data/iptv.json`, and `data/epg.json` SHALL be retained as read-only snapshots of their pre-cutover state, each with a recorded hash captured at retirement, and nothing in the runtime SHALL write them again. These snapshots are forensic evidence only — they are NOT a rollback source; after PostgreSQL receives authoritative writes, forward-fix (and reverse-export under write freeze) is the only posture. The `data/` cleanup policy SHALL state that original data files are never deleted; only regenerable caches (e.g., the torrent cache directory) MAY be cleared, and sidecar-owned files remain written only by their sidecar.
 
 #### Scenario: Snapshots frozen and hashed
 
