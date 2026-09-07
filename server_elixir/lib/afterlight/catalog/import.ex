@@ -108,7 +108,9 @@ defmodule Afterlight.Catalog.Import do
           end)
 
         if channel_rows != [] do
-          Repo.insert_all("playlist_channels", channel_rows)
+          channel_rows
+          |> Enum.chunk_every(@chunk_size)
+          |> Enum.each(&Repo.insert_all("playlist_channels", &1))
         end
       end)
 

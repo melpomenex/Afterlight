@@ -111,12 +111,6 @@ export class WorldManager {
   }
 
   tickMovementBroadcast() {
-    if (process.env.DEBUG_ROOMS) {
-      for (const [rid, set] of this.rooms) {
-        const members = [...set].map((pid) => `${pid}(sess:${this.clients.has(pid) ? 'y' : 'N'})`).join(',');
-        console.error(`[rooms] ${rid}: {${members}} dirty=${this.dirtyMovementRooms.has(rid)}`);
-      }
-    }
     for (const roomId of this.dirtyMovementRooms) {
       const roomPlayers = this.rooms.get(roomId);
       if (!roomPlayers || roomPlayers.size === 0) continue;

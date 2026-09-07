@@ -143,6 +143,7 @@ defmodule Afterlight.Protocol.Payloads do
   end
 
   def action_result(opts) do
+    opts = if is_list(opts), do: Map.new(opts), else: opts
     base = %{success: opts[:success] || opts["success"]}
 
     base =

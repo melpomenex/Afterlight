@@ -54,14 +54,17 @@ export class RealtimePipeline {
     this.worker.onmessageerror = () => this._fallback('worker-messageerror');
     this._stallTimer = setTimeout(() => this._fallback('worker-stall'), STALL_MS);
     this._ready = false;
+    this.worker.postMessage({
+      type: 'config',
+      maxSlots: this._maxSlots ?? 8192,
+      useWasm: !!this.flags.realtime_wasm,
+    });
   }
 
   _onWorkerMessage(msg) {
     if (msg.type === 'ready') {
       this._ready = true;
       clearTimeout(this._stallTimer);
-      // size the worker's store before any frames flow
-      this.worker.postMessage({ type: 'config', maxSlots: this._maxSlots ?? 8192 });
     } else if (msg.type === 'pack') {
       clearTimeout(this._stallTimer);
       this._stallTimer = setTimeout(() => this._fallback('worker-stall'), STALL_MS);

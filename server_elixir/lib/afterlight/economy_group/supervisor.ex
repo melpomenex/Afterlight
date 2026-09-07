@@ -11,7 +11,8 @@ defmodule Afterlight.EconomyGroup.Supervisor do
       Afterlight.Gardens.Loader,
       Afterlight.Gardens.Tick,
       Afterlight.Restoration.NodeTick,
-      Afterlight.Economy.ContractTick
+      Afterlight.Economy.ContractTick,
+      {Afterlight.EconomyGroup.OutboxRelay, interval_ms: 1_000}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

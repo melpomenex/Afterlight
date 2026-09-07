@@ -82,13 +82,13 @@ defmodule AfterlightWeb.GameChannelTest do
       leave(socket)
     end
 
-    test "unknown types are forwarded to Node too (Node ignores unknown types)" do
+    test "unknown types are unrouted loudly (P11 — no silent Node fallback)" do
       {socket, _} = join("guest_ch_relay2")
 
       push(socket, "definitely_not_a_type", %{"x" => 1})
 
-      assert_receive {:fake_frame, _up, json}, 1_000
-      assert Jason.decode!(json) == %{"type" => "definitely_not_a_type", "x" => 1}
+      assert_push "error", %{"message" => "unrouted"}
+      refute_receive {:fake_frame, _, _}, 200
 
       leave(socket)
     end

@@ -33,11 +33,11 @@ defmodule Afterlight.Theater.YoutubePlaylist do
   """
   def resolve(list_id) when is_binary(list_id) do
     cond do
-      not looks_like_playlist_id?(list_id) ->
-        {:error, "playlist_unreadable"}
-
       is_mix_id?(list_id) ->
         {:error, "is_mix"}
+
+      not looks_like_playlist_id?(list_id) ->
+        {:error, "playlist_unreadable"}
 
       true ->
         fetch_and_extract(list_id)

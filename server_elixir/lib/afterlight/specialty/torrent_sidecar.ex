@@ -61,6 +61,8 @@ defmodule Afterlight.Specialty.TorrentSidecar do
 
   defp map_sidecar_error(:open), do: :engine_unavailable
   defp map_sidecar_error(:timeout), do: :resolve_timeout
+  defp map_sidecar_error(:transport), do: :engine_unavailable
+  defp map_sidecar_error(:sidecar_error), do: :engine_unavailable
   defp map_sidecar_error(:invalid_magnet), do: :invalid_magnet
   defp map_sidecar_error(:engine_unavailable), do: :engine_unavailable
   defp map_sidecar_error(:resolve_timeout), do: :resolve_timeout

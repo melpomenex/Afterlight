@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: afterlight
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: afterlight_prod
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U afterlight -d afterlight_prod"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  node:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.node
+    restart: unless-stopped
+    environment:
+      PORT: 3001
+      HOST: 0.0.0.0
+      AFTERLIGHT_NODE_DURABLE_READ_ONLY: "1"
+      TORRENT_CACHE_DIR: /data/torrents
+    volumes:
+      - nodedata:/app/data
+    ports:
+      - "127.0.0.1:3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  phoenix:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.phoenix
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      MIX_ENV: prod
+      PHX_SERVER: "true"
+      PORT: 4000
+      PHX_IP: 0.0.0.0
+      DATABASE_URL: ecto://afterlight:${POSTGRES_PASSWORD}@127.0.0.1:5432/afterlight_prod
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      AFTERLIGHT_TOKEN_SECRET: ${AFTERLIGHT_TOKEN_SECRET}
+      AFTERLIGHT_BOUNDARY_SECRET: ${AFTERLIGHT_BOUNDARY_SECRET}
+      AFTERLIGHT_NODE_WS_URL: ws://127.0.0.1:3001/ws
+      AFTERLIGHT_NODE_HTTP_URL: http://127.0.0.1:3001
+      AFTERLIGHT_WORLD_OWNER: phoenix
+      AFTERLIGHT_CHAT_OWNER: phoenix
+      AFTERLIGHT_THEATER_OWNER: phoenix
+      AFTERLIGHT_CATALOG_OWNER: phoenix
+      AFTERLIGHT_ECONOMY_OWNER: phoenix
+      AFTERLIGHT_HELLO_OWNER: phoenix
+    depends_on:
+      postgres:
+        condition: service_healthy
+      node:
+        condition: service_started
+
+volumes:
+  pgdata:
+  nodedata:

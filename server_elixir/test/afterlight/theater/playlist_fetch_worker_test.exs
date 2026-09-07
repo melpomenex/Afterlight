@@ -17,11 +17,11 @@ defmodule Afterlight.Theater.PlaylistFetchWorkerTest do
              })
 
     assert_receive {:theater_playlist_fetch, "guest_test", {:failed, "is_mix"}}
-    assert {:error, _} = PlaylistPreview.get("theater", "plreq_mix")
+    assert :error = PlaylistPreview.get("theater", "plreq_mix")
   end
 
   test "enqueue inserts a theater_import job" do
-    assert {:ok, %Oban.Job{queue: "theater_import"}} =
+    assert {:ok, %Ecto.Changeset{changes: %{queue: "theater_import"}}} =
              PlaylistFetchWorker.enqueue("theater", "plreq1", "PLvalidlist12", "guest1")
   end
 end

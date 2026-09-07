@@ -1,0 +1,15 @@
+FROM elixir:1.18.3-otp-27
+WORKDIR /app
+RUN apt-get update && apt-get install -y build-essential git openssl libstdc++6 \
+    && rm -rf /var/lib/apt/lists/* \
+    && mix local.hex --force && mix local.rebar --force
+COPY server_elixir/mix.exs server_elixir/mix.lock ./
+RUN mix deps.get --only prod
+COPY server_elixir/config ./config
+COPY server_elixir/lib ./lib
+COPY server_elixir/priv ./priv
+COPY deploy/entrypoint-phoenix.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENV MIX_ENV=prod
+RUN mix compile
+CMD ["/entrypoint.sh"]

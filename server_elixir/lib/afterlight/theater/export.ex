@@ -32,7 +32,23 @@ defmodule Afterlight.Theater.Export do
         from(i in "theater_items",
           where: i.room_key == ^@room_key and i.slot == "now",
           order_by: [asc: i.order_index],
-          limit: 1
+          limit: 1,
+          select: %{
+            id: i.id,
+            kind: i.kind,
+            url: i.url,
+            title: i.title,
+            video_id: i.video_id,
+            infohash: i.infohash,
+            file_index: i.file_index,
+            file_path: i.file_path,
+            file_bytes: i.file_bytes,
+            playing: i.playing,
+            position_sec: i.position_sec,
+            updated_at: i.updated_at,
+            by: i.by,
+            queued_by: i.queued_by
+          }
         )
       )
 
@@ -40,7 +56,23 @@ defmodule Afterlight.Theater.Export do
       Repo.all(
         from(i in "theater_items",
           where: i.room_key == ^@room_key and i.slot == "queue",
-          order_by: [asc: i.order_index]
+          order_by: [asc: i.order_index],
+          select: %{
+            id: i.id,
+            kind: i.kind,
+            url: i.url,
+            title: i.title,
+            video_id: i.video_id,
+            infohash: i.infohash,
+            file_index: i.file_index,
+            file_path: i.file_path,
+            file_bytes: i.file_bytes,
+            playing: i.playing,
+            position_sec: i.position_sec,
+            updated_at: i.updated_at,
+            by: i.by,
+            queued_by: i.queued_by
+          }
         )
       )
 

@@ -24,10 +24,10 @@ defmodule Afterlight.Gardens do
   end
 
   def get_or_create_garden(player_id) do
-    case Repo.one(from g in "gardens", where: g.player_id == ^player_id) do
-      nil -> create_garden!(player_id)
-      _ -> :ok
-    end
+    exists? =
+      Repo.exists?(from g in "gardens", where: g.player_id == ^player_id, select: 1)
+
+    unless exists?, do: create_garden!(player_id)
 
     fetch_garden(player_id)
   end
@@ -191,8 +191,8 @@ defmodule Afterlight.Gardens do
     Repo.insert_all(
       "beds",
       Enum.map(beds, fn bed ->
-        %{garden_id: player_id}
-        |> Map.merge(bed_to_row(bed))
+        %{garden_id: player_id, index: bed.index}
+        |> Map.merge(Map.new(bed_to_row(bed)))
       end)
     )
 

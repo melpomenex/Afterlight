@@ -90,6 +90,18 @@ defmodule Afterlight.Theater do
 
   def error_text(reason), do: Errors.text(reason)
 
+  @doc "Wire `{now, queue}` snapshot for welcome and join_room replay."
+  def snapshot(room_key \\ @default_room) do
+    items =
+      TheaterItem
+      |> Ash.Query.filter(room_key == ^room_key)
+      |> Ash.Query.sort([{:slot, :asc}, {:order_index, :asc}])
+      |> Ash.read!(actor: Actor.system(), authorize?: false)
+
+    {state, _} = State.from_rows(items)
+    State.snapshot(state)
+  end
+
   def now_ms, do: System.system_time(:millisecond)
 
   defp commit_action(room_key, action, actor_name, actor, session_key) do
@@ -208,8 +220,8 @@ defmodule Afterlight.Theater do
     Enum.each(old_items, fn item ->
       unless MapSet.member?(target_ids, item.id) do
         item
-        |> Ash.Changeset.for_destroy(:delete, actor: actor)
-        |> Ash.destroy!(authorize?: false)
+        |> Ash.Changeset.for_destroy(:delete)
+        |> Ash.destroy!(authorize?: false, actor: actor)
       end
     end)
 

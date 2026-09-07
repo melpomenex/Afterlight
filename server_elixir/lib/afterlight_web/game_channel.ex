@@ -69,13 +69,17 @@ defmodule AfterlightWeb.GameChannel do
   use Phoenix.Channel
   require Logger
 
+  alias Afterlight.Catalog
   alias Afterlight.Catalog.Gateway, as: CatalogGateway
+  alias Afterlight.EconomyGroup.Gateway, as: EconomyGateway
   alias Afterlight.Gateway.NodeProxy
   alias Afterlight.Gateway.Router
+  alias Afterlight.Gateway.Welcome
   alias Afterlight.LogCorrelation
   alias Afterlight.Specialty.Resolve
   alias Afterlight.Specialty.TorrentRules
   alias Afterlight.Social
+  alias Afterlight.Theater
   alias Afterlight.Theater.Gateway, as: TheaterGateway
   alias Afterlight.World
   alias Afterlight.World.{BinaryFlush, Movement, Rooms}
@@ -101,6 +105,18 @@ defmodule AfterlightWeb.GameChannel do
   # Node frames suppressed while Social owns chat (D1/D6).
   @chat_server_types ~w(chat_message chat_dm chat_history chat_presence chat_error)
 
+  # Node frames suppressed while the economy group owns durable state.
+  @economy_server_types ~w(
+    garden_state inventory_state market_update contract_update trade_filled
+    node_state machine_update
+  )
+
+  # Node frames suppressed while Theater owns playback snapshots.
+  @theater_server_types ~w(theater_state)
+
+  # Node frames suppressed while Catalog owns IPTV metadata snapshots.
+  @catalog_server_types ~w(iptv_state)
+
   @impl true
   def join(@topic, _payload, socket) do
     case socket.assigns[:guest_id] do
@@ -117,6 +133,7 @@ defmodule AfterlightWeb.GameChannel do
             socket
             |> assign(:proxy_pid, proxy_pid)
             |> assign(:conn_ref, make_ref())
+            |> maybe_subscribe_economy()
 
           {:ok, %{guestId: guest_id}, socket}
         end
@@ -134,8 +151,14 @@ defmodule AfterlightWeb.GameChannel do
         push(socket, "pong", %{"t" => t})
         {:noreply, socket}
 
+      {:hello, payload} ->
+        handle_hello(payload || %{}, socket)
+
       {:world, type, payload} ->
         handle_world(type, payload || %{}, socket)
+
+      {:economy, type, payload} ->
+        handle_economy(type, payload || %{}, socket)
 
       {:chat, type, payload} ->
         handle_chat(type, payload || %{}, socket)
@@ -181,6 +204,11 @@ defmodule AfterlightWeb.GameChannel do
     end
   end
 
+  def handle_info({:economy_frame, event, payload}, socket) do
+    push(socket, event, payload)
+    {:noreply, socket}
+  end
+
   def handle_info({:chat_push, event, payload}, socket) do
     push(socket, event, payload)
     {:noreply, socket}
@@ -212,6 +240,18 @@ defmodule AfterlightWeb.GameChannel do
         # chat domain is flipped (Node shadow frames are suppressed).
         {:noreply, socket}
 
+      Router.economy_phx?() and event in @economy_server_types ->
+        {:noreply, socket}
+
+      Router.theater_phx?() and event in @theater_server_types ->
+        {:noreply, socket}
+
+      Router.catalog_phx?() and event in @catalog_server_types ->
+        {:noreply, socket}
+
+      Router.hello_phx?() and event == "welcome" ->
+        {:noreply, socket}
+
       event == "torrent_state" ->
         # Phoenix StatusRelay owns torrent_state while resolve is proxied.
         {:noreply, socket}
@@ -219,7 +259,7 @@ defmodule AfterlightWeb.GameChannel do
       event == "garden_state" ->
         push(socket, "garden_state", fields)
 
-        if Router.chat_phx?() do
+        if Router.chat_phx?() and not Router.economy_phx?() do
           Social.send_history(self())
         end
 
@@ -341,6 +381,7 @@ defmodule AfterlightWeb.GameChannel do
               |> assign(world_room: room, world_room_pid: room_pid)
               |> assign(:world_monitor, Process.monitor(room_pid))
               |> maybe_subscribe_theater_playlist_fetch(room)
+              |> maybe_push_theater_join_snapshots(room)
 
             forward(%{"type" => "join_room", "roomId" => room.wire_id}, socket)
 
@@ -393,6 +434,93 @@ defmodule AfterlightWeb.GameChannel do
   end
 
   defp handle_chat(_type, _payload, socket), do: {:noreply, socket}
+
+  ## Economy dispatch (P6 gardens/economy/restoration)
+
+  defp handle_economy(type, payload, socket) do
+    if Router.world_phx?() and not live_member?(socket) do
+      push(socket, "error", %{"message" => "room_unavailable"})
+      {:noreply, socket}
+    else
+      ctx = %{
+        guest_id: socket.assigns.guest_id,
+        world_room: socket.assigns[:world_room]
+      }
+
+      payload =
+        if type == "node_harvest" do
+          Map.put(payload, "currentRoom", room_wire(socket))
+        else
+          payload
+        end
+
+      case EconomyGateway.handle(type, payload, ctx) do
+        {:ok, replies} ->
+          socket =
+            Enum.reduce(replies, socket, fn {event, fields}, sock ->
+              push(sock, event, fields)
+              sock
+            end)
+
+          {:noreply, socket}
+
+        {:error, {event, fields}} ->
+          push(socket, event, fields)
+          {:noreply, socket}
+      end
+    end
+  end
+
+  ## Hello dispatch (P6 welcome owner)
+
+  defp handle_hello(payload, socket) do
+    claim = socket.assigns.guest_id
+
+    case payload do
+      %{"guestId" => ^claim} ->
+        finish_hello(payload, socket)
+
+      %{"guestId" => _mismatch} ->
+        Logger.warning(
+          "gateway hello guestId mismatch corr=#{corr(socket)} guest=#{claim}"
+        )
+
+        push(socket, "error", %{"message" => "identity_mismatch"})
+        {:stop, :shutdown, socket}
+
+      _ ->
+        finish_hello(Map.put(payload, "guestId", claim), socket)
+    end
+  end
+
+  defp finish_hello(payload, socket) do
+    guest_id = socket.assigns.guest_id
+    nickname = payload["nickname"] || guest_id
+
+    socket =
+      socket
+      |> assign(:nickname, nickname)
+      |> maybe_assign_rt(payload)
+
+    welcome = Welcome.compose(guest_id, nickname, socket.assigns[:rt])
+    push(socket, "welcome", welcome)
+
+    socket =
+      Enum.reduce(Welcome.initial_frames(guest_id), socket, fn {event, fields}, sock ->
+        push(sock, event, fields)
+        sock
+      end)
+
+    socket =
+      if Router.chat_phx?() do
+        Social.player_connected(guest_id, socket.assigns.conn_ref, self(), nickname)
+        assign(socket, :chat_registered, true)
+      else
+        socket
+      end
+
+    {:noreply, socket}
+  end
 
   ## Catalog dispatch (design D4/D5 — routed when disposition is :phoenix)
 
@@ -467,6 +595,29 @@ defmodule AfterlightWeb.GameChannel do
     end
   end
 
+  defp maybe_push_theater_join_snapshots(socket, %{wire_id: wire}) do
+    if wire == TorrentRules.theater_wire_id() do
+      now = System.system_time(:millisecond)
+
+      socket =
+        if Router.theater_phx?() do
+          push(socket, "theater_state", %{"theater" => Theater.snapshot(wire), "serverNow" => now})
+          socket
+        else
+          socket
+        end
+
+      if Router.catalog_phx?() do
+        push(socket, "iptv_state", %{"iptv" => Catalog.snapshot()})
+        socket
+      else
+        socket
+      end
+    else
+      socket
+    end
+  end
+
   defp maybe_subscribe_theater_playlist_fetch(socket, %{wire_id: wire}) do
     if wire == TorrentRules.theater_wire_id() do
       :ok = Phoenix.PubSub.subscribe(Afterlight.PubSub, "theater:playlist_fetch:#{wire}")
@@ -489,7 +640,9 @@ defmodule AfterlightWeb.GameChannel do
 
     socket =
       Enum.reduce(replies, socket, fn
-        {event, fields}, sock -> push(sock, event, fields)
+        {event, fields}, sock ->
+          push(sock, event, fields)
+          sock
       end)
 
     {:noreply, socket}
@@ -505,6 +658,14 @@ defmodule AfterlightWeb.GameChannel do
   # is remembered for the first world join; the Node-built `welcome`
   # (sanitized) supersedes it.
   defp relay(%{"type" => "hello"} = frame, socket) do
+    if Router.hello_phx?() do
+      handle_hello(frame, socket)
+    else
+      relay_hello_node(frame, socket)
+    end
+  end
+
+  defp relay_hello_node(%{"type" => "hello"} = frame, socket) do
     claim = socket.assigns.guest_id
 
     case frame do
@@ -666,6 +827,16 @@ defmodule AfterlightWeb.GameChannel do
       %{wire_id: wire} -> wire
       _ -> nil
     end
+  end
+
+  defp maybe_subscribe_economy(socket) do
+    if Router.economy_phx?() do
+      guest_id = socket.assigns.guest_id
+      :ok = Phoenix.PubSub.subscribe(Afterlight.PubSub, "market:updates")
+      :ok = Phoenix.PubSub.subscribe(Afterlight.PubSub, "players:#{guest_id}")
+    end
+
+    socket
   end
 
   defp start_proxy(socket, guest_id) do

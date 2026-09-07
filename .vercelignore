@@ -1,0 +1,13 @@
+server_elixir
+deploy
+serviceradar
+openspec
+data
+tools
+scripts
+tests
+/wasm/
+docs
+.git
+*.md
+AGENTS.md

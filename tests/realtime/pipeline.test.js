@@ -67,6 +67,9 @@ test('flags: defaults off; url overrides storage; binary gates the rest', () => 
   assert.equal(both.realtime_worker, false, 'url overrides storage');
   const gated = resolveFlagsFrom({ env: {}, search: '?rt_wasm=1&rt_worker=1' });
   assert.equal(gated.realtime_wasm, false, 'wasm requires binary');
+  const wasmOn = resolveFlagsFrom({ env: {}, search: '?rt_binary=1&rt_wasm=1' });
+  assert.equal(wasmOn.realtime_wasm, true);
+  assert.equal(wasmOn.realtime_worker, true, 'wasm auto-enables worker');
 });
 
 test('coalescing: newest transform per entity wins, count stays dense', () => {

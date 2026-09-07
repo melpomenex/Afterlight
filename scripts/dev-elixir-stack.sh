@@ -20,6 +20,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "→ Node specialty sidecar (port 3001 — torrent/IRC HTTP + transitional relay)…"
+export AFTERLIGHT_NODE_DURABLE_READ_ONLY=1
 npm run server &
 NODE_PID=$!
 
@@ -30,6 +31,10 @@ echo "→ Phoenix gateway (port 4000)…"
   export PORT=4000
   export AFTERLIGHT_WORLD_OWNER=phoenix
   export AFTERLIGHT_CHAT_OWNER=phoenix
+  export AFTERLIGHT_THEATER_OWNER=phoenix
+  export AFTERLIGHT_CATALOG_OWNER=phoenix
+  export AFTERLIGHT_ECONOMY_OWNER=phoenix
+  export AFTERLIGHT_HELLO_OWNER=phoenix
   mix phx.server
 ) &
 PHX_PID=$!

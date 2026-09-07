@@ -1,17 +1,11 @@
-// decode.worker.js — thin shell around PipelineCore (see core.js for the
-// semantics). Protocol with the main thread, all transfers, no SAB:
-//   main → worker: {type:'frame', frame: ArrayBuffer}   (transferred)
-//                  {type:'ack',  buffers: [...] }        (transferred back)
-//                  {type:'reset'}
-//   worker → main: {type:'pack', pack, buffers}          (transferred)
-//                  {type:'resync'}                        (baseline gap)
-//                  {type:'ready'}
+// decode.worker.js — thin shell around PipelineCore or WasmPipelineCore.
 import { PipelineCore, PackGate, MAX_IN_FLIGHT, createPack, packForTransfer, PACK_FIELDS } from './core.js';
 
 const CAPACITY = 1024;
 
+let core = null;
 let coreMaxSlots = 8192;
-let core = new PipelineCore({ maxSlots: coreMaxSlots });
+let booted = false;
 const gate = new PackGate();
 const pool = [];
 
@@ -26,16 +20,40 @@ function postPack(pack) {
   self.postMessage({ type: 'pack', pack: packForTransfer(pack) }, transfer);
 }
 
+async function bootFromConfig(msg) {
+  coreMaxSlots = msg.maxSlots ?? 8192;
+  try {
+    if (msg.useWasm) {
+      const { createWasmPipelineCore } = await import('../wasm/pipelineCore.js');
+      core = await createWasmPipelineCore({ maxSlots: coreMaxSlots });
+    } else {
+      core = new PipelineCore({ maxSlots: coreMaxSlots });
+    }
+  } catch {
+    core = new PipelineCore({ maxSlots: coreMaxSlots });
+  }
+  booted = true;
+  self.postMessage({ type: 'ready', wasm: msg.useWasm === true });
+}
+
 self.onmessage = (e) => {
   const msg = e.data;
   if (msg.type === 'config') {
-    // resize before frames flow (store is empty pre-join, so this is safe)
-    if (msg.maxSlots && msg.maxSlots !== coreMaxSlots) {
+    if (!booted) {
+      bootFromConfig(msg).catch(() => {
+        core = new PipelineCore({ maxSlots: coreMaxSlots });
+        booted = true;
+        self.postMessage({ type: 'ready', wasm: false, fallback: 'wasm-unavailable' });
+      });
+    } else if (msg.maxSlots && msg.maxSlots !== coreMaxSlots) {
       coreMaxSlots = msg.maxSlots;
+      core.reset();
       core = new PipelineCore({ maxSlots: coreMaxSlots });
     }
     return;
   }
+  if (!booted || !core) return;
+
   if (msg.type === 'frame') {
     if (gate.pending === null) {
       gate.pending = takePack();
@@ -45,7 +63,6 @@ self.onmessage = (e) => {
     pack.tick = msg.tick ?? pack.tick;
     const r = core.applyFrame(new Uint8Array(msg.frame), pack, gate.pendingIndex);
     if (!r.ok || r.kind === 'resync') {
-      // reset pending contents; its buffers go back to the pool
       gate.pending = null;
       pool.push(resetPack(pack));
       self.postMessage({ type: 'resync', reason: r.ok ? r.kind : r.reason });
@@ -54,15 +71,13 @@ self.onmessage = (e) => {
     if (gate.afterApply(pack, false) === 'post') {
       postPack(pack);
       gate.onPosted();
-    } // else: held — next frame coalesces into it
+    }
   } else if (msg.type === 'ack') {
     gate.onAcked();
     if (msg.buffers) {
-      // rebuild a pooled pack from returned buffers when sizes match
       const p = takeFromBuffers(msg.buffers);
       if (p) pool.push(p);
     }
-    // flush a held pack as soon as the pipeline drains
     if (gate.pending !== null && gate.unacked < MAX_IN_FLIGHT) {
       const pack = gate.pending;
       postPack(pack);
@@ -86,7 +101,7 @@ function resetPack(pack) {
 function takeFromBuffers(buffers) {
   if (!Array.isArray(buffers) || buffers.length !== PACK_FIELDS.length) return null;
   const sizes = new Set(buffers.map((b) => b.byteLength));
-  if (sizes.size !== 1) return null; // mismatched capacities: drop (pool grows on demand)
+  if (sizes.size !== 1) return null;
   const p = createPack(buffers[0].byteLength / 4);
   p.ids = new Uint32Array(buffers[0]);
   p.x = new Float32Array(buffers[1]);
@@ -98,5 +113,3 @@ function takeFromBuffers(buffers) {
   p.left = [];
   return p;
 }
-
-self.postMessage({ type: 'ready' });

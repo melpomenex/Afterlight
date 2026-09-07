@@ -28,6 +28,7 @@ import { MATERIALS } from '../shared/materials.js';
 
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
+const NODE_DURABLE_READ_ONLY = process.env.AFTERLIGHT_NODE_DURABLE_READ_ONLY === '1';
 const PLAYLIST_FETCH_TIMEOUT_MS = 15000;
 
 /**
@@ -52,6 +53,12 @@ export function resolveTorrentGrantConfig(options = {}) {
 
 export function createServer(customStorage = null, options = {}) {
   const storage = customStorage || new Storage();
+
+  if (NODE_DURABLE_READ_ONLY) {
+    console.log('[afterlight] AFTERLIGHT_NODE_DURABLE_READ_ONLY=1 — skipping game-state.json writes');
+    storage.save = () => {};
+  }
+
   initBaselineProbe({ storage });
   const { dataDir = null } = options;
   const torrentGrantConfig = resolveTorrentGrantConfig(options);

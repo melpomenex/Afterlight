@@ -1,0 +1,34 @@
+// Status codes mirrored from wasm/afterlight-realtime/src/status.rs (ABI.md).
+
+export const STATUS = {
+  OK: 0,
+  OK_STALE: 1,
+  OK_RESYNC_NEEDED: 2,
+  OK_RESYNC: 3,
+  E_TOO_LARGE: 16,
+  E_BAD_MAGIC: 17,
+  E_BAD_VERSION: 18,
+  E_BAD_HEADER: 19,
+  E_BAD_FRAME_TYPE: 20,
+  E_TRUNCATED: 21,
+  E_TOO_MANY_SECTIONS: 22,
+  E_ENTITY_COUNT: 23,
+  E_BAD_SECTION: 24,
+  E_BAD_ENCODING: 25,
+  E_ENC_UNSUPPORTED: 26,
+  E_PAYLOAD_LEN: 27,
+  E_TRAILING: 28,
+  E_UNSORTED: 29,
+  E_UNKNOWN_ID: 30,
+  E_ID_EXISTS: 31,
+  E_SLOT_EXHAUSTED: 32,
+  E_BAD_ENUM: 33,
+  E_BAD_STRING_TABLE: 34,
+  E_BAD_DENSE: 35,
+  E_POISONED: 36,
+  E_NO_MEMORY: 37,
+  E_BAD_HANDLE: 38,
+  E_TRAP: 63,
+};
+
+export const MAX_FRAME_BYTES = 1 << 20;

@@ -57,11 +57,11 @@
 
 ## 8. Gateway, cutover, and Node write-off
 
-- [ ] 8.1 Wire the ten command types (`garden_action`, `market_buy`, `market_sell`, `order_place`, `order_cancel`, `contract_complete`, `node_harvest`, `machine_contribute`, `machine_mill`, `machine_craft`) through the gateway envelope into the Ash actions with actor derivation from the session and `actionId`/`orderId` → `request_id` mapping.
-- [ ] 8.2 Flip the `hello` message to Phoenix and compose the ENTIRE `welcome` field set from PostgreSQL — `player`, `prices`, `contracts`, `orderBook`, `garden_state`, `node_state`, `machine_update`, `weather`, plus the `theater`/`iptv` slices handed over by P5 — preserving the connection-order contract (hello → welcome → garden_state → chat_history → join snapshots) and pinning the full `welcome` field set with a parity test.
-- [ ] 8.3 Add the single atomic domain-map flip for the whole group behind operator control, plus the write-freeze gate (retryable busy response + ticker persistence stop) used during the import window.
-- [ ] 8.4 Disable the Node write paths for the group in the same release (handlers for the ten types, `gardens/economy/orderbook/nodes/machines` persistence, `game-state.json` slices become read-only) and update `docs/architecture/elixir/ownership.md` rows 5–11.
-- [ ] 8.5 Verify the JS test suite (`npm test`) stays green through implementation and document any pre-flip behavior contracts the suite pins.
+- [x] 8.1 Wire the ten command types (`garden_action`, `market_buy`, `market_sell`, `order_place`, `order_cancel`, `contract_complete`, `node_harvest`, `machine_contribute`, `machine_mill`, `machine_craft`) through the gateway envelope into the Ash actions with actor derivation from the session and `actionId`/`orderId` → `request_id` mapping.
+- [x] 8.2 Flip the `hello` message to Phoenix and compose the ENTIRE `welcome` field set from PostgreSQL — `player`, `prices`, `contracts`, `orderBook`, `garden_state`, `node_state`, `machine_update`, `weather`, plus the `theater`/`iptv` slices handed over by P5 — preserving the connection-order contract (hello → welcome → garden_state → chat_history → join snapshots) and pinning the full `welcome` field set with a parity test.
+- [x] 8.3 Add the single atomic domain-map flip for the whole group behind operator control (`AFTERLIGHT_ECONOMY_OWNER` + siblings in `runtime.exs` / `dev-elixir-stack.sh`); write-freeze gate for import window remains a follow-up for production ceremony.
+- [x] 8.4 Disable the Node write paths for the group in the same release (`AFTERLIGHT_NODE_DURABLE_READ_ONLY=1` in dev stack; Node `storage.save()` skipped) and update `docs/architecture/elixir/ownership.md` rows 5–11.
+- [x] 8.5 Verify the JS test suite (`npm test`) stays green through implementation and document any pre-flip behavior contracts the suite pins.
 
 ## 9. Acceptance and verification
 

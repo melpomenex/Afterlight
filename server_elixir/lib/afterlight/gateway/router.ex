@@ -2,68 +2,66 @@ defmodule Afterlight.Gateway.Router do
   @moduledoc """
   Config-owned disposition table: who answers each client message type.
 
-  ## The P2 table (design D4 — "gateway terminates transport + identity +
-  meta; everything else is relayed 1:1 to Node")
-
-  | Message / event            | P2 disposition                                      |
-  |----------------------------|-----------------------------------------------------|
-  | socket connect, token verify, connect rate limit, channel join authorization | terminated at the gateway (UserSocket / GameChannel, not routable messages) |
-  | `ping` → `pong`            | `:terminate_pong` — synthesized at the gateway, `{t}` echoed, never relayed |
-  | every other game message (`hello`, `set_nickname`, `join_room`, `movement`, `emote`, `chat_send`, gardens, economy, restoration, theater, catalog, torrents, …) | `:node` — relayed verbatim over the session's authenticated upstream shadow connection |
-  | unknown message types      | `:node` (default) — Node ignores unknown types, so today's forward-compat behavior is preserved |
-
-  The table lives in config under `config :afterlight, :gateway, routing: %{
-  "ping" => :terminate_pong}`. Values are `:terminate_pong`, `:node` or
-  `:phoenix`. In P2 no `:phoenix` rows existed; P3
-  (`add-world-room-runtime`) adds the world rows — `join_room`, `movement`,
-  `emote` — which route to `Afterlight.World` when set to `:phoenix`
-  (default `:node` keeps the runtime dormant; flip per environment, rollback
-  is the same edit in reverse). A `:phoenix` row must have a live handler:
-  unlike P2, `disposition/1` now reports the configured owner verbatim, so
-  flipping a row without a handler WOULD black-hole that traffic — the P3
-  world handler is landed before the flip, and the rows default to `:node`.
+  Post-P11: unknown types default to `:unrouted` (loud failure). Only
+  enumerated `@node_relay_types` fall back to transitional Node relay;
+  flipped rows route to Phoenix handlers (`:phoenix`) or the specialty
+  adapter (`:specialty`).
   """
 
   alias Afterlight.Gateway
 
-  @typedoc "Message owner: transport-terminated pong, relayed to Node, world/chat runtime, or specialty adapter."
-  @type disposition :: :terminate_pong | :node | :phoenix | :specialty
+  @typedoc "Message owner: transport-terminated pong, relayed to Node, domain runtime, specialty, or unrouted."
+  @type disposition :: :terminate_pong | :node | :phoenix | :specialty | :unrouted
 
   @typedoc """
   Result of `dispatch/2`: synthesize a `pong` echoing `t`, hand the frame
-  to the world, chat, or specialty runtime, or relay the flat frame upstream.
+  to a domain handler, relay the flat frame upstream, or fail loudly.
   """
   @type dispatch ::
           {:pong, t :: term}
+          | {:hello, payload :: map}
           | {:world, type :: String.t(), payload :: map}
           | {:chat, type :: String.t(), payload :: map}
           | {:catalog, type :: String.t(), payload :: map}
           | {:theater, type :: String.t(), payload :: map}
+          | {:economy, type :: String.t(), payload :: map}
           | {:specialty, type :: String.t(), payload :: map}
           | {:relay, frame :: %{binary() => term}}
+          | {:unrouted, type :: String.t()}
 
   @specialty_types ~w(torrent_resolve)
-  @theater_types ~w(theater_queue theater_control theater_channel theater_playlist_resolve)
+
+  @world_types ~w(join_room movement emote)
   @chat_types ~w(chat_send)
   @catalog_types ~w(iptv_list_get iptv_list_remove epg_lookup)
+  @theater_types ~w(theater_queue theater_control theater_channel theater_playlist_resolve)
+
+  @economy_types ~w(
+    garden_action market_buy market_sell order_place order_cancel contract_complete
+    node_harvest machine_contribute machine_mill machine_craft
+  )
+
+  @node_relay_types ~w(
+    hello set_nickname
+    join_room movement emote chat_send
+    garden_action market_buy market_sell order_place order_cancel contract_complete
+    node_harvest machine_contribute machine_mill machine_craft
+    theater_queue theater_control theater_channel theater_playlist_resolve
+    iptv_list_get iptv_list_remove epg_lookup
+  )
 
   @doc """
   Disposition for a client message type: the configured owner, verbatim.
-  `:terminate_pong` means the gateway answers `pong` itself; `:node` means
-  relay 1:1 upstream; `:phoenix` means the gateway domain handler answers
-  it (P3: the world runtime; P7: the social chat relay). Unlike P2 there is NO safety clamp — a
-  `:phoenix` row for a type without a live handler black-holes that
-  traffic, which is why the P3 world handler landed before the flip and
-  the world rows default to `:node`. Unknown types default to `:node`
-  (Node ignores unknown types), and a garbage row value is read as `:node`
-  rather than crashing dispatch.
+  Unknown types and non-binary input are `:unrouted`. Enumerated transitional
+  relay types default to `:node`; `ping` terminates at the gateway;
+  `torrent_resolve` routes to the specialty adapter.
   """
   @spec disposition(term) :: disposition()
   def disposition(type) when is_binary(type) do
     table = routing_table()
 
     case Map.get(table, type, default_disposition(type)) do
-      disposition when disposition in [:terminate_pong, :phoenix, :node, :specialty] ->
+      disposition when disposition in [:terminate_pong, :phoenix, :node, :specialty, :unrouted] ->
         disposition
 
       _other ->
@@ -71,88 +69,115 @@ defmodule Afterlight.Gateway.Router do
     end
   end
 
+  def disposition(_other), do: :unrouted
+
   defp default_disposition("ping"), do: :terminate_pong
   defp default_disposition(type) when type in @specialty_types, do: :specialty
-  defp default_disposition(_type), do: :node
+  defp default_disposition(type) when type in @node_relay_types, do: :node
+  defp default_disposition(_type), do: :unrouted
 
-  def disposition(_other), do: :node
+  @doc "Types still relayed to the Node sidecar when not flipped to Phoenix."
+  @spec node_relay_types() :: [String.t()]
+  def node_relay_types, do: @node_relay_types
 
   @doc "Types handled by the P7 specialty adapters instead of raw Node relay."
   @spec specialty_types() :: [String.t()]
   def specialty_types, do: @specialty_types
 
-  @doc """
-  Single source of truth for the P3 world flip (design D6): the world
-  domain's `join_room` routing row. `:phoenix` means the world runtime
-  owns presence — the gateway suppresses Node-emitted `presence_*` frames
-  and world-owned client messages are not relayed. Suppression and the
-  flip are keyed on the SAME row so a rollback flip-flop can never leave
-  one enabled without the other.
-  """
+  @doc "Single source of truth for the P3 world flip: the `join_room` routing row."
   @spec world_owner() :: disposition()
   def world_owner do
     routing_table() |> Map.get("join_room", :node)
   end
 
-  @doc "True while the world domain is routed to the runtime."
   @spec world_phx?() :: boolean
   def world_phx?, do: world_owner() == :phoenix
 
-  @doc """
-  Single source of truth for the P7 chat flip (design D1/D6): the chat
-  domain's `chat_send` routing row. `:phoenix` means Afterlight.Social
-  owns the relay — the gateway suppresses Node-emitted chat frames
-  (`chat_message`, `chat_dm`, `chat_history`, `chat_presence`, `chat_error`)
-  and `chat_send` is handled by Phoenix.
-  """
+  @doc "Single source of truth for the P7 chat flip: the `chat_send` routing row."
   @spec chat_owner() :: disposition()
   def chat_owner do
     routing_table() |> Map.get("chat_send", :node)
   end
 
-  @doc "True while the chat domain is routed to Phoenix."
   @spec chat_phx?() :: boolean
   def chat_phx?, do: chat_owner() == :phoenix
 
-  @doc """
-  Single source of truth for the P5 catalog flip: the `iptv_list_get`
-  routing row. `:phoenix` means Afterlight.Catalog owns list pulls,
-  removals, and EPG lookups.
-  """
+  @doc "Single source of truth for the P5 catalog flip: the `iptv_list_get` routing row."
   @spec catalog_owner() :: disposition()
   def catalog_owner do
     routing_table() |> Map.get("iptv_list_get", :node)
   end
 
-  @doc "True while the catalog domain is routed to Phoenix."
   @spec catalog_phx?() :: boolean
   def catalog_phx?, do: catalog_owner() == :phoenix
 
-  @doc """
-  Pure dispatch for a client push: `{:pong, t}` for transport-terminated
-  pings, `{:chat, type, payload}` for chat-relay-owned messages,
-  `{:world, type, payload}` for world-runtime-owned messages, or
-  `{:relay, frame}` with the flat Node frame — string-keyed payload plus
-  `"type"` restored.
-  """
+  @doc "Single source of truth for the P5 theater flip: the `theater_queue` routing row."
+  @spec theater_owner() :: disposition()
+  def theater_owner do
+    routing_table() |> Map.get("theater_queue", :node)
+  end
+
+  @spec theater_phx?() :: boolean
+  def theater_phx?, do: theater_owner() == :phoenix
+
+  @doc "Single source of truth for the P6 economy/restoration flip: the `garden_action` routing row."
+  @spec economy_owner() :: disposition()
+  def economy_owner do
+    routing_table() |> Map.get("garden_action", :node)
+  end
+
+  @spec economy_phx?() :: boolean
+  def economy_phx?, do: economy_owner() == :phoenix
+
+  @doc "Single source of truth for the P6 hello/welcome flip: the `hello` routing row."
+  @spec hello_owner() :: disposition()
+  def hello_owner do
+    routing_table() |> Map.get("hello", :node)
+  end
+
+  @spec hello_phx?() :: boolean
+  def hello_phx?, do: hello_owner() == :phoenix
+
   @spec dispatch(term, term) :: dispatch()
   def dispatch(type, payload) when is_binary(type) do
     case disposition(type) do
-      :terminate_pong -> {:pong, payload_key(payload, "t")}
-      :phoenix when type in @chat_types -> {:chat, type, payload || %{}}
-      :phoenix when type in @catalog_types -> {:catalog, type, payload || %{}}
-      :phoenix when type in @theater_types -> {:theater, type, payload || %{}}
-      :phoenix -> {:world, type, payload || %{}}
-      :specialty -> {:specialty, type, payload || %{}}
-      :node -> {:relay, to_frame(type, payload)}
+      :terminate_pong ->
+        {:pong, payload_key(payload, "t")}
+
+      :phoenix when type == "hello" ->
+        {:hello, payload || %{}}
+
+      :phoenix when type in @chat_types ->
+        {:chat, type, payload || %{}}
+
+      :phoenix when type in @catalog_types ->
+        {:catalog, type, payload || %{}}
+
+      :phoenix when type in @theater_types ->
+        {:theater, type, payload || %{}}
+
+      :phoenix when type in @economy_types ->
+        {:economy, type, payload || %{}}
+
+      :phoenix when type in @world_types ->
+        {:world, type, payload || %{}}
+
+      :phoenix ->
+        {:world, type, payload || %{}}
+
+      :specialty ->
+        {:specialty, type, payload || %{}}
+
+      :node ->
+        {:relay, to_frame(type, payload)}
+
+      :unrouted ->
+        {:unrouted, type}
     end
   end
 
-  def dispatch(_type, _payload), do: {:relay, %{}}
+  def dispatch(_type, _payload), do: {:unrouted, ""}
 
-  # Client pushes may arrive with string or atom keys (JSON gives strings;
-  # tests and internal callers give atoms). Node frames are string-keyed
-  # JSON objects, so normalize shallowly-recursive to strings.
   defp to_frame(type, payload) when is_map(payload) do
     payload |> stringify() |> Map.put("type", type)
   end

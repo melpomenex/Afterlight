@@ -68,9 +68,9 @@ defmodule Afterlight.Economy.ContractBoard do
           crop_name: c.crop_name,
           quantity: c.quantity,
           min_quality: c.min_quality,
-          reward: c.reward,
-          reputation: c.reputation,
-          xp: c.xp,
+          reward: trunc(c.reward),
+          reputation: trunc(c.reputation),
+          xp: trunc(c.xp),
           tier: c.tier,
           expires_at: c.expires_at,
           generated_at: c.generated_at

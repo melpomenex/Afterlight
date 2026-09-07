@@ -71,6 +71,11 @@ export function resolveFlagsFrom({ search = '', storage = null, env = null } = {
     flags.realtime_worker = false;
   }
 
+  // WASM decode loads asynchronously in the worker — require the worker path.
+  if (flags.realtime_wasm && !flags.realtime_worker) {
+    flags.realtime_worker = true;
+  }
+
   // Phase 1: entity seam follows binary unless explicitly forced alone.
   if (flags.realtime_binary && !('rt_entity_seam' in fromUrl(search)) && !fromLocalStorage(storage).rt_entity_seam) {
     flags.rt_entity_seam = true;

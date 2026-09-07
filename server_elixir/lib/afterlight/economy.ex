@@ -226,7 +226,24 @@ defmodule Afterlight.Economy do
     asks = Enum.filter(orders, &(&1.side == "sell")) |> Enum.map(&order_to_book/1)
     trades =
       Enum.map(
-        Repo.all(from t in "trades", order_by: [desc: t.executed_at], limit: 100),
+        Repo.all(
+          from t in "trades",
+            order_by: [desc: t.executed_at],
+            limit: 100,
+            select:
+              map(t, [
+                :public_id,
+                :buyer_id,
+                :seller_id,
+                :crop_id,
+                :quality,
+                :price,
+                :quantity,
+                :value,
+                :fee,
+                :executed_at
+              ])
+        ),
         &trade_from_row/1
       )
 

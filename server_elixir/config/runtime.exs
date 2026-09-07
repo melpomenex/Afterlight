@@ -21,7 +21,12 @@ config :afterlight, AfterlightWeb.Endpoint,
   secret_key_base: secret_key_base,
   server: System.get_env("PHX_SERVER") == "true",
   http: [
-    ip: {127, 0, 0, 1},
+    ip:
+      case System.get_env("PHX_IP") do
+        "0.0.0.0" -> {0, 0, 0, 0}
+        nil -> {127, 0, 0, 1}
+        ip -> ip |> String.split(".") |> Enum.map(&String.to_integer/1) |> List.to_tuple()
+      end,
     port: String.to_integer(System.get_env("PORT") || "4000")
   ]
 
@@ -73,6 +78,54 @@ if config_env() != :test do
   routing =
     if System.get_env("AFTERLIGHT_CHAT_OWNER", "node") == "phoenix" do
       Map.merge(routing, %{"chat_send" => :phoenix})
+    else
+      routing
+    end
+
+  routing =
+    if System.get_env("AFTERLIGHT_THEATER_OWNER", "node") == "phoenix" do
+      Map.merge(routing, %{
+        "theater_queue" => :phoenix,
+        "theater_control" => :phoenix,
+        "theater_channel" => :phoenix,
+        "theater_playlist_resolve" => :phoenix
+      })
+    else
+      routing
+    end
+
+  routing =
+    if System.get_env("AFTERLIGHT_CATALOG_OWNER", "node") == "phoenix" do
+      Map.merge(routing, %{
+        "iptv_list_get" => :phoenix,
+        "iptv_list_remove" => :phoenix,
+        "epg_lookup" => :phoenix
+      })
+    else
+      routing
+    end
+
+  routing =
+    if System.get_env("AFTERLIGHT_ECONOMY_OWNER", "node") == "phoenix" do
+      Map.merge(routing, %{
+        "garden_action" => :phoenix,
+        "market_buy" => :phoenix,
+        "market_sell" => :phoenix,
+        "order_place" => :phoenix,
+        "order_cancel" => :phoenix,
+        "contract_complete" => :phoenix,
+        "node_harvest" => :phoenix,
+        "machine_contribute" => :phoenix,
+        "machine_mill" => :phoenix,
+        "machine_craft" => :phoenix
+      })
+    else
+      routing
+    end
+
+  routing =
+    if System.get_env("AFTERLIGHT_HELLO_OWNER", "node") == "phoenix" do
+      Map.merge(routing, %{"hello" => :phoenix})
     else
       routing
     end

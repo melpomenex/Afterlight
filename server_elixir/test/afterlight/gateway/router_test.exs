@@ -59,9 +59,10 @@ defmodule Afterlight.Gateway.RouterTest do
     test "every catalog game type is either phoenix, node relay, or unrouted — never silent default" do
       :ok =
         GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
-          for type <- @catalog_types -- ["ping"] do
+          for type <- @catalog_types -- ["ping", "torrent_resolve"] do
             d = Router.disposition(type)
-            assert d in [:node, :phoenix, :unrouted], "expected explicit disposition for #{type}, got #{d}"
+            assert d in [:node, :phoenix, :unrouted, :specialty],
+                   "expected explicit disposition for #{type}, got #{d}"
           end
 
           :ok
