@@ -21,7 +21,7 @@
 - [x] 3.1 Mask study: sorted vs varint vs bitset vs roaring across N up to 200k; threshold table + decision rules (`results/masks.*`).
 - [x] 3.2 WASM arm: `wasm/afterlight-realtime` crate (decoder + slot store + status-code errors), ABI.md, fuzz tests, wasm-vs-JS bench (`results/wasm.*`).
 - [x] 3.3 BEAM arm: `beam/bench_encode.exs` binary-vs-JSON encode, iodata build/flatten, encode-once fanout K ∈ {1,10,100,200} (`results/beam.*`).
-- [ ] 3.4 WebGPU probe: full vs partial vs scatter with checksum validation + README run flags (`webgpu/`), executed under browser tooling with results recorded.
+- [x] 3.4 WebGPU probe: full vs partial vs scatter with checksum validation + README run flags (`webgpu/`), executed under browser tooling with results recorded.
 
 ## 4. Correctness and results
 
