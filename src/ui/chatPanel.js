@@ -83,6 +83,7 @@ export class ChatPanel {
   // --- state ---------------------------------------------------------------
 
   setConnected(connected) {
+    const wasConnected = this.connected;
     this.connected = connected;
     if (!this.input) return;
     this.input.disabled = !connected;
@@ -90,7 +91,7 @@ export class ChatPanel {
     this.input.placeholder = connected
       ? 'Say hello… (Enter to chat, Esc to release)'
       : 'The relay is quiet — reconnecting…';
-    if (!connected) this.addSystemLine('The town relay is out of reach.');
+    if (wasConnected && !connected) this.addSystemLine('The town relay is out of reach.');
   }
 
   setCollapsed(collapsed) {
