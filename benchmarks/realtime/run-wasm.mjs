@@ -12,6 +12,11 @@
 // memory growth over a 600-tick chain and JS-side retained-heap deltas.
 // Results -> results/wasm.json + results/wasm.md.
 //
+// Fallback contract (add-realtime-wasm-decoder task 4.2): if the wasm binary
+// is missing or fails to compile, the bench degrades to the JS arm with a
+// clear warning instead of crashing (wasm columns, cross-checks and the
+// memory section are omitted; see the JS-ONLY FALLBACK report it writes).
+//
 // Frame shapes (see wasm/afterlight-realtime/ABI.md):
 //   snapshot      = spawn section, INTERLEAVED 28-byte rows (id u32,
 //                   archetype u16, variant u16, stringRef u32, x/y/z/yaw f32),
@@ -116,7 +121,15 @@ function assertOk(status, arm, i) {
   if (status > 3) throw new Error(`${arm} arm: decode error ${status} at frame ${i}`);
 }
 
-const mod = loadModule(WASM_PATH);
+// null when the binary is absent/uninstantiable — every wasm touchpoint below
+// is gated on it, and the wasm-present path is unchanged.
+let mod = null;
+try {
+  mod = loadModule(WASM_PATH);
+} catch (err) {
+  console.warn(`[run-wasm] wasm module unavailable (${WASM_PATH.pathname}: ${err.message})`);
+  console.warn('[run-wasm] degrading to the JS arm (jsRefDecoder.mjs) — wasm columns, cross-checks and the memory section are omitted');
+}
 const results = [];
 let sink = 0;
 
@@ -147,17 +160,19 @@ for (const n of N_GRID) {
     const framesPerTick = chain.length / ticks;
     const entitiesPerTick = Math.max(1, Math.round(n * f));
 
-    // stores + one correctness pass (wasm vs js vs fixture world)
-    const ws = new WasmStore(mod, 65536);
+    // stores + one correctness pass (wasm vs js vs fixture world; js-only in
+    // fallback mode, where the verify pass compares js against the world)
+    const ws = mod ? new WasmStore(mod, 65536) : null;
     const js = new JsRefStore(65536);
     for (const sf of snap.frames) {
-      assertOk(ws.applyFrame(sf), 'wasm', -1);
+      if (ws) assertOk(ws.applyFrame(sf), 'wasm', -1);
       assertOk(js.applyFrame(sf), 'js', -1);
     }
-    if (ws.live() !== n || js.live() !== n) throw new Error(`snapshot live mismatch ${ws.live()} ${js.live()}`);
+    if (ws && ws.live() !== n) throw new Error(`snapshot live mismatch ${ws.live()} ${js.live()}`);
+    if (js.live() !== n) throw new Error(`snapshot live mismatch ${js.live()} ${n}`);
     // The chunked snapshot committed its frame_sequence on CHUNK_END.
-    if (ws.seq() !== snap.lastSeq || js.seq() !== snap.lastSeq) {
-      throw new Error(`snapshot seq mismatch: wasm ${ws.seq()} js ${js.seq()} != lastSeq ${snap.lastSeq}`);
+    if ((ws && ws.seq() !== snap.lastSeq) || js.seq() !== snap.lastSeq) {
+      throw new Error(`snapshot seq mismatch: wasm ${ws ? ws.seq() : 'n/a'} js ${js.seq()} != lastSeq ${snap.lastSeq}`);
     }
     const replay = (store, arm) => {
       store.resetSession(EPOCH, snap.lastSeq);
@@ -166,21 +181,34 @@ for (const n of N_GRID) {
         sink += armConsume[arm](store);
       }
     };
-    replay(ws, 'wasm');
+    if (ws) replay(ws, 'wasm');
     replay(js, 'js');
 
     // verification deltas: everyone changed -> per-frame element-wise compare
-    // (wasm vs js vs f32-rounded fixture world). Outputs stage ONE frame, so
-    // compare after each verify frame and require full coverage.
+    // (wasm vs js vs f32-rounded fixture world; js vs world in fallback mode).
+    // Outputs stage ONE frame, so compare after each verify frame and require
+    // full coverage.
     const allIds = Uint32Array.from(world.ids).sort();
     const verify = buildDeltaFrames(world, allIds, seq, 999, idToRow).frames;
     let compared = 0;
     for (const vf of verify) {
-      assertOk(ws.applyFrame(vf), 'wasm', 'verify');
+      if (ws) assertOk(ws.applyFrame(vf), 'wasm', 'verify');
       assertOk(js.applyFrame(vf), 'js', 'verify');
-      const wI = ws.outIds(), wX = ws.outX(), wY = ws.outY(), wZ = ws.outZ(), wW = ws.outYaw();
       const jI = js.outIds(), jX = js.outX(), jY = js.outY(), jZ = js.outZ(), jW = js.outYaw();
-      const wFv = ws.outFlagVals(), jFv = js.outFlagVals();
+      const jFv = js.outFlagVals();
+      if (!ws) {
+        for (let i = 0; i < jI.length; i++) {
+          const row = idToRow.get(jI[i]);
+          for (const [jcol, wcol] of [[jX, world.x], [jY, world.y], [jZ, world.z], [jW, world.yaw]]) {
+            if (jcol[i] !== Math.fround(wcol[row])) throw new Error(`verify world mismatch at ${i}`);
+          }
+          if (jFv[i] !== world.flags[row]) throw new Error(`verify flag mismatch at ${i}`);
+        }
+        compared += jI.length;
+        continue;
+      }
+      const wI = ws.outIds(), wX = ws.outX(), wY = ws.outY(), wZ = ws.outZ(), wW = ws.outYaw();
+      const wFv = ws.outFlagVals();
       if (wI.length !== jI.length || wFv.length !== jFv.length || wI.length !== wFv.length) {
         throw new Error('verify length mismatch');
       }
@@ -196,10 +224,10 @@ for (const n of N_GRID) {
       compared += wI.length;
     }
     if (compared !== n) throw new Error(`verify coverage ${compared} != ${n}`);
-    const wasmMemAfterChain = ws.memoryBytes();
+    const wasmMemAfterChain = ws ? ws.memoryBytes() : null;
 
     // timing: each run = reset + replay full chain (per-tick = time/ticks)
-    const tWasm = timeIt(() => {
+    const tWasm = ws ? timeIt(() => {
       let a = 0;
       ws.resetSession(EPOCH, snap.lastSeq);
       for (let i = 0; i < chain.length; i++) {
@@ -207,7 +235,7 @@ for (const n of N_GRID) {
         a += armConsume.wasm(ws);
       }
       return a;
-    });
+    }) : null;
     const tJs = timeIt(() => {
       let a = 0;
       js.resetSession(EPOCH, snap.lastSeq);
@@ -224,10 +252,10 @@ for (const n of N_GRID) {
     });
 
     // snapshot timing (session-join cost, separate from per-tick)
-    const sWasm = timeIt(() => {
+    const sWasm = ws ? timeIt(() => {
       ws.resetTo(0, 0, false);
       for (const sf of snap.frames) assertOk(ws.applyFrame(sf), 'wasm', 'snap');
-    });
+    }) : null;
     const sJs = timeIt(() => {
       js.resetTo(0, 0, false);
       for (const sf of snap.frames) assertOk(js.applyFrame(sf), 'js', 'snap');
@@ -235,7 +263,7 @@ for (const n of N_GRID) {
 
     // allocation proxy: one mid-chain tick, retained-heap delta (needs --expose-gc)
     const mid = chain[Math.floor(chain.length / 2)];
-    const hWasm = heapDelta(() => { assertOk(ws.applyFrame(mid), 'wasm', 'heap'); sink += armConsume.wasm(ws); });
+    const hWasm = ws ? heapDelta(() => { assertOk(ws.applyFrame(mid), 'wasm', 'heap'); sink += armConsume.wasm(ws); }) : null;
     const hJs = heapDelta(() => { assertOk(js.applyFrame(mid), 'js', 'heap'); sink += armConsume.js(js); });
 
     results.push({
@@ -246,56 +274,67 @@ for (const n of N_GRID) {
       framesPerTick: +framesPerTick.toFixed(2),
       bytesPerTick: Math.round(bytesPerTick),
       overContractCap: bytesPerTick > MAX_FRAME_BYTES,
-      wasm: { perTick: perTick(tWasm), storeBytes: ws.memoryBytes() },
-      js: { perTick: perTick(tJs), speedupMedianVsWasm: +(tJs.median / tWasm.median).toFixed(2), speedupMinVsWasm: +(tJs.min / tWasm.min).toFixed(2) },
+      // wasm fields are null in fallback mode; wasm-present records are
+      // byte-identical to the pre-fallback schema.
+      wasm: ws ? { perTick: perTick(tWasm), storeBytes: ws.memoryBytes() } : null,
+      js: ws
+        ? { perTick: perTick(tJs), speedupMedianVsWasm: +(tJs.median / tWasm.median).toFixed(2), speedupMinVsWasm: +(tJs.min / tWasm.min).toFixed(2) }
+        : { perTick: perTick(tJs) },
       snapshot: {
         frames: snap.frames.length,
         bytes: snapBytes,
-        wasmUs: { median: sWasm.median, min: sWasm.min },
+        wasmUs: ws ? { median: sWasm.median, min: sWasm.min } : null,
         jsUs: { median: sJs.median, min: sJs.min },
       },
       heapDeltaBytesPerTick: { wasm: hWasm, js: hJs },
-      correctness: { crossChecked: true, exactF32: true, rowsVerified: compared },
+      correctness: { crossChecked: !!ws, exactF32: true, rowsVerified: compared },
       wasmMemAfterChain,
     });
-    console.log(`N=${n} f=${f} ticks=${ticks} f/tick=${framesPerTick.toFixed(2)} B/tick=${Math.round(bytesPerTick)} wasm=${perTick(tWasm).medianUs}us js=${perTick(tJs).medianUs}us (min ${perTick(tWasm).minUs}/${perTick(tJs).minUs})`);
-    ws.destroy();
+    console.log(ws
+      ? `N=${n} f=${f} ticks=${ticks} f/tick=${framesPerTick.toFixed(2)} B/tick=${Math.round(bytesPerTick)} wasm=${perTick(tWasm).medianUs}us js=${perTick(tJs).medianUs}us (min ${perTick(tWasm).minUs}/${perTick(tJs).minUs})`
+      : `N=${n} f=${f} ticks=${ticks} f/tick=${framesPerTick.toFixed(2)} B/tick=${Math.round(bytesPerTick)} js=${perTick(tJs).medianUs}us (js-only fallback)`);
+    ws?.destroy();
   }
 }
 
 // ---------------- 600-tick wasm linear-memory growth ----------------
 
-const world = makeWorld(10000, 42);
-const snap = buildSnapshotFrames(world);
-let seq = snap.lastSeq;
-const chain = [];
-const idToRowMem = new Map();
-for (let i = 0; i < world.n; i++) idToRowMem.set(world.ids[i], i);
-for (let t = 0; t < 600; t++) {
-  const changed = stepWorld(world, 0.1, 2000 + t);
-  const built = buildDeltaFrames(world, changed, seq, 100 + t, idToRowMem);
-  seq = built.nextSeq;
-  chain.push(...built.frames);
+// wasm-only section: skipped entirely in fallback mode (memory stays null and
+// the report omits the section).
+let memory = null;
+if (mod) {
+  const world = makeWorld(10000, 42);
+  const snap = buildSnapshotFrames(world);
+  let seq = snap.lastSeq;
+  const chain = [];
+  const idToRowMem = new Map();
+  for (let i = 0; i < world.n; i++) idToRowMem.set(world.ids[i], i);
+  for (let t = 0; t < 600; t++) {
+    const changed = stepWorld(world, 0.1, 2000 + t);
+    const built = buildDeltaFrames(world, changed, seq, 100 + t, idToRowMem);
+    seq = built.nextSeq;
+    chain.push(...built.frames);
+  }
+  const wsMem = new WasmStore(mod, 65536);
+  for (const sf of snap.frames) assertOk(wsMem.applyFrame(sf), 'wasm', 'mem-snap');
+  const samples = [wsMem.memoryBytes()];
+  let growthEvents = 0;
+  for (let i = 0; i < chain.length; i++) {
+    assertOk(wsMem.applyFrame(chain[i]), 'wasm', i);
+    const b = wsMem.memoryBytes();
+    if (b > samples[samples.length - 1]) growthEvents++;
+    samples.push(b);
+  }
+  memory = {
+    chain: { n: 10000, fraction: 0.1, ticks: 600 },
+    initialBytes: samples[0],
+    finalBytes: samples[samples.length - 1],
+    maxBytes: Math.max(...samples),
+    growthEvents,
+    samples,
+  };
+  wsMem.destroy();
 }
-const wsMem = new WasmStore(mod, 65536);
-for (const sf of snap.frames) assertOk(wsMem.applyFrame(sf), 'wasm', 'mem-snap');
-const samples = [wsMem.memoryBytes()];
-let growthEvents = 0;
-for (let i = 0; i < chain.length; i++) {
-  assertOk(wsMem.applyFrame(chain[i]), 'wasm', i);
-  const b = wsMem.memoryBytes();
-  if (b > samples[samples.length - 1]) growthEvents++;
-  samples.push(b);
-}
-const memory = {
-  chain: { n: 10000, fraction: 0.1, ticks: 600 },
-  initialBytes: samples[0],
-  finalBytes: samples[samples.length - 1],
-  maxBytes: Math.max(...samples),
-  growthEvents,
-  samples,
-};
-wsMem.destroy();
 
 // ---------------- output ----------------
 
@@ -304,10 +343,12 @@ const out = {
     name: 'wasm-vs-js-decode-apply',
     contract: 'afterlight-soa-v1 (docs/architecture/realtime/contract.md v0)',
     wasm: WASM_PATH.pathname,
-    wasmBinaryBytes: statSync(WASM_PATH).size,
+    wasmBinaryBytes: mod ? statSync(WASM_PATH).size : null,
     abiVersion: 1,
     warmup: WARMUP,
     runs: RUNS,
+    // additive only in fallback mode, so the wasm-present JSON is unchanged
+    ...(mod ? {} : { fallback: 'wasm module absent or failed to compile — js-only run; wasm fields null, no cross-check, no memory section' }),
     note: 'per-tick = (reset + full chain) / ticks; median+p95+min from measure.timeIt; MIN is the comparable statistic under machine contention (contract §8).',
     decisions: [
       'frames built by the canonical JS reference writer shared/realtime/writer.js — both arms (wasm + jsRef DataView) consume byte-identical buffers',
@@ -322,15 +363,16 @@ const out = {
 };
 const jsonPath = writeResults('results/wasm.json', out);
 
-const rows = results.map((r) => [
+// rows reads wasm columns; the fallback report below uses its own table.
+const rows = mod ? results.map((r) => [
   r.n, r.fraction, r.entitiesPerTick, r.framesPerTick, `${(r.bytesPerTick / 1024).toFixed(0)}K`,
   r.wasm.perTick.medianUs, r.wasm.perTick.minUs,
   r.js.perTick.medianUs, r.js.perTick.minUs,
   `${r.js.speedupMedianVsWasm}x / ${r.js.speedupMinVsWasm}x`,
-]);
+]) : [];
 const snapByN = [...new Map(results.map((r) => [r.n, r])).values()];
 const snapChunksAt50k = results.find((r) => r.n === 50000)?.snapshot.frames;
-const md = `# WASM vs JS DataView decode+apply — afterlight-soa-v1
+const md = mod ? `# WASM vs JS DataView decode+apply — afterlight-soa-v1
 
 Generated by \`benchmarks/realtime/run-wasm.mjs\` (node ${env().node}, ${env().cpus} cpus, --expose-gc: ${env().exposedGc}).
 Arm **wasm** = \`wasm/afterlight-realtime\` cdylib (${out.meta.wasmBinaryBytes} B, lto, panic=abort) via \`lib/wasm/glue.mjs\`; arm **js** = \`lib/wasm/jsRefDecoder.mjs\` (DataView control).
@@ -372,6 +414,26 @@ ${markdownTable(
 Adopt selectively: the wasm decoder+store is the right tool for the session-join path and for large rooms / high-density ticks, and it carries a hard robustness guarantee (status codes, no panic, fuzz-enforced). For small rooms with sparse deltas the fixed glue overhead erases the win — keep the pure-JS DataView decoder as the fallback and as the ≤1.05 MB-frame control. Deciding per-room on entity count is premature before the hybrid mask (H) experiments land; the format-level findings (1 MiB cap vs 50k-entity ticks/snapshots) matter more than the language of the decoder.
 
 Raw JSON: \`results/wasm.json\`.
+` : `# WASM vs JS DataView decode+apply — afterlight-soa-v1 (JS-ONLY FALLBACK)
+
+Generated by \`benchmarks/realtime/run-wasm.mjs\` (node ${env().node}, ${env().cpus} cpus, --expose-gc: ${env().exposedGc}).
+**Fallback run:** the wasm module (\`${WASM_PATH.pathname}\`) was absent or failed to compile, so the bench degraded to the JS arm (\`lib/wasm/jsRefDecoder.mjs\`, DataView control) — the fallback contract of add-realtime-wasm-decoder task 4.2. Frames are still the canonical chunk-amendment buffers from \`shared/realtime/writer.js\`; the JS arm consumed all of them and every grid point was verified element-wise against the f32-rounded fixture world. Wasm columns, the wasm-vs-js cross-check (\`correctness.crossChecked: false\` in the JSON) and the linear-memory section are omitted. Rebuild the binary (\`cargo build --target wasm32-unknown-unknown --release\` in \`wasm/afterlight-realtime\`) and re-run for the head-to-head.
+
+## Per-tick decode + apply + JS handover (µs per tick, js arm only)
+
+${markdownTable(
+  ['N', 'fraction', 'ents/tick', 'frames/tick', 'B/tick', 'js med', 'js min'],
+  results.map((r) => [r.n, r.fraction, r.entitiesPerTick, r.framesPerTick, `${(r.bytesPerTick / 1024).toFixed(0)}K`, r.js.perTick.medianUs, r.js.perTick.minUs]),
+)}
+
+## Session-join (canonical snapshot, decode+apply total, js arm only)
+
+${markdownTable(
+  ['N', 'frames', 'bytes', 'js med µs', 'js min µs'],
+  snapByN.map((r) => [r.n, r.snapshot.frames, r.snapshot.bytes, r.snapshot.jsUs.median, r.snapshot.jsUs.min]),
+)}
+
+Raw JSON: \`results/wasm.json\` (wasm fields null in this mode).
 `;
 const mdPath = new URL('./results/wasm.md', import.meta.url).pathname;
 writeFileSync(mdPath, md);
