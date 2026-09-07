@@ -261,8 +261,23 @@ The default build connects straight to the Node server as always. An opt-in tran
 
 - **Run both servers:** `npm run server` (Node, :3001) plus `cd server_elixir && mix phx.server` for the gateway after `mix deps.get` (see `server_elixir/README.md`).
 - **Opt in at build time:** `VITE_TRANSPORT=phoenix VITE_WS_URL=ws://localhost:4000/ws npm run dev`.
-- **Roll back anytime:** build with `VITE_TRANSPORT=node` (the default) or point `VITE_WS_URL` back at the Node socket. No durable state lives in the gateway, so rolling back is a pure transport switch — in-flight transient state (positions, chat history) resets exactly as it would after any server restart today.
 - Environment knobs: `AFTERLIGHT_BOUNDARY_SECRET` (gateway→Node shared secret; unset = direct clients unaffected), `AFTERLIGHT_NODE_WS_URL` / `AFTERLIGHT_NODE_HTTP_URL` (loopback defaults), `AFTERLIGHT_TOKEN_SECRET` (set a real value outside dev).
+
+#### Rolling back to the Node socket (P2)
+
+P2 moves no durable writers and no save files. Rollback is a config flip, not a migration.
+
+1. Stop the Vite client (and, if you want, the Phoenix gateway — Node keeps serving).
+2. Restart the client **without** the Phoenix switch, so it talks to Node on `:3001`:
+   ```sh
+   npm run server          # already the authority; leave it running
+   npm run dev             # default VITE_TRANSPORT=node, default WS → :3001/ws
+   ```
+   Equivalent explicit flags: `VITE_TRANSPORT=node VITE_WS_URL=ws://localhost:3001/ws npm run dev`.
+3. Reopen the game. Existing `guestId` values in localStorage still identify the player. Positions and in-memory chat history reset the same way they would after any Node restart today.
+4. No cleanup of `data/*.json`, no reverse export, no gateway session rows to drop (P2 sessions are ETS-only).
+
+During P2, Node still accepts secret-less WebSocket and HTTP clients so this path keeps working even while the gateway is using `AFTERLIGHT_BOUNDARY_SECRET` for its shadow connections. Rehearsal: `node scripts/verify-gateway-transport.mjs` ends with a direct Node `hello` → `welcome` after the Phoenix two-client checks.
 
 ---
 

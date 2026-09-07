@@ -97,7 +97,7 @@ Server-side, config-owned (`Gateway.Router`); clients cannot choose the implemen
 
 Relay mechanics: one upstream Node WebSocket per gateway session ("shadow" connection), flat⇄flat frames in order — Node semantics including snapshot ordering and `error` reason strings are preserved byte-for-byte. Reconnect stickiness: newest connection wins; the old upstream is closed and processed BEFORE the new `hello` is forwarded, so Node never holds two sessions for one guestId (the duplicate-guestId ghost cannot arise from transport reconnects).
 
-Slow receivers (P2 posture): unchanged Node behavior is retained — full-roster 10 Hz snapshots with no per-client buffer accounting. Unbounded queueing under a stalled consumer is a known property of the proxy phase; the P3 room runtime introduces bounded buffers and disconnect/resnapshot.
+Slow receivers (P2 posture): unchanged Node behavior is retained — full-roster 10 Hz snapshots with no per-client buffer accounting (`ws.send` has no `bufferedAmount` checks). NodeProxy also queues outbound frames unbounded while the upstream is still connecting. Unbounded queueing under a stalled consumer is a known property of the proxy phase; the P3 room runtime introduces bounded buffers and disconnect/resnapshot. Design D7 also named a per-transport queue-depth telemetry counter; it is not emitted in P2 (`AfterlightWeb.Telemetry` still has only VM/endpoint summaries — see the change evidence notes).
 
 ## 3. Persistence map (current)
 

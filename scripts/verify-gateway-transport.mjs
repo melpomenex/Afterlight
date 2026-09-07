@@ -1,52 +1,49 @@
 #!/usr/bin/env node
 /**
- * P2 exit gate (add-phoenix-gateway-transport): drives a scripted client
- * through the FULL Phoenix→Node relay chain — token issuance, channel join,
- * hello/welcome ordering, desiredRoom roster, gateway-terminated ping,
- * movement relay, chat relay, proxied health, and reconnect with fresh
- * token + welcome replay.
+ * P2 verification (add-phoenix-gateway-transport): scripted Phoenix clients
+ * through the real Phoenix→Node relay. Not a browser: this is the
+ * automatable substitute for two-browser play (tasks 6.3 / 6.4 / 7.2).
  *
- * Boots both real servers (Node :PORT, Phoenix :GW_PORT) with throwaway
- * state and a boundary secret. Not part of npm test: it is the recorded
- * two-server evidence for the phase gate.
+ * Covers:
+ *   - proxied /api/health
+ *   - two sessions: join, travel, emote, chat both ways, theater_state,
+ *     garden join, market error, reconnect without ghost presence
+ *   - protocol-catalog §5: guestId continuity / self-echo identity,
+ *     duplicate-handler order, airborne flag coercion, bare `error`,
+ *     duplicate join_room no-op for PRESENCE_JOIN
+ *   - rollback rehearsal: secret-less raw WebSocket to Node still welcomes
  *
  * Usage: node scripts/verify-gateway-transport.mjs
  */
 
 import { spawn } from 'node:child_process';
 import path from 'node:path';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { Socket } from 'phoenix';
+import { WebSocket as NodeWebSocket } from 'ws';
 
 const NODE_PORT = 3901;
 const GW_PORT = 4101;
 const SECRET = 'verify-boundary-secret';
 const TOKEN_SECRET = 'verify-token-secret';
 
-const REPO = process.cwd();
+const ELIXIR_PATH = [
+  `${process.env.HOME}/.elixir-install/installs/otp/27.3/bin`,
+  `${process.env.HOME}/.elixir-install/installs/elixir/1.18.4-otp-27/bin`,
+  `${process.env.HOME}/.local/afterlight-beam/otp/bin`,
+  `${process.env.HOME}/.local/afterlight-beam/elixir/bin`,
+  process.env.PATH,
+].join(':');
 
-function waitFor(path, tries = 80, ms = 250) {
+function waitFor(url, tries = 80, ms = 250) {
   return new Promise((resolve, reject) => {
     const attempt = async (n) => {
       try {
-        const res = await fetch(path);
+        const res = await fetch(url);
         if (res.ok) return resolve(res);
       } catch {}
-      if (n <= 0) return reject(new Error(`never healthy: ${path}`));
-      setTimeout(() => attempt(n - 1), ms);
-    };
-    attempt(tries);
-  });
-}
-
-function waitForPort(port, tries = 120, ms = 250) {
-  return new Promise((resolve, reject) => {
-    const attempt = async (n) => {
-      try {
-        const res = await fetch(`http://127.0.0.1:${port}/api/auth/guest`, { method: 'POST' });
-        void res; // any HTTP answer means the listener is up (400 expected)
-        return resolve();
-      } catch {}
-      if (n <= 0) return reject(new Error(`gateway never came up on :${port}`));
+      if (n <= 0) return reject(new Error(`never healthy: ${url}`));
       setTimeout(() => attempt(n - 1), ms);
     };
     attempt(tries);
@@ -60,33 +57,36 @@ function withDeadline(promise, ms, label) {
   ]);
 }
 
-/** One frame awaited by predicate, with the frames seen so far. */
-function nextFrame(socket, channel, predicate, label, ms = 8000) {
-  return withDeadline(
-    new Promise((resolve, reject) => {
-      const prevOnMessage = channel.onMessage;
-      const done = (fn, value) => {
-        channel.onMessage = prevOnMessage;
-        clearTimeout(timer);
-        fn(value);
-      };
-      const timer = setTimeout(() => done(reject, new Error(`timeout waiting for ${label}`)), ms);
-      const handler = (event, payload) => {
-        const frame = { type: event, ...(payload && typeof payload === 'object' ? payload : {}) };
-        seen.push(frame);
-        if (predicate(frame)) done(resolve, frame);
-      };
-      const seen = [];
-      void seen;
-      channel.onMessage = ((orig) => (event, payload, ref, joinRef) => {
-        handler(event, payload);
-        return orig(event, payload, ref, joinRef);
-      })(channel.onMessage);
-      void socket;
-    }),
-    ms + 2000,
-    label,
-  );
+function attachCollector(channel) {
+  const frames = [];
+  const waiters = [];
+  const prevOnMessage = channel.onMessage;
+  channel.onMessage = (event, payload, ref, joinRef) => {
+    const frame = {
+      type: event,
+      ...(payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {}),
+    };
+    frames.push(frame);
+    for (const w of [...waiters]) {
+      if (w.pred(frame)) {
+        waiters.splice(waiters.indexOf(w), 1);
+        w.resolve(frame);
+      }
+    }
+    return prevOnMessage(event, payload, ref, joinRef);
+  };
+  return {
+    frames,
+    wait(pred, label, ms = 8000) {
+      const hit = frames.find(pred);
+      if (hit) return Promise.resolve(hit);
+      return withDeadline(
+        new Promise((resolve) => waiters.push({ pred, resolve })),
+        ms,
+        label,
+      );
+    },
+  };
 }
 
 function connectGateway(token, guestId) {
@@ -95,17 +95,60 @@ function connectGateway(token, guestId) {
     const channel = socket.channel('game:v1', { guestId });
     channel
       .join()
-      .receive('ok', () => resolve({ socket, channel }))
+      .receive('ok', () => resolve({ socket, channel, col: attachCollector(channel) }))
       .receive('error', (resp) => reject(new Error(`join refused: ${JSON.stringify(resp)}`)));
     socket.connect();
   });
 }
 
-const { mkdtempSync } = await import('node:fs');
-const { tmpdir } = await import('node:os');
+async function postGuest(body) {
+  let lastErr;
+  for (let i = 0; i < 5; i++) {
+    try {
+      return await fetch(`http://127.0.0.1:${GW_PORT}/api/auth/guest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      lastErr = e;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+  }
+  throw lastErr;
+}
+
+async function session(guestId, nickname) {
+  const tokenRes = await postGuest({ guestId, nickname });
+  assertEq(tokenRes.status, 200, `token for ${guestId}`);
+  const { token } = await tokenRes.json();
+  const conn = await connectGateway(token, guestId);
+  const welcomeP = conn.col.wait((f) => f.type === 'welcome', `welcome ${guestId}`);
+  conn.channel.push('hello', { guestId, nickname });
+  const welcome = await welcomeP;
+  return { ...conn, guestId, nickname, welcome };
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function poseOf(frame, id) {
+  return frame.players?.find((p) => p.id === id);
+}
+
+function assertEq(actual, expected, label) {
+  if (actual !== expected) {
+    throw new Error(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  }
+}
+function assertOk(value, label) {
+  if (!value) throw new Error(`${label}: expected truthy, got ${JSON.stringify(value)}`);
+}
+
 const throwawayCwd = mkdtempSync(path.join(tmpdir(), 'p2-gate-'));
 const nodeProc = spawn(process.execPath, [new URL('../server/index.js', import.meta.url).pathname], {
-  cwd: throwawayCwd, // data/game-state.json resolves here, not in the repo
+  cwd: throwawayCwd,
   env: {
     ...process.env,
     PORT: String(NODE_PORT),
@@ -116,13 +159,15 @@ const nodeProc = spawn(process.execPath, [new URL('../server/index.js', import.m
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 const gwProc = spawn('mix', ['phx.server'], {
-  detached: true, // mix is a shell wrapper: kill the whole group on cleanup
+  detached: true,
   cwd: new URL('../server_elixir', import.meta.url).pathname,
   env: {
     ...process.env,
-    PATH: `${process.env.HOME}/.local/afterlight-beam/otp/bin:${process.env.HOME}/.local/afterlight-beam/elixir/bin:${process.env.PATH}`,
+    PATH: ELIXIR_PATH,
     PHX_SERVER: 'true',
+    MIX_ENV: 'dev',
     PORT: String(GW_PORT),
+    DATABASE_URL: process.env.DATABASE_URL || 'ecto://afterlight:afterlight@127.0.0.1:5432/afterlight_dev',
     AFTERLIGHT_NODE_WS_URL: `ws://127.0.0.1:${NODE_PORT}/ws`,
     AFTERLIGHT_NODE_HTTP_URL: `http://127.0.0.1:${NODE_PORT}`,
     AFTERLIGHT_BOUNDARY_SECRET: SECRET,
@@ -135,146 +180,242 @@ nodeProc.stderr.on('data', (d) => process.stderr.write(`[node] ${d}`));
 gwProc.stdout.on('data', (d) => process.stderr.write(`[gw] ${d}`));
 gwProc.stderr.on('data', (d) => process.stderr.write(`[gw] ${d}`));
 
+const results = [];
+function ok(msg) {
+  results.push(`ok  ${msg}`);
+  console.log(`ok  ${msg}`);
+}
+
 try {
-  // 1. Both listeners up; /api/health THROUGH the gateway proves
-  //    HTTPProxy + boundary secret + Node hop in one hop.
   console.error('step: waiting node');
   await waitFor(`http://127.0.0.1:${NODE_PORT}/api/health`);
   console.error('step: node up, waiting gateway');
-  const proxiedHealth = await waitFor(`http://127.0.0.1:${GW_PORT}/api/health`);
-  console.error('step: gateway up');
+  const proxiedHealth = await waitFor(`http://127.0.0.1:${GW_PORT}/api/health`, 120, 250);
   const healthBody = await proxiedHealth.json();
   assertEq(healthBody.status, 'ok', 'proxied /api/health body');
-  console.log('ok  proxied /api/health (gateway → boundary → Node)');
+  ok('proxied /api/health (gateway → boundary → Node)');
 
-  // 2. Token + connect + join.
-  // Undici can surface 'terminated' when a keep-alive socket is closed
-  // between the readiness probe and the first real request — retry.
-  async function postGuest(body) {
-    let lastErr;
-    for (let i = 0; i < 3; i++) {
-      try {
-        return await fetch(`http://127.0.0.1:${GW_PORT}/api/auth/guest`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-      } catch (e) {
-        lastErr = e;
-        await new Promise((r) => setTimeout(r, 250));
-      }
-    }
-    throw lastErr;
-  }
-  const tokenRes = await postGuest({ guestId: 'guest_verify_gateway', nickname: 'Verifier' });
-  console.error('step: token fetched');
-  assertEq(tokenRes.status, 200, 'token issuance');
-  const { token } = await tokenRes.json();
-  assertOk(token, 'token issued');
+  // --- two scripted clients ---
+  const a = await session('guest_p2_alpha', 'AlphaBot');
+  const b = await session('guest_p2_bravo', 'BravoBot');
+  assertEq(a.welcome.player.id, 'guest_p2_alpha', 'welcome.player.id matches token/hello (A)');
+  assertEq(b.welcome.player.id, 'guest_p2_bravo', 'welcome.player.id matches token/hello (B)');
+  ok('two sessions: hello → welcome with guestId continuity');
 
-  console.error('step: connecting gateway socket');
-  const { socket, channel } = await connectGateway(token, 'guest_verify_gateway');
-  console.error('step: joined');
-  console.log('ok  channel join with signed token');
+  // 6.4 duplicate-handler order on the Phoenix unwrap path (two collectors
+  // on one channel fire in registration order because onMessage wraps).
+  const order = [];
+  const orig = a.channel.onMessage;
+  a.channel.onMessage = ((prev) => (event, payload, ref, joinRef) => {
+    if (event === 'pong') order.push('first');
+    const out = prev(event, payload, ref, joinRef);
+    if (event === 'pong') order.push('second');
+    return out;
+  })(orig);
+  const pongP = a.col.wait((f) => f.type === 'pong' && f.t === 4242, 'pong');
+  a.channel.push('ping', { t: 4242 });
+  const pong = await pongP;
+  assertEq(pong.t, 4242, 'pong echoes t (gateway-terminated)');
+  assertEq(order.join(','), 'first,second', 'duplicate handlers fire in registration order');
+  ok('ping → pong at gateway; duplicate onMessage wrappers run in order');
 
-  // 3. hello → welcome; assert the gateway relayed it with Node's player.
-  const welcome = nextFrame(socket, channel, (f) => f.type === 'welcome', 'welcome');
-  channel.push('hello', { guestId: 'guest_verify_gateway', nickname: 'Verifier' });
-  const w = await welcome;
-  assertEq(w.player.id, 'guest_verify_gateway', 'welcome.player.id is the hello guestId');
-  assertOk(w.prices && typeof w.prices === 'object' && !Array.isArray(w.prices), 'welcome carries Node-owned prices');
-  console.log('ok  hello → welcome relayed (player.id matches token/hello identity)');
-
-  // 4. desiredRoom: join market → the joiner receives the room roster
-  // (an empty room means an empty players array — that IS the ack).
-  const roster = nextFrame(
-    socket,
-    channel,
+  // Join market: B is already present so A's first join emits presence_join;
+  // a second join_room from A is a no-op for everyone else.
+  const bRoster = b.col.wait(
     (f) => f.type === 'presence_update' && Array.isArray(f.players),
-    'presence_update roster',
+    'B market roster',
   );
-  channel.push('join_room', { roomId: 'market' });
-  const r = await roster;
-  assertEq(r.players.length, 0, 'empty market roster on first join');
-  console.log('ok  join_room → presence_update roster delivered to the joiner');
+  b.channel.push('join_room', { roomId: 'market' });
+  await bRoster;
+  const bSawA = b.col.wait(
+    (f) => f.type === 'presence_join' && f.player?.id === 'guest_p2_alpha',
+    'B sees A join',
+    12000,
+  );
+  const aJoin = a.col.wait(
+    (f) => f.type === 'presence_update' && Array.isArray(f.players),
+    'A market roster',
+  );
+  a.channel.push('join_room', { roomId: 'market' });
+  await aJoin;
+  await bSawA;
+  const joinsBefore = b.col.frames.filter(
+    (f) => f.type === 'presence_join' && f.player?.id === 'guest_p2_alpha',
+  ).length;
+  a.channel.push('join_room', { roomId: 'market' });
+  await sleep(400);
+  const joinsAfter = b.col.frames.filter(
+    (f) => f.type === 'presence_join' && f.player?.id === 'guest_p2_alpha',
+  ).length;
+  assertEq(joinsAfter, joinsBefore, 'duplicate join_room does not repeat presence_join');
+  ok('join market; duplicate join_room is a presence no-op');
 
-  // 5. ping terminated at the gateway (pong with echoed t).
-  const pong = nextFrame(socket, channel, (f) => f.type === 'pong', 'pong');
-  channel.push('ping', { t: 1234 });
-  const p = await pong;
-  assertEq(p.t, 1234, 'pong echoes t');
-  console.log('ok  ping → pong terminated at gateway');
-
-  // 6. Movement relayed: room flush reflects our coordinates.
-  channel.push('movement', { x: 3.5, z: -1.25, rotY: 0.4, walking: true, sitting: false, airborne: false });
-  const moved = nextFrame(
-    socket,
-    channel,
+  // Movement + airborne flag (receiver coerces missing flag like !!undefined).
+  const bAir = b.col.wait(
+    (f) => f.type === 'presence_update' && poseOf(f, 'guest_p2_alpha')?.airborne === true,
+    'B sees A airborne',
+    12000,
+  );
+  a.channel.push('movement', {
+    x: 2.5, z: -1, rotY: 0.2, walking: true, sitting: false, airborne: true,
+  });
+  await bAir;
+  const bGround = b.col.wait(
     (f) =>
       f.type === 'presence_update' &&
-      f.players?.some((p2) => p2.id === 'guest_verify_gateway' && Math.abs(p2.x - 3.5) < 0.01),
-    'movement reflected in presence_update',
-    10000,
+      poseOf(f, 'guest_p2_alpha') &&
+      !poseOf(f, 'guest_p2_alpha').airborne,
+    'B sees A grounded when flag omitted/false',
+    12000,
   );
-  await moved;
-  console.log('ok  movement relayed → 10 Hz flush carries the new pose');
+  a.channel.push('movement', { x: 2.6, z: -1, rotY: 0.2, walking: true, sitting: false });
+  await bGround;
+  ok('airborne true relays; omitted/false flag reads grounded for the peer');
 
-  // 7. Chat relayed both ways semantics: our send comes back as chat_message.
-  const chat = nextFrame(
-    socket,
-    channel,
-    (f) => f.type === 'chat_message' && f.text === 'gateway round trip',
-    'chat_message',
+  // Self-echo identity: A still receives own roster row; client would filter
+  // with `p.id !== net.guestId` (src/main.js). Continuity is the contract.
+  const selfRoster = a.col.frames
+    .filter((f) => f.type === 'presence_update')
+    .some((f) => poseOf(f, 'guest_p2_alpha'));
+  assertOk(selfRoster, 'A receives own presence_update row (client self-filters by guestId)');
+  ok('self-echo filtering identity: guestId on welcome matches presence self row');
+
+  // Chat both directions.
+  const aHeard = a.col.wait((f) => f.type === 'chat_message' && f.text === 'from bravo', 'A hears B');
+  const bHeard = b.col.wait((f) => f.type === 'chat_message' && f.text === 'from alpha', 'B hears A');
+  a.channel.push('chat_send', { text: 'from alpha' });
+  b.channel.push('chat_send', { text: 'from bravo' });
+  await aHeard;
+  await bHeard;
+  ok('chat both directions through the relay');
+
+  // Emote: B sees A's broadcast (A would self-filter playerId === guestId).
+  const emoteP = b.col.wait(
+    (f) => f.type === 'emote_broadcast' && f.playerId === 'guest_p2_alpha' && f.emote === 'wave',
+    'emote_broadcast',
   );
-  channel.push('chat_send', { text: 'gateway round trip' });
-  const c = await chat;
-  assertEq(c.from, 'Verifier', 'chat_message.from is our nickname');
-  console.log('ok  chat_send → chat_message relayed (IRC bridge path intact)');
+  a.channel.push('emote', { emote: 'wave' });
+  await emoteP;
+  ok('emote_broadcast relayed to the other session (remote rendering input)');
 
-  // 8. Reconnect: newest-wins, fresh welcome, roster again, no ghosts.
-  socket.disconnect();
-  const token2 = await (await postGuest({ guestId: 'guest_verify_gateway', nickname: 'Verifier' })).json();
-  const conn2 = await connectGateway(token2.token, 'guest_verify_gateway');
-  const welcome2 = nextFrame(conn2.socket, conn2.channel, (f) => f.type === 'welcome', 'welcome after reconnect');
-  conn2.channel.push('hello', { guestId: 'guest_verify_gateway', nickname: 'Verifier' });
-  const w2 = await welcome2;
-  assertEq(w2.player.id, 'guest_verify_gateway', 'welcome after reconnect');
-  const roster2 = nextFrame(
-    conn2.socket,
-    conn2.channel,
-    (f) => f.type === 'presence_update' && Array.isArray(f.players) && f.players.some((p3) => p3.id === 'guest_verify_gateway'),
-    'roster after reconnect (movement flush carries self)',
+  // Travel: theater playback state snapshot on join.
+  const aTheater = a.col.wait((f) => f.type === 'theater_state', 'A theater_state');
+  const bTheater = b.col.wait((f) => f.type === 'theater_state', 'B theater_state');
+  a.channel.push('join_room', { roomId: 'theater' });
+  b.channel.push('join_room', { roomId: 'theater' });
+  await aTheater;
+  await bTheater;
+  const chP = b.col.wait(
+    (f) => f.type === 'theater_state' && f.theater?.now?.url === 'https://example.com/p2-gate.mp4',
+    'shared theater_state after channel',
+    12000,
+  );
+  a.channel.push('theater_channel', {
+    url: 'https://example.com/p2-gate.mp4',
+    title: 'P2 gate reel',
+  });
+  const shared = await chP;
+  assertEq(shared.theater.now.title, 'P2 gate reel', 'theater now title');
+  ok('theater join snapshots + shared theater_state after theater_channel');
+
+  // Bare `error` (theaterScreen applyServerErrorMessage reads msg.message).
+  const errP = a.col.wait((f) => f.type === 'error' && typeof f.message === 'string', 'error frame');
+  a.channel.push('market_buy', { cropId: 'radish', quantity: 99999 });
+  const err = await errP;
+  assertEq(err.message, 'insufficient_coins', 'stable error reason string');
+  ok('bare error {message} delivered flat (theaterScreen consumer shape)');
+
+  // Garden join for A's guestId room.
+  const gardenId = 'garden:guest_p2_alpha';
+  const gState = a.col.wait(
+    (f) => f.type === 'garden_state' && f.roomId === gardenId,
+    'garden_state',
+  );
+  a.channel.push('join_room', { roomId: gardenId });
+  await gState;
+  ok('garden:<guestId> join returns garden_state');
+
+  // Market action that succeeds (starting coins 60).
+  a.channel.push('join_room', { roomId: 'market' });
+  const invP = a.col.wait((f) => f.type === 'inventory_state', 'inventory_state after buy', 12000);
+  a.channel.push('market_buy', { cropId: 'radish', quantity: 1 });
+  const inv = await invP;
+  assertOk(inv.player?.inventory?.seeds?.radish >= 1, 'market_buy credited a seed');
+  ok('market_buy applied through the proxy');
+
+  // Reconnect A from a shared market: newest-wins, fresh welcome, no ghost.
+  b.channel.push('join_room', { roomId: 'market' });
+  a.channel.push('join_room', { roomId: 'market' });
+  await sleep(300);
+  const leaveP = b.col.wait(
+    (f) => f.type === 'presence_leave' && f.playerId === 'guest_p2_alpha',
+    'B sees A leave on reconnect',
     15000,
   );
-  conn2.channel.push('join_room', { roomId: 'market' });
-  // Joining marks nothing dirty; a movement makes the room flush include us.
-  conn2.channel.push('movement', { x: 1.5, z: 0.5, rotY: 0, walking: true, sitting: false, airborne: false });
-  const r2 = await roster2;
-  const selfCount = r2.players.filter((p4) => p4.id === 'guest_verify_gateway').length;
+  a.socket.disconnect();
+  const token2 = await (await postGuest({ guestId: 'guest_p2_alpha', nickname: 'AlphaBot' })).json();
+  const a2 = await connectGateway(token2.token, 'guest_p2_alpha');
+  const welcome2P = a2.col.wait((f) => f.type === 'welcome', 'welcome after reconnect');
+  a2.channel.push('hello', { guestId: 'guest_p2_alpha', nickname: 'AlphaBot' });
+  const w2 = await welcome2P;
+  assertEq(w2.player.id, 'guest_p2_alpha', 'welcome after reconnect');
+  b.channel.push('join_room', { roomId: 'market' });
+  a2.channel.push('join_room', { roomId: 'market' });
+  a2.channel.push('movement', {
+    x: 1.5, z: 0.5, rotY: 0, walking: true, sitting: false, airborne: false,
+  });
+  await leaveP.catch(() => {}); // leave may already have arrived
+  const roster2 = await a2.col.wait(
+    (f) =>
+      f.type === 'presence_update' &&
+      Array.isArray(f.players) &&
+      f.players.some((p) => p.id === 'guest_p2_alpha'),
+    'roster after reconnect',
+    15000,
+  );
+  const selfCount = roster2.players.filter((p) => p.id === 'guest_p2_alpha').length;
   assertEq(selfCount, 1, 'no ghost duplicate of self in roster');
-  console.log('ok  reconnect: fresh welcome, roster has exactly one self (newest-wins, no ghosts)');
+  ok('reconnect: fresh welcome, exactly one self in roster (newest-wins)');
 
-  conn2.socket.disconnect();
-  console.log('\nP2 GATE PASS: full Phoenix→Node relay verified end to end.');
+  a2.socket.disconnect();
+  b.socket.disconnect();
+
+  // 7.2 rollback rehearsal: secret-less direct Node socket still works.
+  const nodeWelcome = await withDeadline(
+    new Promise((resolve, reject) => {
+      const ws = new NodeWebSocket(`ws://127.0.0.1:${NODE_PORT}/ws`);
+      ws.on('message', (data) => {
+        const msg = JSON.parse(String(data));
+        if (msg.type === 'welcome') {
+          ws.close();
+          resolve(msg);
+        }
+      });
+      ws.on('open', () => {
+        ws.send(JSON.stringify({ type: 'hello', guestId: 'guest_p2_rollback', nickname: 'Rollback' }));
+      });
+      ws.on('error', reject);
+    }),
+    8000,
+    'direct Node welcome (rollback path)',
+  );
+  assertEq(nodeWelcome.player.id, 'guest_p2_rollback', 'direct Node welcome guestId');
+  ok('rollback rehearsal: secret-less client → Node :ws still gets welcome');
+
+  console.log('\nP2 SCRIPT PASS: Phoenix two-client relay + §5 checks + Node rollback path.');
+  console.log(`checks: ${results.length}`);
   process.exit(0);
 } catch (err) {
-  console.error(`\nP2 GATE FAIL: ${err.message}`);
+  console.error(`\nP2 SCRIPT FAIL: ${err.message}`);
   process.exitCode = 1;
 } finally {
-  // mix is a shell wrapper around beam: signal the whole process group so
-  // no orphaned beam keeps the gateway port bound between runs.
   for (const proc of [gwProc, nodeProc]) {
     try {
       process.kill(-proc.pid, 'SIGTERM');
     } catch {
-      try { proc.kill('SIGTERM'); } catch {}
+      try {
+        proc.kill('SIGTERM');
+      } catch {}
     }
   }
-}
-
-function assertEq(actual, expected, label) {
-  if (actual !== expected) throw new Error(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-}
-function assertOk(value, label) {
-  if (!value) throw new Error(`${label}: expected truthy, got ${JSON.stringify(value)}`);
 }

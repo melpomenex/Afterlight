@@ -24,6 +24,10 @@ Elixir is a good fit for concurrent sessions, supervised room processes and real
 
 The HTML files are standalone Archify documents. Their editable JSON specifications are beside them. Diagrams are selective views: an omitted edge is not a prohibition; the prose defines complete runtime contracts.
 
+## P2 transport rollback
+
+While `add-phoenix-gateway-transport` is the active path, rollback is: flip `VITE_TRANSPORT` / `VITE_WS_URL` back to the Node WebSocket. No durable state moved; Node remains the writer of every game domain. Procedure: player-facing notes in the repository `README.md` (Optional Phoenix gateway transport → Rolling back) and `server_elixir/README.md`.
+
 ## First implementation slice
 
 Build a Phoenix-hosted lobby with the existing Three.js world mounted as a JavaScript island. Connect two authenticated guest sessions through a Channels adapter, preserving travel/reconnect and remote avatars. Independently prove a two-to-eight participant Membrane call with TURN fallback. These experiments settle the two biggest integration risks before migrating the economy.

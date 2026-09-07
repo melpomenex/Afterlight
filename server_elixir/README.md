@@ -1,6 +1,6 @@
-# Afterlight (Elixir/Phoenix/Ash) — P1 foundation
+# Afterlight (Elixir/Phoenix/Ash)
 
-This is the Elixir side of the Afterlight backend migration. **It currently owns nothing**: no client traffic, no Channels, no game state, no database tables. The Node server (`../server`) keeps serving the game until the migration phases (P2+) move authority domain-by-domain. See `../docs/architecture/elixir/ownership.md` for the authority contract and `../openspec/changes/add-elixir-phoenix-foundation/` for this phase's scope.
+This is the Elixir side of the Afterlight backend migration. **P1 owned nothing.** **P2 (gateway transport) terminates the socket, signed guest tokens, `ping`/`pong`, and rate limits, then relays every game domain 1:1 to Node.** Durable authority is still Node's (`../server`). See `../docs/architecture/elixir/ownership.md` and `../openspec/changes/add-phoenix-gateway-transport/`.
 
 ## Prerequisites
 
@@ -50,6 +50,16 @@ Serviceradar's advisory-ignore list was deliberately not carried over; re-review
 
 ## Supervision tree
 
-`Afterlight.Application`: `Afterlight.Repo` → `Phoenix.PubSub` → `AfterlightWeb.Telemetry` → `AfterlightWeb.Endpoint`. There are deliberately **no** room processes, presence, membership, Ash domains, or game protocol handlers — those arrive with their own migration changes and must never be smuggled into the foundation.
+`Afterlight.Application`: `Afterlight.Repo` → `Phoenix.PubSub` → `AfterlightWeb.Telemetry` → Finch → `Afterlight.Gateway.ProxySupervisor` → `AfterlightWeb.Endpoint`. No room processes or Ash game domains — those arrive in later phases. P2 only adds the relay.
 
-Endpoint routes: `GET /` and `GET /health` (health JSON) only.
+Endpoint routes: `GET /` and `GET /health`; P2 adds `POST /api/auth/guest`, UserSocket at `/ws`, and reverse-proxy of `/api/health` + `/api/theater/*` to Node.
+
+## P2 rollback (transport only)
+
+The gateway stores no durable game state. To return a deployment to Node:
+
+1. Build/run the client with `VITE_TRANSPORT=node` (default) and `VITE_WS_URL` pointing at the Node socket (`ws://localhost:3001/ws` in dev).
+2. Leave Node running; stopping Phoenix is optional.
+3. Players reconnect with the same localStorage `guestId`. Transient poses and chat history reset as on any Node restart.
+
+Node still accepts secret-less clients in P2 (invalid boundary secrets are rejected; absent secrets are not). Do not treat this as a rollback after later phases write PostgreSQL.
