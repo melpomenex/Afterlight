@@ -227,7 +227,9 @@ defmodule Afterlight.Gateway.NodeProxy do
         end
 
       :connecting ->
-        {:reply, :ok, %{state | queue: :queue.in(Jason.encode!(frame), state.queue)}}
+        new_state = %{state | queue: :queue.in(Jason.encode!(frame), state.queue)}
+        emit_queue_depth(new_state)
+        {:reply, :ok, new_state}
 
       :stopping ->
         {:reply, {:error, :relay_down}, state}
@@ -400,5 +402,13 @@ defmodule Afterlight.Gateway.NodeProxy do
       secret when is_binary(secret) -> [{"x-afterlight-boundary", secret}]
       _ -> []
     end
+  end
+
+  defp emit_queue_depth(state) do
+    :telemetry.execute(
+      [:afterlight, :gateway, :proxy, :queue_depth],
+      %{depth: :queue.len(state.queue)},
+      %{guest_id: state.guest_id}
+    )
   end
 end

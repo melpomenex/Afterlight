@@ -32,7 +32,7 @@ function packOf(rows, { tick = 1, joined = [], left = [] } = {}) {
 }
 
 test('flags: renderer_webgpu_fastpath defaults off and is not implied by other flags', () => {
-  const d = resolveFlagsFrom({});
+  const d = resolveFlagsFrom({ env: {} });
   assert.equal(d.renderer_webgpu_fastpath, false);
   assert.equal(shouldConstructWebGpu(d), false);
   assert.equal(shouldConstructWebGpu(resolveFlagsFrom({ search: '?rt_binary=1&rt_wasm=1' })), false);

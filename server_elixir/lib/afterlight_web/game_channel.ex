@@ -73,8 +73,8 @@ defmodule AfterlightWeb.GameChannel do
   alias Afterlight.Gateway.Router
   alias Afterlight.Social
   alias Afterlight.World
-  alias Afterlight.World.Movement
-  alias Afterlight.World.Rooms
+  alias Afterlight.World.{BinaryFlush, Movement, Rooms}
+  alias Afterlight.Realtime.Negotiation
 
   @topic "game:v1"
 
@@ -142,8 +142,19 @@ defmodule AfterlightWeb.GameChannel do
 
   @impl true
   def handle_info({:world_frame, frame}, socket) when is_map(frame) do
-    push(socket, frame["type"], Map.delete(frame, "type"))
-    {:noreply, socket}
+    case {socket.assigns[:rt], frame} do
+      {%{protocol: _}, %{"type" => "presence_update", "players" => players}} when is_list(players) ->
+        members = json_players_to_members(players)
+        tick = Map.get(frame, "tick", 0)
+        seq = (socket.assigns[:rt_seq] || 0) + 1
+        bin = BinaryFlush.encode_flush(members, tick, seq)
+        push(socket, "rt_binary", %{"tick" => tick, "data" => Base.encode64(bin)})
+        {:noreply, assign(socket, :rt_seq, seq)}
+
+      _ ->
+        push(socket, frame["type"], Map.delete(frame, "type"))
+        {:noreply, socket}
+    end
   end
 
   def handle_info({:chat_push, event, payload}, socket) do
@@ -339,6 +350,7 @@ defmodule AfterlightWeb.GameChannel do
     case frame do
       %{"guestId" => ^claim} ->
         socket = assign(socket, :nickname, frame["nickname"])
+        socket = maybe_assign_rt(socket, frame)
         forward(frame, socket)
 
       %{"guestId" => _mismatch} ->
@@ -351,6 +363,7 @@ defmodule AfterlightWeb.GameChannel do
 
       _ ->
         socket = assign(socket, :nickname, frame["nickname"])
+        socket = maybe_assign_rt(socket, frame)
         forward(Map.put(frame, "guestId", claim), socket)
     end
   end
@@ -395,13 +408,40 @@ defmodule AfterlightWeb.GameChannel do
         socket
       end
 
-    push(socket, "welcome", fields)
+    push(socket, "welcome", maybe_rt_welcome(fields, socket))
     {:noreply, socket}
   end
 
   defp relay_welcome(fields, socket) do
-    push(socket, "welcome", fields)
+    push(socket, "welcome", maybe_rt_welcome(fields, socket))
     {:noreply, socket}
+  end
+
+  defp maybe_assign_rt(socket, frame) do
+    case Negotiation.parse_hello_rt(frame) do
+      nil -> socket
+      rt -> assign(socket, :rt, rt)
+    end
+  end
+
+  defp maybe_rt_welcome(fields, socket) do
+    if socket.assigns[:rt], do: Map.put(fields, "rt", Negotiation.welcome_rt()), else: fields
+  end
+
+  defp json_players_to_members(players) do
+    Enum.map(players, fn p ->
+      %{
+        player_id: p["id"],
+        pose: %{
+          x: p["x"] || 0.0,
+          z: p["z"] || 0.0,
+          rot_y: p["rotY"] || 0.0,
+          walking: p["walking"] == true,
+          sitting: p["sitting"] == true,
+          airborne: p["airborne"] == true
+        }
+      }
+    end)
   end
 
   defp live_member?(socket) do

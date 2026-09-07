@@ -76,23 +76,12 @@ defmodule Afterlight.Parity.Reference.Misc do
 
   @behaviour Afterlight.Parity.Reference
 
+  alias Afterlight.Accounts.ReducerSupport
   alias Afterlight.Parity.Hazards
 
   @t0 1_700_000_000_000
 
-  ## -- shared/identity.js ----------------------------------------------------
-
-  @adjectives ~w(
-    Mossy Quiet Copper Rainy Amber Misty Rust Golden
-    Silver Fern Bramble Cobble Thistle Breezy Dusky Dappled
-    Dewy Hedge Orchard Verdant Gilded Pebble Autumnal Gleaming
-  )
-
-  @produce_nouns ~w(
-    Radish Turnip Basil Leek Carrot Kale Tomato Berry
-    Sorrel Chive Sprout Fennel Parsnip Pepper Clover Borage
-    Sage Mint Beet Chard
-  )
+  ## -- shared/identity.js palette (sanitize/dedup live in ReducerSupport) --
 
   @palettes [
     %{"coat" => "#7a4e32", "apron" => "#b8a682", "hat" => "#473d32", "boots" => "#2b231c"},
@@ -138,13 +127,13 @@ defmodule Afterlight.Parity.Reference.Misc do
 
   @impl true
   def run_case_fn("generateDefaultNickname", [seed], _now_ms),
-    do: Afterlight.Accounts.ReducerSupport.generate_default_nickname(seed)
+    do: ReducerSupport.generate_default_nickname(seed)
 
   def run_case_fn("sanitizeNickname", [input], _now_ms),
-    do: Afterlight.Accounts.ReducerSupport.sanitize_nickname(input)
+    do: ReducerSupport.sanitize_nickname(input, case_rng())
 
   def run_case_fn("resolveDuplicateNickname", [desired, active], _now_ms),
-    do: Afterlight.Accounts.ReducerSupport.resolve_duplicate_nickname(desired, active)
+    do: ReducerSupport.resolve_duplicate_nickname(desired, active, case_rng())
 
   def run_case_fn("generatePlayerPalette", [id], _now_ms), do: generate_player_palette(id)
 
@@ -247,7 +236,12 @@ defmodule Afterlight.Parity.Reference.Misc do
   def run_case_fn(fname, args, _now_ms),
     do: raise("misc port: unknown fixture fn #{fname}/#{length(args)}")
 
-
+  defp case_rng do
+    case Process.get({Afterlight.Parity, :case_seed}) do
+      seed when is_number(seed) -> fn -> seed end
+      _ -> &ReducerSupport.default_rng/0
+    end
+  end
 
   defp generate_player_palette(id) do
     hash =

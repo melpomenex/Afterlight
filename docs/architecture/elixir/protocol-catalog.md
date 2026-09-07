@@ -92,7 +92,7 @@ Server-side, config-owned (`Gateway.Router`); clients cannot choose the implemen
 | `hello`, `set_nickname` (+ `welcome`) | relayed (accounts durability is Node's until P4) |
 | `join_room`, `presence_*`, room join snapshots (`theater_state`, `iptv_state`, `node_state`, `machine_update`, `garden_state`) | relayed (P3 runtime owns rooms later) |
 | `movement`, `emote` / `emote_broadcast` | relayed |
-| `chat_send`, `chat_message`, `chat_dm`, `chat_history`, `chat_presence`, `chat_error` | relayed (IRC bridge intact; Social context later) |
+| `chat_send`, `chat_message`, `chat_dm`, `chat_history`, `chat_presence`, `chat_error` | **terminated by `Afterlight.Social`** when `AFTERLIGHT_CHAT_OWNER=phoenix` (dev default in `config/dev.exs`); Node shadow frames suppressed; IRC sidecar via authenticated adapter (P7) |
 | all durable-domain messages (gardens, economy, restoration, theater, catalog, torrents) | relayed |
 
 Relay mechanics: one upstream Node WebSocket per gateway session ("shadow" connection), flat⇄flat frames in order — Node semantics including snapshot ordering and `error` reason strings are preserved byte-for-byte. Reconnect stickiness: newest connection wins; the old upstream is closed and processed BEFORE the new `hello` is forwarded, so Node never holds two sessions for one guestId (the duplicate-guestId ghost cannot arise from transport reconnects).

@@ -29,15 +29,16 @@ defmodule Afterlight.Accounts.ReducerSupportTest do
 
     test "falls back to generated nickname when length < 3" do
       # Injected seed produces deterministic default nickname
-      result = ReducerSupport.sanitize_nickname("", 0.5)
+      rng = fn -> 0.5 end
+      result = ReducerSupport.sanitize_nickname("", rng)
       assert result == "MossySprout88"
 
-      result_short = ReducerSupport.sanitize_nickname("ab", 0.1)
+      result_short = ReducerSupport.sanitize_nickname("ab", fn -> 0.1 end)
       assert result_short == "DuskyPepper77"
 
       # Non-string input
-      assert ReducerSupport.sanitize_nickname(nil, 0.5) == "MossySprout88"
-      assert ReducerSupport.sanitize_nickname(123, 0.5) == "MossySprout88"
+      assert ReducerSupport.sanitize_nickname(nil, rng) == "MossySprout88"
+      assert ReducerSupport.sanitize_nickname(123, rng) == "MossySprout88"
     end
 
     test "post-sanitize nicknames are strictly ASCII-only (lower() vs toLowerCase() divergence guarantee)" do
@@ -48,7 +49,7 @@ defmodule Afterlight.Accounts.ReducerSupportTest do
       ]
 
       for sample <- unicode_samples do
-        sanitized = ReducerSupport.sanitize_nickname(sample, 0.5)
+        sanitized = ReducerSupport.sanitize_nickname(sample, fn -> 0.5 end)
         # Every byte must be <= 127 (strict ASCII)
         assert for(<<c <- sanitized>>, do: c <= 127) |> Enum.all?(),
                "Expected #{inspect(sanitized)} from #{inspect(sample)} to be ASCII-only"
@@ -90,7 +91,7 @@ defmodule Afterlight.Accounts.ReducerSupportTest do
     test "exhausted ladder uses injected RNG for 3-digit suffix" do
       full_ladder = ["wren" | Enum.map(2..99, &"wren#{&1}")]
       # 0.5 * 900 + 100 = 550
-      assert ReducerSupport.resolve_duplicate_nickname("wren", full_ladder, 0.5) == "wren550"
+      assert ReducerSupport.resolve_duplicate_nickname("wren", full_ladder, fn -> 0.5 end) == "wren550"
 
       # Callable RNG injection
       assert ReducerSupport.resolve_duplicate_nickname("wren", full_ladder, fn -> 0.1 end) == "wren190"

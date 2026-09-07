@@ -100,10 +100,10 @@ export function createPhoenixTransport(client, wsUrl) {
           socket.onOpen(() => {
             channel = socket.channel(CHANNEL_TOPIC, { guestId: client.guestId });
 
-            channel.onMessage = (event, payload, next) => {
+            channel.onMessage = (event, payload) => {
               const frame = flatFrameFromChannelEvent(event, payload);
               if (frame && joined) client.handleFrame(frame);
-              return next(event, payload);
+              return payload;
             };
 
             channel
@@ -111,6 +111,14 @@ export function createPhoenixTransport(client, wsUrl) {
               .receive('ok', () => {
                 joined = true;
                 connecting = false;
+                channel.on('rt_binary', (payload) => {
+                  if (!payload?.data || typeof payload.data !== 'string') return;
+                  if (!client.handleBinary) return;
+                  const raw = atob(payload.data);
+                  const buf = new Uint8Array(raw.length);
+                  for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+                  client.handleBinary(buf.buffer);
+                });
                 client.handleOpen();
               })
               .receive('error', (resp) => {

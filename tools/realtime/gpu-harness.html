@@ -2,321 +2,132 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Afterlight GPU entity-render harness</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Afterlight GPU rendering harness — WebGPU fastpath vs WebGL control</title>
+<!--
+  openspec change add-realtime-gpu-rendering, tasks 3.2 + 4.2.
+  Standalone harness page: static-servable, no build step required. Nothing
+  in the live game imports this page. See tools/realtime/README.md.
+
+  Arms:
+    CONTROL      WebGLRenderer + CPUThreeBackend (src/realtime/gpu/backend.js)
+    ACCELERATED  WebGPURenderer (three/webgpu) drawing state from
+                 createWebGPUThreeBackend (src/realtime/gpu/webgpuBackend.js),
+                 gated on renderer_webgpu_fastpath (default OFF everywhere).
+
+  The import map resolves the bare 'three' / 'three/webgpu' specifiers used by
+  this page AND transitively by src/realtime/gpu/backend.js. Both entry points
+  share node_modules/three/build/three.core.js, so scene-graph classes are the
+  SAME classes in both arms; only the renderer differs. Under `npm run dev`
+  Vite rewrites the bare specifiers itself and the map is inert.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "three": "/node_modules/three/build/three.module.js",
+    "three/webgpu": "/node_modules/three/build/three.webgpu.js"
+  }
+}
+</script>
 <style>
   :root { color-scheme: dark; }
-  body { margin: 0; background: #101418; color: #d6e2ec; font: 13px/1.45 "Space Mono", ui-monospace, monospace; }
-  header { padding: 12px 16px 8px; border-bottom: 1px solid #2a343c; }
-  h1 { font-size: 13px; letter-spacing: 0.12em; color: #d8b865; margin: 0 0 6px; }
-  .dim { color: #7d8f89; }
-  .ok { color: #9fd6a8; } .bad { color: #e08c7a; } .warn { color: #e0c07a; }
-  #arms { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #2a343c; min-height: 360px; }
-  figure { margin: 0; background: #141a1e; position: relative; }
-  figure canvas { width: 100%; height: 360px; display: block; }
-  figcaption { position: absolute; top: 8px; left: 10px; font-size: 11px; letter-spacing: 0.08em; color: #c9b27a; }
-  #panel { padding: 12px 16px 24px; max-width: 72rem; }
-  table { border-collapse: collapse; margin: 8px 0 16px; }
-  td, th { padding: 2px 12px 2px 0; text-align: left; border-bottom: 1px solid #24332f; }
-  button, select { background: #1c2624; color: #e8e2cf; border: 1px solid #3a4a46; padding: 4px 10px; margin-right: 8px; }
+  body {
+    background: #141d1b; color: #e8e2cf; margin: 1.25rem;
+    font: 14px/1.5 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  h1 { font-size: 1rem; letter-spacing: 0.12em; color: #d8b865; margin: 0 0 0.25rem; }
+  h2 { font-size: 0.78rem; letter-spacing: 0.1em; margin: 0 0 0.5rem; color: #bcd6cf; }
+  .sub { color: #7d8f89; font-size: 0.78rem; margin: 0 0 1rem; }
+  .panel {
+    background: rgba(20, 40, 38, 0.7); border: 1px solid #2e4440;
+    border-radius: 4px 12px 4px 12px; padding: 0.85rem 1rem; margin: 0.85rem 0;
+  }
+  .ok { color: #9fd6a8; } .bad { color: #e08c7a; } .warn { color: #d8b865; } .dim { color: #7d8f89; }
+  #post-notice { border-color: #6b5a2c; background: rgba(64, 52, 22, 0.45); }
+  #post-notice .tag { color: #d8b865; letter-spacing: 0.1em; font-size: 0.78rem; }
+  #post-notice p { margin: 0.4rem 0 0; }
+  #controls { display: flex; flex-wrap: wrap; gap: 0.6rem 1.1rem; align-items: center; }
+  #controls label { display: inline-flex; gap: 0.4rem; align-items: center; white-space: nowrap; }
+  select, button {
+    background: #1b2b28; color: #e8e2cf; border: 1px solid #3a544e;
+    border-radius: 4px; padding: 0.25rem 0.6rem; font: inherit;
+  }
+  button { cursor: pointer; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid #d8b865; outline-offset: 1px; }
+  #panes { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+  @media (max-width: 980px) { #panes { grid-template-columns: 1fr; } }
+  .pane .wrap {
+    background: #0d1211; border: 1px solid #263632; border-radius: 4px;
+    aspect-ratio: 4 / 3; overflow: hidden; position: relative;
+  }
+  .pane canvas { display: block; width: 100%; height: 100%; }
+  .pane .empty {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    text-align: center; padding: 1.5rem; color: #7d8f89; white-space: pre-line;
+  }
+  .pane .stat { margin-top: 0.45rem; font-size: 0.75rem; color: #9fb4ae; white-space: pre-wrap; }
+  #log { max-height: 15rem; overflow: auto; margin: 0; white-space: pre-wrap; font-size: 0.75rem; }
 </style>
 </head>
 <body>
-<header>
-  <h1>GPU ENTITY HARNESS — CONTROL vs ACCELERATED</h1>
-  <p class="dim">Standalone prototype. The live game renderer is not flipped.
-    <code>renderer_webgpu_fastpath</code> defaults off; add
-    <code>?rt_webgpu_fastpath=1</code> to construct the WebGPU arm.
-    No WebGL bloom composer under either arm — that post-chain delta is documented, not hidden.</p>
-</header>
-<div id="arms">
-  <figure><canvas id="cpu"></canvas><figcaption>CONTROL · CPUThreeBackend · WebGLRenderer</figcaption></figure>
-  <figure><canvas id="gpu"></canvas><figcaption>ACCELERATED · WebGPUThreeBackend · WebGPURenderer</figcaption></figure>
+<h1>GPU RENDERING HARNESS — ACCELERATED (WebGPU) VS CONTROL (WebGL)</h1>
+<p class="sub">openspec add-realtime-gpu-rendering · tasks 3.2 + 4.2 · standalone page — nothing in the live game imports this.
+Both arms consume the SAME deterministic world (fixtures-style) and the SAME delta packs at a 10 Hz tick.
+The accelerated arm exists only while <code>renderer_webgpu_fastpath</code> resolves true — default off everywhere.</p>
+
+<div class="panel" id="flag-banner">resolving flags…</div>
+
+<div class="panel" id="post-notice">
+  <span class="tag">POST-CHAIN VISUAL DELTA — READ BEFORE COMPARING SCREENSHOTS</span>
+  <p>The live game renders with ACES filmic tone mapping and an UnrealBloomPass composer (EffectComposer). This
+  harness reproduces <strong>neither</strong>, in <strong>either</strong> arm: the control arm is a plain
+  WebGLRenderer with <code>NoToneMapping</code>, no composer, no bloom, no shadow maps; the accelerated arm is a
+  WebGPURenderer with explicit <code>NoToneMapping</code> and the same absence. The WebGL bloom composer is
+  deliberately not reproduced — a future live-game integration must solve the TSL post chain as a separate gated
+  change. Screenshots from this page document the <em>rendering-path delta</em>, not parity with the live game.</p>
 </div>
-<div id="panel">
-  <p>
-    <label>scene <select id="scene">
-      <option value="empty">empty room</option>
-      <option value="two">2 players</option>
-      <option value="fifty" selected>50 players</option>
-      <option value="garden">garden population</option>
-      <option value="theater">theater population</option>
-    </select></label>
-    <button id="run" type="button">run 120 frames</button>
-    <span id="flag" class="dim"></span>
-  </p>
-  <div id="status">starting…</div>
-  <table id="times"></table>
-  <pre id="notes" class="dim"></pre>
+
+<div class="panel" id="controls">
+  <label>population
+    <select id="sel-population" aria-label="Entity population">
+      <option value="100">100</option>
+      <option value="1000">1000</option>
+      <option value="10000">10000</option>
+    </select>
+  </label>
+  <label>view
+    <select id="sel-view" aria-label="Arm view mode">
+      <option value="both" selected>side by side</option>
+      <option value="control">control only (capture valid)</option>
+      <option value="accel">accelerated only (capture valid)</option>
+    </select>
+  </label>
+  <label><input type="checkbox" id="chk-orbit" checked> orbit camera</label>
+  <button id="btn-rebuild" type="button">rebuild arms</button>
+  <button id="btn-tickpause" type="button">pause ticks</button>
+  <button id="btn-drill" type="button" disabled>device-loss drill</button>
+  <button id="btn-report" type="button">download JSON report</button>
 </div>
-<script>
-window.addEventListener('error', (e) => {
-  window.__gpuHarness = Object.assign(window.__gpuHarness || {}, { error: String(e.message || e.error) });
-});
-window.addEventListener('unhandledrejection', (e) => {
-  window.__gpuHarness = Object.assign(window.__gpuHarness || {}, { error: 'rejection: ' + e.reason });
-});
-</script>
-<script type="module">
-import * as THREE from 'three';
-import { resolveFlags } from '/src/realtime/flags.js';
-import { createPack } from '/src/realtime/worker/core.js';
-import { CPUThreeBackend, KILN_ID, shouldConstructWebGpu } from '/src/realtime/gpu/backend.js';
-import { createEntityRenderSession } from '/src/realtime/gpu/session.js';
 
-window.__gpuHarness = { booted: false };
-const flags = resolveFlags();
-const qs = new URLSearchParams(location.search);
-const N_OVERRIDE = qs.has('n') ? Number(qs.get('n')) : NaN;
-const flagOn = shouldConstructWebGpu(flags);
-document.getElementById('flag').innerHTML = flagOn
-  ? '<span class="warn">rt_webgpu_fastpath=1 · GPU arm will be attempted</span>'
-  : '<span class="ok">fastpath OFF (default) · GPU arm not constructed</span>';
+<div id="panes">
+  <section class="pane" id="pane-control" aria-label="Control arm">
+    <h2 id="lbl-control">CONTROL ARM — WebGLRenderer + CPUThreeBackend</h2>
+    <div class="wrap" id="cvs-control-wrap"><div class="empty">building…</div></div>
+    <div class="stat" id="st-control">-</div>
+  </section>
+  <section class="pane" id="pane-gpu" aria-label="Accelerated arm">
+    <h2 id="lbl-gpu">ACCELERATED ARM — WebGPURenderer + WebGPUThreeBackend</h2>
+    <div class="wrap" id="cvs-gpu-wrap"><div class="empty">waiting for flag…</div></div>
+    <div class="stat" id="st-gpu">-</div>
+  </section>
+</div>
 
-const SCENES = {
-  empty: { n: 0, label: 'empty room — placement/HUD reference, no remotes' },
-  two: { n: 2, label: '2 remote players (local player + Kiln excluded)' },
-  fifty: { n: 50, label: '50 remote players' },
-  garden: { n: 24, label: 'garden-scale remotes (not the live district mesh)' },
-  theater: { n: 40, label: 'theater-scale remotes (not the live Orpheum / overlay)' },
-};
+<div class="panel">
+  <div class="dim" id="st-boot">booting…</div>
+  <pre id="log" aria-label="Harness event log"></pre>
+</div>
 
-const LOCAL = 'guest_local';
-const excludedIds = new Set([LOCAL, KILN_ID]);
-
-function makePack(n, tick) {
-  const pack = createPack(Math.max(8, n + 2));
-  pack.tick = tick;
-  pack.count = n;
-  pack.joined = tick === 1 ? [] : pack.joined;
-  if (tick === 1) {
-    pack.joined.push({ entityId: 9001, guestId: LOCAL, x: 0, z: 0 });
-    pack.joined.push({ entityId: 9002, guestId: KILN_ID, x: 0.8, z: 1 });
-  }
-  const t = tick * 0.15;
-  for (let i = 0; i < n; i++) {
-    const id = i + 1;
-    const a = (i / Math.max(1, n)) * Math.PI * 2 + t;
-    pack.ids[i] = id;
-    pack.x[i] = Math.cos(a) * 6;
-    pack.z[i] = Math.sin(a) * 5;
-    pack.yaw[i] = a;
-    pack.flags[i] = 1;
-    if (tick === 1) pack.joined.push({ entityId: id, guestId: 'guest_' + id, x: pack.x[i], z: pack.z[i] });
-  }
-  return pack;
-}
-
-function makeArm(canvas, { webgl = true } = {}) {
-  let renderer;
-  try {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-  } catch (err) {
-    notes.push('WebGLRenderer unavailable (' + err + '). Control arm will sample without a draw.');
-    return { renderer: null, scene: new THREE.Scene(), camera: new THREE.OrthographicCamera(), mesh: null, noGl: true };
-  }
-  canvas.width = 640;
-  canvas.height = 360;
-  renderer.setPixelRatio(1);
-  renderer.setSize(640, 360, false);
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(webgl ? 0x1a2220 : 0x1a1e24);
-  scene.fog = new THREE.Fog(scene.background, 18, 42);
-  const camera = new THREE.OrthographicCamera(-12, 12, 8, -8, 0.1, 80);
-  camera.position.set(14, 16, 14);
-  camera.lookAt(0, 0, 0);
-  const sun = new THREE.DirectionalLight(0xd8d1b5, 1.4);
-  sun.position.set(8, 14, 6);
-  sun.castShadow = true;
-  scene.add(sun, new THREE.HemisphereLight(0xb8c4c8, 0x3a4038, 0.5));
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(24, 21),
-    new THREE.MeshStandardMaterial({ color: 0x4a534c, roughness: 0.85 }),
-  );
-  floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
-  scene.add(floor);
-  return { renderer, scene, camera, mesh: null };
-}
-
-function bindMesh(arm, n) {
-  if (arm.mesh) { arm.scene.remove(arm.mesh); arm.mesh.dispose?.(); }
-  if (n <= 0) { arm.mesh = null; return; }
-  const geo = new THREE.BoxGeometry(0.38, 0.7, 0.38);
-  const mat = new THREE.MeshStandardMaterial({ color: 0xb08a4a, roughness: 0.45, metalness: 0.25 });
-  const mesh = new THREE.InstancedMesh(geo, mat, n);
-  mesh.castShadow = mesh.receiveShadow = true;
-  mesh.userData._scratchMatrix = new THREE.Matrix4();
-  arm.scene.add(mesh);
-  arm.mesh = mesh;
-}
-
-const notes = [];
-notes.push('Post-chain: neither arm uses EffectComposer / UnrealBloomPass. ACES tone mapping is on; bloom, theater DOM homography, and the live HUD are absent. That is the documented visual delta vs the live game, not a claim of pixel parity.');
-notes.push('Local player (guest_local) and Kiln are present in the simulated packs and are excluded from both backends.');
-notes.push('SwiftShader / software adapters measure relative strategy cost only — not production GPU time.');
-const cpuArm = makeArm(document.getElementById('cpu'), { webgl: true });
-const gpuCanvas = document.getElementById('gpu');
-
-const cpuSession = await createEntityRenderSession({
-  flags: { renderer_webgpu_fastpath: false },
-  excludedIds,
-});
-let gpuSession = null;
-let gpuArm = null;
-let gpuRendererKind = 'none';
-
-if (flagOn) {
-  const gpu = navigator.gpu ?? null;
-  gpuSession = await createEntityRenderSession({
-    flags,
-    excludedIds,
-    requestAdapter: gpu ? () => gpu.requestAdapter() : null,
-  });
-  if (gpuSession.backend.kind === 'webgpu') {
-    try {
-      const { WebGPURenderer } = await import('three/webgpu');
-      const renderer = new WebGPURenderer({ canvas: gpuCanvas, antialias: true });
-      await renderer.init();
-      renderer.setSize(gpuCanvas.clientWidth || 640, 360, false);
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x1a1e24);
-      const camera = new THREE.OrthographicCamera(-12, 12, 8, -8, 0.1, 80);
-      camera.position.set(14, 16, 14);
-      camera.lookAt(0, 0, 0);
-      scene.add(new THREE.DirectionalLight(0xd8d1b5, 1.4));
-      scene.add(new THREE.HemisphereLight(0xb8c4c8, 0x3a4038, 0.5));
-      const floor = new THREE.Mesh(
-        new THREE.PlaneGeometry(24, 21),
-        new THREE.MeshStandardMaterial({ color: 0x4a534c, roughness: 0.85 }),
-      );
-      floor.rotation.x = -Math.PI / 2;
-      scene.add(floor);
-      gpuArm = { renderer, scene, camera, mesh: null };
-      gpuRendererKind = 'WebGPURenderer';
-    } catch (err) {
-      notes.push('WebGPURenderer init failed: ' + err);
-      gpuRendererKind = 'failed:' + err;
-      gpuArm = makeArm(gpuCanvas, { webgl: false });
-    }
-  } else {
-    notes.push('GPU session fell back to CPU (' + (gpuSession.fallbackReason || 'no adapter') + '). Accelerated arm is a second CPU draw for layout only.');
-    gpuArm = makeArm(gpuCanvas, { webgl: false });
-    gpuRendererKind = 'fallback-webgl';
-  }
-} else {
-  notes.push('Accelerated arm idle — flag off. This is the required default.');
-}
-
-const scratch = {};
-const results = { flagOn, gpuKind: gpuSession?.backend.kind ?? 'not-constructed', gpuRendererKind, frames: [], booted: true };
-window.__gpuHarness = results;
-
-function applyScene() {
-  const key = document.getElementById('scene').value;
-  const def = SCENES[key];
-  const n = Number.isFinite(N_OVERRIDE) ? N_OVERRIDE : def.n;
-  results.scene = key;
-  results.n = n;
-  cpuSession.backend.dispose();
-  Object.assign(cpuSession, { backend: new CPUThreeBackend({ excludedIds }), lastSnapshot: { entities: [] } });
-  cpuSession.ensureCapacity(Math.max(8, n));
-  bindMesh(cpuArm, n);
-  cpuSession.backend.bindInstancedMesh(cpuArm.mesh);
-  if (gpuSession && gpuArm) {
-    gpuSession.backend.dispose?.();
-  }
-  const pack = makePack(n, 1);
-  cpuSession.applyDeltaPack(pack);
-  if (gpuSession && flagOn) {
-    gpuSession.applyDeltaPack(pack);
-    bindMesh(gpuArm, n);
-    gpuSession.backend.bindInstancedMesh?.(gpuArm.mesh);
-  }
-  document.getElementById('status').textContent = def.label + ' · n=' + n;
-  return n;
-}
-
-function draw(nowTick) {
-  cpuSession.sample(null, scratch, { nowTick });
-  cpuArm.renderer?.render(cpuArm.scene, cpuArm.camera);
-  if (gpuArm && gpuSession && flagOn) {
-    gpuSession.sample(null, scratch, { nowTick });
-    if (gpuArm.mesh && scratch.count) {
-      const e = new THREE.Matrix4();
-      for (let i = 0; i < scratch.count; i++) {
-        const o = i * 4;
-        e.makeRotationY(scratch.xyzYaw[o + 3]);
-        e.setPosition(scratch.xyzYaw[o], scratch.xyzYaw[o + 1] + 0.35, scratch.xyzYaw[o + 2]);
-        gpuArm.mesh.setMatrixAt(i, e);
-      }
-      gpuArm.mesh.instanceMatrix.needsUpdate = true;
-    }
-    gpuArm.renderer?.render(gpuArm.scene, gpuArm.camera);
-  }
-}
-
-let tick = 1;
-let raf = 0;
-function loop(t) {
-  const sceneN = results.n ?? 0;
-  if (sceneN && t - (loop._lastPack || 0) > 100) {
-    loop._lastPack = t;
-    tick++;
-    const pack = makePack(sceneN, tick);
-    cpuSession.applyDeltaPack(pack);
-    if (flagOn && gpuSession) gpuSession.applyDeltaPack(pack);
-  }
-  const nowTick = 1 + (t / 100);
-  const t0 = performance.now();
-  draw(nowTick);
-  const cpuMs = performance.now() - t0;
-  results.lastCpuMs = cpuMs;
-  raf = requestAnimationFrame(loop);
-}
-
-document.getElementById('run').onclick = async () => {
-  const n = applyScene();
-  const samples = [];
-  tick = 1;
-  for (let i = 0; i < 120; i++) {
-    if (i % 6 === 0) {
-      tick++;
-      const pack = makePack(n, tick);
-      cpuSession.applyDeltaPack(pack);
-      if (flagOn && gpuSession) gpuSession.applyDeltaPack(pack);
-    }
-    const t0 = performance.now();
-    draw(1 + i / 6);
-    samples.push(performance.now() - t0);
-    await new Promise((r) => requestAnimationFrame(r));
-  }
-  samples.sort((a, b) => a - b);
-  const median = samples[samples.length >> 1];
-  const p95 = samples[Math.floor(samples.length * 0.95)];
-  results.frames = { n, count: samples.length, medianMs: median, p95Ms: p95, gpuKind: results.gpuKind };
-  document.getElementById('times').innerHTML =
-    `<tr><th>n</th><th>frames</th><th>median ms</th><th>p95 ms</th><th>gpu backend</th><th>gpu renderer</th></tr>
-     <tr><td>${n}</td><td>120</td><td>${median.toFixed(3)}</td><td>${p95.toFixed(3)}</td><td>${results.gpuKind}</td><td>${gpuRendererKind}</td></tr>`;
-  document.getElementById('status').innerHTML = '<span class="ok">capture complete</span> — window.__gpuHarness';
-};
-
-document.getElementById('scene').onchange = () => { applyScene(); };
-if (qs.get('scene') && SCENES[qs.get('scene')]) {
-  document.getElementById('scene').value = qs.get('scene');
-}
-document.getElementById('notes').textContent = notes.join('\n\n');
-applyScene();
-raf = requestAnimationFrame(loop);
-if (qs.get('capture') === '1') {
-  document.getElementById('run').click();
-}
-</script>
+<script type="module" src="./gpu-harness.main.js"></script>
 </body>
 </html>

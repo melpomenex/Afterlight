@@ -125,9 +125,10 @@ defmodule Afterlight.Parity do
   end
 
   def run_case(module, %{"fn" => fname} = json_case) do
-    Process.put(:parity_case_seed, json_case["seed"])
     {args, bindings} = prepare_args(json_case["args"] || [], module, %{})
+    if is_number(json_case["seed"]), do: Process.put({__MODULE__, :case_seed}, json_case["seed"])
     result = dispatch(module, fname, args, json_case["nowMs"])
+    Process.delete({__MODULE__, :case_seed})
     case Comparator.compare(json_case["expected"], result, module, bindings, "expected") do
       {:ok, _} -> :ok
       mismatch -> mismatch

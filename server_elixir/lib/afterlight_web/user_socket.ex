@@ -28,7 +28,8 @@ defmodule AfterlightWeb.UserSocket do
     with {:ok, token} <- fetch_token(params),
          :ok <- limit_per_ip(connect_info),
          {:ok, claims} <- Auth.verify(token),
-         :ok <- limit_per_identity(claims.guest_id) do
+         :ok <- limit_per_identity(claims.guest_id),
+         {:ok, bound} <- bind_session(token, claims) do
       guest_id = claims.guest_id
 
       Logger.info(
@@ -38,8 +39,12 @@ defmodule AfterlightWeb.UserSocket do
       {:ok,
        socket
        |> assign(:guest_id, guest_id)
+       |> assign(:session_id, bound.session.id)
        |> assign(:correlation_id, Gateway.correlation_id())}
     else
+      {:error, :claim_window_closed} ->
+        refuse("claim window closed", :claim_window_closed)
+
       {:error, :expired} = reason ->
         refuse("token expired", reason)
 
@@ -59,6 +64,14 @@ defmodule AfterlightWeb.UserSocket do
 
   defp fetch_token(%{"token" => token}) when is_binary(token), do: {:ok, token}
   defp fetch_token(_params), do: :error
+
+  defp bind_session(token, claims) do
+    case Afterlight.Accounts.create_guest_session(token, claims) do
+      {:ok, bound} -> {:ok, bound}
+      {:error, :claim_window_closed} -> {:error, :claim_window_closed}
+      {:error, reason} -> {:error, reason}
+    end
+  end
 
   # Source-IP bucket. When no peer address is observable (in-process
   # tests), no IP bucket is applied — the identity bucket still applies.
