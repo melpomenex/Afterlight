@@ -147,6 +147,14 @@ for a WebGPU-capable run; running it is the first task of any future GPU
 milestone. Per governance, a park verdict closes this evaluation honestly
 rather than manufacturing justification.
 
+2026-09-07 amendment (executed under browser tooling, `results/webgpu.*`):
+Chromium 152 headless `--enable-unsafe-webgpu` now yields an adapter here
+(google/swiftshader, software) — full/partial uploads validate bit-exact
+(30/30 XOR cells) and the render-read check passes, but scatter fails the
+checksum 0/15 with non-deterministic GPU state for identical inputs, so the
+PARK stands for scatter and no performance numbers are claimed; the run also
+exposed a spec-invalid staging-buffer usage in the probe, fixed same-day.
+
 ## 5. Web Workers
 
 **Decision: ADOPT for large per-tick row counts (≥ ~10k–50k changed rows) and
