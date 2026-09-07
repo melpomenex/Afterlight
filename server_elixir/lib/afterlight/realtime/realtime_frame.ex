@@ -10,10 +10,11 @@ defmodule Afterlight.Realtime.RealtimeFrame do
   """
 
   defstruct [
-    :room_epoch,
-    :server_tick,
     :frame_sequence,
     :baseline_sequence,
+    # Every frame carries an epoch/tick (contract §3 header); 0 = pre-epoch.
+    room_epoch: 0,
+    server_tick: 0,
     frame_type: :delta,
     # lifecycle: [%{id, guest_id, archetype, variant, x, y, z, yaw}] / [id]
     spawn: [],
