@@ -45,6 +45,11 @@ cd /opt/afterlight/game/deploy
 docker compose --env-file .env build
 docker compose --env-file .env up -d
 sleep 12
+# Postgres data volume keeps the init password; resync when the container is recreated.
+PW=$(grep ^POSTGRES_PASSWORD= .env | cut -d= -f2-)
+docker compose --env-file .env exec -T postgres psql -U afterlight -d afterlight_prod -c "ALTER USER afterlight WITH PASSWORD '$PW';" 2>/dev/null || true
+docker compose --env-file .env restart phoenix 2>/dev/null || true
+sleep 8
 docker compose --env-file .env ps
 REMOTE
 
