@@ -6,7 +6,12 @@ config :afterlight,
   # scripts/export-parity-fixtures.mjs (P0).
   parity_fixtures_path: "../tests/fixtures/parity",
   ecto_repos: [Afterlight.Repo],
-  ash_domains: [Afterlight.Conferencing]
+  ash_domains: [Afterlight.Accounts],
+  accounts: [
+    claim_window_grace_ms: 2_592_000_000,
+    reaper_interval_ms: 60_000,
+    outbox_interval_ms: 1_000
+  ]
 
 # P2 gateway transport (add-phoenix-gateway-transport). Compile-time
 # defaults only — every secret/env read lives in runtime.exs; test.exs
@@ -42,35 +47,10 @@ config :afterlight, :gateway,
   http_proxy_max_body_bytes: 67_108_864,
   # Domain→owner disposition table (P2: transport-terminated ping,
   # everything else relayed to Node). See Afterlight.Gateway.Router.
-  # P3 (add-world-room-runtime): the world rows FLIP to :phoenix to route
-  # `join_room`/`movement`/`emote` through Afterlight.World. Default stays
-  # :node (runtime dormant, zero player-visible change) — flip per
-  # environment by setting the three rows to :phoenix; rollback is the
-  # same edit in reverse (pure transport change, no durable state moved).
-  routing: %{
-    "ping" => :terminate_pong,
-    "join_room" => :node,
-    "movement" => :node,
-    "emote" => :node,
-    "chat_send" => :node
-  },
+  routing: %{"ping" => :terminate_pong},
   # Upstream WebSocket adapter (D5). Overridable in tests so NodeProxy
   # tests inject fake upstream processes instead of dialing real Node.
   upstream_adapter: Afterlight.Gateway.NodeUpstream
-
-# P3 world room runtime (add-world-room-runtime). Room processes read
-# these at call time (Afterlight.World.config/2) so tests and deployments
-# can override without restarts; test.exs pins deterministic values.
-config :afterlight, :world,
-  # Movement flush tick — Node's 10 Hz dirty-room cadence (protocol-catalog §2).
-  flush_interval_ms: 100,
-  # Empty-room grace before a quiet stop (design D2, default 60 s).
-  empty_room_grace_ms: 60_000,
-  # Per-connection emote cooldown — the Node baseline's 500 ms (task 4.1).
-  emote_cooldown_ms: 500,
-  # Per-transport outbound ceiling before a stalled consumer is
-  # disconnected with a retryable reason (design D3d).
-  outbound_queue_max: 256
 
 config :logger, level: :info
 
@@ -86,7 +66,7 @@ config :afterlight, AfterlightWeb.Endpoint,
   pubsub_server: Afterlight.PubSub,
   http: [ip: {127, 0, 0, 1}, port: 4000]
 
-config :phoenix, :json_library, Jason
+config :ash, :missed_notifications, :ignore
 
 # Per-env overrides (test.exs pins deterministic gateway values; dev/prod
 # runtime knobs live in runtime.exs).

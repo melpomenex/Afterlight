@@ -155,7 +155,7 @@
     {
       "file": "identity-nodes-machines.json",
       "module": "Afterlight.Parity.Reference.Misc",
-      "caseCount": 62,
+      "caseCount": 54,
       "hazards": {
         "bitops32": [
           "palette/*"
@@ -169,8 +169,13 @@
         ],
         "generated-ids": [
           "nick/dup-ladder-exhausted",
-          "nick/sanitize-7",
-          "nick/sanitize-8"
+          "nick/sanitize-5",
+          "nick/sanitize-8",
+          "nick/sanitize-9"
+        ],
+        "ascii-folding": [
+          "nick/ascii-only-after-sanitize",
+          "nick/dup-case"
         ],
         "error-strings": [
           "nodes/*",

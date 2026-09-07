@@ -1,14 +1,14 @@
 # Entity render backend (experimental)
 
-The worker-pipeline consumer is the only integration point. `PackConsumer`
-calls `entityBackend.applyDeltaPack(pack)` when a backend is attached; the
-legacy `onEntry` / `onJoin` / `onLeave` handlers still fire so the traditional
-`setPlayer()` path stays intact.
+The worker-pipeline consumer is the integration point. `PackConsumer`
+calls `entityBackend.applyDeltaPack(pack)` when a backend is attached.
 
-**The live game does not attach a backend.** `src/realtime/wire.js` keeps
-feeding `RemotePlayersManager.setPlayer`. `renderer_webgpu_fastpath` is
-resolved in `src/realtime/flags.js` (default OFF) and is read by
-`tools/realtime/gpu-harness.html` only.
+**Live game:** when the entity seam is on (`?rt_binary=1` or `?rt_entity_seam=1`),
+`wireRealtime` attaches `LiveRemoteBackend` — full `RemotePlayersManager`
+avatars. When **also** `?rt_webgpu_fastpath=1`, remotes render as
+`InstancedMesh` proxies on the WebGL scene (bloom/HUD unchanged); full
+gardener meshes return when the flag is off. The harness still proves the
+WebGPURenderer arm separately.
 
 ## Who stays on the traditional path
 

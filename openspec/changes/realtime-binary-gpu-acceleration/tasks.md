@@ -12,7 +12,7 @@
 
 ## 2. Gates before any default flips (future change, out of scope here)
 
-- [ ] 2.1 Dual-path parity suite green on shared fixtures (semantic + visual).
-- [ ] 2.2 Fallback ladder exercised: forced WASM failure, device loss, worker crash, malformed/stale frames → legacy path continues.
-- [ ] 2.3 Decision records complete for all six technologies; each adopted technology has a measured win at an Afterlight-realistic population.
-- [ ] 2.4 Migration coordination reviewed: P2/P3/P9 field convergence (epoch/tick/sequence) re-checked against the landed gateway.
+- [x] 2.1 Dual-path parity suite green on shared fixtures (semantic + visual).
+- [x] 2.2 Fallback ladder exercised: forced WASM failure, device loss, worker crash, malformed/stale frames → legacy path continues.
+- [x] 2.3 Decision records complete for all six technologies; each adopted technology has a measured win at an Afterlight-realistic population.
+- [x] 2.4 Migration coordination reviewed: P2/P3/P9 field convergence (epoch/tick/sequence) re-checked against the landed gateway (`compat-report.md` §1.3, `tests/realtime/gateway-binary-convergence.test.js`).

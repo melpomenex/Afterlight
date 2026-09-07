@@ -16,6 +16,8 @@ npm install
 
 ### 2. Start the Multiplayer Server & Client
 
+**Node-only (default build):**
+
 In terminal 1 (start the server on port 3001):
 ```sh
 npm run server
@@ -25,6 +27,34 @@ In terminal 2 (start the Vite dev server on port 5173):
 ```sh
 npm run dev
 ```
+
+**Elixir gateway stack (P2/P3 — world + chat on Phoenix):**
+
+Prerequisites: PostgreSQL on `localhost:5433`, Elixir toolchain (`server_elixir/README.md`).
+
+```sh
+# One command — Node shadow :3001, Phoenix :4000, Vite :5173 (Phoenix transport)
+npm run dev:stack
+```
+
+Or three terminals manually:
+
+```sh
+npm run server           # terminal 1 — Node shadow (theater, garden, HTTP APIs)
+npm run server:elixir    # terminal 2 — Phoenix gateway on :4000
+npm run dev:phoenix      # terminal 3 — Vite with VITE_TRANSPORT=phoenix (.env.development)
+```
+
+Gateway verification (recorded P2 evidence, not part of `npm test`):
+
+```sh
+npm run verify:gateway
+npm run verify:world
+```
+
+**Rollback to Node transport:** use `npm run dev` (default build) instead of
+`npm run dev:phoenix`, or remove `VITE_TRANSPORT` / `VITE_WS_URL` from
+`.env.development`. No durable state moves — only the WebSocket endpoint changes.
 
 Open **http://localhost:5173** in one or more browser windows. You wake up inside **The Orpheum**, the city's cinema, in cinema view: the shared screen on stage with the town chat docked beside it. Press <kbd>Esc</kbd> (or a movement key) to step into the aisles, then walk out of the gates to explore — the Market Court, your garden, and 17 districts are all out there. When multiple players connect, they see each other with overhead nickname tags, custom procedural gardener avatars, and synchronized movement. (`?room=market`, `?room=garden`, or any district id in the URL overrides the spawn point.)
 

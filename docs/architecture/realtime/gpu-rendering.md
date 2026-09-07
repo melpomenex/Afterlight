@@ -10,7 +10,8 @@ Status: **ADOPT SELECTIVELY** — updated 2026-09-07 (headed harness). Change:
 | `EntityRenderBackend` seam + `CPUThreeBackend` | **ADOPT** (default; invisible when flags are off) |
 | Consumer hook (`PackConsumer` → `applyDeltaPack`) | **ADOPT** (optional; live `wireRealtime` does not attach a backend) |
 | `WebGPUThreeBackend` (persistent buffers + scatter) | **UNPARK (harness only)** — headed Brave/Chromium run built both arms at n=50 |
-| Defaulting `renderer_webgpu_fastpath` for any live scene | **REJECT** (flag stays harness-only, default OFF) |
+| Defaulting `renderer_webgpu_fastpath` for any live scene | **REJECT** (flag stays opt-in, default OFF) |
+| Live instanced proxy layer (`?rt_webgpu_fastpath=1` + entity seam) | **ADOPT SELECTIVELY** — InstancedMesh on WebGL scene; bloom/HUD coexist; not full gardener meshes |
 
 At Afterlight's current populations (dozens of avatars) the instance-count
 win is small; the milestone exists for the 50k-entity fixtures. Shipping a

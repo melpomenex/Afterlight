@@ -1,7 +1,11 @@
 defmodule Afterlight.Accounts.ReducerSupport do
   @moduledoc """
-  Pure nickname sanitization and deduplication ladder ported from `shared/identity.js`.
-  Provides byte-exact parity with the JavaScript implementation.
+  JS-exact nickname sanitize/dedup port of `shared/identity.js`.
+
+  Production code (P4). Injectable RNG so fallback paths are fixture-pinned.
+  Truncation is UTF-16 code units (JS `String.prototype.slice`), not graphemes.
+  Post-sanitize nicknames are ASCII `[\\w\\s-]`, so SQL `lower()` and JS
+  `toLowerCase()` cannot disagree.
   """
 
   @adjectives ~w(
@@ -16,36 +20,27 @@ defmodule Afterlight.Accounts.ReducerSupport do
     Sage Mint Beet Chard
   )
 
-  @doc """
-  Generates an atmospheric default nickname from an optional seed or RNG.
-  Reproduces JS `generateDefaultNickname(seed = Math.random())`.
-  """
-  def generate_default_nickname(seed_or_rng \\ nil) do
-    seed = eval_rng(seed_or_rng)
+  @doc "JS `Math.random` stand-in: a float in `(0, 1]`."
+  def default_rng, do: :rand.uniform()
 
+  def generate_default_nickname(seed) when is_number(seed) do
     adj_idx = trunc(abs(:math.sin(seed * 999)) * length(@adjectives))
     noun_idx = trunc(abs(:math.cos(seed * 888)) * length(@produce_nouns))
     num = trunc(abs(:math.sin(seed * 777)) * 90) + 10
 
-    # JS array index out of bounds renders as "undefined" in template literal
-    # (e.g. seed 0: Math.cos(0) * 20 === 20 -> "Mossyundefined10").
+    # JS indexes past the array end render as "undefined" in the template
+    # literal (seed 0: Math.cos(0) * 20 === 20).
     adj = Enum.at(@adjectives, adj_idx) || "undefined"
     noun = Enum.at(@produce_nouns, noun_idx) || "undefined"
 
     "#{adj}#{noun}#{num}"
   end
 
-  @doc """
-  Sanitizes input with semantics identical to `shared/identity.js`:
-  - strips HTML tags <[^>]*> and control characters [\\x00-\\x1F\\x7F-\\x9F]
-  - strips non-word characters except dashes and underscores [^\\w\\s-]
-  - collapses whitespace sequences to single space
-  - truncates to 20 UTF-16 code units (not graphemes) with trailing whitespace trim
-  - falls back to generate_default_nickname when length < 3 UTF-16 units
-  """
-  def sanitize_nickname(input, rng_or_seed \\ nil)
+  def generate_default_nickname(_seed), do: generate_default_nickname(default_rng())
 
-  def sanitize_nickname(input, rng_or_seed) when is_binary(input) do
+  def sanitize_nickname(input, rng \\ &default_rng/0)
+
+  def sanitize_nickname(input, rng) when is_binary(input) do
     units =
       input
       |> :unicode.characters_to_binary(:utf8, {:utf16, :big})
@@ -67,71 +62,71 @@ defmodule Afterlight.Accounts.ReducerSupport do
       end
 
     if length(clean) < 3 do
-      generate_default_nickname(rng_or_seed)
+      generate_default_nickname(rng.())
     else
-      :unicode.characters_to_binary(clean, {:utf16, :big}, :utf8)
+      from_utf16_units(clean)
     end
   end
 
-  def sanitize_nickname(_input, rng_or_seed), do: generate_default_nickname(rng_or_seed)
+  def sanitize_nickname(_input, rng), do: generate_default_nickname(rng.())
 
   @doc """
-  Resolves duplicate nicknames against active players with semantics identical to
-  `shared/identity.js resolveDuplicateNickname`:
-  - tries the sanitized base if free in active_nicknames (case-insensitively)
-  - descends the ladder `<base>2` .. `<base>99` in order
-  - on exhausted ladder, appends a random 3-digit number (100..999) using the injectable RNG
+  `resolveDuplicateNickname`: free sanitized base, then `base2`..`base99`,
+  then one random 3-digit suffix. `active` is the live-nickname set
+  (list, MapSet, or JSON object of names). Historical names must not be
+  included — matching JS, which only receives active nicknames.
   """
-  def resolve_duplicate_nickname(desired, active_nicknames \\ [], rng_or_seed \\ nil) do
-    base = sanitize_nickname(desired, rng_or_seed)
-    lower_base = String.downcase(base)
+  def resolve_duplicate_nickname(desired, active, rng \\ &default_rng/0) do
+    base = sanitize_nickname(desired, rng)
+    claimed = claimed_set(active)
 
-    active_set = to_active_set(active_nicknames)
+    cond do
+      not MapSet.member?(claimed, String.downcase(base)) ->
+        base
 
-    if not MapSet.member?(active_set, lower_base) do
-      base
-    else
-      ladder =
-        Enum.find(2..99, fn i ->
-          candidate = "#{base}#{i}"
-          not MapSet.member?(active_set, String.downcase(candidate))
-        end)
+      true ->
+        case Enum.find(2..99, &(not MapSet.member?(claimed, String.downcase("#{base}#{&1}")))) do
+          nil ->
+            suffix = trunc(:math.floor(rng.() * 900 + 100))
+            "#{base}#{suffix}"
 
-      case ladder do
-        nil ->
-          rand_val = eval_rng(rng_or_seed)
-          suffix = trunc(rand_val * 900) + 100
-          "#{base}#{suffix}"
-
-        i ->
-          "#{base}#{i}"
-      end
+          i ->
+            "#{base}#{i}"
+        end
     end
   end
 
-  # -- Internal helpers --------------------------------------------------------
-
-  defp to_active_set(nil), do: MapSet.new()
-  defp to_active_set(%MapSet{} = set), do: set
-
-  defp to_active_set(map) when is_map(map) do
-    map
-    |> Map.keys()
-    |> Enum.map(&to_string/1)
-    |> Enum.map(&String.downcase/1)
-    |> MapSet.new()
+  def ascii_only?(name) when is_binary(name) do
+    Regex.match?(~r/^[\w\s-]*$/, name)
   end
 
-  defp to_active_set(list) when is_list(list) do
-    list
-    |> Enum.map(&to_string/1)
-    |> Enum.map(&String.downcase/1)
-    |> MapSet.new()
+  def ascii_only?(_), do: false
+
+  defp claimed_set(active) when is_list(active) do
+    MapSet.new(active, fn
+      name when is_binary(name) -> String.downcase(name)
+      other -> other |> to_string() |> String.downcase()
+    end)
   end
+
+  defp claimed_set(%MapSet{} = set) do
+    claimed_set(MapSet.to_list(set))
+  end
+
+  defp claimed_set(active) when is_map(active) do
+    claimed_set(Map.keys(active))
+  end
+
+  defp claimed_set(_), do: MapSet.new()
 
   defp utf16_units(bin, acc \\ [])
   defp utf16_units(<<u::16, rest::binary>>, acc), do: utf16_units(rest, [u | acc])
   defp utf16_units(<<>>, acc), do: Enum.reverse(acc)
+
+  defp from_utf16_units(units) do
+    bin = :erlang.list_to_binary(Enum.map(units, fn u -> <<u::16>> end))
+    :unicode.characters_to_binary(bin, {:utf16, :big}, :utf8)
+  end
 
   defp strip_tags([?< | rest]), do: strip_tags(skip_to_close(rest))
   defp strip_tags([u | rest]), do: [u | strip_tags(rest)]
@@ -172,14 +167,4 @@ defmodule Afterlight.Accounts.ReducerSupport do
     |> elem(0)
     |> Enum.reverse()
   end
-
-  defp eval_rng(nil) do
-    case Process.get(:parity_case_seed) do
-      seed when is_number(seed) -> seed * 1.0
-      _ -> :rand.uniform()
-    end
-  end
-
-  defp eval_rng(seed) when is_number(seed), do: seed * 1.0
-  defp eval_rng(fun) when is_function(fun, 0), do: fun.() * 1.0
 end

@@ -27,22 +27,15 @@ config :afterlight, :gateway,
   auth_rate_limit: [limit: 30, window_ms: 60_000],
   connect_rate_limit: [limit: 60, window_ms: 60_000],
   http_proxy_max_body_bytes: 67_108_864,
-  routing: %{"ping" => :terminate_pong, "join_room" => :node, "movement" => :node, "emote" => :node, "chat_send" => :node},
+  routing: %{"ping" => :terminate_pong},
   # Fake upstream processes instead of dialing ws://127.0.0.1:3001 —
   # real-upstream tests are tagged :integration and excluded by default.
   upstream_adapter: GatewayTest.FakeUpstream
 
-# P3 world room runtime — deterministic test pins. Individual tests that
-# need faster tick/grace or a tighter outbound ceiling override these via
-# Application.put_env in a try/after; the emote cooldown keeps the Node
-# 500 ms default (tests exercise the cooldown against the real window).
-config :afterlight, :world,
-  flush_interval_ms: 100,
-  empty_room_grace_ms: 60_000,
-  emote_cooldown_ms: 500,
-  outbound_queue_max: 256
-
 # Real-Node integration tests run only when AFTERLIGHT_INTEGRATION=1.
 config :afterlight, :integration_tests, System.get_env("AFTERLIGHT_INTEGRATION") == "1"
 
-config :logger, level: :warning
+config :afterlight, :accounts,
+  claim_window_grace_ms: 2_592_000_000,
+  reaper_interval_ms: 86_400_000,
+  outbox_interval_ms: 86_400_000

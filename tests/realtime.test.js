@@ -9,3 +9,8 @@ import './realtime/fuzz.test.js';
 // suite lives beside the glue it tests in benchmarks/realtime/tests/.
 import '../benchmarks/realtime/tests/wasm-fallback.test.js';
 import './realtime/gpu-backend.test.js';
+import './realtime/live-backend.test.js';
+import './realtime/gates.test.js';
+import './realtime/gateway-binary-convergence.test.js';
+import './realtime/node-binary-flush.test.js';
+import './realtime/wiring.test.js';
