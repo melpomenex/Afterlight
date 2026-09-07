@@ -32,6 +32,11 @@ The system SHALL derive the acting player exclusively from a server-issued signe
 - **THEN** the gateway resolves the corresponding durable session row and binds the connection to its player id
 - **AND** `hello` stays relayed to Node, so the `welcome` payload is Node-built exactly as before and the guest id remains only a stable lookup key (`garden:<guestId>` room ids and self-echo filtering unchanged)
 
+#### Scenario: Hello identity cannot diverge from the bound player
+
+- **WHEN** a hello whose `guestId` differs from the connection's durably bound session player arrives (P2's token-claim equality rule, carried forward now that the binding is durable)
+- **THEN** the gateway refuses or rewrites the hello to the bound player id, so the Phoenix actor and the relayed Node session cannot resolve two different identities for one connection
+
 #### Scenario: Forged or absent token is rejected
 
 - **WHEN** a client presents no token, an expired token, a revoked token, or a token whose signature does not verify

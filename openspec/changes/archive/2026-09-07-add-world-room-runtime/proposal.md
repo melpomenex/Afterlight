@@ -17,12 +17,12 @@ This change moves the *transient* world into `Afterlight.World`: a Registry + Dy
 - **Emotes; weather stays relayed.** `emote` validates the 6-id allow-list (`wave`, `dance`, `cheer`, `heart`, `bow`, `shrug`) with the 500 ms per-session cooldown and relays `emote_broadcast {playerId, nickname, emote}` room-scoped. Weather is explicitly out of scope (review correction): Node keeps writing `weather_update` and building `welcome.weather`; authority transfers to the runtime at the P6 group flip, alongside the gardens/economy change whose garden tick consumes it.
 - **Presence is a bespoke roster map, not Phoenix Presence.** The RoomServer's roster is the single source of membership truth. Phoenix Presence is explicitly *not* adopted in P3 — and whenever adopted later it must carry coarse membership only, never 10 Hz positions (per `runtime.md`).
 - **Duplicate-connect policy fixed deliberately.** Newest connection wins; the older transport is closed with a socket close reason; presence never leaks ghost members. This is the deliberate fix of Node's overwrite-then-evict quirk (protocol-catalog §2) and is the second documented wire-visible tightening (a stale duplicate tab now sees a clean close instead of silent semi-livestate).
-- **Failure behavior.** A crashing RoomServer is restarted by the DynamicSupervisor; room members are forced to rejoin (transport closed for that room with a retryable reason, desiredRoom replay does the rest) and receive fresh snapshots; nothing durable is touched.
+- **Failure behavior.** A crashing RoomServer is restarted by the DynamicSupervisor; room members are forced to rejoin (the gateway closes their full transport — with a single multiplexed `game:v1` topic there is no per-room subscription to close — and the desiredRoom replay does the rest) and receive fresh snapshots; during the recovery window the gateway refuses durable commands for transports without live World membership; nothing durable is touched.
 - **Chat stays on Node.** The chat relay (`chat_send`, `chat_message`, `chat_dm`, `chat_history`, `chat_presence`, `chat_error`) and the IRC bridge remain proxied to Node in P3 — moving chat here would couple this change to the Node IRC bridge boundary; chat moves in `add-social-chat-relay` (the P7 window, per the ownership matrix). Explicit non-goal for this change (the ownership matrix row for chat is annotated accordingly).
 - **Telemetry events named now.** `[:afterlight, :room, :join]`, `[:afterlight, :room, :leave]`, `[:afterlight, :room, :tick]` (duration + room size), `[:afterlight, :movement, :coalesced]` (coalesced/dropped counts), `[:afterlight, :room, :stopped]`; dashboards and alerting remain P10 work.
 - **Data model: none.** This change introduces no persistent state whatsoever — rooms, rosters, poses, and emote cooldowns are all process memory (Node's weather phase stays in Node process memory until P6); nothing is written to PostgreSQL or `data/*.json`, and no schema changes occur.
 
-Depends on: `add-phoenix-gateway-transport` (pending — provides the Endpoint, UserSocket, signed guest identity, domain router, and the authenticated Node boundary that this change's router flip and suppression rules build on).
+Depends on: `add-phoenix-gateway-transport` (landed — provides the Endpoint, UserSocket, signed guest identity, domain router, and the authenticated Node boundary that this change's router flip and suppression rules build on). Like P2, this change assumes a single gateway node; the fenced multi-node session registry is a P9+ deliverable.
 
 ## Capabilities
 
@@ -32,7 +32,8 @@ Depends on: `add-phoenix-gateway-transport` (pending — provides the Endpoint, 
 
 ### Modified Capabilities
 
-- (none — no capability has been archived yet. `gateway-transport`'s routing requirement anticipated this flip: the P2 disposition table is updated by this change's own spec additions, not by weakening that capability — the router, boundary, and identity requirements continue to apply unchanged.)
+- `elixir-foundation`: the supervision tree gains the World supervisor and its DynamicSupervisor room processes (task 1.1 starts them under the P1 tree). Full MODIFIED delta in `specs/elixir-foundation/spec.md` — recorded so the archived foundation spec does not contradict the shipped system once rooms exist.
+- `gateway-transport`'s routing requirement anticipated this flip: the P2 disposition table is updated by this change's own spec additions, not by weakening that capability — the router, boundary, and identity requirements continue to apply unchanged.
 
 ## Impact
 

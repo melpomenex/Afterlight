@@ -22,7 +22,7 @@
 
 ## 3. Validation and review
 - [x] 3.1 `openspec validate` (strict) passes for the umbrella and all twelve subordinate changes
-- [ ] 3.2 Adversarial architecture review of all specs; gaps fixed (split-brain, dual writes, rollback honesty, client preservation)
+- [x] 3.2 Adversarial architecture review of all specs; gaps fixed (split-brain, dual writes, rollback honesty, client preservation)
 - [x] 3.3 Dependency ordering verified: 00→01→02→03→04→05→06→{07,10}; 07→08; 10→09; 09→11 (consistent DAG)
 
 ## 4. Implementation begins (this run's scope)

@@ -28,7 +28,7 @@ What P11 actually retires is therefore not "the Node codebase" but **Node's auth
 ## Decisions
 
 ### D1 — The audit is the change: a row-by-row checklist with recorded evidence
-*Decision:* Implement P11 as an explicit audit artifact (checklist in the tasks, evidence recorded per row): for each migrated ownership row, the Node write path is (a) located in the retired code, (b) disabled/removed, and (c) verified — by a test, a runtime probe, or code-deletion proof — with the evidence noted on the checklist. Rows 17–18 are verified as retained sidecars with their adapter boundaries intact, so the audit also proves the retirement didn't overreach.
+*Decision:* Implement P11 as an explicit audit artifact (checklist in the tasks, evidence recorded per row): for each migrated ownership row, the Node write path is (a) located in the retired code, (b) disabled/removed, and (c) verified — by a test, a runtime probe, or code-deletion proof — with the evidence noted on the checklist. Rows 17–18 are verified as retained sidecars with their adapter boundaries intact, so the audit also proves the retirement didn't overreach. The audit also explicitly classifies the retained authenticated adapter ingress (IRC bridge → Social) as sanctioned ingress — actor = sidecar, authority = `Afterlight.Social` — so it cannot be read as a second chat writer.
 *Alternative Considered:* treating "we deleted server/" as the audit. Rejected: deletion without per-row verification cannot distinguish "retired" from "accidentally still routable", and the phase gate demands evidence, not absence.
 
 ### D2 — Router table first, compatibility layer second, each item gated on proof

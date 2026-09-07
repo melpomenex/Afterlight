@@ -105,12 +105,17 @@ After every reconnect through the gateway the client SHALL receive `welcome` aga
 
 ### Requirement: Connection security
 
-The gateway SHALL authorize every channel join against the verified session (no anonymous topic subscription), SHALL rate-limit connection attempts per source and per identity, SHALL derive actor identity only from the verified token claim (never from client-supplied playerId fields), and SHALL never write tokens or boundary secrets to logs.
+The gateway SHALL authorize every channel join against the verified session (no anonymous topic subscription), SHALL rate-limit connection attempts per source and per identity, SHALL derive actor identity only from the verified token claim (never from client-supplied playerId fields), and SHALL never write tokens or boundary secrets to logs. The per-identity limit SHALL be scoped so it cannot be weaponized into a remote lockout: guestIds are broadcast to every room member, so a budget keyed to identity that counts all attempts would let any observer refuse a victim's legitimate reconnects. The per-identity budget SHALL therefore count refused/unauthenticated attempts only, and a connect presenting a valid token whose claims verify SHALL NOT be charged to the per-identity budget (per-source limits still apply).
 
 #### Scenario: Rate-limited connect storm
 
 - **WHEN** one source makes repeated connect attempts beyond the configured limit
 - **THEN** further attempts are refused with a retryable signal and existing legitimate sessions are unaffected
+
+#### Scenario: Identity budget cannot be burned by third parties
+
+- **WHEN** an observer who knows a victim's broadcast guestId floods connect attempts for that identity while the victim holds a valid token
+- **THEN** the flood is refused under the per-source budget, and the victim's own token-authenticated reconnect is not refused by the per-identity budget
 
 #### Scenario: Tokens stay out of logs
 

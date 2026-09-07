@@ -24,7 +24,7 @@ The system SHALL provide `scripts/export-parity-fixtures.mjs`, which regenerates
 
 ### Requirement: Language-neutral case shape
 
-Each fixture case SHALL be self-contained JSON of the form `{fn, args, state, nowMs, seed?, expected, error?}`, evaluable without a JS runtime. Multi-step reducer behavior SHALL be recorded as `{steps: [...]}` scripts that thread state between steps. Error outcomes SHALL be data: `expected` carries the returned output (including null-state outcomes) and `error?` carries the exact reason string. Comparators used by any runner of the corpus SHALL be numeric-tolerant for integer/float distinctions introduced by JSON round-tripping, and SHALL be order-sensitive exactly where a fixture marks order as semantic.
+Each fixture case SHALL be self-contained JSON of the form `{fn, args, state, nowMs, seed?, expected, error?}`, evaluable without a JS runtime. Multi-step reducer behavior SHALL be recorded as `{steps: [...]}` scripts that thread state between steps. Error outcomes SHALL be data: `expected` carries the returned output (including null-state outcomes) and `error?` carries the exact reason string. Comparators used by any runner of the corpus SHALL be numeric-tolerant for integer/float distinctions introduced by JSON round-tripping — tolerant-with-pinned-exceptions, never blanket tolerance: arrays and order-sensitive structures are compared order-sensitively exactly where a fixture marks order as semantic (sort output, ledger entries, roster order), and an integer-typed expectation that a runner would otherwise coerce SHALL stay exact where the fixture marks it exact.
 
 #### Scenario: a fixture case is self-contained
 
@@ -34,22 +34,22 @@ Each fixture case SHALL be self-contained JSON of the form `{fn, args, state, no
 
 ### Requirement: Hazard coverage
 
-The fixture corpus SHALL pin at least one case for every hazard class in `docs/architecture/elixir/parity-notes.md` §1: JS `Math.round` half-toward-positive-infinity rounding, `Number.toFixed(3)` binary-float formatting, UTF-16 code-unit slicing, WHATWG URL parsing, semantic object key iteration order, `Number` coercion, null/undefined/absent conflation, 32-bit arithmetic, `Date.UTC` component rollover, and stable-sort tie order. A fixture manifest SHALL map each hazard class to its representative case ids, and the determinism test SHALL verify the mapping is non-empty for every class.
+The fixture corpus SHALL pin at least one case for every hazard class in `docs/architecture/elixir/parity-notes.md` §1: JS `Math.round` half-toward-positive-infinity rounding, `Number.toFixed(3)` binary-float formatting, UTF-16 code-unit slicing, WHATWG URL parsing, semantic object key iteration order, `Number` coercion, null/undefined/absent conflation, 32-bit arithmetic, `Date.UTC` component rollover, and stable-sort tie order. A fixture manifest SHALL map each hazard class to its representative case ids, and the determinism test SHALL verify the mapping is non-empty for every class. The manifest SHALL carry an explicit synonym table between the §1 class names and the manifest's own per-file taxonomy keys (the committed corpus groups cases by file and uses shorter keys such as `rounding`, `tofixed`, `timestamps-rollover`), so the mechanical non-emptiness check is checkable as specified, and the determinism test SHALL validate through that table.
 
 #### Scenario: each hazard class has a pinned case
 
 - **WHEN** the fixture manifest is validated by the determinism test
-- **THEN** every hazard class from parity-notes §1 maps to at least one existing case id
+- **THEN** every hazard class from parity-notes §1 maps through the manifest's synonym table to at least one existing case id
 - **AND** validation fails if any class has no representative case
 
 ### Requirement: Fixture set coverage
 
-The corpus SHALL cover the ten priority fixture sets from `parity-notes.md` §3: theaterModel (`applyTheaterAction` op matrix, `classifySource` URL table of roughly 40 cases including hostile inputs, `parseM3U`, `normalizeTheaterState`, `effectivePositionSec` at fixed nowMs values), torrentModel (`parseMagnet` hex and base32, `sanitizeTorrentPick` boundaries, `orderFilesForPicker` tie stability, `normalizeTorrentStatus`, `torrents.parseRange`), gardenModel and crops (`tickBed` dt=1 sequences, `harvestBed` quality boundaries, `sprinklerCoverage`, `getGrowthStage` millisecond boundaries, `calculateQuality`), shared/economy (NPC sell and seed prices across goods, qualities, and multipliers, `updateMarketMultiplier` chains), orderbook (`placeOrder` scripts, fees, `cancelOrder`, `getBookSnapshot`), iptvModel and xmltv (playlist apply, channel sanitize, guide programme sorting, M3U round-trip, catalog snapshot, time-parse table with rollover, index and lookup behavior), identity (nickname generation, sanitization, duplicate ladder, palette), nodes and machines (harvest and depletion, contribution clamps, milling order, crafting), youtubePlaylist (extraction over synthetic HTML, id predicates), and `protocol.parse` on malformed input.
+The corpus SHALL cover the ten priority fixture sets from `parity-notes.md` §3: theaterModel (`applyTheaterAction` op matrix, `classifySource` URL table of roughly 40 cases including hostile inputs, `parseM3U`, `normalizeTheaterState`, `effectivePositionSec` at fixed nowMs values), torrentModel (`parseMagnet` hex and base32, `sanitizeTorrentPick` boundaries, `orderFilesForPicker` tie stability, `normalizeTorrentStatus`, `torrents.parseRange`), gardenModel and crops (`tickBed` dt=1 sequences, `harvestBed` quality boundaries, `sprinklerCoverage`, `getGrowthStage` millisecond boundaries, `calculateQuality`), shared/economy (NPC sell and seed prices across goods, qualities, and multipliers, `updateMarketMultiplier` chains), orderbook (`placeOrder` scripts, fees, `cancelOrder`, `getBookSnapshot`), iptvModel and xmltv (playlist apply, channel sanitize, guide programme sorting, M3U round-trip, catalog snapshot, time-parse table with rollover, index and lookup behavior), identity (nickname generation, sanitization, duplicate ladder, palette), nodes and machines (harvest and depletion, contribution clamps, milling order, crafting), youtubePlaylist (extraction over synthetic HTML, id predicates), and `protocol.parse` on malformed input. The committed corpus MAY merge several §3 sets into one fixture file (for example market cases in `market.json`, identity/nodes/machines in `identity-nodes-machines.json`); the manifest SHALL record the set→file mapping explicitly so "each set is present" is mechanically checkable rather than a matter of inspection.
 
 #### Scenario: all ten sets are present
 
 - **WHEN** the fixture manifest is validated
-- **THEN** each of the ten priority fixture sets is present with its named functions
+- **THEN** each of the ten priority fixture sets resolves through the manifest's set→file mapping to cases covering its named functions
 - **AND** a missing set fails validation
 
 ### Requirement: Node performance baseline recorded

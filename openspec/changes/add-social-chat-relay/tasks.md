@@ -1,7 +1,7 @@
 ## 1. Parity fixtures and parser port
 
-- [ ] 1.1 Extend the parity exporter with chat cases pinned from `server/chat.js`: `cleanText` (control-char strip set, whitespace-run collapse, trim), raw 600 / sanitized 400 caps (incl. multi-byte characters at the truncation boundary), `/me`//`/msg` parsing (bare command, unknown command, missing args, `/msg` to self, `/msg` to an online player, `/msg` to an IRC nick, absent target), and every error/help string byte-for-byte.
-- [ ] 1.2 Port `Afterlight.Social.Parser` (pure): caps, sanitization, command parsing, and stable error strings; wire into the `Afterlight.Parity` runner and get every chat fixture green (this gates the flip).
+- [x] 1.1 Extend the parity exporter with chat cases pinned from `server/chat.js`: `cleanText` (control-char strip set, whitespace-run collapse, trim), raw 600 / sanitized 400 caps (incl. multi-byte characters at the truncation boundary), `/me`//`/msg` parsing (bare command, unknown command, missing args, `/msg` to self, `/msg` to an online player, `/msg` to an IRC nick, absent target), and every error/help string byte-for-byte.
+- [x] 1.2 Port `Afterlight.Social.Parser` (pure): caps, sanitization, command parsing, and stable error strings; wire into the `Afterlight.Parity` runner and get every chat fixture green (this gates the flip).
 
 ## 2. Social relay
 
@@ -17,7 +17,7 @@
 ## 4. Gateway routing and flip
 
 - [ ] 4.1 Flip the `chat_*` entries in `Gateway.Router` to `phoenix` behind config (server-side only; clients cannot choose) and compose `chat_history` into the connection order (`hello` → `welcome` → `garden_state` → `chat_history` → join snapshots) with an integration test pinning the order.
-- [ ] 4.2 In the same release, disable the Node game-relay portions of `server/chat.js` (session registry, ring, in-game delivery) while the IRC sidecar halves stay behind the adapter; keep `npm test` green with the disabled paths encoded in the JS tests.
+- [ ] 4.2 In the same release, disable the Node game-relay portions of `server/chat.js` (session registry, ring, in-game delivery) while the IRC sidecar halves stay behind the adapter; the disabled halves are retained as a config-gated rollback path — flipping `chat_*` back to Node by configuration alone — until `remove-node-server-authority` (P11) deletes them, at which point the config-only rollback guarantee explicitly expires; keep `npm test` green with the disabled paths encoded in the JS tests.
 
 ## 5. Tests
 
