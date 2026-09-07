@@ -16,7 +16,8 @@ import { MachinesManager } from './machines.js';
 import { TheaterManager } from './theater.js';
 import { resolvePlaylist } from './youtubePlaylist.js';
 import { IptvManager } from './iptv.js';
-import { TorrentManager } from './torrents.js';
+import { TorrentManager, verifyTorrentGrant, redactGrantQuery } from './torrents.js';
+import { torrentGrantSecrets } from '../shared/torrentGrant.js';
 import { IPTV_LIMITS, iptvErrorText } from '../shared/iptvModel.js';
 import { parseXmltv } from '../shared/xmltv.js';
 import { theaterErrorText } from '../shared/theaterModel.js';
@@ -29,10 +30,31 @@ const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
 const PLAYLIST_FETCH_TIMEOUT_MS = 15000;
 
+/**
+ * Torrent playback grant enforcement (P7 specialty adapters).
+ * grants_required defaults on; loopback-dev escape requires TORRENT_LOOPBACK_DEV=1
+ * and binds the listener to loopback only. Production refuses grants-off boot.
+ */
+export function resolveTorrentGrantConfig(options = {}) {
+  const loopbackDev = options.loopbackDev ?? (process.env.TORRENT_LOOPBACK_DEV === '1');
+  const grantsRequired = options.grantsRequired ?? (process.env.TORRENT_GRANTS_REQUIRED !== '0');
+  const isProd = process.env.NODE_ENV === 'production';
+
+  if (isProd && !grantsRequired) {
+    throw new Error('Refusing to boot: torrent grant enforcement cannot be disabled in production');
+  }
+  if (!grantsRequired && !loopbackDev) {
+    throw new Error('Refusing to boot: disabling torrent grants requires TORRENT_LOOPBACK_DEV=1');
+  }
+
+  return { grantsRequired, loopbackDev, secrets: options.grantSecrets ?? torrentGrantSecrets() };
+}
+
 export function createServer(customStorage = null, options = {}) {
   const storage = customStorage || new Storage();
   initBaselineProbe({ storage });
   const { dataDir = null } = options;
+  const torrentGrantConfig = resolveTorrentGrantConfig(options);
   const world = new WorldManager();
   const gardens = new GardensManager(storage);
   const nodes = new NodesManager(storage);
@@ -96,6 +118,13 @@ export function createServer(customStorage = null, options = {}) {
     return presented !== undefined && presented !== expected;
   }
 
+  /** P7 adapter routes require a valid boundary secret when one is configured. */
+  function adapterRejects(req) {
+    const expected = process.env.AFTERLIGHT_BOUNDARY_SECRET;
+    if (!expected) return false;
+    return req.headers['x-afterlight-boundary'] !== expected;
+  }
+
   const server = http.createServer(async (req, res) => {
     if (boundaryRejects(req)) {
       res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -122,8 +151,8 @@ export function createServer(customStorage = null, options = {}) {
         res.setHeader('Access-Control-Allow-Origin', origin);
         res.setHeader('Vary', 'Origin');
       }
-      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, POST, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Range');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, POST, PUT, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Range, x-afterlight-boundary');
       res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
       if (req.method === 'OPTIONS') {
         res.writeHead(204);
@@ -143,7 +172,76 @@ export function createServer(customStorage = null, options = {}) {
       // no preflight, same open CORS posture as the uploads above. ---
       const torrentMatch = /^\/api\/theater\/torrent\/([^/]+)\/(\d+)$/.exec(reqUrl.pathname);
       if (torrentMatch && (req.method === 'GET' || req.method === 'HEAD')) {
-        await handleTorrentStream(req, res, torrentMatch[1], torrentMatch[2]);
+        await handleTorrentStream(req, res, reqUrl, torrentMatch[1], torrentMatch[2]);
+        return;
+      }
+      // --- P7 specialty adapter (Phoenix → sidecar, authenticated) ---
+      if (reqUrl.pathname === '/api/theater/torrent/resolve' && req.method === 'POST') {
+        if (adapterRejects(req)) {
+          respondJson(res, 403, { error: 'boundary' });
+          return;
+        }
+        let body;
+        try {
+          body = await readBody(req, 4096);
+        } catch {
+          respondJson(res, 400, { error: 'bad_request' });
+          return;
+        }
+        let parsed;
+        try {
+          parsed = JSON.parse(body.toString('utf8'));
+        } catch {
+          respondJson(res, 400, { error: 'bad_request' });
+          return;
+        }
+        try {
+          const snap = await torrents.resolve(String(parsed?.magnet || ''));
+          respondJson(res, 200, {
+            infohash: snap.infohash,
+            name: snap.name,
+            files: snap.files,
+          });
+        } catch (err) {
+          const reason = err?.reason || 'resolve_failed';
+          const status = reason === 'invalid_magnet' ? 400
+            : reason === 'engine_unavailable' ? 503
+            : reason === 'resolve_timeout' ? 504
+            : 502;
+          respondJson(res, status, { reason });
+        }
+        return;
+      }
+      if (reqUrl.pathname === '/api/theater/torrent/status' && req.method === 'GET') {
+        if (adapterRejects(req)) {
+          respondJson(res, 403, { error: 'boundary' });
+          return;
+        }
+        respondJson(res, 200, { items: torrents.status() });
+        return;
+      }
+      if (reqUrl.pathname === '/api/theater/torrent/exempt' && req.method === 'PUT') {
+        if (adapterRejects(req)) {
+          respondJson(res, 403, { error: 'boundary' });
+          return;
+        }
+        let body;
+        try {
+          body = await readBody(req, 64 * 1024);
+        } catch {
+          respondJson(res, 400, { error: 'bad_request' });
+          return;
+        }
+        let parsed;
+        try {
+          parsed = JSON.parse(body.toString('utf8'));
+        } catch {
+          respondJson(res, 400, { error: 'bad_request' });
+          return;
+        }
+        const list = Array.isArray(parsed?.infohashes) ? parsed.infohashes : [];
+        torrents.setExemptInfohashes(list);
+        respondJson(res, 200, { ok: true, count: list.length });
         return;
       }
       if (req.method !== 'POST') {
@@ -182,15 +280,30 @@ export function createServer(customStorage = null, options = {}) {
   }
 
   /**
-   * Serve one file of one resolved torrent with Range support. The manager
-   * answers { statusCode, headers?, stream? } — 206/200 with a byte stream,
-   * or 404/416/503/504 with no body. Aborting the request tears the stream
-   * down so a paused/seeking video does not keep the swarm busy.
+   * Serve one file of one resolved torrent with Range support. When grant
+   * enforcement is on (default), every request must carry a valid `grant`
+   * query parameter minted by Phoenix for the same infohash/file.
    */
-  async function handleTorrentStream(req, res, rawInfohash, rawFileIndex) {
+  async function handleTorrentStream(req, res, reqUrl, rawInfohash, rawFileIndex) {
+    const infohash = String(rawInfohash).toLowerCase();
+    const fileIndex = Number(rawFileIndex);
+    const grant = reqUrl.searchParams.get('grant');
+
+    if (torrentGrantConfig.grantsRequired) {
+      const verdict = verifyTorrentGrant(grant, infohash, fileIndex, torrentGrantConfig.secrets);
+      if (!verdict.ok) {
+        if (process.env.DEBUG_TORRENT_GRANT === '1') {
+          console.warn('torrent grant rejected:', verdict.reason, redactGrantQuery(req.url));
+        }
+        res.writeHead(403);
+        res.end();
+        return;
+      }
+    }
+
     let result;
     try {
-      result = await torrents.streamFile(String(rawInfohash).toLowerCase(), Number(rawFileIndex), req.headers.range);
+      result = await torrents.streamFile(infohash, fileIndex, req.headers.range);
     } catch (err) {
       console.warn('torrent stream failed:', err?.message || err);
       respondJson(res, 500, { error: 'The torrent stream broke just now.' });
@@ -1268,13 +1381,21 @@ export function createServer(customStorage = null, options = {}) {
     server.close();
   }
 
-  return { server, wss, world, gardens, economy, orderbook, nodes, machines, theater, iptv, torrents, storage, irc, chat, close };
+  return {
+    server, wss, world, gardens, economy, orderbook, nodes, machines, theater, iptv, torrents,
+    storage, irc, chat, close, torrentGrantConfig,
+  };
 }
 
 // Auto-run if executed directly
 if (process.argv[1] && process.argv[1].endsWith('server/index.js')) {
+  const grantConfig = resolveTorrentGrantConfig();
+  const listenHost = (!grantConfig.grantsRequired && grantConfig.loopbackDev) ? '127.0.0.1' : HOST;
   const { server } = createServer();
-  server.listen(PORT, HOST, () => {
-    console.log(`Afterlight Multiplayer Server listening on ${HOST}:${PORT}`);
+  server.listen(PORT, listenHost, () => {
+    console.log(`Afterlight Multiplayer Server listening on ${listenHost}:${PORT}`);
+    if (!grantConfig.grantsRequired) {
+      console.warn('TORRENT_LOOPBACK_DEV: torrent stream grants are DISABLED (loopback only)');
+    }
   });
 }

@@ -11,9 +11,14 @@
     "verify:gateway": "node scripts/verify-gateway-transport.mjs",
     "verify:world": "node scripts/verify-world-runtime.mjs",
     "verify:chat": "node scripts/verify-social-chat.mjs",
+    "verify:p11": "node scripts/verify-p11-e2e-sweep.mjs",
+    "p11:snapshot-hashes": "node scripts/p11-snapshot-hashes.mjs",
+    "p11:audit": "node scripts/audit-node-write-paths.mjs",
+    "load:smoke": "node tools/load_client/cli.js smoke",
+    "load:run": "node tools/load_client/cli.js run",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js tests/**/*.test.js"
   },
   "dependencies": {
     "hls.js": "^1.7.2",

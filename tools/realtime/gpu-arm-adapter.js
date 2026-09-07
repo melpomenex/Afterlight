@@ -11,6 +11,10 @@
 //
 //   import { createAcceleratedBackend, adaptSnapshotForCpu } from './gpu-arm-adapter.js';
 
+// Origin-absolute on purpose: resolves against the serving origin both under
+// a static file server rooted at the repo and under `npm run dev`.
+const GPU_MODULE_PATH = '/src/realtime/gpu/webgpuBackend.js';
+
 // The real factory (verified against webgpuBackend.js):
 //   await createWebGPUThreeBackend({ device?, navigator?, onUnavailable?,
 //                                    ...WebGPUThreeBackendOpts })
@@ -29,16 +33,31 @@ export async function createAcceleratedBackend({
   onUnavailable = null,
   maxSlots = null,
 }) {
-  const { createWebGPUThreeBackend } = await import('/src/realtime/gpu/webgpuBackend.js');
-  const backend = await createWebGPUThreeBackend({
-    // maxSlots must cover the largest selectable population; the module
-    // default (8192) would silently clamp N=10000.
-    maxSlots: maxSlots ?? Math.max(16384, population * 2),
-    onUnavailable: (reason) => {
-      if (onUnavailable) onUnavailable(reason);
-      else console.info('[gpu-harness] accelerated arm unavailable:', reason);
-    },
-  });
+  let createWebGPUThreeBackend;
+  try {
+    ({ createWebGPUThreeBackend } = await import(/* @vite-ignore */ GPU_MODULE_PATH));
+  } catch (e) {
+    return {
+      ok: false,
+      reason: `${GPU_MODULE_PATH} could not be imported (missing or renamed? fix gpu-arm-adapter.js): ${e?.message || e}`,
+    };
+  }
+  let backend;
+  try {
+    backend = await createWebGPUThreeBackend({
+      // maxSlots must cover the largest selectable population; the module
+      // default (8192) would silently clamp N=10000.
+      maxSlots: maxSlots ?? Math.max(16384, population * 2),
+      onUnavailable: (reason) => {
+        if (onUnavailable) onUnavailable(reason);
+        else console.info('[gpu-harness] accelerated arm unavailable:', reason);
+      },
+    });
+  } catch (e) {
+    // The factory promises never to throw for unavailability; a throw here is
+    // factory-signature drift — surface it structurally, never crash the page.
+    return { ok: false, reason: `createWebGPUThreeBackend threw (signature drift?): ${e?.message || e}` };
+  }
   if (!backend) return { ok: false, reason: 'createWebGPUThreeBackend resolved null (WebGPU unavailable)' };
   let unsub = null;
   if (onDeviceLost) {

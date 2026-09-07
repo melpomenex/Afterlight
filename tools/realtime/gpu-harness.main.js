@@ -40,7 +40,7 @@
 import * as THREE from 'three';
 import { WebGPURenderer } from 'three/webgpu';
 import { resolveFlags } from '/src/realtime/flags.js';
-import { CPUThreeBackend, KILN_ID, shouldConstructWebGpu } from '/src/realtime/gpu/backend.js';
+import { CPUThreeBackend, shouldConstructWebGpu } from '/src/realtime/gpu/backend.js';
 import { createPack } from '/src/realtime/worker/core.js';
 import { createAcceleratedBackend, adaptSnapshotForCpu } from './gpu-arm-adapter.js';
 import { makeWorld, stepWorld, tickSeedFor, WORLD_BOUNDS, FIXTURE_SOURCE, rng as fixturesRng } from './gpu-harness.fixtures.js';

@@ -6,6 +6,9 @@ import {
   orderFilesForPicker,
   parseMagnet,
 } from '../shared/torrentModel.js';
+import { verifyTorrentGrant, redactGrantQuery } from '../shared/torrentGrant.js';
+
+export { verifyTorrentGrant, redactGrantQuery };
 
 /**
  * Parse an HTTP Range header against a known total size. Returns
@@ -82,6 +85,8 @@ export class TorrentManager {
      * torrent after a restart even when this manager's library.json is gone.
      */
     this.magnetResolver = null;
+    /** Advisory exempt-from-reap set pushed by Phoenix BillSync. */
+    this.exemptInfohashes = new Set();
     // infohash -> { infohash, magnet, torrent, name, lastServedMs, addedMs }
     this.entries = new Map();
     this.sweepStartup();
@@ -99,6 +104,22 @@ export class TorrentManager {
    */
   setMagnetResolver(resolver) {
     this.magnetResolver = typeof resolver === 'function' ? resolver : null;
+  }
+
+  /** Replace the Phoenix-pushed exempt-from-reap infohash set (idempotent). */
+  setExemptInfohashes(infohashes) {
+    const next = new Set();
+    for (const raw of infohashes || []) {
+      const hash = String(raw || '').toLowerCase();
+      if (INFOHASH_RE.test(hash)) next.add(hash);
+    }
+    this.exemptInfohashes = next;
+  }
+
+  referencedSet(referencedInfohashes) {
+    const referenced = new Set(referencedInfohashes || []);
+    for (const hash of this.exemptInfohashes) referenced.add(hash);
+    return referenced;
   }
 
   /**
@@ -387,7 +408,7 @@ export class TorrentManager {
    * playing item). `nowMs` is injectable for tests.
    */
   async tick(referencedInfohashes, nowMs = Date.now()) {
-    const referenced = new Set(referencedInfohashes || []);
+    const referenced = this.referencedSet(referencedInfohashes);
     const reapable = [];
     for (const entry of this.entries.values()) {
       if (referenced.has(entry.infohash)) continue;
@@ -429,7 +450,7 @@ export class TorrentManager {
    * inactive entries. Sizes are on-disk byte counts per infohash directory.
    */
   async enforceCacheCap(referencedInfohashes) {
-    const referenced = new Set(referencedInfohashes || []);
+    const referenced = this.referencedSet(referencedInfohashes);
     const sizes = [];
     let total = 0;
     try {

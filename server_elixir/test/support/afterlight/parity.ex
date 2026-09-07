@@ -29,6 +29,7 @@ defmodule Afterlight.Parity do
     {"theater-model.json", Afterlight.Parity.Reference.Theater},
     {"torrent-model.json", Afterlight.Parity.Reference.Torrent},
     {"market.json", Afterlight.Parity.Reference.Market},
+    {"contracts.json", Afterlight.Parity.Reference.Contracts},
     {"garden-crops.json", Afterlight.Parity.Reference.Garden},
     {"iptv-xmltv.json", Afterlight.Parity.Reference.Catalog},
     {"identity-nodes-machines.json", Afterlight.Parity.Reference.Misc},

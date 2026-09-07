@@ -26,21 +26,26 @@ defmodule Afterlight.Gateway.Router do
 
   alias Afterlight.Gateway
 
-  @typedoc "Message owner: transport-terminated pong, relayed to Node, or world runtime."
-  @type disposition :: :terminate_pong | :node | :phoenix
+  @typedoc "Message owner: transport-terminated pong, relayed to Node, world/chat runtime, or specialty adapter."
+  @type disposition :: :terminate_pong | :node | :phoenix | :specialty
 
   @typedoc """
   Result of `dispatch/2`: synthesize a `pong` echoing `t`, hand the frame
-  to the world or chat runtime, or relay the flat frame (string-keyed, with
-  `"type"` re-attached) upstream.
+  to the world, chat, or specialty runtime, or relay the flat frame upstream.
   """
   @type dispatch ::
           {:pong, t :: term}
           | {:world, type :: String.t(), payload :: map}
           | {:chat, type :: String.t(), payload :: map}
+          | {:catalog, type :: String.t(), payload :: map}
+          | {:theater, type :: String.t(), payload :: map}
+          | {:specialty, type :: String.t(), payload :: map}
           | {:relay, frame :: %{binary() => term}}
 
+  @specialty_types ~w(torrent_resolve)
+  @theater_types ~w(theater_queue theater_control theater_channel theater_playlist_resolve)
   @chat_types ~w(chat_send)
+  @catalog_types ~w(iptv_list_get iptv_list_remove epg_lookup)
 
   @doc """
   Disposition for a client message type: the configured owner, verbatim.
@@ -55,13 +60,26 @@ defmodule Afterlight.Gateway.Router do
   """
   @spec disposition(term) :: disposition()
   def disposition(type) when is_binary(type) do
-    case routing_table() |> Map.get(type, :node) do
-      disposition when disposition in [:terminate_pong, :phoenix, :node] -> disposition
-      _other -> :node
+    table = routing_table()
+
+    case Map.get(table, type, default_disposition(type)) do
+      disposition when disposition in [:terminate_pong, :phoenix, :node, :specialty] ->
+        disposition
+
+      _other ->
+        default_disposition(type)
     end
   end
 
+  defp default_disposition("ping"), do: :terminate_pong
+  defp default_disposition(type) when type in @specialty_types, do: :specialty
+  defp default_disposition(_type), do: :node
+
   def disposition(_other), do: :node
+
+  @doc "Types handled by the P7 specialty adapters instead of raw Node relay."
+  @spec specialty_types() :: [String.t()]
+  def specialty_types, do: @specialty_types
 
   @doc """
   Single source of truth for the P3 world flip (design D6): the world
@@ -97,6 +115,20 @@ defmodule Afterlight.Gateway.Router do
   def chat_phx?, do: chat_owner() == :phoenix
 
   @doc """
+  Single source of truth for the P5 catalog flip: the `iptv_list_get`
+  routing row. `:phoenix` means Afterlight.Catalog owns list pulls,
+  removals, and EPG lookups.
+  """
+  @spec catalog_owner() :: disposition()
+  def catalog_owner do
+    routing_table() |> Map.get("iptv_list_get", :node)
+  end
+
+  @doc "True while the catalog domain is routed to Phoenix."
+  @spec catalog_phx?() :: boolean
+  def catalog_phx?, do: catalog_owner() == :phoenix
+
+  @doc """
   Pure dispatch for a client push: `{:pong, t}` for transport-terminated
   pings, `{:chat, type, payload}` for chat-relay-owned messages,
   `{:world, type, payload}` for world-runtime-owned messages, or
@@ -108,7 +140,10 @@ defmodule Afterlight.Gateway.Router do
     case disposition(type) do
       :terminate_pong -> {:pong, payload_key(payload, "t")}
       :phoenix when type in @chat_types -> {:chat, type, payload || %{}}
+      :phoenix when type in @catalog_types -> {:catalog, type, payload || %{}}
+      :phoenix when type in @theater_types -> {:theater, type, payload || %{}}
       :phoenix -> {:world, type, payload || %{}}
+      :specialty -> {:specialty, type, payload || %{}}
       :node -> {:relay, to_frame(type, payload)}
     end
   end

@@ -128,7 +128,7 @@ class FlatClient {
   _emit(frame) {
     this.frames.push(frame);
     const fns = this.handlers.get(frame.type);
-    if (process.env.DEBUG_FRAMES) process.stderr.write(`[${this.label}] <- ${JSON.stringify(frame).slice(0, 140)}\n`);
+    if (process.env.DEBUG_FRAMES) process.stderr.write(`[${this.label}] <- ${JSON.stringify(frame).slice(0, 400)}\n`);
     if (fns) for (const fn of [...fns]) fn(frame);
     const wild = this.handlers.get('*');
     if (wild) for (const fn of [...wild]) fn(frame);
@@ -226,10 +226,12 @@ function connectNode({ wsBase, guestId, nickname }) {
       resolve(client);
     });
     ws.on('error', (err) => {
+      if (process.env.DEBUG_FRAMES) process.stderr.write(`[node] ## WS ERROR ${err.message}\n`);
       clearTimeout(timer);
       reject(err);
     });
-    ws.on('close', () => {
+    ws.on('close', (code, reason) => {
+      if (process.env.DEBUG_FRAMES) process.stderr.write(`[node] ## CLOSED code=${code} reason=${reason}\n`);
       client.open = false;
     });
     ws.on('message', (raw) => {
@@ -348,8 +350,8 @@ async function ensureServers() {
       env: { ...process.env, PORT: String(CFG.nodePort), HOST: '127.0.0.1', IRC_DISABLED: '1' },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
-    own.node.stdout.on('data', (d) => process.stderr.write(`[node] ${d}`));
-    own.node.stderr.on('data', (d) => process.stderr.write(`[node] ${d}`));
+    own.node.stdout.on('data', (d) => process.stderr.write(`[node-srv] ${d}`));
+    own.node.stderr.on('data', (d) => process.stderr.write(`[node-srv] ${d}`));
     started.push(`Node :${CFG.nodePort} (pid ${own.node.pid}, throwaway data dir)`);
     await waitUntil(() => nodeHealthy(CFG.nodePort), { what: `Node :${CFG.nodePort}` });
   }

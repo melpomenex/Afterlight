@@ -15,7 +15,8 @@ defmodule Afterlight.Social.Supervisor do
   def init(_init_arg) do
     children = [
       {Afterlight.Social.Bridge, [name: Afterlight.Social.Bridge, relay: Afterlight.Social.Relay]},
-      {Afterlight.Social.Relay, [name: Afterlight.Social.Relay, bridge: Afterlight.Social.Bridge]}
+      {Afterlight.Social.Relay, [name: Afterlight.Social.Relay, bridge: Afterlight.Social.Bridge]},
+      {Afterlight.Specialty.IrcBridge, [name: Afterlight.Specialty.IrcBridge]}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

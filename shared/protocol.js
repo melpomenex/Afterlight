@@ -53,6 +53,9 @@
  *   - torrent_state (S→C): { items: [{ infohash, progress, peers,
  *     downloaded, ready }] } — periodic swarm progress while a torrent
  *     item is live or being resolved; clients ignore stale/missing status
+ *   - torrent_grant (S→C): { infohash, fileIndex, grant, expiresAtMs } —
+ *     targeted playback grant for the stream endpoint; Phoenix re-mints
+ *     before expiry while the item stays active for this participant
  *   - Torrent items on the bill are { kind: 'torrent', url: <magnet>,
  *     infohash?, fileIndex, filePath, fileBytes } — the magnet stays
  *     canonical so the bill survives restarts; playback rides the server's
@@ -97,6 +100,7 @@ export const MSG_TYPES = {
   TORRENT_RESOLVE: 'torrent_resolve',
   TORRENT_FILES: 'torrent_files',
   TORRENT_STATE: 'torrent_state',
+  TORRENT_GRANT: 'torrent_grant',
   IPTV_LIST_GET: 'iptv_list_get',
   IPTV_LIST_REMOVE: 'iptv_list_remove',
   EPG_LOOKUP: 'epg_lookup',

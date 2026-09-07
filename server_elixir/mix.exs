@@ -53,12 +53,16 @@ defmodule Afterlight.MixProject do
       {:jason, "~> 1.4"},
       {:telemetry, "~> 1.4"},
       {:telemetry_metrics, "~> 1.1"},
+      {:telemetry_metrics_prometheus_core, "~> 1.2"},
       {:telemetry_poller, "~> 1.3"},
+      {:libcluster, "~> 3.4"},
       # P2 gateway transport: WebSocket CLIENT for the per-session Node
       # "shadow" upstream connection, and the HTTP client behind the
       # /api/health + /api/theater/* reverse proxy.
       {:websockex, "~> 0.4"},
-      {:finch, "~> 0.19"}
+      {:finch, "~> 0.19"},
+      # P5 theater playlist import worker (design D3 — plain Oban, not AshOban).
+      {:oban, "~> 2.18"}
     ]
   end
 end

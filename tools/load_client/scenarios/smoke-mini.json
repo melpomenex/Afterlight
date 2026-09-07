@@ -1,0 +1,11 @@
+{
+  "version": "1",
+  "description": "Minimal smoke — 2 sessions, short soak for CI/dev",
+  "sessions": 2,
+  "rooms": ["market"],
+  "rampMs": 500,
+  "soakMs": 2000,
+  "movementBursts": 3,
+  "consumeHz": 10,
+  "maxUnread": 16
+}

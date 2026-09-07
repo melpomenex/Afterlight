@@ -183,6 +183,7 @@ export function torrentErrorText(reason) {
     case 'metadata_timeout': return 'The torrent\u2019s file list is taking too long to arrive. Try again.';
     case 'file_not_streamable': return 'That file is not something the projector can stream from the torrent.';
     case 'resolve_in_flight': return 'Hold on \u2014 one torrent is still being looked up.';
+    case 'resolve_cooldown': return 'Give the projector a breath \u2014 try that magnet again in a moment.';
     case 'no_file_chosen': return 'Pick a file from the torrent first.';
     default: return 'The torrent reel jams; try that magnet again.';
   }

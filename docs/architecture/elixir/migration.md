@@ -32,6 +32,8 @@ Exit: chosen maintained/owned SFU implementation, pinned compatibility matrix, m
 
 Add room lease/epoch fencing, two or more gateway instances and separately scalable room workers when single-node evidence calls for it. Prove node kill, network partition, DB outage, reconnect storms and rolling drain. Expand to 10,000 synthetic sessions only after a 1,000-session baseline. Add multiple regions later with room home-region affinity; a globally consistent market remains a single-region authority until a distinct economic partition model is designed.
 
+**P9 gate (2026-09-07):** Multi-node room operation is **deferred**. Evidence artifact: [`docs/benchmarks/p10-multi-node-gate.md`](../../benchmarks/p10-multi-node-gate.md). The lease/epoch/drain substrate is landed on the single supported node; `AFTERLIGHT_MULTI_NODE_ROOMS=1` without a recorded justify decision is a deployment error (`Afterlight.World.Gate`).
+
 ## Capacity model: assumptions, not benchmarks
 
 Game scenario: 1,000 sessions / 50 players per room = 20 rooms. At 10 snapshots/second and an assumed 100 bytes per avatar, whole-room fanout is approximately `20 × 50 × 50 × 10 × 100 = 50,000,000 bytes/second`, about 400 Mbit/s server egress before protocol/TLS overhead. At 10,000 sessions with the same room cap, that becomes about 4 Gbit/s. Actual JSON sizes and active-room fractions must be measured. Deltas and interest management reduce work; room-level isolation alone does not eliminate quadratic within-room fanout.

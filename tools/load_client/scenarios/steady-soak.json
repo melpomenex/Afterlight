@@ -1,0 +1,11 @@
+{
+  "version": "1",
+  "description": "One-hour steady soak after ramp (see gradual-ramp for ramp phase)",
+  "sessions": 1000,
+  "rooms": ["market", "theater", "kiln-terrace"],
+  "soakMs": 3600000,
+  "moverRatio": 0.25,
+  "durableCommandsPerClient": 1,
+  "consumeHz": 10,
+  "stopConditions": ["3600s soak complete", "p99 tick < 50ms evaluated"]
+}

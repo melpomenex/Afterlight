@@ -69,9 +69,14 @@ defmodule AfterlightWeb.GameChannel do
   use Phoenix.Channel
   require Logger
 
+  alias Afterlight.Catalog.Gateway, as: CatalogGateway
   alias Afterlight.Gateway.NodeProxy
   alias Afterlight.Gateway.Router
+  alias Afterlight.LogCorrelation
+  alias Afterlight.Specialty.Resolve
+  alias Afterlight.Specialty.TorrentRules
   alias Afterlight.Social
+  alias Afterlight.Theater.Gateway, as: TheaterGateway
   alias Afterlight.World
   alias Afterlight.World.{BinaryFlush, Movement, Rooms}
   alias Afterlight.Realtime.Negotiation
@@ -85,7 +90,7 @@ defmodule AfterlightWeb.GameChannel do
     garden_action market_buy market_sell order_place order_cancel
     contract_complete node_harvest machine_contribute machine_mill
     machine_craft theater_queue theater_control theater_channel
-    theater_playlist_resolve torrent_resolve iptv_list_get iptv_list_remove
+    theater_playlist_resolve iptv_list_get iptv_list_remove
     epg_lookup
   )
 
@@ -105,6 +110,8 @@ defmodule AfterlightWeb.GameChannel do
         {:error, %{reason: "unauthorized"}}
 
       guest_id ->
+        LogCorrelation.put_context(request_id: corr(socket), player_id: guest_id)
+
         with {:ok, proxy_pid} <- start_proxy(socket, guest_id) do
           socket =
             socket
@@ -133,8 +140,25 @@ defmodule AfterlightWeb.GameChannel do
       {:chat, type, payload} ->
         handle_chat(type, payload || %{}, socket)
 
+      {:catalog, type, payload} ->
+        handle_catalog(type, payload || %{}, socket)
+
+      {:theater, type, payload} ->
+        handle_theater(type, payload || %{}, socket)
+
+      {:specialty, type, payload} ->
+        handle_specialty(type, payload || %{}, socket)
+
       {:relay, frame} ->
         relay(frame, socket)
+
+      {:unrouted, type} ->
+        Logger.error(
+          "gateway unrouted game message corr=#{corr(socket)} guest=#{socket.assigns.guest_id} type=#{type}"
+        )
+
+        push(socket, "error", %{"message" => "unrouted"})
+        {:noreply, socket}
     end
   end
 
@@ -188,6 +212,10 @@ defmodule AfterlightWeb.GameChannel do
         # chat domain is flipped (Node shadow frames are suppressed).
         {:noreply, socket}
 
+      event == "torrent_state" ->
+        # Phoenix StatusRelay owns torrent_state while resolve is proxied.
+        {:noreply, socket}
+
       event == "garden_state" ->
         push(socket, "garden_state", fields)
 
@@ -224,6 +252,22 @@ defmodule AfterlightWeb.GameChannel do
     {:stop, :shutdown, assign(socket, world_room: nil, world_room_pid: nil)}
   end
 
+  def handle_info({:theater_playlist_fetch, player_id, {:resolved, payload}}, socket) do
+    if socket.assigns.guest_id == player_id do
+      {:noreply, push(socket, "theater_playlist_resolved", payload)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info({:theater_playlist_fetch, player_id, {:failed, reason}}, socket) do
+    if socket.assigns.guest_id == player_id do
+      {:noreply, push(socket, "error", %{"message" => Afterlight.Theater.error_text(reason)})}
+    else
+      {:noreply, socket}
+    end
+  end
+
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   @impl true
@@ -253,10 +297,11 @@ defmodule AfterlightWeb.GameChannel do
   defp handle_world("join_room", payload, socket) do
     guest_id = socket.assigns.guest_id
     conn = socket.assigns.conn_ref
+    started = System.monotonic_time(:millisecond)
 
     case Rooms.resolve(payload["roomId"]) do
       :error ->
-        push(socket, "error", %{"message" => "room_unavailable"})
+        reject_command("join_room", :room_unavailable, socket)
         {:noreply, socket}
 
       {:ok, room} ->
@@ -272,6 +317,19 @@ defmodule AfterlightWeb.GameChannel do
 
         case World.join(room.wire_id, guest_id, conn, self(), socket.assigns[:nickname], socket.assigns[:world_pose]) do
           {:ok, room_pid, roster} ->
+            duration_ms = System.monotonic_time(:millisecond) - started
+
+            LogCorrelation.put_context(
+              request_id: corr(socket),
+              room: room.wire_id,
+              player_id: guest_id,
+              epoch: World.epoch(room.wire_id)
+            )
+
+            :telemetry.execute([:afterlight, :room, :join, :latency], %{duration_ms: duration_ms}, %{
+              room: room.wire_id
+            })
+
             # 1. roster to the joiner (world presence_join already fanned
             #    out to the room, joiner excluded).
             push(socket, roster["type"], Map.delete(roster, "type"))
@@ -282,11 +340,12 @@ defmodule AfterlightWeb.GameChannel do
               socket
               |> assign(world_room: room, world_room_pid: room_pid)
               |> assign(:world_monitor, Process.monitor(room_pid))
+              |> maybe_subscribe_theater_playlist_fetch(room)
 
             forward(%{"type" => "join_room", "roomId" => room.wire_id}, socket)
 
           {:error, _reason} ->
-            push(socket, "error", %{"message" => "room_unavailable"})
+            reject_command("join_room", :room_unavailable, socket)
             {:noreply, socket}
         end
     end
@@ -335,6 +394,107 @@ defmodule AfterlightWeb.GameChannel do
 
   defp handle_chat(_type, _payload, socket), do: {:noreply, socket}
 
+  ## Catalog dispatch (design D4/D5 — routed when disposition is :phoenix)
+
+  defp handle_catalog(type, payload, socket) do
+    if Router.world_phx?() and not live_member?(socket) do
+      push(socket, "error", %{"message" => "room_unavailable"})
+      {:noreply, socket}
+    else
+      ctx = %{
+        guest_id: socket.assigns.guest_id,
+        world_room: socket.assigns[:world_room]
+      }
+
+      case CatalogGateway.handle(type, payload, ctx) do
+        {:ok, :silent} ->
+          {:noreply, socket}
+
+        {:ok, frame} ->
+          push(socket, frame["type"], Map.delete(frame, "type"))
+          {:noreply, socket}
+
+        {:error, message} ->
+          push(socket, "error", %{"message" => message})
+          {:noreply, socket}
+      end
+    end
+  end
+
+  ## Specialty dispatch (P7 torrent resolve proxy)
+
+  defp handle_specialty("torrent_resolve", payload, socket) do
+    guest_id = socket.assigns.guest_id
+
+    cond do
+      Router.world_phx?() and not live_member?(socket) ->
+        push(socket, "error", %{"message" => "room_unavailable"})
+        {:noreply, socket}
+
+      Router.world_phx?() and not in_theater?(socket) ->
+        push(socket, "error", %{"message" => TorrentRules.error_text("wrong_room")})
+        {:noreply, socket}
+
+      Router.world_phx?() ->
+        push_resolve_result(Resolve.handle(guest_id, payload), socket)
+
+      true ->
+        relay(
+          Map.merge(%{"type" => "torrent_resolve"}, stringify_payload(payload)),
+          socket
+        )
+    end
+  end
+
+  defp handle_specialty(_type, _payload, socket), do: {:noreply, socket}
+
+  defp push_resolve_result({:ok, frame}, socket), do: push_frame(frame, socket)
+  defp push_resolve_result({:error, frame}, socket), do: push_frame(frame, socket)
+
+  defp push_frame(%{"type" => type} = frame, socket) do
+    push(socket, type, Map.delete(frame, "type"))
+    {:noreply, socket}
+  end
+
+  defp stringify_payload(payload) when is_map(payload) do
+    Map.new(payload, fn {k, v} -> {to_string(k), v} end)
+  end
+
+  defp in_theater?(socket) do
+    case socket.assigns[:world_room] do
+      %{wire_id: wire} -> wire == TorrentRules.theater_wire_id()
+      _ -> false
+    end
+  end
+
+  defp maybe_subscribe_theater_playlist_fetch(socket, %{wire_id: wire}) do
+    if wire == TorrentRules.theater_wire_id() do
+      :ok = Phoenix.PubSub.subscribe(Afterlight.PubSub, "theater:playlist_fetch:#{wire}")
+    end
+
+    socket
+  end
+
+  ## Theater dispatch (design D1/D2 — routed when disposition is :phoenix)
+
+  defp handle_theater(type, payload, socket) do
+    ctx = %{
+      guest_id: socket.assigns.guest_id,
+      conn_ref: socket.assigns.conn_ref,
+      nickname: socket.assigns[:nickname],
+      world_room: socket.assigns[:world_room]
+    }
+
+    {:noreply, replies} = TheaterGateway.handle(type, payload, ctx)
+
+    socket =
+      Enum.reduce(replies, socket, fn
+        {event, fields}, sock -> push(sock, event, fields)
+      end)
+
+    {:noreply, socket}
+  end
+
   ## Relay
 
   # Design D3: hello is forwarded only after binding the connection to
@@ -375,9 +535,17 @@ defmodule AfterlightWeb.GameChannel do
   # desiredRoom replay restores membership.
   defp relay(%{"type" => type} = frame, socket) when type in @durable_types do
     if Router.world_phx?() and not live_member?(socket) do
-      push(socket, "error", %{"message" => "room_unavailable"})
+      reject_command(type, :room_unavailable, socket)
       {:noreply, socket}
     else
+      LogCorrelation.put_context(
+        request_id: frame["requestId"] || frame["request_id"] || corr(socket),
+        room: room_wire(socket),
+        player_id: socket.assigns.guest_id,
+        revision: frame["expectedRevision"] || frame["expected_revision"],
+        epoch: frame["epoch"] || World.epoch(room_wire(socket))
+      )
+
       forward(frame, socket)
     end
   end
@@ -469,6 +637,36 @@ defmodule AfterlightWeb.GameChannel do
   ## Internals
 
   defp corr(socket), do: socket.assigns[:correlation_id] || "ga-unknown"
+
+  defp reject_command(type, reason, socket, opts \\ []) do
+    :telemetry.execute([:afterlight, :durable, :command, :rejected], %{count: 1}, %{
+      type: type,
+      reason: reason
+    })
+
+    message =
+      case reason do
+        :lease_lost -> "lease_lost"
+        _ -> "room_unavailable"
+      end
+
+    payload = %{"message" => message}
+
+    payload =
+      case Keyword.get(opts, :epoch) do
+        nil -> payload
+        epoch -> Map.put(payload, "epoch", epoch)
+      end
+
+    push(socket, "error", payload)
+  end
+
+  defp room_wire(socket) do
+    case socket.assigns[:world_room] do
+      %{wire_id: wire} -> wire
+      _ -> nil
+    end
+  end
 
   defp start_proxy(socket, guest_id) do
     opts = [

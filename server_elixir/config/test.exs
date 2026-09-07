@@ -3,7 +3,12 @@ import Config
 
 config :afterlight,
   parity_fixtures_path: "../tests/fixtures/parity",
-  ecto_repos: [Afterlight.Repo]
+  ecto_repos: [Afterlight.Repo],
+  telemetry_enabled: true,
+  conferencing_enabled: false,
+  # Set BEFORELIGHT_OBS_TEST=1 to skip economy/theater domain supervisors when
+  # running observability-only tests against a partial migration DB.
+  start_domain_supervisors: System.get_env("BEFORELIGHT_OBS_TEST") != "1"
 
 config :afterlight, Afterlight.Repo,
   url: System.get_env("DATABASE_URL") || "ecto://afterlight@127.0.0.1:5433/afterlight_test",
@@ -51,3 +56,17 @@ config :afterlight, :accounts,
   claim_window_grace_ms: 2_592_000_000,
   reaper_interval_ms: 86_400_000,
   outbox_interval_ms: 86_400_000
+
+config :afterlight, Oban, testing: :inline
+config :afterlight, :enable_oban, false
+config :afterlight, :start_domain_supervisors, false
+
+config :afterlight, :world,
+  lease_fencing: false,
+  multi_node_enabled: false
+
+config :afterlight, :specialty,
+  resolve_cooldown_ms: 100,
+  resolve_global_cap: 8,
+  resolve_timeout_ms: 5_000,
+  status_interval_ms: 2_000

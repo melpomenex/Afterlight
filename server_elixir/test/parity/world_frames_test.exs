@@ -42,7 +42,7 @@ defmodule WorldFramesTest do
   test "flush frame entries are exactly the Node baseline flush shape" do
     frame = Frames.flush([member(session())], 0)
 
-    assert frame == %{"type" => "presence_update", "players" => [flush_entry()]}
+    assert frame == %{"type" => "presence_update", "players" => [flush_entry()], "epoch" => 0}
 
     # Byte-level: the frame JSON carries no internal fields, and a decode
     # round-trip reproduces the frame exactly (string-keyed, decode-equal).
@@ -55,7 +55,7 @@ defmodule WorldFramesTest do
   test "join roster entries are exactly the Node baseline join shape" do
     frame = Frames.join_roster([member(session())])
 
-    assert frame == %{"type" => "presence_update", "players" => [roster_entry()]}
+    assert frame == %{"type" => "presence_update", "players" => [roster_entry()], "epoch" => 0}
 
     json = Jason.encode!(frame)
     assert Jason.decode!(json) == frame
@@ -65,7 +65,7 @@ defmodule WorldFramesTest do
   test "presence_join carries the join shape under :player" do
     frame = Frames.presence_join(member(session()))
 
-    assert frame == %{"type" => "presence_join", "player" => roster_entry()}
+    assert frame == %{"type" => "presence_join", "player" => roster_entry(), "epoch" => 0}
   end
 
   # The shape asymmetry is pinned by exact equality above; assert the field

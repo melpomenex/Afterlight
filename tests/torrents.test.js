@@ -4,9 +4,15 @@ import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createServer } from '../server/index.js';
+import { createServer, resolveTorrentGrantConfig } from '../server/index.js';
 import { TorrentManager, parseRange } from '../server/torrents.js';
 import { Storage } from '../server/storage.js';
+import {
+  mintTorrentGrant,
+  verifyTorrentGrant,
+  redactGrantQuery,
+  TORRENT_GRANT_TTL_SECS,
+} from '../shared/torrentGrant.js';
 import {
   applyTheaterAction,
   classifySource,
@@ -27,10 +33,54 @@ import {
 const T0 = 1_700_000_000_000;
 const HEX = '08ada5a7a6183aae1e09d831df6748d566095a10';
 const MAGNET = `magnet:?xt=urn:btih:${HEX}&dn=Sintel&tr=udp%3A%2F%2Fexplodie.org%3A6969`;
+const TEST_GRANT_SECRET = 'test-torrent-grant-secret-000000000000000000';
 
 function tempDir(label) {
   return fs.mkdtempSync(path.join(os.tmpdir(), `afterlight-torrent-${label}-`));
 }
+
+// --- Playback grant validation ---
+
+test('verifyTorrentGrant accepts valid grants and rejects tampered/expired/wrong-file tokens', () => {
+  const nowMs = Date.now();
+  const nowSec = Math.floor(nowMs / 1000);
+  const { grant } = mintTorrentGrant('player_a', HEX, 0, { secret: TEST_GRANT_SECRET, nowMs });
+  assert.equal(verifyTorrentGrant(grant, HEX, 0, [TEST_GRANT_SECRET], nowSec + 60).ok, true);
+
+  const [payload] = grant.split('.');
+  assert.equal(verifyTorrentGrant(`${payload}.badsig`, HEX, 0, [TEST_GRANT_SECRET], nowSec).ok, false);
+
+  const expired = mintTorrentGrant('player_a', HEX, 0, {
+    secret: TEST_GRANT_SECRET,
+    nowMs: nowMs - (TORRENT_GRANT_TTL_SECS + 120) * 1000,
+  });
+  assert.equal(verifyTorrentGrant(expired.grant, HEX, 0, [TEST_GRANT_SECRET], nowSec).reason, 'expired');
+
+  const wrongIndex = mintTorrentGrant('player_a', HEX, 0, { secret: TEST_GRANT_SECRET, nowMs });
+  assert.equal(verifyTorrentGrant(wrongIndex.grant, HEX, 1, [TEST_GRANT_SECRET], nowSec).reason, 'wrong_file');
+
+  const otherHash = mintTorrentGrant('player_a', 'f'.repeat(40), 0, { secret: TEST_GRANT_SECRET, nowMs });
+  assert.equal(verifyTorrentGrant(otherHash.grant, HEX, 0, [TEST_GRANT_SECRET], nowSec).reason, 'wrong_file');
+});
+
+test('redactGrantQuery hides grant values for logging', () => {
+  const redacted = redactGrantQuery(`/api/theater/torrent/${HEX}/0?grant=secret-token-value`);
+  assert.match(redacted, /grant=\[redacted\]/);
+  assert.doesNotMatch(redacted, /secret-token-value/);
+});
+
+test('resolveTorrentGrantConfig refuses production boot with grants disabled', () => {
+  const prev = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+  try {
+    assert.throws(
+      () => resolveTorrentGrantConfig({ grantsRequired: false, loopbackDev: true }),
+      /cannot be disabled in production/,
+    );
+  } finally {
+    process.env.NODE_ENV = prev;
+  }
+});
 
 // --- Magnet parsing ---
 
@@ -400,6 +450,36 @@ test('TorrentManager enforces the cache cap, evicting least-recently-served firs
   assert.ok(fs.existsSync(path.join(cacheDir, d)), 'the playing torrent is never evicted');
 });
 
+test('setExemptInfohashes keeps bill torrents off the reap list', async () => {
+  const dir = tempDir('exempt-push');
+  const fixture = path.join(dir, 'fixture.bin');
+  fs.writeFileSync(fixture, 'x');
+  const torrents = fakeTorrentManager(path.join(dir, 'data'), fixture);
+  await torrents.resolve(MAGNET);
+  const entry = torrents.entries.get(HEX);
+  assert.ok(entry.torrent);
+
+  torrents.setExemptInfohashes([HEX]);
+  const afterIdle = Date.now() + TORRENT_LIMITS.IDLE_REAP_MS + 1000;
+  await torrents.tick([], afterIdle);
+  assert.ok(entry.torrent, 'exempt infohash survives reap');
+
+  torrents.setExemptInfohashes([]);
+  await torrents.tick([], afterIdle);
+  assert.equal(entry.torrent, null, 'clearing exempt list allows reap again');
+});
+
+test('setExemptInfohashes replaces the advisory exempt set', () => {
+  const torrents = new TorrentManager({ dataDir: tempDir('exempt-set') });
+  const a = 'a'.repeat(40);
+  const b = 'b'.repeat(40);
+  torrents.setExemptInfohashes([a]);
+  assert.ok(torrents.exemptInfohashes.has(a));
+  torrents.setExemptInfohashes([b]);
+  assert.ok(!torrents.exemptInfohashes.has(a));
+  assert.ok(torrents.exemptInfohashes.has(b));
+});
+
 test('TorrentManager answers engine_unavailable when webtorrent cannot load', async () => {
   const broken = new TorrentManager({
     dataDir: tempDir('broken'),
@@ -453,7 +533,7 @@ test('TorrentManager sweeps malformed cache directories at startup', () => {
 
 // --- HTTP endpoint integration (real server, stub engine) ---
 
-test('GET /api/theater/torrent streams ranged bytes over HTTP', async () => {
+test('GET /api/theater/torrent streams ranged bytes over HTTP with a valid grant', async () => {
   const dir = tempDir('http');
   const fixture = path.join(dir, 'fixture.bin');
   fs.writeFileSync(fixture, '0123456789ab'); // exactly the metadata length (12)
@@ -462,29 +542,69 @@ test('GET /api/theater/torrent streams ranged bytes over HTTP', async () => {
   const { server } = createServer(new Storage(path.join(dir, 'state.json')), {
     dataDir: path.join(dir, 'data'),
     torrents,
+    grantsRequired: true,
+    grantSecrets: [TEST_GRANT_SECRET],
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
+  const { grant } = mintTorrentGrant('player_a', HEX, 0, { secret: TEST_GRANT_SECRET });
+  const withGrant = () => `${base}/api/theater/torrent/${HEX}/0?grant=${encodeURIComponent(grant)}`;
   try {
-    const full = await fetch(`${base}/api/theater/torrent/${HEX}/0`);
+    assert.equal((await fetch(`${base}/api/theater/torrent/${HEX}/0`)).status, 403, 'no grant');
+
+    const wrongFile = mintTorrentGrant('player_a', HEX, 1, { secret: TEST_GRANT_SECRET });
+    assert.equal(
+      (await fetch(`${base}/api/theater/torrent/${HEX}/0?grant=${encodeURIComponent(wrongFile.grant)}`)).status,
+      403,
+      'wrong-file grant',
+    );
+
+    const full = await fetch(withGrant());
     assert.equal(full.status, 200);
     assert.equal(full.headers.get('accept-ranges'), 'bytes');
     assert.equal(full.headers.get('content-type'), 'video/mp4');
-    assert.equal(await full.text(), "0123456789ab");
+    assert.equal(await full.text(), '0123456789ab');
 
-    const part = await fetch(`${base}/api/theater/torrent/${HEX}/0`, { headers: { Range: 'bytes=2-5' } });
+    const part = await fetch(withGrant(), { headers: { Range: 'bytes=2-5' } });
     assert.equal(part.status, 206);
     assert.equal(part.headers.get('content-range'), 'bytes 2-5/12');
     assert.equal(await part.text(), '2345');
 
-    const missing = await fetch(`${base}/api/theater/torrent/${HEX}/1`);
-    assert.equal(missing.status, 404, 'non-video index refused over HTTP');
-    const junk = await fetch(`${base}/api/theater/torrent/nothash/0`);
-    assert.equal(junk.status, 404);
+    const missingGrant = mintTorrentGrant('player_a', HEX, 1, { secret: TEST_GRANT_SECRET });
+    assert.equal(
+      (await fetch(`${base}/api/theater/torrent/${HEX}/1?grant=${encodeURIComponent(missingGrant.grant)}`)).status,
+      404,
+      'non-video index refused over HTTP',
+    );
+    const junk = await fetch(`${base}/api/theater/torrent/nothash/0?grant=${encodeURIComponent(grant)}`);
+    assert.equal(junk.status, 403, 'grant must match URL infohash');
 
-    const head = await fetch(`${base}/api/theater/torrent/${HEX}/0`, { method: 'HEAD' });
+    const head = await fetch(withGrant(), { method: 'HEAD' });
     assert.equal(head.status, 200);
     assert.equal(head.headers.get('content-length'), '12');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('loopback dev may stream without grants when explicitly configured', async () => {
+  const dir = tempDir('http-open');
+  const fixture = path.join(dir, 'fixture.bin');
+  fs.writeFileSync(fixture, '0123456789ab');
+  const torrents = fakeTorrentManager(path.join(dir, 'data'), fixture);
+  await torrents.resolve(MAGNET);
+  const { server } = createServer(new Storage(path.join(dir, 'state.json')), {
+    dataDir: path.join(dir, 'data'),
+    torrents,
+    grantsRequired: false,
+    loopbackDev: true,
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const res = await fetch(`${base}/api/theater/torrent/${HEX}/0`);
+    assert.equal(res.status, 200);
+    assert.equal(await res.text(), '0123456789ab');
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

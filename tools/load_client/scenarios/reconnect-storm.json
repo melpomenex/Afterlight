@@ -1,0 +1,12 @@
+{
+  "version": "1",
+  "description": "Coordinated reconnect storm with jitter",
+  "sessions": 50,
+  "rooms": ["market"],
+  "rampMs": 5000,
+  "reconnectStorm": true,
+  "reconnectCount": 50,
+  "reconnectJitterMs": 150,
+  "soakMs": 30000,
+  "movementBursts": 2
+}

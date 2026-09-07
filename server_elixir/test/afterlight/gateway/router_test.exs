@@ -28,7 +28,46 @@ defmodule Afterlight.Gateway.RouterTest do
     "emote" => :phoenix
   }
 
+  describe "disposition/1 — P11 unrouted default (remove-node-server-authority)" do
+    test "unknown types are unrouted — no silent Node fallback" do
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
+          assert Router.disposition("hologram_deparse") == :unrouted
+          assert Router.disposition("") == :unrouted
+          :ok
+        end)
+    end
+
+    test "non-binary input is unrouted" do
+      assert Router.disposition(nil) == :unrouted
+      assert Router.disposition(:hello) == :unrouted
+    end
+
+    test "transitional relay types stay :node when not flipped" do
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
+          for type <- Router.node_relay_types() do
+            assert Router.disposition(type) == :node, "expected #{type} => :node relay"
+          end
+
+          :ok
+        end)
+    end
+  end
+
   describe "disposition/1 — the P2 table (design D4)" do
+    test "every catalog game type is either phoenix, node relay, or unrouted — never silent default" do
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
+          for type <- @catalog_types -- ["ping"] do
+            d = Router.disposition(type)
+            assert d in [:node, :phoenix, :unrouted], "expected explicit disposition for #{type}, got #{d}"
+          end
+
+          :ok
+        end)
+    end
+
     test "ping is terminated at the gateway" do
       :ok =
         GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
@@ -37,29 +76,15 @@ defmodule Afterlight.Gateway.RouterTest do
         end)
     end
 
-    test "every game domain is relayed to Node while the rows are :node" do
+    test "dormant world and chat rows relay to Node sidecar" do
       :ok =
         GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
-          for type <- @catalog_types -- ["ping"] do
-            assert Router.disposition(type) == :node, "expected #{type} => :node"
+          for type <- ~w(join_room movement emote chat_send) do
+            assert Router.disposition(type) == :node, "expected dormant #{type} => :node"
           end
 
           :ok
         end)
-    end
-
-    test "unknown types default to :node (Node ignores unknown types)" do
-      :ok =
-        GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
-          assert Router.disposition("hologram_deparse") == :node
-          assert Router.disposition("") == :node
-          :ok
-        end)
-    end
-
-    test "non-binary input defaults to :node" do
-      assert Router.disposition(nil) == :node
-      assert Router.disposition(:hello) == :node
     end
   end
 
@@ -79,6 +104,12 @@ defmodule Afterlight.Gateway.RouterTest do
             :ok
           end
         )
+    end
+
+    test "torrent_resolve routes to the specialty adapter by default" do
+      assert Router.disposition("torrent_resolve") == :specialty
+      assert {:specialty, "torrent_resolve", %{"magnet" => "x"}} =
+               Router.dispatch("torrent_resolve", %{"magnet" => "x"})
     end
 
     test "world rows default to :node in the base config (runtime dormant)" do
@@ -188,28 +219,54 @@ defmodule Afterlight.Gateway.RouterTest do
         end)
     end
 
-    test "relay dispatch rebuilds the flat Node frame with string keys" do
-      assert {:relay, frame} =
-               Router.dispatch("movement", %{"x" => 1.5, "z" => -2.0, "walking" => true})
+    test "unrouted types fail dispatch loudly (P11)" do
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
+          assert {:unrouted, "hologram_deparse"} =
+                   Router.dispatch("hologram_deparse", %{})
 
-      assert frame == %{"type" => "movement", "x" => 1.5, "z" => -2.0, "walking" => true}
+          :ok
+        end)
+    end
+
+    test "relay dispatch rebuilds the flat Node frame with string keys" do
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
+          assert {:relay, frame} =
+                   Router.dispatch("movement", %{"x" => 1.5, "z" => -2.0, "walking" => true})
+
+          assert frame == %{"type" => "movement", "x" => 1.5, "z" => -2.0, "walking" => true}
+          :ok
+        end)
     end
 
     test "relay dispatch normalizes atom keys and drops nothing" do
-      assert {:relay, frame} = Router.dispatch("join_room", %{roomId: "garden:guest_abc"})
-      assert frame == %{"type" => "join_room", "roomId" => "garden:guest_abc"}
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
+          assert {:relay, frame} = Router.dispatch("join_room", %{roomId: "garden:guest_abc"})
+          assert frame == %{"type" => "join_room", "roomId" => "garden:guest_abc"}
+          :ok
+        end)
     end
 
     test "relay dispatch handles nested payloads" do
-      payload = %{"nested" => %{"deep" => [%{"k" => 1}]}, "plain" => 2}
-      assert {:relay, frame} = Router.dispatch("hello", payload)
-      assert frame["nested"] == %{"deep" => [%{"k" => 1}]}
-      assert frame["type"] == "hello"
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
+          payload = %{"nested" => %{"deep" => [%{"k" => 1}]}, "plain" => 2}
+          assert {:relay, frame} = Router.dispatch("hello", payload)
+          assert frame["nested"] == %{"deep" => [%{"k" => 1}]}
+          assert frame["type"] == "hello"
+          :ok
+        end)
     end
 
     test "relay dispatch with a non-map payload produces a bare typed frame" do
-      assert {:relay, frame} = Router.dispatch("join_room", nil)
-      assert frame == %{"type" => "join_room"}
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
+          assert {:relay, frame} = Router.dispatch("join_room", nil)
+          assert frame == %{"type" => "join_room"}
+          :ok
+        end)
     end
   end
 end

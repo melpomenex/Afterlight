@@ -1,6 +1,8 @@
 # Afterlight protocol & persistence catalog (Node baseline, 2026-09-06)
 
-Complete inventory of the current Node backend (`server/index.js` + managers) as captured by the migration audit. This is the compatibility target: the Phoenix gateway must reproduce these semantics behind the existing `NetworkClient` interface unless a change explicitly modifies them. Wire format today: flat JSON text frames `{type, ...fields}` (`shared/protocol.js:152-162`); malformed JSON parses to `null` and is dropped.
+> **Historical baseline.** Sections 1–4 describe the pre-migration Node server semantics preserved as the parity target. Post-P11 routing lives in `Afterlight.Gateway.Router` (`:phoenix` / transitional `:node` relay / `:unrouted` loud failure). See `ownership.md` §5 and `openspec/changes/remove-node-server-authority/evidence/`.
+
+Complete inventory of the current Node backend (`server/index.js` + managers) as captured by the migration audit.
 
 Related: `ownership.md` (who owns what), `parity-notes.md` (porting hazards).
 

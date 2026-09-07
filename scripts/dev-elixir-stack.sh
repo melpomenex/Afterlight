@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Boot the Elixir gateway dev stack: Node shadow (:3001) + Phoenix (:4000) + Vite (:5173).
+# Boot the post-P11 dev stack: Node specialty sidecar (:3001) + Phoenix gateway (:4000) + Vite (:5173).
+# Node is NOT game authority — it serves torrent/IRC HTTP, theater uploads, and transitional WS relay
+# for domains not yet handled in Phoenix (see Gateway.Router @node_relay_types).
 # Requires: npm deps, mix deps, Postgres on localhost:5433 (see server_elixir/README.md).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -17,7 +19,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo "→ Node shadow server (port 3001)…"
+echo "→ Node specialty sidecar (port 3001 — torrent/IRC HTTP + transitional relay)…"
 npm run server &
 NODE_PID=$!
 

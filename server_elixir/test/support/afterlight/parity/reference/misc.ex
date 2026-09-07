@@ -78,6 +78,8 @@ defmodule Afterlight.Parity.Reference.Misc do
 
   alias Afterlight.Accounts.ReducerSupport
   alias Afterlight.Parity.Hazards
+  alias Afterlight.Restoration.Machines
+  alias Afterlight.Restoration.Nodes
 
   @t0 1_700_000_000_000
 
@@ -91,33 +93,6 @@ defmodule Afterlight.Parity.Reference.Misc do
     %{"coat" => "#806835", "apron" => "#ccc4a7", "hat" => "#544320", "boots" => "#2e2411"},
     %{"coat" => "#445e38", "apron" => "#b8b498", "hat" => "#314427", "boots" => "#1f2b18"}
   ]
-
-  ## -- server/nodes.js + shared/materials.js ---------------------------------
-
-  @material_nodes [
-    %{id: "foundry_copper_1", district: "foundry", material: "copper", respawn_ms: 180_000},
-    %{id: "foundry_copper_2", district: "foundry", material: "copper", respawn_ms: 180_000},
-    %{id: "foundry_copper_3", district: "foundry", material: "copper", respawn_ms: 180_000},
-    %{id: "trestle_timber_1", district: "trestle", material: "timber", respawn_ms: 180_000},
-    %{id: "trestle_timber_2", district: "trestle", material: "timber", respawn_ms: 180_000},
-    %{id: "trestle_timber_3", district: "trestle", material: "timber", respawn_ms: 180_000},
-    %{id: "glasshouse_glass_1", district: "frost-spire", material: "glass", respawn_ms: 180_000},
-    %{id: "glasshouse_glass_2", district: "frost-spire", material: "glass", respawn_ms: 180_000},
-    %{id: "glasshouse_glass_3", district: "frost-spire", material: "glass", respawn_ms: 180_000}
-  ]
-
-  ## -- server/machines.js + shared/materials.js -------------------------------
-
-  # MILL_REQUIREMENT key order; milling consumes the lowest grade first.
-  @material_ids ["copper", "timber", "glass"]
-  @quality_order ["C", "B", "A", "A+"]
-  @sprinkler_cost [{"copper", 2}, {"glass", 2}]
-  @flour %{
-    "id" => "flour",
-    "name" => "Stone-Ground Flour",
-    "tagline" => "Fine milled flour from the Great Mill. Bakers pay a premium.",
-    "basePrice" => 14
-  }
 
   ## -- server/youtubePlaylist.js ---------------------------------------------
 
@@ -138,71 +113,68 @@ defmodule Afterlight.Parity.Reference.Misc do
   def run_case_fn("generatePlayerPalette", [id], _now_ms), do: generate_player_palette(id)
 
   def run_case_fn("newNodesManager", [], _now_ms) do
-    state = %{"storage" => %{"state" => %{"nodes" => %{}}}, "depletions" => %{}}
+    state = Nodes.fresh_state()
     Process.put({__MODULE__, :state_key}, :nodes_mgr)
     Process.put({__MODULE__, :nodes_mgr}, state)
     state
   end
 
   def run_case_fn("nodesHarvest", [mgr_arg, node_id, now], _now_ms) do
-    {result, state} = nodes_harvest(resolve_nodes_mgr(mgr_arg), node_id, now)
+    {state, result} = Nodes.harvest(resolve_nodes_mgr(mgr_arg), node_id, now)
     store_nodes_mgr(state)
     result
   end
 
   def run_case_fn("nodesIsDepleted", [mgr_arg, node_id, now], _now_ms) do
     state = resolve_nodes_mgr(mgr_arg)
-    %{"depleted" => nodes_depleted?(state, node_id, now)}
+    %{"depleted" => Nodes.is_depleted?(state, node_id, now)}
   end
 
   def run_case_fn("nodesReap", [mgr_arg, at], _now_ms) do
     state = resolve_nodes_mgr(mgr_arg)
-    depletions = nodes_reap_expired(state, at)
+    depletions = Nodes.reap_expired(state, at)["depletions"]
     state = store_nodes_depletions(state, depletions)
     store_nodes_mgr(state)
     %{"nodes" => depletions}
   end
 
   def run_case_fn("nodesDistrictStates", [mgr_arg], _now_ms) do
-    # JS: mgr.harvest('trestle_timber_cache', T0); then getStatesForDistrict.
-    {_, state} = nodes_harvest(resolve_nodes_mgr(mgr_arg), "trestle_timber_cache", @t0)
+    {state, _} = Nodes.harvest(resolve_nodes_mgr(mgr_arg), "trestle_timber_cache", @t0)
     store_nodes_mgr(state)
-    nodes_states_for_district(state, "trestle", @t0 + 1000)
+    Nodes.states_for_district(state, "trestle", @t0 + 1000)
   end
 
   def run_case_fn("newMachinesManager", [], _now_ms) do
-    mill = default_mill()
-    state = %{"storage" => %{"state" => %{"machines" => %{"mill" => mill}}}, "mill" => mill}
+    state = Machines.fresh_state()
     Process.put({__MODULE__, :state_key}, :machines_mgr)
     Process.put({__MODULE__, :machines_mgr}, state)
     state
   end
 
   def run_case_fn("millContribute", [mgr_arg, player, material, quantity], _now_ms) do
-    # JS wrapper pins the clock: mgr.contribute(p, material, quantity, T0)
-    {result, state} = machines_contribute(resolve_machines_mgr(mgr_arg), player, material, quantity, @t0)
+    {state, result} = Machines.contribute(resolve_machines_mgr(mgr_arg), player, material, quantity, @t0)
     store_machines_mgr(state)
     result
   end
 
   def run_case_fn("millWheat", [mgr_arg, player, quantity], _now_ms) do
-    {result, state} = machines_mill_wheat(resolve_machines_mgr(mgr_arg), player, quantity)
+    {state, result} = Machines.mill_wheat(resolve_machines_mgr(mgr_arg), player, quantity)
     store_machines_mgr(state)
     result
   end
 
   def run_case_fn("millCraft", [mgr_arg, player, fixture], _now_ms) do
-    {result, state} = machines_craft(resolve_machines_mgr(mgr_arg), player, fixture)
+    {state, result} = Machines.craft(resolve_machines_mgr(mgr_arg), player, fixture)
     store_machines_mgr(state)
     result
   end
 
   def run_case_fn("millSnapshot", [mgr_arg], _now_ms) do
-    resolve_machines_mgr(mgr_arg)["mill"]
+    Machines.snapshot(resolve_machines_mgr(mgr_arg)["mill"])
   end
 
   def run_case_fn("isMillRestoredInState", [state], _now_ms) do
-    get_in(state || %{}, ["machines", "mill", "status"]) == "restored"
+    Machines.mill_restored_in_state?(state)
   end
 
   def run_case_fn("extractPlaylistVideos", [html], _now_ms), do: extract_playlist_videos(html)
@@ -259,281 +231,11 @@ defmodule Afterlight.Parity.Reference.Misc do
 
   defp utf16_hash31(<<>>, acc), do: acc
 
-  ## -- server/nodes.js ---------------------------------------------------------
-
-  defp node_def(id), do: Enum.find(@material_nodes, &(&1.id == id))
-
-  defp nodes_depleted?(state, node_id, now) do
-    case node_def(node_id) do
-      nil ->
-        false
-
-      def ->
-        case state["depletions"][node_id] do
-          nil -> false
-          depleted_at -> now < depleted_at + def.respawn_ms
-        end
-    end
-  end
-
-  defp nodes_respawn_at(state, node_id) do
-    case node_def(node_id) do
-      nil -> nil
-      def -> case state["depletions"][node_id] do
-        nil -> nil
-        depleted_at -> depleted_at + def.respawn_ms
-      end
-    end
-  end
-
-  defp nodes_harvest(state, node_id, now) do
-    case node_def(node_id) do
-      nil ->
-        {%{"success" => false, "reason" => "unknown_node"}, state}
-
-      def ->
-        if nodes_depleted?(state, node_id, now) do
-          {%{
-             "success" => false,
-             "reason" => "node_depleted",
-             "respawnAt" => nodes_respawn_at(state, node_id)
-           }, state}
-        else
-          depletions = Map.put(state["depletions"], node_id, now)
-          state = store_nodes_depletions(state, depletions)
-
-          {%{
-             "success" => true,
-             "nodeId" => def.id,
-             "material" => def.material,
-             "district" => def.district
-           }, state}
-        end
-    end
-  end
-
-  defp nodes_reap_expired(state, now) do
-    state["depletions"]
-    |> Enum.reduce(state["depletions"], fn {node_id, depleted_at}, acc ->
-      def = node_def(node_id)
-
-      # JS: !def || depletedAt === undefined || now >= depletedAt + respawnMs
-      # (null depletions coerce to 0 in the JS sum).
-      if def == nil or now >= (depleted_at || 0) + def.respawn_ms do
-        Map.delete(acc, node_id)
-      else
-        acc
-      end
-    end)
-  end
-
-  defp nodes_states_for_district(state, district, now) do
-    defs = Enum.filter(@material_nodes, &(&1.district == district))
-
-    if defs == [] do
-      nil
-    else
-      depletions = nodes_reap_expired(state, now)
-      state = store_nodes_depletions(state, depletions)
-
-      Enum.map(defs, fn def ->
-        depleted = nodes_depleted?(state, def.id, now)
-
-        %{
-          "nodeId" => def.id,
-          "material" => def.material,
-          "available" => not depleted,
-          "depletedAt" => if(depleted, do: state["depletions"][def.id], else: nil),
-          "respawnAt" => nodes_respawn_at(state, def.id)
-        }
-      end)
-    end
-  end
-
   defp store_nodes_depletions(state, depletions) do
     state
     |> put_in(["storage", "state", "nodes"], depletions)
     |> Map.put("depletions", depletions)
   end
-
-  ## -- server/machines.js -------------------------------------------------------
-
-  defp default_mill do
-    %{
-      "status" => "broken",
-      "required" => %{"copper" => 4, "timber" => 4, "glass" => 4},
-      "contributed" => %{"copper" => 0, "timber" => 0, "glass" => 0},
-      "restoredAt" => nil
-    }
-  end
-
-  defp machines_contribute(state, player, material, quantity, now) do
-    mill = state["mill"]
-
-    cond do
-      mill["status"] != "broken" ->
-        {%{"success" => false, "reason" => "mill_already_restored"}, state}
-
-      not Map.has_key?(mill["required"], material) ->
-        {%{"success" => false, "reason" => "material_not_needed"}, state}
-
-      true ->
-        case js_number(quantity) do
-          :nan ->
-            {%{"success" => false, "reason" => "invalid_quantity"}, state}
-
-          n ->
-            requested = js_floor(n)
-
-            if requested <= 0 do
-              {%{"success" => false, "reason" => "invalid_quantity"}, state}
-            else
-              held = js_held(player, material)
-              remaining = remaining_need(mill, material)
-
-              cond do
-                remaining <= 0 ->
-                  {%{"success" => false, "reason" => "material_fulfilled"}, state}
-
-                held <= 0 ->
-                  {%{"success" => false, "reason" => "insufficient_materials"}, state}
-
-                true ->
-                  applied = Enum.min([requested, held, remaining])
-                  mill = put_in(mill, ["contributed", material], mill["contributed"][material] + applied)
-
-                  {restored, mill} =
-                    if Enum.all?(@material_ids, &(remaining_need(mill, &1) <= 0)) do
-                      {true,
-                       mill
-                       |> Map.put("status", "restored")
-                       |> Map.put("restoredAt", now)}
-                    else
-                      {false, mill}
-                    end
-
-                  state = store_mill(state, mill)
-
-                  {%{
-                     "success" => true,
-                     "material" => material,
-                     "applied" => applied,
-                     "restored" => restored,
-                     "machine" => %{"mill" => machine_snapshot(mill)}
-                   }, state}
-                end
-            end
-        end
-    end
-  end
-
-  defp remaining_need(mill, material) do
-    required = mill["required"][material]
-
-    if is_number(required) do
-      max(0, required - (mill["contributed"][material] || 0))
-    else
-      0
-    end
-  end
-
-  defp machine_snapshot(mill) do
-    %{
-      "status" => mill["status"],
-      "required" => mill["required"],
-      "contributed" => mill["contributed"],
-      "restoredAt" => mill["restoredAt"]
-    }
-  end
-
-  defp machines_mill_wheat(state, player, quantity) do
-    mill = state["mill"]
-
-    if mill["status"] != "restored" do
-      {%{"success" => false, "reason" => "mill_broken"}, state}
-    else
-      case js_number(quantity) do
-        :nan ->
-          {%{"success" => false, "reason" => "invalid_quantity"}, state}
-
-        n ->
-          requested = js_floor(n)
-
-          if requested <= 0 do
-            {%{"success" => false, "reason" => "invalid_quantity"}, state}
-          else
-            produce =
-              case get_in(player || %{}, ["inventory", "produce"]) do
-                %{} = produce -> produce
-                _ -> nil
-              end
-
-            if produce == nil do
-              {%{"success" => false, "reason" => "no_wheat"}, state}
-            else
-              available =
-                Enum.sum(Enum.map(@quality_order, &Map.get(produce, "wheat_#{&1}", 0)))
-
-              if available <= 0 do
-                {%{"success" => false, "reason" => "no_wheat"}, state}
-              else
-                milled = min(requested, available)
-
-                produce =
-                  Enum.reduce(@quality_order, {produce, milled}, fn quality, {produce, left} ->
-                    if left <= 0 do
-                      {produce, 0}
-                    else
-                      key = "wheat_#{quality}"
-                      have = Map.get(produce, key, 0)
-                      take = min(have, left)
-
-                      if take <= 0 do
-                        {produce, left}
-                      else
-                        left_after = have - take
-                        produce = if left_after <= 0, do: Map.delete(produce, key), else: Map.put(produce, key, left_after)
-                        {produce, left - take}
-                      end
-                    end
-                  end)
-                  |> elem(0)
-
-                produce = Map.put(produce, "flour_B", Map.get(produce, "flour_B", 0) + milled)
-                state = store_inventory_produce(state, player, produce)
-
-                {%{"success" => true, "milled" => milled, "good" => @flour}, state}
-              end
-            end
-          end
-      end
-    end
-  end
-
-  defp machines_craft(state, player, fixture) do
-    if fixture != "sprinkler" do
-      {%{"success" => false, "reason" => "unknown_fixture"}, state}
-    else
-      materials = Map.get(player || %{}, "materials") || %{}
-
-      failure =
-        Enum.find(@sprinkler_cost, fn {material, cost} ->
-          js_held(%{"materials" => materials}, material) < cost
-        end)
-
-      case failure do
-        {material, _cost} ->
-          {%{"success" => false, "reason" => "insufficient_materials", "material" => material}, state}
-
-        nil ->
-          {%{"success" => true, "fixture" => "sprinkler", "name" => "Garden Sprinkler"}, state}
-      end
-    end
-  end
-
-  # Player mutations are not observable in any step expected (each recorded
-  # step carries a fresh player literal); the manager state is what threads.
-  defp store_inventory_produce(state, _player, _produce), do: state
 
   ## -- manager registry (keepPrev emulation) ------------------------------------
 
@@ -553,28 +255,6 @@ defmodule Afterlight.Parity.Reference.Misc do
   end
 
   defp store_machines_mgr(state), do: Process.put({__MODULE__, :machines_mgr}, state)
-
-  defp store_mill(state, mill) do
-    state
-    |> put_in(["storage", "state", "machines", "mill"], mill)
-    |> Map.put("mill", mill)
-  end
-
-  ## -- JS number/string primitives ---------------------------------------------
-
-  defp js_number(value), do: Hazards.js_to_number(value)
-
-  defp js_floor(n) when is_integer(n), do: n
-  defp js_floor(n) when is_float(n), do: Float.floor(n) |> trunc()
-
-  defp js_held(player, material) do
-    materials = Map.get(player || %{}, "materials") || %{}
-
-    case js_number(Map.get(materials, material, :absent)) do
-      :nan -> 0
-      n -> js_floor(n)
-    end
-  end
 
   ## -- server/youtubePlaylist.js -------------------------------------------------
 

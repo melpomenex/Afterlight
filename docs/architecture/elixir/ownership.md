@@ -74,3 +74,22 @@ Rules (non-negotiable):
 - Publishing after commit uses an outbox; delivery is at-least-once; consumers dedupe by event id/revision.
 - Actor identity always derives from the server-verified session; client-supplied ids are never authorization.
 - The Three.js client owns canvas, rAF, input, camera, prediction, theater DOM, minimap, homography. Phoenix/LiveView never owns those subtrees (`phx-update="ignore"` island if LiveView shells are introduced).
+
+## 5. P11 authority retirement status (2026-09-07)
+
+Audit artifact: `openspec/changes/remove-node-server-authority/evidence/authority-audit.md`.
+
+| Rows | Node write path | Gateway routing | Notes |
+|---|---|---|---|
+| 3–4 World | Retired on dev flip | `:phoenix` in `dev.exs` | Node shadow not used for movement/emote |
+| 16 Chat | Retired on dev flip | `:phoenix` chat_send | Node chat frames suppressed |
+| 1–2, 5–15, 22 | **Still active** via transitional sidecar relay | explicit `:node` in `Router.@node_relay_types` | Until P5/P6 Phoenix handlers land |
+| 17–18 Sidecars | **Retained** | HTTP proxy + adapters | `server/torrents.js`, `server/irc.js` untouched |
+| 19–21 | n/a (Elixir-native) | n/a | No Node path ever existed |
+
+Router default for unknown game types: `:unrouted` (loud `error {message: unrouted}`) — no silent Node fallback.
+
+Snapshot hashes (read-only forensic): `openspec/changes/remove-node-server-authority/evidence/snapshot-hashes.md`.
+
+**Data policy:** `data/game-state.json`, `data/iptv.json`, and `data/epg.json` are never deleted; only regenerable caches (`data/torrents/` cache dir) may be cleared. Sidecar-owned files are written only by their sidecar.
+

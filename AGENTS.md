@@ -56,7 +56,9 @@ For documentation-only changes, inspect and validate the documentation; do not r
 | `package.json`, `package-lock.json` | ES modules, dependencies, scripts, reproducible dependency versions. |
 | `dist/` | Generated Vite output. Edit source, then build; do not implement features by editing generated bundles. |
 
-Stack: vanilla JavaScript ES modules, Three.js, Vite, DOM/CSS HUD, Web Audio. There is no React runtime, physics engine, backend, or asset pipeline required for the current game. Do not add one without a concrete benefit to the requested feature.
+Stack: vanilla JavaScript ES modules, Three.js, Vite, DOM/CSS HUD, Web Audio. The supported multiplayer stack is **Phoenix gateway + Node specialty sidecar** (`npm run dev:stack`): Phoenix owns transport, world presence (dev flip), chat relay (dev flip), and signed identity; Node retains torrent/IRC HTTP, theater uploads, and transitional WS relay for domains not yet ported (see `docs/architecture/elixir/ownership.md` §5). Legacy Node-only transport (`npm run dev` + `npm run server`) is deprecated (removal 2026-12-01).
+
+**Data directory policy:** never delete original snapshot files (`data/game-state.json`, `data/iptv.json`, `data/epg.json` — SHA-256 recorded in P11 evidence). Only regenerable caches (torrent cache dir) may be cleared. Sidecar-owned files (`data/torrents/`) are written only by `server/torrents.js`.
 
 Commands:
 

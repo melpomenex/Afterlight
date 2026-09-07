@@ -1,0 +1,13 @@
+{
+  "version": "1",
+  "description": "Gradual ramp toward steady load — 1,000 sessions / 20 rooms (production profile)",
+  "sessions": 1000,
+  "rooms": ["market", "theater", "kiln-terrace"],
+  "rampMs": 600000,
+  "soakMs": 3600000,
+  "movementBursts": 3,
+  "durableCommandsPerClient": 2,
+  "consumeHz": 10,
+  "maxUnread": 32,
+  "stopConditions": ["soakMs elapsed", "error rate < 1%", "no monotonic mailbox growth"]
+}

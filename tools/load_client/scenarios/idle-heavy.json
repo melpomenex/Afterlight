@@ -1,0 +1,10 @@
+{
+  "version": "1",
+  "description": "Idle-heavy mix — mostly connected, sparse movers",
+  "sessions": 100,
+  "rooms": ["market", "theater", "kiln-terrace"],
+  "rampMs": 10000,
+  "soakMs": 60000,
+  "moverRatio": 0.05,
+  "consumeHz": 10
+}

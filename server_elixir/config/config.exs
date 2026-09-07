@@ -6,10 +6,21 @@ config :afterlight,
   # scripts/export-parity-fixtures.mjs (P0).
   parity_fixtures_path: "../tests/fixtures/parity",
   ecto_repos: [Afterlight.Repo],
-  ash_domains: [Afterlight.Accounts, Afterlight.Conferencing],
+  ash_domains: [
+    Afterlight.Accounts,
+    Afterlight.Catalog,
+    Afterlight.Conferencing,
+    Afterlight.Theater,
+    Afterlight.Gardens.Domain,
+    Afterlight.Economy.Domain,
+    Afterlight.Restoration.Domain
+  ],
   accounts: [
     claim_window_grace_ms: 2_592_000_000,
     reaper_interval_ms: 60_000,
+    outbox_interval_ms: 1_000
+  ],
+  theater: [
     outbox_interval_ms: 1_000
   ]
 
@@ -78,6 +89,11 @@ config :afterlight, AfterlightWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4000]
 
 config :ash, :missed_notifications, :ignore
+
+config :afterlight, Oban,
+  repo: Afterlight.Repo,
+  queues: [theater_import: 4],
+  plugins: [Oban.Plugins.Pruner]
 
 # Per-env overrides (test.exs pins deterministic gateway values; dev/prod
 # runtime knobs live in runtime.exs).

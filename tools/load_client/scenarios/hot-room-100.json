@@ -1,0 +1,11 @@
+{
+  "version": "1",
+  "description": "Hot room — 100 occupants",
+  "sessions": 100,
+  "rooms": ["market"],
+  "rampMs": 60000,
+  "soakMs": 180000,
+  "movementBursts": 5,
+  "moverRatio": 0.35,
+  "consumeHz": 10
+}

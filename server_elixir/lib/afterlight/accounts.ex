@@ -126,6 +126,7 @@ defmodule Afterlight.Accounts do
 
     case fetch_receipt(player_id, request_id) do
       %{payload_hash: ^hash, outcome: outcome} ->
+        :telemetry.execute([:afterlight, :durable, :dedup, :hit], %{count: 1}, %{player_id: player_id})
         {:ok, {:replay, outcome}}
 
       %{payload_hash: _other} ->

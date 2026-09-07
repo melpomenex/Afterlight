@@ -1,0 +1,615 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "generate/broken-mill-seed-0.42",
+      "fn": "generateContracts",
+      "args": [
+        {},
+        0.42
+      ],
+      "nowMs": 1700000000000,
+      "expected": [
+        {
+          "id": "contract_1700000000000_0",
+          "client": "Lantern Café",
+          "cropId": "kale",
+          "cropName": "Winter Kale",
+          "quantity": 4,
+          "minQuality": "A",
+          "reward": 181,
+          "reputation": 20,
+          "xp": 32,
+          "expiresAt": 1700000600000
+        },
+        {
+          "id": "contract_1700000000000_1",
+          "client": "Old Canal Brewery",
+          "cropId": "kale",
+          "cropName": "Winter Kale",
+          "quantity": 4,
+          "minQuality": "A",
+          "reward": 181,
+          "reputation": 20,
+          "xp": 32,
+          "expiresAt": 1700000600000
+        },
+        {
+          "id": "contract_1700000000000_2",
+          "client": "Harbor Commissary",
+          "cropId": "kale",
+          "cropName": "Winter Kale",
+          "quantity": 4,
+          "minQuality": "A",
+          "reward": 181,
+          "reputation": 20,
+          "xp": 32,
+          "expiresAt": 1700000600000
+        }
+      ]
+    },
+    {
+      "id": "generate/broken-mill-seed-0.77",
+      "fn": "generateContracts",
+      "args": [
+        {},
+        0.77
+      ],
+      "nowMs": 1700000000000,
+      "expected": [
+        {
+          "id": "contract_1700000000000_0",
+          "client": "The Station Kitchen",
+          "cropId": "strawberry",
+          "cropName": "Dew Strawberry",
+          "quantity": 6,
+          "minQuality": "A",
+          "reward": 431,
+          "reputation": 30,
+          "xp": 48,
+          "expiresAt": 1700000600000
+        },
+        {
+          "id": "contract_1700000000000_1",
+          "client": "Apothecary Green",
+          "cropId": "strawberry",
+          "cropName": "Dew Strawberry",
+          "quantity": 6,
+          "minQuality": "A",
+          "reward": 431,
+          "reputation": 30,
+          "xp": 48,
+          "expiresAt": 1700000600000
+        },
+        {
+          "id": "contract_1700000000000_2",
+          "client": "Rain Court Market Stand",
+          "cropId": "strawberry",
+          "cropName": "Dew Strawberry",
+          "quantity": 6,
+          "minQuality": "A",
+          "reward": 431,
+          "reputation": 30,
+          "xp": 48,
+          "expiresAt": 1700000600000
+        }
+      ]
+    },
+    {
+      "id": "generate/restored-mill-seed-0.42",
+      "fn": "generateContracts",
+      "args": [
+        {
+          "machines": {
+            "mill": {
+              "status": "restored",
+              "required": {
+                "copper": 4,
+                "timber": 4,
+                "glass": 4
+              },
+              "contributed": {
+                "copper": 4,
+                "timber": 4,
+                "glass": 4
+              },
+              "restoredAt": 1700000000000
+            }
+          }
+        },
+        0.42
+      ],
+      "nowMs": 1700000000000,
+      "expected": [
+        {
+          "id": "contract_1700000000000_0",
+          "client": "Lantern Café",
+          "cropId": "kale",
+          "cropName": "Winter Kale",
+          "quantity": 4,
+          "minQuality": "A",
+          "reward": 181,
+          "reputation": 20,
+          "xp": 32,
+          "expiresAt": 1700000600000
+        },
+        {
+          "id": "contract_1700000000000_1",
+          "client": "Old Canal Brewery",
+          "cropId": "flour",
+          "cropName": "Stone-Ground Flour",
+          "quantity": 3,
+          "minQuality": "B",
+          "reward": 59,
+          "reputation": 15,
+          "xp": 24,
+          "expiresAt": 1700000600000,
+          "tier": "flour"
+        },
+        {
+          "id": "contract_1700000000000_2",
+          "client": "Harbor Commissary",
+          "cropId": "kale",
+          "cropName": "Winter Kale",
+          "quantity": 4,
+          "minQuality": "A",
+          "reward": 181,
+          "reputation": 20,
+          "xp": 32,
+          "expiresAt": 1700000600000
+        }
+      ]
+    },
+    {
+      "id": "fulfill/insufficient",
+      "fn": "fulfillOnBoard",
+      "args": [
+        [
+          {
+            "id": "contract_1700000000000_0",
+            "client": "Lantern Café",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          },
+          {
+            "id": "contract_1700000000000_1",
+            "client": "Old Canal Brewery",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          },
+          {
+            "id": "contract_1700000000000_2",
+            "client": "Harbor Commissary",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          }
+        ],
+        {
+          "id": "p1",
+          "coins": 50,
+          "reputation": 5,
+          "xp": 80,
+          "level": 1,
+          "inventory": {
+            "seeds": {},
+            "produce": {}
+          }
+        },
+        "contract_1700000000000_0"
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "success": false,
+        "reason": "insufficient_qualifying_produce"
+      }
+    },
+    {
+      "id": "fulfill/wrong-quality",
+      "fn": "fulfillOnBoard",
+      "args": [
+        [
+          {
+            "id": "contract_1700000000000_0",
+            "client": "Lantern Café",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          },
+          {
+            "id": "contract_1700000000000_1",
+            "client": "Old Canal Brewery",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          },
+          {
+            "id": "contract_1700000000000_2",
+            "client": "Harbor Commissary",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          }
+        ],
+        {
+          "id": "p1",
+          "coins": 50,
+          "reputation": 5,
+          "xp": 80,
+          "level": 1,
+          "inventory": {
+            "seeds": {},
+            "produce": {
+              "kale_C": 9
+            }
+          }
+        },
+        "contract_1700000000000_0"
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "success": false,
+        "reason": "insufficient_qualifying_produce"
+      }
+    },
+    {
+      "id": "fulfill/acquisition-order",
+      "fn": "fulfillOnBoard",
+      "args": [
+        [
+          {
+            "id": "contract_1700000000000_0",
+            "client": "Lantern Café",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          },
+          {
+            "id": "contract_1700000000000_1",
+            "client": "Old Canal Brewery",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          },
+          {
+            "id": "contract_1700000000000_2",
+            "client": "Harbor Commissary",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          }
+        ],
+        {
+          "id": "p1",
+          "coins": 50,
+          "reputation": 5,
+          "xp": 80,
+          "level": 1,
+          "inventory": {
+            "seeds": {},
+            "produce": {
+              "kale_A+": 2,
+              "kale_A": 2
+            }
+          }
+        },
+        "contract_1700000000000_0"
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "success": true,
+        "contract": {
+          "id": "contract_1700000000000_0",
+          "client": "Lantern Café",
+          "cropId": "kale",
+          "cropName": "Winter Kale",
+          "quantity": 4,
+          "minQuality": "A",
+          "reward": 181,
+          "reputation": 20,
+          "xp": 32,
+          "expiresAt": 1700000600000
+        },
+        "coins": 231,
+        "reputation": 25,
+        "xp": 112,
+        "level": 2,
+        "inventory": {
+          "seeds": {},
+          "produce": {}
+        }
+      }
+    },
+    {
+      "id": "fulfill/not-found",
+      "fn": "fulfillOnBoard",
+      "args": [
+        [
+          {
+            "id": "contract_1700000000000_0",
+            "client": "Lantern Café",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          },
+          {
+            "id": "contract_1700000000000_1",
+            "client": "Old Canal Brewery",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          },
+          {
+            "id": "contract_1700000000000_2",
+            "client": "Harbor Commissary",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          }
+        ],
+        {
+          "id": "p1",
+          "coins": 50,
+          "reputation": 5,
+          "xp": 80,
+          "level": 1,
+          "inventory": {
+            "seeds": {},
+            "produce": {
+              "kale_A+": 2,
+              "kale_A": 2
+            }
+          }
+        },
+        "contract_missing"
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "success": false,
+        "reason": "contract_not_found"
+      }
+    },
+    {
+      "id": "tick/no-refresh-before-5m",
+      "fn": "tickBoard",
+      "args": [
+        [
+          {
+            "id": "contract_1700000000000_0",
+            "client": "Lantern Café",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          },
+          {
+            "id": "contract_1700000000000_1",
+            "client": "Old Canal Brewery",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          },
+          {
+            "id": "contract_1700000000000_2",
+            "client": "Harbor Commissary",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          }
+        ],
+        1700000000000,
+        1700000240000,
+        0.42
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "refreshed": false,
+        "contracts": [
+          {
+            "id": "contract_1700000000000_0",
+            "client": "Lantern Café",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          },
+          {
+            "id": "contract_1700000000000_1",
+            "client": "Old Canal Brewery",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          },
+          {
+            "id": "contract_1700000000000_2",
+            "client": "Harbor Commissary",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          }
+        ],
+        "lastContractRefresh": 1700000000000
+      }
+    },
+    {
+      "id": "tick/refresh-after-5m",
+      "fn": "tickBoard",
+      "args": [
+        [
+          {
+            "id": "contract_1700000000000_0",
+            "client": "Lantern Café",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          },
+          {
+            "id": "contract_1700000000000_1",
+            "client": "Old Canal Brewery",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          },
+          {
+            "id": "contract_1700000000000_2",
+            "client": "Harbor Commissary",
+            "cropId": "kale",
+            "cropName": "Winter Kale",
+            "quantity": 4,
+            "minQuality": "A",
+            "reward": 181,
+            "reputation": 20,
+            "xp": 32,
+            "expiresAt": 1700000600000
+          }
+        ],
+        1700000000000,
+        1700000300001,
+        0.55
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "refreshed": true,
+        "contracts": [
+          {
+            "id": "contract_1700000300001_0",
+            "client": "The Station Kitchen",
+            "cropId": "basil",
+            "cropName": "Copper Basil",
+            "quantity": 5,
+            "minQuality": "A",
+            "reward": 302,
+            "reputation": 25,
+            "xp": 40,
+            "expiresAt": 1700000900001
+          },
+          {
+            "id": "contract_1700000300001_1",
+            "client": "Apothecary Green",
+            "cropId": "basil",
+            "cropName": "Copper Basil",
+            "quantity": 5,
+            "minQuality": "A",
+            "reward": 302,
+            "reputation": 25,
+            "xp": 40,
+            "expiresAt": 1700000900001
+          },
+          {
+            "id": "contract_1700000300001_2",
+            "client": "Rain Court Market Stand",
+            "cropId": "basil",
+            "cropName": "Copper Basil",
+            "quantity": 5,
+            "minQuality": "A",
+            "reward": 302,
+            "reputation": 25,
+            "xp": 40,
+            "expiresAt": 1700000900001
+          }
+        ],
+        "lastContractRefresh": 1700000300001
+      }
+    }
+  ]
+}

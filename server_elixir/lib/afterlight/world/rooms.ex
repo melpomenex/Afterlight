@@ -149,7 +149,9 @@ defmodule Afterlight.World.Rooms do
     :ok
   end
 
-  defp room_pids do
+  @doc false
+  @spec room_pids() :: [pid]
+  def room_pids do
     # Room processes are Registry-named {Afterlight.World.RoomServer, wire_id}
     # via-tuples, and a via registration stores the process pid itself as
     # the registry value. Registry entries are `{key, pid, value}` tuples

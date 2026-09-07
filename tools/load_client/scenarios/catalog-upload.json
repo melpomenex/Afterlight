@@ -1,0 +1,12 @@
+{
+  "version": "1",
+  "description": "Catalog uploads during gameplay (HTTP POST alongside WS clients)",
+  "sessions": 20,
+  "rooms": ["theater"],
+  "rampMs": 5000,
+  "soakMs": 120000,
+  "catalogUploads": true,
+  "uploadIntervalMs": 15000,
+  "movementBursts": 2,
+  "moverRatio": 0.2
+}

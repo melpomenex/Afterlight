@@ -110,6 +110,16 @@ defmodule Afterlight.World.RoomServer do
     GenServer.call(room_pid, {:member?, player_id, conn_ref})
   end
 
+  @doc false
+  def stats(room_pid) do
+    GenServer.call(room_pid, :stats)
+  end
+
+  @doc "Fan out a flat domain frame to every live member."
+  def broadcast_frame(room_pid, frame) when is_map(frame) do
+    GenServer.cast(room_pid, {:broadcast_frame, frame})
+  end
+
   @doc """
   Drops the member whose channel process is `member_pid` — the explicit
   channel-down sweep behind `World.Rooms.leave_all/2` (task 6.1). No-op
@@ -159,6 +169,11 @@ defmodule Afterlight.World.RoomServer do
           # the roster. The new transport's pose/nickname are adopted and
           # the old transport's monitor is dropped.
           Process.demonitor(member.monitor, [:flush])
+
+          telemetry([:afterlight, :room, :reconnect], %{count: 1}, %{
+            room: state.room.wire_id,
+            player: player_id
+          })
 
           member =
             member
@@ -211,6 +226,16 @@ defmodule Afterlight.World.RoomServer do
     {:reply, member != nil and member.conn_ref == conn_ref, state}
   end
 
+  def handle_call(:stats, _from, state) do
+    depth =
+      case Process.info(self(), :message_queue_len) do
+        {:message_queue_len, len} -> len
+        _ -> 0
+      end
+
+    {:reply, %{room: state.room.wire_id, roster_size: map_size(state.members), mailbox_depth: depth}, state}
+  end
+
   def handle_call({:leave_for_member, member_pid, reason}, _from, state) do
     case Enum.find(state.members, fn {_id, m} -> m.channel_pid == member_pid end) do
       nil ->
@@ -222,6 +247,11 @@ defmodule Afterlight.World.RoomServer do
   end
 
   @impl true
+  def handle_cast({:broadcast_frame, frame}, state) do
+    Enum.each(members_in_order(state), fn member -> send_frame(member.channel_pid, frame) end)
+    {:noreply, state}
+  end
+
   def handle_cast({:movement, player_id, conn_ref, payload}, state) do
     member = Map.get(state.members, player_id)
 
@@ -239,10 +269,21 @@ defmodule Afterlight.World.RoomServer do
           {:noreply, state}
 
         :invalid ->
-          # Non-finite input is dropped; the actor's last valid pose stands.
+          telemetry([:afterlight, :movement, :dropped], %{count: 1}, %{
+            room: state.room.wire_id,
+            reason: :invalid,
+            player: player_id
+          })
+
           {:noreply, state}
       end
     else
+      telemetry([:afterlight, :movement, :dropped], %{count: 1}, %{
+        room: state.room.wire_id,
+        reason: :stale_connection,
+        player: player_id
+      })
+
       {:noreply, state}
     end
   end
@@ -368,8 +409,13 @@ defmodule Afterlight.World.RoomServer do
     Enum.reduce(members_in_order(state), {state, []}, fn member, {state, stalled} ->
       case queue_depth(member.channel_pid) do
         depth when depth > max ->
-          # Control message, not a frame: bypass the frame wrapper.
           send(member.channel_pid, {:world_stall, self()})
+
+          telemetry([:afterlight, :room, :member, :stalled], %{count: 1}, %{
+            room: state.room.wire_id,
+            player: member.player_id
+          })
+
           {do_leave(state, member.player_id, member.conn_ref, :stalled), [member | stalled]}
 
         _depth ->

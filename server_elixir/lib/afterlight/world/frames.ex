@@ -26,31 +26,31 @@ defmodule Afterlight.World.Frames do
   and deliberately NOT rendered — the catalog frame carries no internal
   fields (the server-tick bookkeeping lives in telemetry, not on the wire).
   """
-  @spec flush([map], non_neg_integer) :: %{String.t() => term}
-  def flush(members, _tick \\ 0) do
-    encoder().flush(Enum.map(members, &flush_entry/1))
+  @spec flush([map], non_neg_integer, non_neg_integer) :: %{String.t() => term}
+  def flush(members, _tick \\ 0, epoch \\ 0) do
+    encoder().flush(Enum.map(members, &flush_entry/1)) |> with_epoch(epoch)
   end
 
   @doc "Full roster sent to the JOINER on join — entries carry nicknames (catalog §1 asymmetry)."
-  @spec join_roster([map]) :: %{String.t() => term}
-  def join_roster(members) do
-    encoder().join_roster(Enum.map(members, &roster_entry/1))
+  @spec join_roster([map], non_neg_integer) :: %{String.t() => term}
+  def join_roster(members, epoch \\ 0) do
+    encoder().join_roster(Enum.map(members, &roster_entry/1)) |> with_epoch(epoch)
   end
 
   @doc "Room broadcast when a member joins — joiner excluded by the caller."
-  @spec presence_join(map) :: %{String.t() => term}
-  def presence_join(member) do
-    encoder().presence_join(roster_entry(member))
+  @spec presence_join(map, non_neg_integer) :: %{String.t() => term}
+  def presence_join(member, epoch \\ 0) do
+    encoder().presence_join(roster_entry(member)) |> with_epoch(epoch)
   end
 
-  @spec presence_leave(String.t()) :: %{String.t() => term}
-  def presence_leave(player_id) do
-    encoder().presence_leave(player_id)
+  @spec presence_leave(String.t(), non_neg_integer) :: %{String.t() => term}
+  def presence_leave(player_id, epoch \\ 0) do
+    encoder().presence_leave(player_id) |> with_epoch(epoch)
   end
 
-  @spec emote_broadcast(String.t(), String.t(), String.t()) :: %{String.t() => term}
-  def emote_broadcast(player_id, nickname, emote) do
-    encoder().emote_broadcast(player_id, nickname, emote)
+  @spec emote_broadcast(String.t(), String.t(), String.t(), non_neg_integer) :: %{String.t() => term}
+  def emote_broadcast(player_id, nickname, emote, epoch \\ 0) do
+    encoder().emote_broadcast(player_id, nickname, emote) |> with_epoch(epoch)
   end
 
   # Flush entry: {id, x, z, rotY, walking, sitting, airborne} — no nickname.
@@ -81,4 +81,6 @@ defmodule Afterlight.World.Frames do
   defp encoder do
     Application.get_env(:afterlight, :world_frame_encoder, Afterlight.Realtime.Encoders.JSON)
   end
+
+  defp with_epoch(frame, epoch), do: Map.put(frame, "epoch", epoch)
 end

@@ -14,8 +14,12 @@ defmodule AfterlightWeb.Endpoint do
     websocket: true,
     longpoll: false
 
+  plug AfterlightWeb.MetricsPlug
   plug Plug.RequestId
+  plug Afterlight.LogCorrelation.RequestPlug
 
+  plug AfterlightWeb.Plugs.TheaterCors
+  plug AfterlightWeb.Plugs.TheaterCatalog
   plug AfterlightWeb.HTTPProxy
 
   plug Plug.Parsers,

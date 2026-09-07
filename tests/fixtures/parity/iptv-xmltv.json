@@ -413,6 +413,27 @@
       }
     },
     {
+      "id": "library/add-too-many-channels",
+      "fn": "applyAddPlaylist",
+      "args": [
+        {
+          "lists": []
+        },
+        {
+          "name": "Huge",
+          "text": {
+            "__strLen": 637821
+          }
+        }
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "library": null,
+        "error": "too_many_channels",
+        "list": null
+      }
+    },
+    {
       "id": "library/remove-hit",
       "fn": "applyRemoveList",
       "args": [

@@ -16,7 +16,7 @@ defmodule Afterlight.World do
   kind (runtime.md).
   """
 
-  alias Afterlight.World.{Movement, RoomServer, Rooms}
+  alias Afterlight.World.{Lease, Movement, RoomServer, Rooms}
 
   @doc """
   Config accessor (`config :afterlight, :world`), read at call time so
@@ -143,6 +143,37 @@ defmodule Afterlight.World do
       RoomServer.member?(pid, player_id, conn_ref)
     else
       _ -> false
+    end
+  end
+
+  @doc "Push a domain frame to every live member of a wire room."
+  @spec broadcast_frame(String.t(), map()) :: :ok
+  def broadcast_frame(wire_room_id, frame) when is_binary(wire_room_id) and is_map(frame) do
+    with {:ok, room} <- Rooms.resolve(wire_room_id),
+         [{pid, _}] <- Registry.lookup(registry(), {RoomServer, room.wire_id}) do
+      RoomServer.broadcast_frame(pid, frame)
+    end
+
+    :ok
+  end
+
+  def broadcast_frame(_wire_room_id, _frame), do: :ok
+
+  @doc false
+  @spec ensure_room_with_lease(map(), Lease.Handle.t()) :: {:ok, pid()} | {:error, term}
+  def ensure_room_with_lease(room, _handle), do: ensure_room(room)
+
+  @doc "Current epoch for a wire room (0 when room or fencing absent)."
+  @spec epoch(String.t() | nil) :: non_neg_integer()
+  def epoch(nil), do: 0
+
+  def epoch(wire_room_id) do
+    with {:ok, room} <- Rooms.resolve(wire_room_id),
+         [{pid, _}] <- Registry.lookup(registry(), {RoomServer, room.wire_id}),
+         true <- function_exported?(RoomServer, :epoch, 1) do
+      RoomServer.epoch(pid)
+    else
+      _ -> 0
     end
   end
 

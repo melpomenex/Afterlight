@@ -100,6 +100,30 @@
       }
     },
     {
+      "file": "contracts.json",
+      "module": "Afterlight.Parity.Reference.Contracts",
+      "caseCount": 9,
+      "hazards": {
+        "rounding": [
+          "generate/*",
+          "fulfill/acquisition-order"
+        ],
+        "generated-ids": [
+          "generate/*"
+        ],
+        "key-order": [
+          "fulfill/acquisition-order"
+        ],
+        "timestamps": [
+          "generate/*",
+          "tick/*"
+        ],
+        "error-strings": [
+          "fulfill/*"
+        ]
+      }
+    },
+    {
       "file": "garden-crops.json",
       "module": "Afterlight.Parity.Reference.Garden",
       "caseCount": 48,
@@ -128,7 +152,7 @@
     {
       "file": "iptv-xmltv.json",
       "module": "Afterlight.Parity.Reference.Catalog",
-      "caseCount": 47,
+      "caseCount": 48,
       "hazards": {
         "key-order": [
           "xmltv/index-first-wins",

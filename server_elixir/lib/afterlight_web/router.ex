@@ -10,5 +10,6 @@ defmodule AfterlightWeb.Router do
     get "/health", HealthController, :show
 
     post "/api/auth/guest", AuthController, :create
+    post "/internal/irc/adapter/event", IrcAdapterController, :create
   end
 end

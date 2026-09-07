@@ -383,6 +383,7 @@ export class TheaterScreenUI {
       net.on(MSG_TYPES.EPG_SCHEDULE, (msg) => this.applyEpgSchedule(msg));
       net.on(MSG_TYPES.TORRENT_FILES, (msg) => this.applyTorrentFiles(msg));
       net.on(MSG_TYPES.TORRENT_STATE, (msg) => this.applyTorrentStatus(msg));
+      net.on(MSG_TYPES.TORRENT_GRANT, (msg) => this.applyTorrentGrant(msg));
       net.on(MSG_TYPES.THEATER_PLAYLIST_RESOLVED, (msg) => this.applyPlaylistResolved(msg));
       net.on(MSG_TYPES.THEATER_IMPORT_RESULT, (msg) => this.applyImportResult(msg));
       // The server answers resolve attempts with a bare error message when
@@ -1778,6 +1779,9 @@ export class TheaterScreenUI {
 
   /** Game-server URL of a torrent item's stream endpoint (Range-capable). */
   torrentStreamUrl(item) {
+    if (typeof this.net?.torrentStreamUrl === 'function') {
+      return this.net.torrentStreamUrl(item);
+    }
     const base = typeof this.net?.apiBase === 'string' ? this.net.apiBase.replace(/\/+$/, '') : '';
     return `${base}/api/theater/torrent/${item.infohash}/${item.fileIndex}`;
   }
@@ -1822,6 +1826,18 @@ export class TheaterScreenUI {
     }
     this.setAddStatus('');
     this.openTorrentPicker(String(msg.name || 'Unnamed torrent'), files, pending.magnet, pending.playNow);
+  }
+
+  /** Phoenix re-minted a playback grant — refresh the stream URL if live. */
+  applyTorrentGrant(msg) {
+    const now = this.state?.now;
+    if (!now || now.kind !== 'torrent' || !msg?.grant) return;
+    if (String(now.infohash).toLowerCase() !== String(msg.infohash || '').toLowerCase()) return;
+    if (Number(now.fileIndex) !== Number(msg.fileIndex)) return;
+    const video = this.dom?.mediaHost?.querySelector('video');
+    if (!video) return;
+    const next = this.torrentStreamUrl(now);
+    if (video.src !== next) video.src = next;
   }
 
   /** Show the resolved file list; nothing is shared until a file is picked. */

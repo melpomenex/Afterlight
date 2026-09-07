@@ -113,6 +113,7 @@ defmodule Afterlight.Realtime.FrameEncoderTest do
 
       assert frame == %{
                "type" => "presence_update",
+               "epoch" => 0,
                "players" => [
                  %{
                    "id" => "guest_a",
@@ -130,6 +131,7 @@ defmodule Afterlight.Realtime.FrameEncoderTest do
       # the Node literal): same field sets, same values, nothing extra.
       catalog = %{
         "type" => "presence_update",
+        "epoch" => 0,
         "players" => [
           %{"id" => "guest_a", "x" => 1.5, "z" => -2.5, "rotY" => 0.75, "walking" => true, "sitting" => false, "airborne" => true}
         ]

@@ -38,6 +38,8 @@ Identify a room by `{region, district_id, instance_id}`. A private garden additi
 
 Initially one node owns every room. For multi-node operation, introduce a directory backed by PostgreSQL leases: room key, owner node, epoch, expiry. Acquisition atomically increments the epoch; renewals compare owner/epoch using database time. Every durable room mutation checks the current epoch and unexpired lease in its transaction. A partitioned owner stops accepting commands when renewal fails. Gateways stop routing to expired owners; successor snapshots carry a new epoch and clients discard older-epoch messages. Presence/PubSub and a local Registry do not provide distributed single-writer consensus.
 
+**Status (P9):** `room_leases` table and `Afterlight.World.Lease` / `Directory` / `Drain` are implemented on the single-node topology. Multi-node enablement remains gated on P10 evidence ([`docs/benchmarks/p10-multi-node-gate.md`](../../benchmarks/p10-multi-node-gate.md)); until then leases renew invisibly on the sole owner.
+
 Loss of ownership pauses the affected room and rebuilds from durable state; transient positions may reset to safe entrances. Do not promise seamless process migration. Bound drain time during deploys, reject new room allocations to draining nodes, and let clients rejoin with jitter. At larger scale partition workers by room instance; avoid a global GenServer for all rooms. Pin parties together and make any instance switching visible to users.
 
 ## Event contract and overload

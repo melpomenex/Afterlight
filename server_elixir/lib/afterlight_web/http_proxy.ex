@@ -59,8 +59,9 @@ defmodule AfterlightWeb.HTTPProxy do
     end
   end
 
-  # Prefix match: /api/health exactly, and everything under /api/theater/.
+  # Prefix match: /api/health exactly, and theater paths not owned by Phoenix.
   defp forwarded_path?(["api", "health"]), do: true
+  defp forwarded_path?(["api", "theater", segment]) when segment in ["playlists", "epg"], do: false
   defp forwarded_path?(["api", "theater" | _rest]), do: true
   defp forwarded_path?(_path), do: false
 

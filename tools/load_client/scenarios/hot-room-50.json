@@ -1,0 +1,11 @@
+{
+  "version": "1",
+  "description": "Hot room — 50 occupants in one wire room",
+  "sessions": 50,
+  "rooms": ["market"],
+  "rampMs": 30000,
+  "soakMs": 120000,
+  "movementBursts": 5,
+  "moverRatio": 0.4,
+  "consumeHz": 10
+}

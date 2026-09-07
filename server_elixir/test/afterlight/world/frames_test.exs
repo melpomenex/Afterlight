@@ -32,6 +32,7 @@ defmodule Afterlight.World.FramesTest do
 
     assert frame == %{
              "type" => "presence_update",
+             "epoch" => 0,
              "players" => [
                %{
                  "id" => "guest_a",
@@ -88,13 +89,18 @@ defmodule Afterlight.World.FramesTest do
   end
 
   test "presence_leave carries playerId; emote_broadcast carries id + live nickname" do
-    assert Frames.presence_leave("guest_a") == %{"type" => "presence_leave", "playerId" => "guest_a"}
+    assert Frames.presence_leave("guest_a") == %{
+             "type" => "presence_leave",
+             "playerId" => "guest_a",
+             "epoch" => 0
+           }
 
     assert Frames.emote_broadcast("guest_a", "Mossy Fern", "wave") == %{
              "type" => "emote_broadcast",
              "playerId" => "guest_a",
              "nickname" => "Mossy Fern",
-             "emote" => "wave"
+             "emote" => "wave",
+             "epoch" => 0
            }
   end
 

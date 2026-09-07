@@ -16,28 +16,54 @@ defmodule Afterlight.Application do
     # before the Endpoint can serve a request. No database rows anywhere.
     Afterlight.Gateway.Sessions.init()
     Afterlight.Gateway.RateLimit.init()
+    Afterlight.Theater.PlaylistPreview.init()
 
-    children = [
-      Afterlight.Repo,
-      Afterlight.Accounts.Supervisor,
-      {Phoenix.PubSub, name: Afterlight.PubSub},
-      AfterlightWeb.Telemetry,
-      {Finch, name: Afterlight.Finch, pools: %{default: [count: 8, size: 32]}},
-      {DynamicSupervisor, name: Afterlight.Gateway.ProxySupervisor},
-      # P3 world room runtime + P7 social chat (retained alongside P4 accounts).
-      Afterlight.World.Supervisor,
-      Afterlight.Social.Supervisor,
-      Afterlight.Conferencing.Reaper,
-      AfterlightWeb.Endpoint
-    ]
+    children =
+      [
+        Afterlight.Repo
+      ] ++ oban_children() ++ domain_children() ++ [
+        Afterlight.Conferencing.Reaper,
+        {Phoenix.PubSub, name: Afterlight.PubSub},
+        Afterlight.Telemetry,
+        {Finch, name: Afterlight.Finch, pools: %{default: [count: 8, size: 32]}},
+        {DynamicSupervisor, name: Afterlight.Gateway.ProxySupervisor},
+        AfterlightWeb.Endpoint
+      ]
 
     opts = [strategy: :one_for_one, name: Afterlight.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  defp oban_children do
+    if Application.get_env(:afterlight, :enable_oban, true) do
+      [{Oban, oban_config()}]
+    else
+      []
+    end
+  end
+
+  defp domain_children do
+    if Application.get_env(:afterlight, :start_domain_supervisors, true) do
+      [
+        Afterlight.Accounts.Supervisor,
+        Afterlight.EconomyGroup.Supervisor,
+        Afterlight.Theater.Supervisor,
+        Afterlight.World.Supervisor,
+        Afterlight.Social.Supervisor,
+        Afterlight.Specialty.Supervisor
+      ]
+    else
+      [Afterlight.World.Supervisor]
+    end
   end
 
   @impl true
   def config_change(changed, _new, removed) do
     AfterlightWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp oban_config do
+    Application.get_env(:afterlight, Oban, [])
   end
 end

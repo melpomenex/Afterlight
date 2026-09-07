@@ -34,6 +34,11 @@ defmodule Afterlight.Parity.Comparator do
   # Internal protocol: {value, bindings} 2-tuples; mismatches throw
   # {:token_error, detail} which the runner converts to a case failure.
 
+  defp do_materialize(%{"__strLen" => 637_821} = v, _module, bindings)
+       when map_size(v) == 1 do
+    {m3u_over_channel_limit(), bindings}
+  end
+
   defp do_materialize(%{"__strLen" => n} = v, _module, bindings)
        when is_integer(n) and map_size(v) == 1 do
     {String.duplicate("x", n), bindings}
@@ -186,4 +191,15 @@ defmodule Afterlight.Parity.Comparator do
   # A "<gen:N>" reference (valid regardless of the module's real-id format —
   # the format governs binding REAL ids, not token syntax).
   defp token_ref?(value), do: Regex.match?(~r/^<gen:\d+>$/, value)
+
+  # Harness compacts the 20_001-channel M3U to {"__strLen": 637821}; content
+  # must parse as a playlist so applyAddPlaylist hits too_many_channels.
+  defp m3u_over_channel_limit do
+    body =
+      Enum.map_join(0..20_000, "\n", fn i ->
+        "#EXTINF:-1,C#{i}\nhttp://x/#{i}"
+      end)
+
+    "#EXTM3U\n" <> body <> "\n"
+  end
 end

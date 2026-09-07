@@ -22,7 +22,9 @@ defmodule Afterlight.World.Supervisor do
     children = [
       {Registry, keys: :unique, name: Afterlight.World.Registry},
       {DynamicSupervisor, name: Afterlight.World.DynamicSupervisor},
-      {Task.Supervisor, name: Afterlight.World.TaskSupervisor}
+      {Task.Supervisor, name: Afterlight.World.TaskSupervisor},
+      Afterlight.World.Directory,
+      Afterlight.World.Drain
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

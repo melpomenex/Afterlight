@@ -1,0 +1,11 @@
+{
+  "version": "1",
+  "description": "Concurrent market contention — many actors, durable market commands",
+  "sessions": 40,
+  "rooms": ["market"],
+  "rampMs": 8000,
+  "soakMs": 60000,
+  "durableCommandsPerClient": 5,
+  "movementBursts": 2,
+  "moverRatio": 0.5
+}

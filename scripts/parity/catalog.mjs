@@ -87,6 +87,15 @@ async function build() {
   cases.push(recordCall({ id: 'library/add-no-channels', fn: applyAddPlaylist, args: [{ lists: [] }, { name: 'X', text: '#EXTM3U\n' }], nowMs: T0 }));
   cases.push(recordCall({ id: 'library/add-text-too-large', fn: applyAddPlaylist, args: [{ lists: [] }, { name: 'X', text: 'x'.repeat(8 * 1024 * 1024 + 1) }], nowMs: T0 }));
   cases.push(recordCall({ id: 'library/add-too-many-lists', fn: applyAddPlaylist, args: [{ lists: Array.from({ length: 24 }, (_, i) => ({ id: `l${i}`, channels: [] })) }, { name: 'X', text: M3U(['http://one/stream']) }], nowMs: T0 }));
+  cases.push(recordCall({
+    id: 'library/add-too-many-channels',
+    fn: applyAddPlaylist,
+    args: [{ lists: [] }, {
+      name: 'Huge',
+      text: M3U(Array.from({ length: 20_001 }, (_, i) => [`#EXTINF:-1,C${i}`, `http://x/${i}`]).flat()),
+    }],
+    nowMs: T0,
+  }));
   cases.push(recordCall({ id: 'library/remove-hit', fn: applyRemoveList, args: [{ lists: [{ id: 'keep', channels: [] }, { id: 'gone', channels: [] }] }, 'gone'] }));
   cases.push(recordCall({ id: 'library/remove-miss', fn: applyRemoveList, args: [{ lists: [{ id: 'keep', channels: [] }] }, 'nope'] }));
   cases.push(recordCall({

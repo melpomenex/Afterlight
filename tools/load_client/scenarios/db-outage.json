@@ -1,0 +1,11 @@
+{
+  "version": "1",
+  "description": "DB outage fail-closed check — run while DB is stopped or sandbox checked out",
+  "sessions": 4,
+  "rooms": ["market"],
+  "rampMs": 1000,
+  "durableCommandsPerClient": 3,
+  "movementBursts": 5,
+  "injectDbOutage": true,
+  "expectDurableRejections": true
+}

@@ -1,6 +1,7 @@
 import { MSG_TYPES, serialize, parse } from '../../shared/protocol.js';
 import { generateDefaultNickname, sanitizeNickname } from '../../shared/identity.js';
 import { createPhoenixTransport } from './phoenixClient.js';
+import { jitteredRejoinDelay, shouldApplyRoomFrame } from './roomEpoch.js';
 
 const GUEST_KEY = 'afterlight-gardener-guest-id';
 const NICK_KEY = 'afterlight-gardener-nickname';
@@ -83,6 +84,9 @@ export class NetworkClient {
     // was closed. Reconnecting would make two live tabs evict each other
     // forever, so the facade stops retrying; a reload starts a fresh race.
     this.superseded = false;
+    this.roomEpochs = new Map();
+    /** infohash:fileIndex -> { grant, expiresAtMs } — P7 playback grants. */
+    this.torrentGrants = new Map();
     this.transportMode = import.meta.env?.VITE_TRANSPORT === 'phoenix' ? 'phoenix' : 'node';
     this.transport = this.transportMode === 'phoenix'
       ? createPhoenixTransport(this, this.wsUrl)
@@ -170,6 +174,20 @@ export class NetworkClient {
     if (msg.type === 'error' && msg.message === 'superseded') {
       this.superseded = true;
     }
+    if (msg.type === 'error' && msg.message === 'lease_lost') {
+      if (typeof msg.epoch === 'number' && this.desiredRoom) {
+        const prev = this.roomEpochs.get(this.desiredRoom) ?? 0;
+        if (msg.epoch > prev) this.roomEpochs.set(this.desiredRoom, msg.epoch);
+      }
+      this.scheduleReconnect(jitteredRejoinDelay());
+      return;
+    }
+    if (!shouldApplyRoomFrame(this.roomEpochs, this.desiredRoom, msg)) {
+      return;
+    }
+    if (msg.type === 'torrent_grant') {
+      this.storeTorrentGrant(msg);
+    }
     const handlers = this.handlers.get(msg.type);
     if (handlers) {
       handlers.forEach(fn => fn(msg));
@@ -186,10 +204,10 @@ export class NetworkClient {
     console.warn('NetworkClient transport error:', err);
   }
 
-  scheduleReconnect() {
+  scheduleReconnect(baseDelayMs = null) {
     if (this.superseded) return; // terminal close: never fight the winner
     if (this.reconnectTimer) return;
-    const delay = Math.min(10000, 1000 * Math.pow(1.5, this.reconnectAttempts));
+    const delay = baseDelayMs ?? Math.min(10000, 1000 * Math.pow(1.5, this.reconnectAttempts));
     this.reconnectAttempts++;
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
@@ -261,6 +279,31 @@ export class NetworkClient {
       const loc = typeof window !== 'undefined' ? window.location : { protocol: 'http:', hostname: 'localhost' };
       return `${loc.protocol}//${loc.hostname}:3001`;
     }
+  }
+
+  /**
+   * Remember a Phoenix-minted playback grant for one torrent file.
+   * Grants arrive as targeted `torrent_grant` events on the game channel.
+   */
+  storeTorrentGrant({ infohash, fileIndex, grant, expiresAtMs } = {}) {
+    if (!infohash || fileIndex === undefined || !grant) return;
+    const key = `${String(infohash).toLowerCase()}:${Number(fileIndex)}`;
+    this.torrentGrants.set(key, { grant, expiresAtMs });
+  }
+
+  /**
+   * Range-capable stream URL for a torrent bill item, including the `grant`
+   * query parameter when Phoenix has issued one for this file.
+   */
+  torrentStreamUrl(item) {
+    const base = this.apiBase.replace(/\/+$/, '');
+    const infohash = String(item?.infohash || '').toLowerCase();
+    const fileIndex = Number(item?.fileIndex);
+    const path = `${base}/api/theater/torrent/${infohash}/${fileIndex}`;
+    const entry = this.torrentGrants.get(`${infohash}:${fileIndex}`);
+    if (!entry?.grant) return path;
+    const qs = new URLSearchParams({ grant: entry.grant });
+    return `${path}?${qs}`;
   }
 
   /** POST to a /api/theater endpoint; resolves the JSON body or throws a readable error. */

@@ -1,0 +1,13 @@
+{
+  "version": "1",
+  "description": "Slow receiver — client consumes frames well below 10 Hz",
+  "sessions": 10,
+  "rooms": ["market"],
+  "rampMs": 3000,
+  "soakMs": 30000,
+  "slowReceiver": true,
+  "consumeHz": 2,
+  "maxUnread": 8,
+  "movementBursts": 10,
+  "moverRatio": 0.8
+}

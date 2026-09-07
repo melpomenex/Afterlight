@@ -27,6 +27,7 @@ import { catalogCases, catalogHazards } from './parity/catalog.mjs';
 import { miscCases, miscHazards } from './parity/misc.mjs';
 import { worldCases, worldHazards } from './parity/world.mjs';
 import { chatCases, chatHazards } from './parity/chat.mjs';
+import { contractCases, contractHazards } from './parity/contracts.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_OUT = path.join(REPO_ROOT, 'tests', 'fixtures', 'parity');
@@ -35,6 +36,7 @@ const FILES = [
   { name: 'theater-model', module: 'Afterlight.Parity.Reference.Theater', cases: theaterCases, hazards: theaterHazards },
   { name: 'torrent-model', module: 'Afterlight.Parity.Reference.Torrent', cases: torrentCases, hazards: torrentHazards },
   { name: 'market', module: 'Afterlight.Parity.Reference.Market', cases: marketCases, hazards: marketHazards },
+  { name: 'contracts', module: 'Afterlight.Parity.Reference.Contracts', cases: contractCases, hazards: contractHazards },
   { name: 'garden-crops', module: 'Afterlight.Parity.Reference.Garden', cases: gardenCases, hazards: gardenHazards },
   { name: 'iptv-xmltv', module: 'Afterlight.Parity.Reference.Catalog', cases: await catalogCases(), hazards: catalogHazards },
   { name: 'identity-nodes-machines', module: 'Afterlight.Parity.Reference.Misc', cases: miscCases, hazards: miscHazards },

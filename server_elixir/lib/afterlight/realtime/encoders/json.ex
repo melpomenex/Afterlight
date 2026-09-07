@@ -54,18 +54,18 @@ defmodule Afterlight.Realtime.Encoders.JSON do
   `nickname` there). A member whose nickname was never learned drops the
   key, exactly as Node's `JSON.stringify` drops `undefined`.
   """
-  @spec join_roster([map]) :: %{String.t() => term}
-  def join_roster(entries) do
-    %{"type" => @flush_type, "players" => Enum.map(entries, &join_entry/1)}
+  @spec join_roster([map], non_neg_integer) :: %{String.t() => term}
+  def join_roster(entries, epoch \\ 0) do
+    %{"type" => @flush_type, "players" => Enum.map(entries, &join_entry/1), "epoch" => epoch}
   end
 
   @doc """
   The room broadcast when a member joins (joiner excluded by the caller):
   `{presence_join, player: <join shape>}`.
   """
-  @spec presence_join(map) :: %{String.t() => term}
-  def presence_join(entry) do
-    %{"type" => "presence_join", "player" => join_entry(entry)}
+  @spec presence_join(map, non_neg_integer) :: %{String.t() => term}
+  def presence_join(entry, epoch \\ 0) do
+    %{"type" => "presence_join", "player" => join_entry(entry), "epoch" => epoch}
   end
 
   @doc "A member left (travel or disconnect): `{presence_leave, playerId}`."
@@ -86,10 +86,11 @@ defmodule Afterlight.Realtime.Encoders.JSON do
   (no nickname). Unlike the debug `encode/2` above, the wire frame carries
   no internal `tick` — the frozen catalog shape is byte-exact.
   """
-  @spec flush([map]) :: %{String.t() => term}
-  def flush(entries) do
+  @spec flush([map], non_neg_integer) :: %{String.t() => term}
+  def flush(entries, epoch \\ 0) do
     %{
       "type" => @flush_type,
+      "epoch" => epoch,
       "players" =>
         Enum.map(entries, fn e ->
           %{

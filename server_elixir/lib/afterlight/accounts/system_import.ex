@@ -10,6 +10,7 @@ defmodule Afterlight.Accounts.SystemImport do
     field :xp_sum, :integer
     field :imported_at, :integer
     field :source_path, :string
+    field :meta, :map, default: %{}
   end
 
   def imported_at(domain) do
