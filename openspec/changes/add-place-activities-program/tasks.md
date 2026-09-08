@@ -28,7 +28,7 @@
 - [x] 3.7 Implement Sporefall server rules for pieces, rotations, drops, clears/chains and top-out; add fixtures.
 - [x] 3.8 Implement Sporefall cabinet presentation and controls, including visible spectator runs and cleanup.
 - [x] 3.9 Add Ash result/run resources and additive migrations with signed identity, rules version, unique completion keys and bounded retry recording status; prove duplicate and forged results cannot credit scores.
-- [ ] 3.10 Add local bests and verified leaderboard UI with pagination, version separation and clear local/pending/unrecorded labels.
+- [x] 3.10 Add local bests and verified leaderboard UI with pagination, version separation and clear local/pending/unrecorded labels.
 - [ ] 3.11 P2 gate: play every cabinet through completion with an observer, reject score forgery, test database outage, inspect no-WebGPU rendering and record baseline-relative frame/texture/audio costs in the live Orpheum while theater media plays.
 
 ## 4. P3 — Pool physics and rules
