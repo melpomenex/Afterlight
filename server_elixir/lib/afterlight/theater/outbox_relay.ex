@@ -5,15 +5,27 @@ defmodule Afterlight.Theater.OutboxRelay do
 
   use GenServer
 
+  require Logger
   require Ash.Query
   import Ecto.Query
 
   alias Afterlight.Accounts.{Actor, OutboxEvent}
   alias Afterlight.Repo
-  alias Afterlight.Theater.SessionTracker
+  alias Afterlight.Specialty.TorrentRules
   alias Afterlight.World.RoomServer
 
-  @default_room "theater"
+  # One shared definition of the theater room's wire id (change
+  # fix-theater-streaming-after-elixir-cutover D3): the world runtime keys
+  # rooms by wire id and the specialty adapter already names the theater
+  # through TorrentRules; a second hardcoded "theater" here would silently
+  # no-op every live bill broadcast if the two ever drifted.
+  defp room_key, do: TorrentRules.theater_wire_id()
+
+  @doc """
+  The Registry key bill broadcasts are published through. Public for the
+  regression test that pins it to the world runtime's theater wire id.
+  """
+  def theater_registry_key, do: {RoomServer, room_key()}
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: Keyword.get(opts, :name, __MODULE__))
 
@@ -45,6 +57,7 @@ defmodule Afterlight.Theater.OutboxRelay do
 
     Enum.each(events, fn event ->
       broadcast_theater_state(event.payload, now)
+      telemetry(event)
 
       event
       |> Ash.Changeset.for_update(:mark_published, %{published_at: now},
@@ -64,13 +77,35 @@ defmodule Afterlight.Theater.OutboxRelay do
       "serverNow" => payload["serverNow"] || payload[:serverNow] || server_now
     }
 
-    case Registry.lookup(Afterlight.World.Registry, {RoomServer, @default_room}) do
-      [{pid, _}] -> RoomServer.broadcast_frame(pid, frame)
-      [] -> :ok
+    case Registry.lookup(Afterlight.World.Registry, theater_registry_key()) do
+      [{pid, _}] ->
+        RoomServer.broadcast_frame(pid, frame)
+
+      [] ->
+        # An absent room process is normal while nobody is in the theater,
+        # but a room-key drift would look identical from here: the commit
+        # succeeded while no client ever sees the frame (the silent no-op
+        # D3 guards against). Debug keeps quiet rooms quiet yet greppable.
+        Logger.debug(
+          "theater_state not broadcast: no room process under #{inspect(theater_registry_key())}"
+        )
+
+        :ok
     end
   end
 
   defp broadcast_theater_state(_payload, _server_now), do: :ok
+
+  # One event per committed bill change, carrying the revision the frame
+  # was built from — the observable counterpart to the outbox row, so a
+  # stopped relay or a drifted room key is measurable rather than silent.
+  defp telemetry(event) do
+    :telemetry.execute(
+      [:afterlight, :theater, :broadcast],
+      %{count: 1},
+      %{room: event.aggregate_id, revision: event.revision}
+    )
+  end
 
   def unpublished_count do
     Repo.aggregate(

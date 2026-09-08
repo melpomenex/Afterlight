@@ -1,6 +1,8 @@
 defmodule Afterlight.Theater.ConcurrencyTest do
   use Afterlight.DataCase, async: false
 
+  require Ash.Query
+
   alias Afterlight.Theater
   alias Afterlight.Theater.TheaterRoom
 
@@ -9,6 +11,13 @@ defmodule Afterlight.Theater.ConcurrencyTest do
 
   setup do
     start_supervised!(Afterlight.Theater.Supervisor)
+
+    # Deterministic bill (see Afterlight.Theater.DomainTest): the shared
+    # test DB may carry theater rows from non-sandbox runs, which would
+    # shift every revision asserted below.
+    Afterlight.Repo.delete_all(from(ti in "theater_items"))
+    Afterlight.Repo.delete_all(from(tr in "theater_rooms"))
+
     :ok
   end
 

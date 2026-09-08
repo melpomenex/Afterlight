@@ -48,8 +48,9 @@ defmodule AfterlightWeb.HTTPProxy do
 
   # `opts` may override any `:gateway` config key per plugged instance
   # (proxy_target, boundary_secret, http_proxy_max_body_bytes,
-  # http_proxy_timeout_ms) — used by tests that host this plug on a
-  # dedicated Bandit listener without mutating global config.
+  # http_proxy_timeout_ms, http_proxy_torrent_timeout_ms) — used by tests
+  # that host this plug on a dedicated Bandit listener without mutating
+  # global config.
   @impl true
   def call(%Plug.Conn{path_info: path} = conn, opts) do
     if forwarded_path?(path) do
@@ -65,6 +66,13 @@ defmodule AfterlightWeb.HTTPProxy do
   defp forwarded_path?(["api", "theater" | _rest]), do: true
   defp forwarded_path?(_path), do: false
 
+  @doc """
+  True for the torrent stream prefix (`/api/theater/torrent/...`) — the
+  only proxied path whose upstream is a video stream. Public for tests.
+  """
+  def torrent_stream_path?(["api", "theater", "torrent" | _rest]), do: true
+  def torrent_stream_path?(_path), do: false
+
   ## Config with per-instance override
 
   defp cfg(opts, key, default \\ nil) do
@@ -74,12 +82,30 @@ defmodule AfterlightWeb.HTTPProxy do
     end
   end
 
+  # A paused <video> stops pulling bytes mid-transfer, so a torrent Range
+  # stream can legitimately idle far longer than an ordinary API round-trip
+  # without being unhealthy (fix-theater-streaming-after-elixir-cutover D4).
+  # The torrent prefix therefore gets a patient, env-tunable receive
+  # timeout; every other proxied path keeps the short default. Finch's
+  # receive timeout is per-read, so this bounds an idle read, not total
+  # transfer time — and a client disconnect still aborts the pull.
+  @doc "Finch receive timeout for a proxied request path. Public for tests."
+  def receive_timeout_ms(path, opts) do
+    if torrent_stream_path?(path) do
+      cfg(opts, :http_proxy_torrent_timeout_ms, 300_000)
+    else
+      cfg(opts, :http_proxy_timeout_ms, 60_000)
+    end
+  end
+
   ## Request side
 
   defp proxy(conn, opts) do
     case read_request_body(conn, opts) do
       {:ok, body} ->
-        conn |> build_request(body, opts) |> stream_response(conn, opts)
+        conn
+        |> build_request(body, opts)
+        |> stream_response(conn, opts)
 
       {:error, :too_large} ->
         conn
@@ -174,7 +200,7 @@ defmodule AfterlightWeb.HTTPProxy do
           Afterlight.Finch,
           acc,
           &handle_resp_part/2,
-          receive_timeout: cfg(opts, :http_proxy_timeout_ms, 60_000)
+          receive_timeout: receive_timeout_ms(client_conn.path_info, opts)
         )
       catch
         # Client went away mid-stream; stop pulling chunks.

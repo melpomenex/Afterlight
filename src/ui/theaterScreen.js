@@ -47,6 +47,7 @@ import {
 } from '../../shared/torrentModel.js';
 
 const OVERLAY_BASE = 100; // CSS px side of the untransformed overlay square
+const OVERLAY_MAX_AREA = 8_400_000; // CSS px² budget (~33MB RGBA) before the 1:1 quad fit gives; only extreme off-screen quads hit this
 const SYNC_SEEK_THRESHOLD_SEC = 1.5;
 const DRIFT_CHECK_INTERVAL_MS = 2000;
 const SDK_TIMEOUT_MS = 8000;
@@ -122,6 +123,48 @@ export function homographyToMatrix3d(h) {
     return Number.isFinite(num) ? num : i === 8 ? 1 : fallback;
   };
   return `matrix3d(${v(0)}, ${v(3)}, 0, ${v(6)}, ${v(1)}, ${v(4)}, 0, ${v(7)}, 0, 0, 1, 0, ${v(2)}, ${v(5)}, 0, ${v(8)})`;
+}
+
+/**
+ * Fit the untransformed overlay rect 1:1 to the projected screen quad so the
+ * homography stays near identity-scale and text/media rasterize at display
+ * resolution instead of being magnified by the GPU after the fact. (A fixed
+ * 100x100 square blurred close-ups; the later 2400px side cap fixed the
+ * aspect but re-introduced soft, jagged text up close — the capped element
+ * was up to ~3x smaller than the on-screen quad, and with the layer promoted
+ * via will-change the stale low-resolution raster could persist while the
+ * player stood still.)
+ *
+ * quadPoints: projected corners, order bl, br, tr, tl. Measures both the
+ * horizontal edges (bottom, top) and vertical edges (left, right) so
+ * foreshortened perspective quads viewed at an angle do not squash the
+ * vertical resolution of the overlay. Returns { w, h } keeping the in-world
+ * screen aspect, bounded by OVERLAY_MAX_AREA.
+ */
+export function fitOverlaySize(quadPoints, worldAspect = 1) {
+  const aspect = Number.isFinite(worldAspect) && worldAspect > 0 ? worldAspect : 1;
+  let wFit = 0;
+  let hFit = 0;
+  if (Array.isArray(quadPoints) && quadPoints.length >= 4) {
+    const dist = (a, b) => Math.hypot(Number(b?.x) - Number(a?.x), Number(b?.y) - Number(a?.y));
+    // Horizontal edges: bottom (0 -> 1) and top (3 -> 2)
+    wFit = Math.max(dist(quadPoints[0], quadPoints[1]), dist(quadPoints[3], quadPoints[2]));
+    // Vertical edges: left (0 -> 3) and right (1 -> 2)
+    hFit = Math.max(dist(quadPoints[0], quadPoints[3]), dist(quadPoints[1], quadPoints[2]));
+    if (!Number.isFinite(wFit) || wFit <= 0) wFit = 0;
+    if (!Number.isFinite(hFit) || hFit <= 0) hFit = 0;
+  }
+  // Size to satisfy both dimensions: if vertical perspective stretch exceeds
+  // the foreshortened horizontal span, scale width up to match the height requirement.
+  const requiredW = Math.max(wFit, hFit * aspect);
+  let w = Math.max(Math.round(requiredW) || OVERLAY_BASE, OVERLAY_BASE);
+  let h = Math.max(1, Math.round(w / aspect));
+  if (w * h > OVERLAY_MAX_AREA) {
+    // Floor both sides so rounding can never push the product past the budget.
+    w = Math.floor(w * Math.sqrt(OVERLAY_MAX_AREA / (w * h)));
+    h = Math.max(1, Math.floor(w / aspect));
+  }
+  return { w, h };
 }
 
 // Bucket name for channels whose group has no country part.
@@ -329,6 +372,7 @@ export class TheaterScreenUI {
     this.lastDriftCheckMs = 0;
     this.loadToken = 0; // guards async engine loads against races
     this.volume = 1; // 0..1, local only — never part of shared state
+    this.mixGain = 1; // local atmosphere/voice mix factor (task 4.1 D7); user volume stays untouched
     this.watching = false; // cinema view: big stage + docked chat, HUD hidden
     // Set by the game: standing up from a seat is the game's business
     // (pose, movement flag); the watch bar only requests it.
@@ -362,6 +406,7 @@ export class TheaterScreenUI {
 
     this.overlayW = OVERLAY_BASE; // Untransformed overlay rect (CSS px)
     this.overlayH = OVERLAY_BASE;
+    this.quadTransform = ''; // last transform string written to the overlay
 
     this.dom = null;
     if (typeof document !== 'undefined') {
@@ -423,6 +468,44 @@ export class TheaterScreenUI {
   }
 
   /**
+   * Effective LOCAL volume: the user's own slider multiplied by the game's
+   * mix gain (atmosphere duck / future voice duck). The slider preference
+   * itself is never overwritten (task 4.1, design D7).
+   */
+  effectiveVolume() {
+    const user = Number.isFinite(this.volume) ? Math.min(1, Math.max(0, this.volume)) : 1;
+    const mix = Number.isFinite(this.mixGain) ? Math.min(1, Math.max(0, this.mixGain)) : 1;
+    return user * mix;
+  }
+
+  /**
+   * The one mix seam (task 4.1): set the mix factor and re-apply the
+   * effective volume to the CURRENT engine without touching the queue, the
+   * shared timeline, or the user's stored slider. Returns false when the
+   * active provider cannot accept volume changes — ducking is then reported
+   * as unavailable, never simulated by muting or skipping the shared item.
+   */
+  setMixGain(gain = 1) {
+    const g = Number(gain);
+    this.mixGain = Number.isFinite(g) ? Math.min(1, Math.max(0, g)) : 1;
+    return this.applyEffectiveVolume();
+  }
+
+  /** Push the effective volume to the current engine (used on every engine
+   * creation, slider change and mix change). */
+  applyEffectiveVolume() {
+    const engine = this.engine;
+    if (!engine || engine.degraded) return false; // degraded providers expose no volume API
+    if (typeof engine.setVolume !== 'function') return false;
+    try {
+      engine.setVolume(this.effectiveVolume());
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Apply a server snapshot { now, queue } + the server clock at send time.
    * Idempotent: redundant calls for the same state only re-assert sync.
    */
@@ -470,32 +553,36 @@ export class TheaterScreenUI {
    */
   updateScreenQuad(quad, worldAspect = 1) {
     this.quad = Array.isArray(quad) && quad.length >= 4 ? quad : null;
+    if (!this.quad) this.quadTransform = '';
     if (this.dom?.overlay && this.quad && !this.watching) {
-      // Size the untransformed overlay to roughly the projected quad's area
-      // and keep its aspect equal to the in-world screen, so media rasterizes
-      // near display resolution and keeps its shape on the screen plane. (A
-      // fixed 100x100 square turned close-up views blurry and squashed the
-      // picture vertically by the screen's aspect ratio.)
-      const xs = this.quad.map((p) => p.x);
-      const ys = this.quad.map((p) => p.y);
-      const area = Math.max(0, Math.max(...xs) - Math.min(...xs)) *
-        Math.max(0, Math.max(...ys) - Math.min(...ys));
-      const aspect = Number.isFinite(worldAspect) && worldAspect > 0 ? worldAspect : 1;
-      const side = Math.min(Math.max(Math.sqrt(Math.max(area, 1) * aspect), OVERLAY_BASE), 2400);
-      const w = Math.round(side);
-      const h = Math.max(1, Math.round(side / aspect));
-      if (Math.abs(w - this.overlayW) > 2 || Math.abs(h - this.overlayH) > 2) {
+      const { w, h } = fitOverlaySize(this.quad, worldAspect);
+      // Track the quad closely (relative tolerance, not the old fixed 2px,
+      // which let the mapped scale drift far from 1:1 without a re-raster).
+      if (Math.abs(w - this.overlayW) > Math.max(2, this.overlayW * 0.03) ||
+          Math.abs(h - this.overlayH) > Math.max(2, this.overlayH * 0.03)) {
         this.overlayW = w;
         this.overlayH = h;
         const style = this.dom.overlay.style;
         style.width = `${w}px`;
         style.height = `${h}px`;
         style.setProperty('--ts-scale', (h / OVERLAY_BASE).toFixed(3));
+        this.quadTransform = ''; // src rect changed -> force the rewrite below
       }
-      // quad is bl, br, tr, tl -> map element rect TL,TR,BR,BL onto tl, tr, br, bl
-      const src = [{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: h }, { x: 0, y: h }];
+      // quad is bl, br, tr, tl -> map element rect TL,TR,BR,BL onto tl, tr, br, bl.
+      // The src rect is the element's ACTUAL size (not the freshly fitted
+      // one) so a hysteresis-skipped frame still maps the real box.
+      const src = [
+        { x: 0, y: 0 },
+        { x: this.overlayW, y: 0 },
+        { x: this.overlayW, y: this.overlayH },
+        { x: 0, y: this.overlayH },
+      ];
       const dst = [this.quad[3], this.quad[2], this.quad[1], this.quad[0]];
-      this.dom.overlay.style.transform = homographyToMatrix3d(computeHomography(src, dst));
+      const next = homographyToMatrix3d(computeHomography(src, dst));
+      if (next !== this.quadTransform) {
+        this.quadTransform = next;
+        this.dom.overlay.style.transform = next;
+      }
     }
     this.syncOverlay();
     this.tickDriftCheck();
@@ -534,6 +621,7 @@ export class TheaterScreenUI {
     if (this.dom?.overlay) {
       if (this.watching) {
         this.dom.overlay.style.transform = '';
+        this.quadTransform = ''; // inline transform cleared -> force a rewrite on exit
         // Hand sizing back to the cinema-stage CSS: inline width/height from
         // the projected-quad fitting would override it.
         this.dom.overlay.style.width = '';
@@ -724,7 +812,7 @@ export class TheaterScreenUI {
     video.autoplay = true;
     video.setAttribute('playsinline', '');
     video.preload = 'auto';
-    video.volume = this.volume;
+    video.volume = this.effectiveVolume(); // user volume x mix gain (task 4.1)
     // Deliberately NO crossOrigin attribute: most stream/file hosts send no
     // CORS headers and setting it would make playback fail outright.
     this.dom.mediaHost.append(video);
@@ -869,7 +957,7 @@ export class TheaterScreenUI {
             engine.ready = true;
             engine.player = player;
             try {
-              player.setVolume(Math.round(this.volume * 100));
+              player.setVolume(Math.round(this.effectiveVolume() * 100));
             } catch {}
             const target = this.targetPosition();
             if (target > 0.5) {
@@ -1027,7 +1115,7 @@ export class TheaterScreenUI {
         } catch {}
       }
       try {
-        await player.setVolume(this.volume);
+        await player.setVolume(this.effectiveVolume());
       } catch {}
       try {
         await player.play();
@@ -1340,7 +1428,7 @@ export class TheaterScreenUI {
     this.dom.volumeInput.addEventListener('input', () => {
       const pct = Number(this.dom.volumeInput.value);
       this.volume = Number.isFinite(pct) ? Math.min(1, Math.max(0, pct / 100)) : 1;
-      this.engine?.setVolume?.(this.volume); // LOCAL only — never sent
+      this.applyEffectiveVolume(); // LOCAL only — never sent; applies user volume x mix gain
     });
 
     this.dom.iptvSelect.addEventListener('change', () => {

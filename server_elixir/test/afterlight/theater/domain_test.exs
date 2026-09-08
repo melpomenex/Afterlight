@@ -13,6 +13,14 @@ defmodule Afterlight.Theater.DomainTest do
   setup do
     start_supervised!(Afterlight.Theater.Supervisor)
 
+    # Deterministic bill: the shared test database may carry theater rows
+    # from non-sandbox runs (e.g. the P5 shadow import committed a room at
+    # revision 37), while these tests assume a fresh room. Clearing inside
+    # the sandbox keeps every test starting from revision 1 without
+    # touching data outside the transaction.
+    Afterlight.Repo.delete_all(from(ti in "theater_items"))
+    Afterlight.Repo.delete_all(from(tr in "theater_rooms"))
+
     now = Afterlight.Accounts.now_ms()
     actor = Actor.system()
 
@@ -171,5 +179,47 @@ defmodule Afterlight.Theater.DomainTest do
       |> Ash.read_one!(actor: Actor.system(), authorize?: false)
 
     assert row.outcome["ok"] == true
+  end
+
+  # fix-theater-streaming-after-elixir-cutover D3: the relay's broadcast
+  # key must stay pinned to the world runtime's theater wire id. A drift
+  # would not error — every live bill broadcast would silently no-op while
+  # joins still snapshot, reading to players as "nothing streams".
+  test "relay broadcast key is derived from the shared theater wire id" do
+    assert OutboxRelay.theater_registry_key() ==
+             {Afterlight.World.RoomServer, Afterlight.Specialty.TorrentRules.theater_wire_id()}
+
+    # The client joins the room by this exact id, so the shared definition
+    # must keep answering with it.
+    assert Afterlight.Specialty.TorrentRules.theater_wire_id() == @room
+  end
+
+  test "publish_pending emits a telemetry event per broadcast frame" do
+    :ok =
+      :telemetry.attach(
+        "outbox-relay-test",
+        [:afterlight, :theater, :broadcast],
+        &__MODULE__.relay_handler/4,
+        self()
+      )
+
+    assert {:ok, commit} =
+             Theater.apply_action(@room, %{"op" => "add", "url" => @youtube}, "PlayerOne")
+
+    assert OutboxRelay.publish_pending() == 1
+
+    assert_receive {:relay_broadcast, %{count: 1}, %{room: @room, revision: revision}}, 1_000
+    assert revision == commit.revision
+
+    # A second drain publishes nothing and therefore emits nothing.
+    refute OutboxRelay.publish_pending() > 0
+    refute_receive {:relay_broadcast, _, _}
+  after
+    :telemetry.detach("outbox-relay-test")
+  end
+
+  # Module-level handler: telemetry warns on anonymous function handlers.
+  def relay_handler(_name, measurements, metadata, pid) do
+    send(pid, {:relay_broadcast, measurements, metadata})
   end
 end

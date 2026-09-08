@@ -265,3 +265,123 @@ test('channelMatchesGuide filters by country first, then category', () => {
 test('a fully groupless list keeps the flat fallback (no country facets)', () => {
   assert.deepEqual(mod.guideFacets([{ url: 'http://x/1' }, { url: 'http://x/2' }]).countries, []);
 });
+
+// --- effective volume seam (add-atmosphere-weather-system task 4.1, D7) ---
+// The mix seam keeps the user's local volume separate: effective = user x
+// mix, applied on every engine start/slider/mix path without touching the
+// slider preference or the shared queue.
+
+async function createSeamUi() {
+  const stubNet = { on() {}, send() {} };
+  return new mod.TheaterScreenUI(stubNet);
+}
+
+test('setMixGain: effective volume multiplies user volume by mix gain without overwriting it', async () => {
+  const ui = await createSeamUi();
+  ui.volume = 0.8;
+  assert.equal(ui.effectiveVolume(), 0.8, 'neutral mix keeps user volume');
+  ui.setMixGain(0.5);
+  assert.equal(ui.effectiveVolume(), 0.4);
+  assert.equal(ui.volume, 0.8, 'the user slider preference survives ducking');
+
+  ui.setMixGain(42); // clamped, never amplified past the user's choice
+  assert.equal(ui.effectiveVolume(), 0.8);
+  ui.setMixGain(-1);
+  assert.equal(ui.effectiveVolume(), 0);
+  ui.setMixGain('nonsense');
+  assert.equal(ui.mixGain, 1, 'garbage input restores the neutral mix');
+});
+
+test('setMixGain: mix changes reach the current engine, including after engine replacement', async () => {
+  const ui = await createSeamUi();
+  ui.volume = 0.5;
+
+  const engine = { volumes: [], setVolume(v) { this.volumes.push(v); } };
+  ui.engine = engine;
+  ui.setMixGain(0.6);
+  assert.deepEqual(engine.volumes, [0.3], 'setMixGain applies to the live engine');
+
+  // New engine initialization (new media item): the fresh engine receives
+  // the effective volume, mirroring the video/YouTube/Vimeo start paths.
+  const nextEngine = { volumes: [], setVolume(v) { this.volumes.push(v); } };
+  ui.engine = nextEngine;
+  assert.equal(ui.applyEffectiveVolume(), true);
+  assert.deepEqual(nextEngine.volumes, [0.3], 'engine start path carries user x mix');
+  assert.ok(ui.setMixGain(1));
+  assert.deepEqual(nextEngine.volumes, [0.3, 0.5], 'unduck restores the full user volume');
+});
+
+test('setMixGain: a provider without volume control reports ducking as unavailable', async () => {
+  const ui = await createSeamUi();
+  ui.volume = 0.9;
+  ui.engine = { degraded: true }; // e.g. Vimeo without its SDK: no volume API
+  assert.equal(ui.setMixGain(0.5), false, 'ducking reported unavailable, never simulated');
+  assert.equal(ui.mixGain, 0.5, 'the factor is still recorded for engines that CAN take it');
+  ui.engine = null;
+  assert.equal(ui.applyEffectiveVolume(), false, 'no engine: nothing to apply');
+});
+
+test('fitOverlaySize: tiny far quad floors at the 100px base', async () => {
+  const mod2 = await import('../src/ui/theaterScreen.js');
+  const quad = [{ x: 0, y: 0 }, { x: 30, y: 0 }, { x: 30, y: 9 }, { x: 0, y: 9 }];
+  assert.deepEqual(mod2.fitOverlaySize(quad, 3.25), { w: 100, h: 31 });
+});
+
+test('fitOverlaySize: close-up quad larger than the old 2400px cap stays 1:1', async () => {
+  // Regression: the old side cap shrank the element below the on-screen quad,
+  // so the homography magnified the raster (~3x up close) and text went soft
+  // and jagged. The fit must track the projected quad instead.
+  const mod2 = await import('../src/ui/theaterScreen.js');
+  const quad = [{ x: 0, y: 500 }, { x: 3600, y: 500 }, { x: 3600, y: 0 }, { x: 0, y: 0 }];
+  const { w, h } = mod2.fitOverlaySize(quad, 3.25);
+  assert.equal(w, 3600, 'width follows the projected quad edge, uncapped');
+  assert.equal(h, Math.round(3600 / 3.25), 'height keeps the in-world screen aspect');
+  assert.ok(Math.abs(w / 3600 - 1) < 0.01, 'mapped horizontal scale stays ~1');
+});
+
+test('fitOverlaySize: absurd quad degrades through the area budget, never explodes', async () => {
+  const mod2 = await import('../src/ui/theaterScreen.js');
+  const quad = [{ x: 0, y: 0 }, { x: 40000, y: 0 }, { x: 40000, y: 12000 }, { x: 0, y: 12000 }];
+  const { w, h } = mod2.fitOverlaySize(quad, 3.25);
+  assert.ok(w * h <= 8_400_000, `area budget respected, got ${w * h}`);
+  assert.ok(w >= 100 && h >= 1, 'still a usable rect');
+});
+
+test('fitOverlaySize: degenerate input falls back to the base square sizing', async () => {
+  const mod2 = await import('../src/ui/theaterScreen.js');
+  assert.deepEqual(mod2.fitOverlaySize(null, 3.25), { w: 100, h: 31 });
+  assert.deepEqual(mod2.fitOverlaySize([{ x: 5, y: 5 }, { x: 5, y: 5 }, { x: 5, y: 5 }, { x: 5, y: 5 }], 3.25), { w: 100, h: 31 });
+  assert.deepEqual(mod2.fitOverlaySize([{ x: NaN, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }], 3.25), { w: 100, h: 31 });
+  assert.deepEqual(mod2.fitOverlaySize(undefined, NaN), { w: 100, h: 100 }, 'bad aspect falls back to 1');
+});
+
+test('fitOverlaySize: horizontally-foreshortened perspective quad sizes to satisfy vertical height', async () => {
+  // When looking at the screen at an angle in first person, width is foreshortened
+  // (e.g., span = 350px) while the nearest vertical edge is tall (e.g. 400px).
+  // The overlay must scale width up so the raster height matches the near edge (400px).
+  const mod2 = await import('../src/ui/theaterScreen.js');
+  // bl, br, tr, tl
+  const quad = [
+    { x: 100, y: 450 }, // bl (near)
+    { x: 450, y: 300 }, // br (far)
+    { x: 450, y: 150 }, // tr (far, h = 150)
+    { x: 100, y: 50 },  // tl (near, h = 400)
+  ];
+  const { w, h } = mod2.fitOverlaySize(quad, 3.25);
+  assert.equal(h, 400, 'height matches the tall near vertical edge');
+  assert.equal(w, Math.round(400 * 3.25), 'width is scaled proportionally to maintain world aspect');
+});
+
+test('fitOverlaySize: vertically-foreshortened quad sizes to satisfy horizontal span', async () => {
+  const mod2 = await import('../src/ui/theaterScreen.js');
+  const quad = [
+    { x: 0, y: 200 },
+    { x: 1300, y: 200 },
+    { x: 1200, y: 120 },
+    { x: 100, y: 120 },
+  ];
+  const { w, h } = mod2.fitOverlaySize(quad, 3.25);
+  assert.equal(w, 1300, 'width matches the long horizontal edge');
+  assert.equal(h, Math.round(1300 / 3.25), 'height matches aspect ratio');
+});
+

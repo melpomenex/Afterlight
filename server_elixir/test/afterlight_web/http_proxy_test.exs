@@ -210,4 +210,22 @@ defmodule AfterlightWeb.HTTPProxyTest do
     assert Gateway.config(:proxy_target) == "http://127.0.0.1:3001"
     assert Gateway.config(:boundary_secret) == nil
   end
+
+  # fix-theater-streaming-after-elixir-cutover D4: only the torrent stream
+  # prefix is a video stream — a paused <video> legitimately idles longer
+  # than an API round-trip, so it alone gets the patient timeout.
+  test "torrent stream paths get the long receive timeout; other paths keep the default" do
+    torrent = ["api", "theater", "torrent", "deadbeef", "0"]
+    other = ["api", "theater", "echo"]
+
+    assert AfterlightWeb.HTTPProxy.torrent_stream_path?(torrent)
+    refute AfterlightWeb.HTTPProxy.torrent_stream_path?(other)
+    refute AfterlightWeb.HTTPProxy.torrent_stream_path?(["api", "health"])
+
+    opts = [http_proxy_timeout_ms: 1_000, http_proxy_torrent_timeout_ms: 9_000]
+
+    assert AfterlightWeb.HTTPProxy.receive_timeout_ms(torrent, opts) == 9_000
+    assert AfterlightWeb.HTTPProxy.receive_timeout_ms(other, opts) == 1_000
+    assert AfterlightWeb.HTTPProxy.receive_timeout_ms(["api", "health"], opts) == 1_000
+  end
 end

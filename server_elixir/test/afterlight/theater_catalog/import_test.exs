@@ -1,8 +1,16 @@
 defmodule Afterlight.TheaterCatalog.ImportTest do
   use Afterlight.DataCase, async: false
 
+  alias Afterlight.Accounts.SystemImport
   alias Afterlight.Catalog.Import, as: CatalogImport
   alias Afterlight.Theater.Import, as: TheaterImport
+
+  setup do
+    Repo.delete_all(SystemImport)
+    Repo.delete_all(from(ti in "theater_items"))
+    Repo.delete_all(from(tr in "theater_rooms"))
+    :ok
+  end
 
   defp tmp_dir do
     Path.join(System.tmp_dir!(), "al-tc-import-#{System.unique_integer([:positive])}")

@@ -46,16 +46,35 @@ export function buildTheaterScenery(ctx) {
     bulbs.forEach((b, i) => { b.material.emissiveIntensity = done ? 1.6 + Math.sin(time * 3 + i) * .5 : .15; });
   });
 
-  // --- Projector booth + physical prop beneath the landmark signal ---
-  box(8, 1.5, -6, 1.8, 3, 1.6, colors.dark); block(8, -6, 1.8, 1.6);
-  box(8, 3.15, -6.1, .6, .3, .6, '#33393c');
-  box(8, 3.55, -6.1, .55, .5, .8, '#22282b');
+  // --- Projection booth: raised rear-center platform throwing straight
+  // down the room axis at the screen center, over the audience. The beam
+  // is a translucent additive cone with its own material (the static batch
+  // only takes opaque boxes) and stays invisible until the projector is
+  // restored — its base color must never read as a lit stick at rest.
+  box(0, 1.7, 9.35, 2.3, 3.4, 1.7, colors.dark); block(0, 9.35, 2.3, 1.7);
+  box(0, 3.47, 9.35, 2, .14, 1.4, '#33393c');
+  box(0, 3.69, 9.2, .6, .3, .6, '#33393c');
+  box(0, 4.09, 9.2, .55, .5, .8, '#22282b');
   const lens = new THREE.Mesh(new THREE.CylinderGeometry(.14, .14, .45, 10), material(colors.brass));
-  lens.rotation.x = Math.PI / 2; lens.position.set(8, 3.55, -6.65); group.add(lens);
-  const beam = glow(4.6, 3.33, -7.58, .1, .1, 6.95, '#ffe9c0', 0);
-  beam.rotation.y = Math.atan2(-6.8, -1.35);
+  lens.rotation.x = Math.PI / 2; lens.position.set(0, 4.09, 8.72); group.add(lens);
+  const lensDot = glow(0, 4.09, 8.6, .18, .18, .12, '#ffe9c0', 0);
+  const beamOrigin = new THREE.Vector3(0, 4.09, 8.72);
+  const beamDir = new THREE.Vector3(0, 3.1, -8.25).sub(beamOrigin);
+  const beamLen = beamDir.length();
+  const beamMat = new THREE.MeshBasicMaterial({
+    color: '#ffe9c0', transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false, fog: false, side: THREE.DoubleSide,
+  });
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(.14, 1.5, 1, 14, 1, true), beamMat);
+  beam.geometry.translate(0, -.5, 0); // apex at the mesh origin, span along -Y
+  beam.position.copy(beamOrigin);
+  beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), beamDir.normalize());
+  beam.scale.set(1, beamLen, 1);
+  beam.visible = false; group.add(beam);
   animated.push((time, done) => {
-    beam.material.emissiveIntensity = done ? .9 + Math.sin(time * 7) * .15 : 0;
+    beam.visible = done;
+    beamMat.opacity = .11 + Math.sin(time * 7) * .025;
+    lensDot.material.emissiveIntensity = done ? 1.4 + Math.sin(time * 7) * .3 : 0;
   });
 
   // --- Aisle lamps: emissive floor studs along both aisles ---
