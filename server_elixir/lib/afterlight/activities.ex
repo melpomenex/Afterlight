@@ -96,6 +96,7 @@ defmodule Afterlight.Activities do
             |> maybe_put(:idle_reap_ms, Keyword.get(opts, :idle_reap_ms))
             |> maybe_put(:tick_interval_ms, Keyword.get(opts, :tick_interval_ms))
             |> maybe_put(:snapshot_interval_ms, Keyword.get(opts, :snapshot_interval_ms))
+            |> maybe_put(:wire_room_id, Keyword.get(opts, :wire_room_id))
             |> maybe_put(:countdown_ms, Keyword.get(opts, :countdown_ms))
             |> maybe_put(:race_deadline_ms, Keyword.get(opts, :race_deadline_ms))
             |> maybe_put(:results_retention_ms, Keyword.get(opts, :results_retention_ms))
