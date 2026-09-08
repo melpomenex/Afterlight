@@ -5,9 +5,10 @@ defmodule WorldTestHelper do
   """
 
   @doc """
-  A fake member "channel": consumes `{:world_frame, frame}` pushes and
-  records them to the test process as `{:recorded, id, frame}`. Linked to
-  the caller so the room sees the member's DOWN when the test ends.
+  A fake member "channel": consumes `{:world_frame, room_id, frame}` pushes
+  (the task 3.2 tagged envelope) and records the frame to the test process
+  as `{:recorded, id, frame}`. Linked to the caller so the room sees the
+  member's DOWN when the test ends.
   """
   def recorder!(test_pid, id) do
     spawn_link(fn -> recorder_loop(test_pid, id) end)
@@ -15,7 +16,7 @@ defmodule WorldTestHelper do
 
   defp recorder_loop(test_pid, id) do
     receive do
-      {:world_frame, frame} ->
+      {:world_frame, _room_id, frame} ->
         send(test_pid, {:recorded, id, frame})
         recorder_loop(test_pid, id)
 

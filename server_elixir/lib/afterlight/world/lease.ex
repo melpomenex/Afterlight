@@ -15,6 +15,7 @@ defmodule Afterlight.World.Lease do
 
   @max_ttl_secs 15
   @renew_interval_ms 5_000
+  @query_timeout_ms 15_000
 
   @doc "Maximum lease TTL in seconds (design bound)."
   @spec max_ttl_secs() :: pos_integer()
@@ -23,6 +24,10 @@ defmodule Afterlight.World.Lease do
   @doc "Renewal cadence in milliseconds (design bound, jitter applied by Renewer)."
   @spec renew_interval_ms() :: pos_integer()
   def renew_interval_ms, do: @renew_interval_ms
+
+  @doc "Default lease query timeout in milliseconds (callers may pass a tighter `:timeout` opt)."
+  @spec query_timeout_ms() :: pos_integer()
+  def query_timeout_ms, do: @query_timeout_ms
 
   @doc "This node's owner identity string."
   @spec owner_node() :: String.t()
@@ -33,12 +38,18 @@ defmodule Afterlight.World.Lease do
   @doc """
   Atomically acquire or take over an expired lease. Concurrent claimants
   yield exactly one winner; takeover bumps `epoch`.
+
+  Options: `:timeout` — query timeout in milliseconds. The live owner seam
+  (RoomServer startup, Renewer) passes a bounded timeout so a stalled
+  database degrades a room quickly instead of stalling a join or a
+  renewal for the full default.
   """
-  @spec acquire(RoomKey.t() | map()) :: {:ok, Handle.t()} | {:error, term}
-  def acquire(key) do
+  @spec acquire(RoomKey.t() | map(), keyword()) :: {:ok, Handle.t()} | {:error, term}
+  def acquire(key, opts \\ []) do
     key = normalize_key(key)
     node = owner_node()
     ttl = max_ttl_secs()
+    query_opts = [timeout: Keyword.get(opts, :timeout, @query_timeout_ms)]
 
     sql = """
     INSERT INTO room_leases AS l
@@ -64,7 +75,7 @@ defmodule Afterlight.World.Lease do
            key.instance_id,
            node,
            Integer.to_string(ttl)
-         ]) do
+         ], query_opts) do
       {:ok, %{rows: [[room_key, owner, epoch]]}} when owner == node ->
         {:ok, %Handle{room_key: room_key, owner_node: owner, epoch: epoch, fenced: false}}
 
@@ -86,12 +97,16 @@ defmodule Afterlight.World.Lease do
   @doc """
   Guarded renewal: owner and epoch must match and lease must be unexpired
   (database `now()`). Failed renewal returns `{:error, :fenced}`.
+  Options: `:timeout` — query timeout in milliseconds (see `acquire/2`).
   """
-  @spec renew(Handle.t()) :: {:ok, Handle.t()} | {:error, :fenced | term}
-  def renew(%Handle{fenced: true} = handle), do: {:error, :fenced}
+  @spec renew(Handle.t(), keyword()) :: {:ok, Handle.t()} | {:error, :fenced | term}
+  def renew(handle, opts \\ [])
 
-  def renew(%Handle{} = handle) do
+  def renew(%Handle{fenced: true}, _opts), do: {:error, :fenced}
+
+  def renew(%Handle{} = handle, opts) do
     ttl = max_ttl_secs()
+    query_opts = [timeout: Keyword.get(opts, :timeout, @query_timeout_ms)]
 
     sql = """
     UPDATE room_leases
@@ -110,7 +125,7 @@ defmodule Afterlight.World.Lease do
            handle.owner_node,
            Integer.to_string(ttl),
            handle.epoch
-         ]) do
+         ], query_opts) do
       {:ok, %{rows: [[epoch]]}} ->
         {:ok, %{handle | epoch: epoch, fenced: false}}
 

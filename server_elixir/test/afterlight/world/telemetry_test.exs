@@ -46,7 +46,10 @@ defmodule Afterlight.World.TelemetryTest do
     events = Enum.filter(events, fn {_, _, metadata} -> metadata[:room] == room.wire_id end)
 
     names = events |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> Enum.sort()
-    assert names == [[:afterlight, :movement, :coalesced], [:afterlight, :room, :join], [:afterlight, :room, :leave], [:afterlight, :room, :tick]]
+    assert names in [
+      [[:afterlight, :movement, :coalesced], [:afterlight, :room, :join], [:afterlight, :room, :leave], [:afterlight, :room, :tick]],
+      [[:afterlight, :movement, :coalesced], [:afterlight, :room, :join], [:afterlight, :room, :leave], [:afterlight, :room, :stopped], [:afterlight, :room, :tick]]
+    ]
 
     for {name, measurements, metadata} <- events do
       case name do

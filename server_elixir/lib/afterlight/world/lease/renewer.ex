@@ -16,14 +16,15 @@ defmodule Afterlight.World.Lease.Renewer do
   def init(opts) do
     room_pid = Keyword.fetch!(opts, :room_pid)
     handle = Keyword.fetch!(opts, :handle)
+    query_timeout = Keyword.get(opts, :query_timeout) || Lease.query_timeout_ms()
     Process.monitor(room_pid)
     schedule_tick()
-    {:ok, %{room_pid: room_pid, handle: handle}}
+    {:ok, %{room_pid: room_pid, handle: handle, query_timeout: query_timeout}}
   end
 
   @impl true
-  def handle_info(:tick, %{room_pid: room_pid, handle: handle} = state) do
-    case Lease.renew(handle) do
+  def handle_info(:tick, %{room_pid: room_pid, handle: handle, query_timeout: query_timeout} = state) do
+    case Lease.renew(handle, timeout: query_timeout) do
       {:ok, new_handle} ->
         send(room_pid, {:lease_renewed, new_handle})
         schedule_tick()
@@ -46,7 +47,11 @@ defmodule Afterlight.World.Lease.Renewer do
   end
 
   defp schedule_tick do
-    base = Lease.renew_interval_ms()
+    # Default cadence is the design bound (`Lease.renew_interval_ms`,
+    # jittered). The interval is config-overridable so integration tests
+    # can exercise the real renewal→fence flow without waiting seconds;
+    # production never sets the key.
+    base = World.config(:lease_renew_interval_ms, Lease.renew_interval_ms())
     jitter = :rand.uniform(div(base, 2))
     Process.send_after(self(), :tick, base + jitter)
   end

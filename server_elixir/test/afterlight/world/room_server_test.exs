@@ -236,7 +236,19 @@ defmodule Afterlight.World.RoomServerTest do
     RoomServer.update_nickname(pid, "guest_b", "New Name")
     RoomServer.emote(pid, "guest_b", :cb, "wave")
     frame = wait_for(:a, &(&1["type"] == "emote_broadcast"))
-    assert frame == %{"type" => "emote_broadcast", "playerId" => "guest_b", "nickname" => "New Name", "emote" => "wave"}
+
+    # Exact wire shape (string keys, the additive epoch field). This
+    # harness starts rooms WITHOUT a database checkout, so the room holds
+    # no lease and stamps the pre-lease epoch default 0 — the
+    # un-owned/degraded value, never a fabricated ownership claim
+    # (B task 1.1: rooms WITH a held lease stamp its real epoch).
+    assert frame == %{
+             "type" => "emote_broadcast",
+             "epoch" => 0,
+             "playerId" => "guest_b",
+             "nickname" => "New Name",
+             "emote" => "wave"
+           }
 
     # Spam within 500 ms is rejected silently.
     RoomServer.emote(pid, "guest_b", :cb, "dance")
@@ -331,6 +343,7 @@ defmodule Afterlight.World.RoomServerTest do
 
     # Crash the room; the DynamicSupervisor restarts it empty (D9).
     Process.exit(room_pid, :kill)
+
     wait_until(fn ->
       case Registry.lookup(Afterlight.World.Registry, {RoomServer, room.wire_id}) do
         [{pid, _}] -> pid != room_pid

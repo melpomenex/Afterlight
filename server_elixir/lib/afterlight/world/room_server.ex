@@ -39,6 +39,26 @@ defmodule Afterlight.World.RoomServer do
   restarts a crashed room with empty transient state; member channels
   monitor this process and resnapshot (close + desiredRoom replay) on any
   DOWN. Nothing durable is read or written; the only loss is poses.
+
+  Ownership (P9 `add-distributed-room-ownership`, completed by B task 1.1):
+  the ADMITTING caller acquires the room's existing lease exactly once
+  (`Afterlight.World.Lease`, database-time TTL + epochs) and hands the
+  handle to `init` — this callback runs no lease SQL. A held handle is
+  consumed verbatim (admission, `Successor.rebuild` takeovers, and the
+  DynamicSupervisor auto-restart, which re-runs init with the original
+  handle: the row outlives the crash, so the restarted owner keeps its
+  epoch). A jittered `Lease.Renewer` (a linked child that monitors this
+  room) keeps it alive and reports `{:lease_renewed, handle}` /
+  `{:lease_fenced, reason}`. Every outbound frame carries the held lease
+  epoch in the additive `"epoch"` field (Frames; wire shapes otherwise
+  unchanged). Ownership loss is fail-closed: a fenced room STOPS, which
+  closes member transports with the retryable `room_unavailable` and lets
+  the desiredRoom replay start a successor that acquires a strictly
+  greater epoch. A room admitted while the lease system was unreachable
+  holds NO handle — its frames carry the pre-lease epoch default 0, never
+  presented as real ownership (no fake epoch0 fallback) — and adopts a
+  handle on the next owned admission via `install_lease/2`. Multi-node
+  room owners remain gated (`World.Gate`, P10 evidence).
   """
 
   # :transient — a crashed room restarts (empty, members resnapshot);
@@ -47,13 +67,17 @@ defmodule Afterlight.World.RoomServer do
   use GenServer, restart: :transient
 
   alias Afterlight.World
-  alias Afterlight.World.{Emotes, Frames, Movement}
+  alias Afterlight.World.{Atmosphere, Emotes, Frames, Lease, Movement}
+  alias Afterlight.World.Lease.Renewer
 
   defstruct [
     :room,
     :timer,
     :empty_since,
     :started_at,
+    :lease,
+    :renewer,
+    :atmosphere,
     members: %{},
     order: [],
     dirty: false,
@@ -131,23 +155,88 @@ defmodule Afterlight.World.RoomServer do
   end
 
   @doc false
-  def start_link(room) do
-    GenServer.start_link(__MODULE__, room, name: via(room.wire_id))
-  end
+  def start_link({room, lease}), do: GenServer.start_link(__MODULE__, {room, lease}, name: via(room.wire_id))
+
+  # Direct test starts pass the resolved room map alone: an un-owned room
+  # (World admission and Successor.rebuild always pass a spec explicitly).
+  def start_link(room) when is_map(room), do: start_link({room, nil})
 
   defp via(wire_id), do: {:via, Registry, {Afterlight.World.Registry, {__MODULE__, wire_id}}}
+
+  @doc """
+  The ownership epoch this room stamps on every outbound frame: the held
+  lease epoch, or the pre-lease default 0 when no handle is held (lease
+  unverifiable at admission / fenced). Never an invented counter — it is
+  read straight off the `Lease.Handle` (P9; B task 1.1).
+  """
+  @spec epoch(pid) :: non_neg_integer
+  def epoch(room_pid), do: GenServer.call(room_pid, :epoch)
+
+  @doc """
+  Adopt an acquired lease on an already-running room. Idempotent for
+  duplicate admissions (the same lease row): an equal-epoch handle is
+  already held, so the caller's is dropped and no second renewal loop
+  starts against ourselves. A STRICTLY GREATER epoch — a successor that
+  took the row over while a stale pre-crash handle still pointed here —
+  is ADOPTED: the handle is swapped and the renewal loop restarted so the
+  room never keeps claiming (or renewing) a superseded epoch.
+  """
+  @spec install_lease(pid, Lease.Handle.t()) :: {:ok, non_neg_integer} | {:error, term}
+  def install_lease(room_pid, %Lease.Handle{} = handle) do
+    GenServer.call(room_pid, {:install_lease, handle})
+  end
 
   ## Callbacks
 
   @impl true
-  def init(room) do
-    state = %__MODULE__{
-      room: room,
-      started_at: System.system_time(:millisecond),
-      timer: Process.send_after(self(), :tick, tick_interval())
-    }
+  def init({room, nil}) do
+    # Un-owned admission (lease system unreachable for the joiner): frames
+    # carry the epoch-0 wire default until an owned join installs a lease.
+    init_room(room, nil)
+  end
 
-    {:ok, state}
+  def init({room, %Lease.Handle{} = handle}) do
+    # Owned admission / successor path: the caller already acquired this
+    # handle — consume it, never re-acquire against ourselves.
+    init_room(room, handle)
+  end
+
+  # Bounded lease SQL at the owner seam (the Renewer's renewals): a stalled
+  # database must degrade quickly, never stall a join or a renewal for the
+  # full DBConnection default.
+  @lease_query_timeout_ms 2_000
+
+  defp lease_query_timeout, do: World.config(:lease_query_timeout_ms, @lease_query_timeout_ms)
+
+  defp init_room(room, nil) do
+    # Un-owned admission (lease system unreachable for the joiner): frames
+    # carry the epoch-0 wire default until an owned join installs a lease.
+    # The atmosphere holds no claim either — it emits nothing until owned.
+    {:ok,
+     %__MODULE__{
+       room: room,
+       atmosphere: Atmosphere.init(room.wire_id),
+       started_at: System.system_time(:millisecond),
+       timer: Process.send_after(self(), :tick, tick_interval())
+     }}
+  end
+
+  defp init_room(room, handle) do
+    # Linked renewer: it monitors this room and stops itself on DOWN, so
+    # there is nothing to demonitor on stop (P9 lifecycle). A renewer
+    # crash takes the room with it — the restart re-runs init with the
+    # same handle and resumes renewal.
+    {:ok, renewer} = Renewer.start_link(room_pid: self(), handle: handle, query_timeout: lease_query_timeout())
+
+    {:ok,
+     %__MODULE__{
+       room: room,
+       lease: handle,
+       renewer: renewer,
+       atmosphere: Atmosphere.init(room.wire_id),
+       started_at: System.system_time(:millisecond),
+       timer: Process.send_after(self(), :tick, tick_interval())
+     }}
   end
 
   @impl true
@@ -198,11 +287,11 @@ defmodule Afterlight.World.RoomServer do
           }
 
           # presence_join to the room, joiner excluded.
-          frame = Frames.presence_join(member)
+          frame = Frames.presence_join(member, frame_epoch(state))
 
           Enum.each(state.order, fn pid_id ->
             other = Map.get(state.members, pid_id)
-            send_frame(other.channel_pid, frame)
+            send_frame(state.room.wire_id, other.channel_pid, frame)
           end)
 
           telemetry([:afterlight, :room, :join], %{roster_size: map_size(state.members)}, %{
@@ -226,6 +315,75 @@ defmodule Afterlight.World.RoomServer do
     {:reply, member != nil and member.conn_ref == conn_ref, state}
   end
 
+  def handle_call(:epoch, _from, state) do
+    {:reply, frame_epoch(state), state}
+  end
+
+  @doc """
+  The room's semantic atmosphere snapshot (`{:ok, frame}`), or
+  `:unavailable` when the room has no projected atmosphere or holds no
+  valid lease (task 2.1: un-owned rooms never present atmosphere state).
+  One `GenServer.call` per join/`atmosphere_get` — never per tick.
+  """
+  def atmosphere_snapshot(room_pid), do: GenServer.call(room_pid, :atmosphere_snapshot)
+
+  def handle_call(:atmosphere_snapshot, _from, state) do
+    # Persist the adopted epoch first (task 2.1): the bounded future event
+    # window is regenerated exactly once per held epoch, so two joiners read
+    # the SAME window instead of each redrawing one (the coherence contract).
+    now = System.system_time(:millisecond)
+    atmosphere = Atmosphere.adopt(state.atmosphere, frame_epoch(state), now)
+    {:reply, Atmosphere.snapshot(atmosphere, frame_epoch(state), now), %{state | atmosphere: atmosphere}}
+  end
+
+  def handle_call({:install_lease, %Lease.Handle{} = handle}, _from, %{lease: %Lease.Handle{} = held} = state)
+      when held.epoch >= handle.epoch do
+    # Already owned at the caller's epoch or higher (duplicate admission,
+    # successor raced against a live room): the existing handle stands —
+    # same lease row, no second renewal loop against ourselves.
+    {:reply, {:ok, frame_epoch(state)}, state}
+  end
+
+  def handle_call({:install_lease, %Lease.Handle{} = handle}, _from, %{lease: %Lease.Handle{} = held} = state) do
+    # Successor takeover: the row moved to a strictly greater epoch while
+    # this room still held the stale (pre-crash) handle. Swap to the new
+    # handle and RESTART the renewal loop, so the stale renewer cannot
+    # renew the superseded epoch and fence us a moment later.
+    case start_renewer(handle) do
+      {:ok, renewer} ->
+        # Unlink before killing: the old renewer is linked to this room,
+        # and its `:killed` exit would otherwise take the room down with
+        # it (the renewer's own DOWN monitor is what stops it on room
+        # death — the reverse direction must not fire here).
+        if is_pid(state.renewer) do
+          Process.unlink(state.renewer)
+          Process.exit(state.renewer, :kill)
+        end
+
+        state = %{state | lease: handle, renewer: renewer}
+        {:reply, {:ok, frame_epoch(state)}, state}
+
+      {:error, reason} ->
+        _ = held
+        {:reply, {:error, reason}, state}
+    end
+  end
+
+  def handle_call({:install_lease, %Lease.Handle{} = handle}, _from, state) do
+    # Un-owned room adopting its first handle.
+    case start_renewer(handle) do
+      {:ok, renewer} ->
+        state = %{state | lease: handle, renewer: renewer}
+        {:reply, {:ok, frame_epoch(state)}, state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
+
+  defp start_renewer(handle), do: Renewer.start_link(room_pid: self(), handle: handle, query_timeout: lease_query_timeout())
+
+
   def handle_call(:stats, _from, state) do
     depth =
       case Process.info(self(), :message_queue_len) do
@@ -248,7 +406,7 @@ defmodule Afterlight.World.RoomServer do
 
   @impl true
   def handle_cast({:broadcast_frame, frame}, state) do
-    Enum.each(members_in_order(state), fn member -> send_frame(member.channel_pid, frame) end)
+    Enum.each(members_in_order(state), fn member -> send_frame(state.room.wire_id, member.channel_pid, frame) end)
     {:noreply, state}
   end
 
@@ -303,10 +461,10 @@ defmodule Afterlight.World.RoomServer do
         {:noreply, state}
 
       true ->
-        frame = Frames.emote_broadcast(player_id, live_nickname(member), emote)
+        frame = Frames.emote_broadcast(player_id, live_nickname(member), emote, frame_epoch(state))
 
         Enum.each(members_in_order(state), fn m ->
-          send_frame(m.channel_pid, frame)
+          send_frame(state.room.wire_id, m.channel_pid, frame)
         end)
 
         {:noreply, %{state | cooldowns: Map.put(state.cooldowns, conn_ref, now)}}
@@ -343,6 +501,19 @@ defmodule Afterlight.World.RoomServer do
     now = System.system_time(:millisecond)
     state = flush_tick(state, now)
 
+    # Semantic atmosphere (task 2.1): bounded scheduling inside the EXISTING
+    # tick — O(1) deadline checks, a broadcast frame only when an event
+    # window was replaced or the ≤30 s repair snapshot is due, and never for
+    # an un-owned (epoch 0) or empty room.
+    {atmosphere, atmosphere_frame} = Atmosphere.tick(state.atmosphere, frame_epoch(state), state.members != %{}, now)
+    state = %{state | atmosphere: atmosphere}
+
+    if atmosphere_frame != nil do
+      Enum.each(members_in_order(state), fn member ->
+        send_frame(state.room.wire_id, member.channel_pid, atmosphere_frame)
+      end)
+    end
+
     state = Map.put(state, :timer, Process.send_after(self(), :tick, tick_interval()))
 
     cond do
@@ -362,11 +533,51 @@ defmodule Afterlight.World.RoomServer do
     end
   end
 
+  # Renewal succeeded (jittered Renewer cadence): adopt the fresh handle.
+  # The epoch itself only changes across ownership transfer, but the
+  # handle stays the single source of truth.
+  def handle_info({:lease_renewed, %Lease.Handle{} = handle}, state) do
+    state =
+      if is_pid(state.renewer) do
+        state
+      else
+        # Degraded-room adoption via install_lease started a fresh renewer
+        # whose first renewal will arrive as a message; keep the handle
+        # bookkeeping symmetric either way.
+        state
+      end
+
+    {:noreply, %{state | lease: handle}}
+  end
+
+  # Ownership lost (renewal rejected: expired or taken over). Fail closed
+  # as the FORMER owner: stop the room so every member transport closes
+  # with the retryable `room_unavailable` and the desiredRoom replay
+  # starts a successor that acquires a strictly greater epoch. Queued
+  # old-owner output dies with this process, and clients additionally
+  # discard stale epochs per room (src/net/roomEpoch.js).
+  def handle_info({:lease_fenced, reason}, state) do
+    telemetry([:afterlight, :room, :lease, :fenced], %{count: 1}, %{
+      room: state.room.wire_id,
+      reason: reason
+    })
+
+    {:stop, :shutdown, %{state | lease: Lease.fence(state.lease)}}
+  end
+
   def handle_info(_other, state), do: {:noreply, state}
 
   @impl true
   def terminate(_reason, state) do
     for {_id, m} <- state.members, do: Process.demonitor(m.monitor, [:flush])
+
+    # Renewal lifecycle (P9): the linked Renewer monitors this room and
+    # stops itself on DOWN — nothing to cancel here. The lease row is
+    # deliberately NOT released on shutdown: `Lease.release/1` would let
+    # the next acquisition restart at epoch 1, an epoch REGRESSION that
+    # epoch-tracking clients discard. Letting the row expire naturally
+    # keeps every later acquisition monotonic (same-owner reclaims keep
+    # the epoch; expired takeovers bump it).
     :ok
   end
 
@@ -383,7 +594,7 @@ defmodule Afterlight.World.RoomServer do
       %{state | dirty: false, received: 0}
     else
       t0 = System.system_time(:millisecond)
-      frame = Frames.flush(members, state.tick_count)
+      frame = Frames.flush(members, state.tick_count, frame_epoch(state))
       {state, _stalled} = broadcast(frame, state)
       duration = System.system_time(:millisecond) - t0
 
@@ -419,7 +630,7 @@ defmodule Afterlight.World.RoomServer do
           {do_leave(state, member.player_id, member.conn_ref, :stalled), [member | stalled]}
 
         _depth ->
-          send_frame(member.channel_pid, frame)
+          send_frame(state.room.wire_id, member.channel_pid, frame)
           {state, stalled}
       end
     end)
@@ -436,11 +647,11 @@ defmodule Afterlight.World.RoomServer do
     case Map.get(state.members, player_id) do
       %{:conn_ref => ^conn_ref} = member ->
         Process.demonitor(member.monitor, [:flush])
-        frame = Frames.presence_leave(player_id)
+        frame = Frames.presence_leave(player_id, frame_epoch(state))
 
         state = remove_member(state, player_id)
 
-        Enum.each(members_in_order(state), fn m -> send_frame(m.channel_pid, frame) end)
+        Enum.each(members_in_order(state), fn m -> send_frame(state.room.wire_id, m.channel_pid, frame) end)
 
         telemetry([:afterlight, :room, :leave], %{}, %{
           room: state.room.wire_id,
@@ -464,8 +675,15 @@ defmodule Afterlight.World.RoomServer do
       |> Enum.reject(&is_nil/1)
       |> Enum.reject(&(&1.player_id == exclude_player_id))
 
-    Frames.join_roster(players)
+    Frames.join_roster(players, frame_epoch(state))
   end
+
+  # The epoch stamped on every frame of THIS owner: the held lease epoch,
+  # or the pre-lease wire default 0 while the room holds no handle (lease
+  # unverifiable at startup). A real acquired epoch is always >= 1, so 0
+  # on the wire unambiguously means "un-owned" — never a fabricated claim.
+  defp frame_epoch(%{lease: %Lease.Handle{fenced: false, epoch: epoch}}) when is_integer(epoch) and epoch > 0, do: epoch
+  defp frame_epoch(_state), do: 0
 
   defp members_in_order(state) do
     Enum.flat_map(state.order, fn id ->
@@ -499,8 +717,13 @@ defmodule Afterlight.World.RoomServer do
 
   # Outbound frames travel as ordinary messages to the channel process;
   # the channel pushes them onto the transport. No frame construction
-  # happens in the channel handler (design D9).
-  defp send_frame(channel_pid, frame), do: send(channel_pid, {:world_frame, frame})
+  # happens in the channel handler (design D9). Every message is tagged
+  # with the sending room's wire id (task 3.2, D3): the channel drops
+  # frames from a room it has already left, so queued output cannot cross
+  # travel.
+  defp send_frame(wire_id, channel_pid, frame) do
+    send(channel_pid, Frames.world_message(wire_id, frame))
+  end
 
   defp telemetry(event, measurements, metadata), do: :telemetry.execute(event, measurements, metadata)
 end

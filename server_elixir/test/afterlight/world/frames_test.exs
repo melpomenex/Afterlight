@@ -109,4 +109,24 @@ defmodule Afterlight.World.FramesTest do
     refute Map.has_key?(hd(frame["players"]), "nickname")
     assert hd(frame["players"])["id"] == "guest_a"
   end
+
+  # Task 3.2 (add-social-place-framework D3): the tagged internal envelope
+  # and the additive public room field.
+
+  test "world_message tags the internal envelope with the source room" do
+    frame = Frames.flush([member("guest_a", "Mossy")], 7)
+
+    assert Frames.world_message("theater", frame) == {:world_frame, "theater", frame}
+  end
+
+  test "put_room adds only the additive roomId field to the public frame" do
+    frame = Frames.emote_broadcast("guest_a", "Mossy Fern", "wave")
+    tagged = Frames.put_room(frame, "market")
+
+    assert tagged ==
+             Map.put(frame, "roomId", "market")
+
+    # The built frame itself stays untouched (non-mutating tag).
+    refute Map.has_key?(frame, "roomId")
+  end
 end

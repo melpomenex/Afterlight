@@ -16,7 +16,7 @@ defmodule Afterlight.World do
   kind (runtime.md).
   """
 
-  alias Afterlight.World.{Lease, Movement, RoomServer, Rooms}
+  alias Afterlight.World.{Lease, Movement, RoomKey, RoomServer, Rooms}
 
   @doc """
   Config accessor (`config :afterlight, :world`), read at call time so
@@ -159,9 +159,30 @@ defmodule Afterlight.World do
 
   def broadcast_frame(_wire_room_id, _frame), do: :ok
 
-  @doc false
-  @spec ensure_room_with_lease(map(), Lease.Handle.t()) :: {:ok, pid()} | {:error, term}
-  def ensure_room_with_lease(room, _handle), do: ensure_room(room)
+  @doc """
+  Start (or reuse) the room process under an acquired lease handle — the
+  P9 owner gate completed by B task 1.1. A `nil` handle is the degraded
+  admission path (the lease system was unreachable): the room runs
+  un-owned (epoch-0 frames) until an owned admission adopts its handle
+  into the live process. A given `Lease.Handle` is consumed verbatim —
+  admission and `Successor.rebuild` successors never re-acquire against
+  themselves — and a running room that already owns the row keeps its own
+  handle. A lease held by ANOTHER owner refuses admission (fail closed).
+  """
+  @spec ensure_room_with_lease(map(), Lease.Handle.t() | nil) :: {:ok, pid()} | {:error, term}
+  def ensure_room_with_lease(room, handle) do
+    case Registry.lookup(registry(), {RoomServer, room.wire_id}) do
+      [{pid, _}] when is_pid(pid) and handle != nil ->
+        # Running room: adopt the handle when it holds none, keep its own
+        # when it does (same lease row — never a second renewal loop).
+        with {:ok, _epoch} <- RoomServer.install_lease(pid, handle) do
+          {:ok, pid}
+        end
+
+      _ ->
+        ensure_room({room, handle}, 10)
+    end
+  end
 
   @doc "Current epoch for a wire room (0 when room or fencing absent)."
   @spec epoch(String.t() | nil) :: non_neg_integer()
@@ -177,8 +198,36 @@ defmodule Afterlight.World do
     end
   end
 
+  # Bounded lease SQL at the admission seam: a stalled database degrades
+  # the join quickly (un-owned room) instead of stalling it.
+  @lease_query_timeout_ms 2_000
+
   defp ensure_room(room) do
-    ensure_room(room, 10)
+    # Admission acquires the room's existing lease ONCE, in the joiner's
+    # process (P9/B 1.1 owner gate): one SQL statement per join that
+    # starts or re-owns a room — never per tick or per frame.
+    case Lease.acquire(RoomKey.from_room(room), timeout: config(:lease_query_timeout_ms, @lease_query_timeout_ms)) do
+      {:ok, handle} ->
+        ensure_room_with_lease(room, handle)
+
+      # Another owner holds the room: fail closed (retryable
+      # room_unavailable for the joiner; the existing failover — expiry
+      # then Successor backoff — owns recovery). Unreachable while
+      # multi-node stays gated (every local claimant shares owner_node).
+      {:error, {:held_by, holder}} ->
+        {:error, {:lease_denied, holder}}
+
+      {:error, :acquire_race} ->
+        {:error, :lease_denied}
+
+      # Lease system unavailable (database down / unmigrated): keep
+      # today's transient availability by admitting an UN-OWNED room —
+      # frames carry the epoch-0 wire default and no renewal runs. This
+      # is a degraded room, not a claimed epoch; the next owned join
+      # adopts a real handle.
+      {:error, _lease_unavailable} ->
+        ensure_room({room, nil}, 10)
+    end
   end
 
   # Serialized room startup (design D2): the Registry lookup is the
@@ -186,15 +235,15 @@ defmodule Afterlight.World do
   # (crash recovery, D9) — a lookup can momentarily miss, a start can hit
   # an in-flight registration, or the "winner" can already be dead — so
   # every lost race retries the whole lookup a bounded number of times.
-  defp ensure_room(_room, 0), do: {:error, :room_unavailable}
+  defp ensure_room(_spec, 0), do: {:error, :room_unavailable}
 
-  defp ensure_room(room, attempts) do
+  defp ensure_room({room, _handle} = spec, attempts) do
     case Registry.lookup(registry(), {RoomServer, room.wire_id}) do
       [{pid, _}] ->
-        if Process.alive?(pid), do: {:ok, pid}, else: retry(room, attempts)
+        if Process.alive?(pid), do: {:ok, pid}, else: retry(spec, attempts)
 
       [] ->
-        case DynamicSupervisor.start_child(dynamic_supervisor(), {RoomServer, room}) do
+        case DynamicSupervisor.start_child(dynamic_supervisor(), {RoomServer, spec}) do
           {:ok, pid} ->
             {:ok, pid}
 
@@ -204,21 +253,23 @@ defmodule Afterlight.World do
           # Lost the init registration race. The winner is the room to use —
           # unless it died since, in which case retry from the lookup.
           {:error, {:already_registered, pid}} ->
-            if Process.alive?(pid), do: {:ok, pid}, else: retry(room, attempts)
+            if Process.alive?(pid), do: {:ok, pid}, else: retry(spec, attempts)
 
           # Restart in flight under a reused child id.
           {:error, :already_present} ->
-            retry(room, attempts)
+            retry(spec, attempts)
 
+          # Fail-closed ownership (lease held by another claimant) and any
+          # other start failure surface to the join as retryable.
           {:error, reason} ->
             {:error, reason}
         end
     end
   end
 
-  defp retry(room, attempts) do
+  defp retry(spec, attempts) do
     Process.sleep(10)
-    ensure_room(room, attempts - 1)
+    ensure_room(spec, attempts - 1)
   end
 
   defp registry, do: Afterlight.World.Registry

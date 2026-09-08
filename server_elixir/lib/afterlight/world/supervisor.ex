@@ -21,9 +21,23 @@ defmodule Afterlight.World.Supervisor do
   def init(_arg) do
     children = [
       {Registry, keys: :unique, name: Afterlight.World.Registry},
-      {DynamicSupervisor, name: Afterlight.World.DynamicSupervisor},
+      # Restart intensity is raised well above the default (3 per 5s):
+      # rooms restart on CRASH as a normal containment event (D9), and a
+      # multi-room crash burst (a database outage felling many owners at
+      # once, an HAProxy-style thundering herd) must NOT exhaust the
+      # aggregate budget — that would take the supervisor down and evict
+      # every room instead of only the crashing ones. A single child
+      # looping crashes still trips this budget quickly.
+      {DynamicSupervisor,
+       name: Afterlight.World.DynamicSupervisor,
+       strategy: :one_for_one,
+       max_restarts: 100,
+       max_seconds: 5},
       {Task.Supervisor, name: Afterlight.World.TaskSupervisor},
       Afterlight.World.Directory,
+      # Boot-validated public place projection (task 3.1): a raise here fails
+      # feature initialization loudly rather than booting a partial catalog.
+      Afterlight.World.PlaceDefinitions,
       Afterlight.World.Drain
     ]
 
