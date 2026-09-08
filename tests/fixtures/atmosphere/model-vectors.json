@@ -1,0 +1,1553 @@
+{
+  "schemaVersion": 1,
+  "description": "Cross-language atmosphere vectors (add-atmosphere-weather-system B 1.2). JS tests pin shared/atmosphereModel.js against these; the Elixir owner (task 2.1) must reproduce the same numbers. Values are generated from the model — never hand-edited.",
+  "validEnvelope": {
+    "type": "atmosphere_state",
+    "roomId": "court",
+    "schemaVersion": 1,
+    "epoch": 7,
+    "revision": 4,
+    "serverNow": 1770000000000,
+    "state": {
+      "seed": 123,
+      "mode": "fixed",
+      "preset": "rain",
+      "intensity": 0.8,
+      "wind": [
+        0.2,
+        0.05
+      ],
+      "startedAt": 1770000000000,
+      "transition": {
+        "fromPreset": "clear",
+        "toPreset": "rain",
+        "fromIntensity": 0,
+        "toIntensity": 0.6,
+        "fromWind": [
+          0.05,
+          0
+        ],
+        "toWind": [
+          0.2,
+          0.05
+        ],
+        "startAt": 1770000000000,
+        "durationMs": 8000
+      },
+      "time": {
+        "mode": "fixed",
+        "phase": 0.82,
+        "anchorAt": 1770000000000,
+        "rate": 0
+      },
+      "events": []
+    }
+  },
+  "invalidEnvelopes": [
+    {
+      "name": "unknown_schema_version",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 2,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": 0.8,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": []
+        }
+      },
+      "reason": "schema_version"
+    },
+    {
+      "name": "unsupported_dynamic_weather",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "dynamic",
+          "preset": "rain",
+          "intensity": 0.8,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": []
+        }
+      },
+      "reason": "mode"
+    },
+    {
+      "name": "unsupported_realtime_clock",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": 0.8,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "realtime",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": []
+        }
+      },
+      "reason": "time_mode"
+    },
+    {
+      "name": "unknown_preset",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "hyper-storm-proto",
+          "intensity": 0.8,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": []
+        }
+      },
+      "reason": "preset"
+    },
+    {
+      "name": "negative_seed",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": -1,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": 0.8,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": []
+        }
+      },
+      "reason": "seed"
+    },
+    {
+      "name": "seed_over_uint32",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 4294967296,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": 0.8,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": []
+        }
+      },
+      "reason": "seed"
+    },
+    {
+      "name": "nonfinite_intensity",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": null,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": []
+        }
+      },
+      "reason": "intensity"
+    },
+    {
+      "name": "huge_intensity",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": 1e+308,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": []
+        }
+      },
+      "reason": "intensity"
+    },
+    {
+      "name": "intensity_string",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": "0.5",
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": []
+        }
+      },
+      "reason": "intensity"
+    },
+    {
+      "name": "wind_out_of_range",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": 0.8,
+          "wind": [
+            1.5,
+            0
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": []
+        }
+      },
+      "reason": "wind"
+    },
+    {
+      "name": "wind_component_nonfinite",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": 0.8,
+          "wind": [
+            0,
+            null
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": []
+        }
+      },
+      "reason": "wind"
+    },
+    {
+      "name": "five_events",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": 0.8,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": [
+            {
+              "id": "e1",
+              "kind": "lightning",
+              "at": 1,
+              "durationMs": 500,
+              "intensity": 0.5,
+              "origin": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "id": "e2",
+              "kind": "lightning",
+              "at": 1,
+              "durationMs": 500,
+              "intensity": 0.5,
+              "origin": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "id": "e3",
+              "kind": "lightning",
+              "at": 1,
+              "durationMs": 500,
+              "intensity": 0.5,
+              "origin": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "id": "e4",
+              "kind": "lightning",
+              "at": 1,
+              "durationMs": 500,
+              "intensity": 0.5,
+              "origin": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "id": "e5",
+              "kind": "lightning",
+              "at": 1,
+              "durationMs": 500,
+              "intensity": 0.5,
+              "origin": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      "reason": "events_count"
+    },
+    {
+      "name": "event_unknown_kind",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": 0.8,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": [
+            {
+              "id": "x",
+              "kind": "earthquake",
+              "at": 1,
+              "durationMs": 500,
+              "intensity": 0.5,
+              "origin": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      "reason": "event_kind"
+    },
+    {
+      "name": "event_huge_duration",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": 0.8,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": [
+            {
+              "id": "x",
+              "kind": "lightning",
+              "at": 1,
+              "durationMs": 120001,
+              "intensity": 0.5,
+              "origin": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      "reason": "event_duration"
+    },
+    {
+      "name": "zero_transition_duration",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": 0.8,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0,
+              0
+            ],
+            "toWind": [
+              0,
+              0
+            ],
+            "startAt": 0,
+            "durationMs": 0
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": []
+        }
+      },
+      "reason": "transition_duration"
+    },
+    {
+      "name": "stale_epoch_value",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": -3,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": 0.8,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": []
+        }
+      },
+      "reason": "epoch"
+    },
+    {
+      "name": "epoch_not_integer",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7.5,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": 0.8,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": []
+        }
+      },
+      "reason": "epoch"
+    },
+    {
+      "name": "bad_request_id",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": 0.8,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": []
+        },
+        "requestId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "reason": "request_id"
+    },
+    {
+      "name": "missing_room_id",
+      "envelope": {
+        "type": "atmosphere_state",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": 0.8,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": []
+        }
+      },
+      "reason": "room_id"
+    },
+    {
+      "name": "wrong_type",
+      "envelope": {
+        "type": "weather_update",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": 0.8,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": []
+        }
+      },
+      "reason": "type"
+    },
+    {
+      "name": "oversized",
+      "envelope": {
+        "type": "atmosphere_state",
+        "roomId": "court",
+        "schemaVersion": 1,
+        "epoch": 7,
+        "revision": 4,
+        "serverNow": 1770000000000,
+        "state": {
+          "seed": 123,
+          "mode": "fixed",
+          "preset": "rain",
+          "intensity": 0.8,
+          "wind": [
+            0.2,
+            0.05
+          ],
+          "startedAt": 1770000000000,
+          "transition": {
+            "fromPreset": "clear",
+            "toPreset": "rain",
+            "fromIntensity": 0,
+            "toIntensity": 0.6,
+            "fromWind": [
+              0.05,
+              0
+            ],
+            "toWind": [
+              0.2,
+              0.05
+            ],
+            "startAt": 1770000000000,
+            "durationMs": 8000
+          },
+          "time": {
+            "mode": "fixed",
+            "phase": 0.82,
+            "anchorAt": 1770000000000,
+            "rate": 0
+          },
+          "events": [
+            {
+              "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+              "kind": "meteor",
+              "at": 1,
+              "durationMs": 1000,
+              "intensity": 0.5,
+              "origin": [
+                0,
+                0,
+                0
+              ],
+              "pad": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+            }
+          ]
+        }
+      },
+      "reason": "byte_size"
+    }
+  ],
+  "lcg": {
+    "seedZero": {
+      "seed": 0,
+      "draws": [
+        1013904223,
+        1196435762,
+        3519870697,
+        2868466484,
+        1649599747,
+        2670642822,
+        1476291629,
+        2748932008
+      ]
+    },
+    "seed123": {
+      "seed": 123,
+      "draws": [
+        1218640798,
+        1868869221,
+        166005888,
+        948671967
+      ]
+    }
+  },
+  "transition": {
+    "state": {
+      "seed": 123,
+      "mode": "fixed",
+      "preset": "rain",
+      "intensity": 0.8,
+      "wind": [
+        0.2,
+        0.05
+      ],
+      "startedAt": 1770000000000,
+      "transition": {
+        "fromPreset": "clear",
+        "toPreset": "rain",
+        "fromIntensity": 0,
+        "toIntensity": 0.6,
+        "fromWind": [
+          0.05,
+          0
+        ],
+        "toWind": [
+          0.2,
+          0.05
+        ],
+        "startAt": 1770000000000,
+        "durationMs": 8000
+      },
+      "time": {
+        "mode": "fixed",
+        "phase": 0.82,
+        "anchorAt": 1770000000000,
+        "rate": 0
+      },
+      "events": []
+    },
+    "samples": [
+      {
+        "atOffsetMs": 0,
+        "intensity": 0,
+        "windX": 0.05,
+        "transitionU": 0
+      },
+      {
+        "atOffsetMs": 2000,
+        "intensity": 0.09375,
+        "windX": 0.0734375,
+        "transitionU": 0.15625
+      },
+      {
+        "atOffsetMs": 4000,
+        "intensity": 0.3,
+        "windX": 0.125,
+        "transitionU": 0.5
+      },
+      {
+        "atOffsetMs": 6000,
+        "intensity": 0.50625,
+        "windX": 0.1765625,
+        "transitionU": 0.84375
+      },
+      {
+        "atOffsetMs": 8000,
+        "intensity": 0.6,
+        "windX": 0.2,
+        "transitionU": 1
+      }
+    ]
+  },
+  "time": {
+    "fixed": {
+      "time": {
+        "mode": "fixed",
+        "phase": 0.82,
+        "anchorAt": 1770000000000,
+        "rate": 0
+      },
+      "at": 1770000036000,
+      "phase": 0.82
+    },
+    "accelerated": {
+      "time": {
+        "mode": "accelerated",
+        "phase": 0.25,
+        "anchorAt": 1770000000000,
+        "rate": 0.01
+      },
+      "at": 1770003600000,
+      "phase": 0.25
+    },
+    "acceleratedWrap": {
+      "time": {
+        "mode": "accelerated",
+        "phase": 0.9,
+        "anchorAt": 1770000000000,
+        "rate": 0.005
+      },
+      "at": 1770000030000,
+      "phase": 0.050000000000000044
+    }
+  },
+  "cycleWrap": {
+    "cycleMs": 1440000,
+    "keyframes": [
+      {
+        "atMs": 0,
+        "intensity": 0.15,
+        "wind": [
+          0.05,
+          0
+        ],
+        "rain": 0,
+        "cloud": 0.2,
+        "wetness": 0
+      },
+      {
+        "atMs": 480000,
+        "intensity": 0.5,
+        "wind": [
+          0.2,
+          0.05
+        ],
+        "rain": 0.45,
+        "cloud": 0.55,
+        "wetness": 0.4
+      },
+      {
+        "atMs": 960000,
+        "intensity": 0.85,
+        "wind": [
+          0.35,
+          0.1
+        ],
+        "rain": 0.9,
+        "cloud": 0.85,
+        "wetness": 1
+      }
+    ],
+    "samples": [
+      {
+        "atMs": 1439999,
+        "intensity": 0.15000000000911462,
+        "rain": 1.1718737091825915e-11,
+        "wetness": 1.3020806655106298e-11,
+        "wrapped": true
+      },
+      {
+        "atMs": 0,
+        "intensity": 0.15,
+        "rain": 0,
+        "wetness": 0,
+        "wrapped": false
+      },
+      {
+        "atMs": 240000,
+        "intensity": 0.32499999999999996,
+        "rain": 0.225,
+        "wetness": 0.2,
+        "wrapped": false
+      },
+      {
+        "atMs": 480000,
+        "intensity": 0.5,
+        "rain": 0.45,
+        "wetness": 0.4,
+        "wrapped": false
+      },
+      {
+        "atMs": 720000,
+        "intensity": 0.675,
+        "rain": 0.675,
+        "wetness": 0.7,
+        "wrapped": false
+      },
+      {
+        "atMs": 960000,
+        "intensity": 0.85,
+        "rain": 0.9,
+        "wetness": 1,
+        "wrapped": true
+      },
+      {
+        "atMs": 1200000,
+        "intensity": 0.5,
+        "rain": 0.45,
+        "wetness": 0.5,
+        "wrapped": true
+      },
+      {
+        "atMs": 1439000,
+        "intensity": 0.1500091019241898,
+        "rain": 0.000011702473958430382,
+        "wetness": 0.000013002748842638745,
+        "wrapped": true
+      }
+    ]
+  },
+  "wetness": {
+    "dryOut": [
+      {
+        "previous": 1,
+        "target": 0,
+        "dtMs": 0,
+        "next": 1
+      },
+      {
+        "previous": 1,
+        "target": 0,
+        "dtMs": 20000,
+        "next": 0.8007374029168081
+      },
+      {
+        "previous": 1,
+        "target": 0,
+        "dtMs": 90000,
+        "next": 0.36787944117144233
+      }
+    ],
+    "wetIn": [
+      {
+        "previous": 0,
+        "target": 1,
+        "dtMs": 20000,
+        "next": 0.6321205588285577
+      },
+      {
+        "previous": 0,
+        "target": 1,
+        "dtMs": 90000,
+        "next": 0.9888910034617577
+      }
+    ]
+  },
+  "initialWetness": {
+    "rain": 1,
+    "dry-heat": 0,
+    "scheduled": 1
+  },
+  "events": {
+    "pending": {
+      "event": {
+        "id": "1:1:0",
+        "kind": "lightning",
+        "at": 1770000006000,
+        "durationMs": 800,
+        "intensity": 0.4,
+        "origin": [
+          -30,
+          12,
+          -40
+        ]
+      },
+      "now": 1770000000000,
+      "phase": {
+        "state": "pending",
+        "leadMs": 6000,
+        "progress": 0
+      }
+    },
+    "liveHalf": {
+      "event": {
+        "id": "1:1:1",
+        "kind": "lightning",
+        "at": 1769999999600,
+        "durationMs": 800,
+        "intensity": 0.4,
+        "origin": [
+          -30,
+          12,
+          -40
+        ]
+      },
+      "now": 1770000000000,
+      "phase": {
+        "state": "live",
+        "leadMs": 0,
+        "progress": 0.5
+      }
+    },
+    "late": {
+      "event": {
+        "id": "1:1:2",
+        "kind": "lightning",
+        "at": 1769999999700,
+        "durationMs": 800,
+        "intensity": 0.4,
+        "origin": [
+          -30,
+          12,
+          -40
+        ]
+      },
+      "now": 1770000000000,
+      "phase": {
+        "state": "live",
+        "leadMs": 0,
+        "progress": 0.375
+      }
+    },
+    "expired": {
+      "event": {
+        "id": "1:1:3",
+        "kind": "lightning",
+        "at": 1769999998000,
+        "durationMs": 800,
+        "intensity": 0.4,
+        "origin": [
+          -30,
+          12,
+          -40
+        ]
+      },
+      "now": 1770000000000,
+      "phase": {
+        "state": "expired",
+        "leadMs": 0,
+        "progress": 1
+      }
+    },
+    "joinFilter": {
+      "events": [
+        {
+          "id": "1:1:0",
+          "kind": "lightning",
+          "at": 1770000006000,
+          "durationMs": 800,
+          "intensity": 0.4,
+          "origin": [
+            -30,
+            12,
+            -40
+          ]
+        },
+        {
+          "id": "1:1:4",
+          "kind": "lightning",
+          "at": 1769999999999,
+          "durationMs": 800,
+          "intensity": 0.4,
+          "origin": [
+            -30,
+            12,
+            -40
+          ]
+        }
+      ],
+      "now": 1770000000000,
+      "kept": [
+        "1:1:0"
+      ]
+    },
+    "thunder": {
+      "10": 500,
+      "500": 1457.7259475218657,
+      "1200": 3498.542274052478,
+      "5000": 4000
+    }
+  },
+  "staleRules": [
+    {
+      "prev": {
+        "epoch": 7,
+        "revision": 4
+      },
+      "next": {
+        "epoch": 8,
+        "revision": 0
+      },
+      "verdict": "new-epoch"
+    },
+    {
+      "prev": {
+        "epoch": 7,
+        "revision": 4
+      },
+      "next": {
+        "epoch": 7,
+        "revision": 5
+      },
+      "verdict": "new-revision"
+    },
+    {
+      "prev": {
+        "epoch": 7,
+        "revision": 4
+      },
+      "next": {
+        "epoch": 7,
+        "revision": 4
+      },
+      "verdict": "duplicate"
+    },
+    {
+      "prev": {
+        "epoch": 7,
+        "revision": 4
+      },
+      "next": {
+        "epoch": 7,
+        "revision": 3
+      },
+      "verdict": "stale-revision"
+    },
+    {
+      "prev": {
+        "epoch": 7,
+        "revision": 4
+      },
+      "next": {
+        "epoch": 6,
+        "revision": 99
+      },
+      "verdict": "stale-epoch"
+    }
+  ]
+}

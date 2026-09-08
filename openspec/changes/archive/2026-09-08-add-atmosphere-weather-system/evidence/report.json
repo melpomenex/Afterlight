@@ -1,0 +1,760 @@
+{
+  "schemaVersion": 1,
+  "place": "harness",
+  "timestamp": "2026-09-08T06:15:19.628Z",
+  "environment": {
+    "commit": "926a802b0020b43925f80a2040c4001327245e40",
+    "dirty": true,
+    "os": "linux 7.0.0-30-generic (x64)",
+    "cpu": "AMD Ryzen 9 5900X 12-Core Processor",
+    "cpuCores": 24,
+    "ramTotalBytes": 24544305152,
+    "browser": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+    "dpr": 1,
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "gpuRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "gpuVendor": "Google Inc. (Google)"
+  },
+  "baseline": {
+    "drawCalls": 28,
+    "triangles": 5246
+  },
+  "matrix": [
+    {
+      "quality": "normal",
+      "camera": 0,
+      "repeat": 1,
+      "frameP50": 216.6,
+      "frameP95": 400.1,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 8366,
+      "points": 0,
+      "lines": 4160,
+      "rainDrops": 4096,
+      "splashInstances": 128,
+      "activeBatches": 3,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": "capture-harness-normal-cam0.png"
+    },
+    {
+      "quality": "normal",
+      "camera": 0,
+      "repeat": 2,
+      "frameP50": 216.6,
+      "frameP95": 216.7,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 8366,
+      "points": 0,
+      "lines": 4160,
+      "rainDrops": 4096,
+      "splashInstances": 128,
+      "activeBatches": 3,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": null
+    },
+    {
+      "quality": "normal",
+      "camera": 0,
+      "repeat": 3,
+      "frameP50": 200,
+      "frameP95": 216.7,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 8366,
+      "points": 0,
+      "lines": 4160,
+      "rainDrops": 4096,
+      "splashInstances": 128,
+      "activeBatches": 3,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": null
+    },
+    {
+      "quality": "normal",
+      "camera": 1,
+      "repeat": 1,
+      "frameP50": 200.1,
+      "frameP95": 216.7,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 8366,
+      "points": 0,
+      "lines": 4160,
+      "rainDrops": 4096,
+      "splashInstances": 128,
+      "activeBatches": 3,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": "capture-harness-normal-cam1.png"
+    },
+    {
+      "quality": "normal",
+      "camera": 1,
+      "repeat": 2,
+      "frameP50": 233.2,
+      "frameP95": 250.1,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 8366,
+      "points": 0,
+      "lines": 4160,
+      "rainDrops": 4096,
+      "splashInstances": 128,
+      "activeBatches": 3,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": null
+    },
+    {
+      "quality": "normal",
+      "camera": 1,
+      "repeat": 3,
+      "frameP50": 233.4,
+      "frameP95": 283.3,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 8366,
+      "points": 0,
+      "lines": 4160,
+      "rainDrops": 4096,
+      "splashInstances": 128,
+      "activeBatches": 3,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": null
+    },
+    {
+      "quality": "normal",
+      "camera": 2,
+      "repeat": 1,
+      "frameP50": 266.6,
+      "frameP95": 266.7,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 8366,
+      "points": 0,
+      "lines": 4160,
+      "rainDrops": 4096,
+      "splashInstances": 128,
+      "activeBatches": 3,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": "capture-harness-normal-cam2.png"
+    },
+    {
+      "quality": "normal",
+      "camera": 2,
+      "repeat": 2,
+      "frameP50": 216.7,
+      "frameP95": 249.9,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 8366,
+      "points": 0,
+      "lines": 4160,
+      "rainDrops": 4096,
+      "splashInstances": 128,
+      "activeBatches": 3,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": null
+    },
+    {
+      "quality": "normal",
+      "camera": 2,
+      "repeat": 3,
+      "frameP50": 200,
+      "frameP95": 216.7,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 8366,
+      "points": 0,
+      "lines": 4160,
+      "rainDrops": 4096,
+      "splashInstances": 128,
+      "activeBatches": 3,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": null
+    },
+    {
+      "quality": "normal",
+      "camera": 3,
+      "repeat": 1,
+      "frameP50": 216.6,
+      "frameP95": 233.3,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 32,
+      "atmosphereDrawCalls": 4,
+      "triangles": 8342,
+      "points": 0,
+      "lines": 4160,
+      "rainDrops": 4096,
+      "splashInstances": 128,
+      "activeBatches": 3,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": "capture-harness-normal-cam3.png"
+    },
+    {
+      "quality": "normal",
+      "camera": 3,
+      "repeat": 2,
+      "frameP50": 250,
+      "frameP95": 250.1,
+      "cpuP50": 0.2,
+      "cpuP95": 0.5,
+      "drawCalls": 32,
+      "atmosphereDrawCalls": 4,
+      "triangles": 8342,
+      "points": 0,
+      "lines": 4160,
+      "rainDrops": 4096,
+      "splashInstances": 128,
+      "activeBatches": 3,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": null
+    },
+    {
+      "quality": "normal",
+      "camera": 3,
+      "repeat": 3,
+      "frameP50": 233.3,
+      "frameP95": 250,
+      "cpuP50": 0.1,
+      "cpuP95": 0.1,
+      "drawCalls": 32,
+      "atmosphereDrawCalls": 4,
+      "triangles": 8342,
+      "points": 0,
+      "lines": 4160,
+      "rainDrops": 4096,
+      "splashInstances": 128,
+      "activeBatches": 3,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": null
+    },
+    {
+      "quality": "reduced",
+      "camera": 0,
+      "repeat": 1,
+      "frameP50": 200,
+      "frameP95": 216.6,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 6430,
+      "points": 0,
+      "lines": 1056,
+      "rainDrops": 1024,
+      "splashInstances": 32,
+      "activeBatches": 2,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": "capture-harness-reduced-cam0.png"
+    },
+    {
+      "quality": "reduced",
+      "camera": 0,
+      "repeat": 2,
+      "frameP50": 216.7,
+      "frameP95": 233.3,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 6430,
+      "points": 0,
+      "lines": 1056,
+      "rainDrops": 1024,
+      "splashInstances": 32,
+      "activeBatches": 2,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": null
+    },
+    {
+      "quality": "reduced",
+      "camera": 0,
+      "repeat": 3,
+      "frameP50": 216.7,
+      "frameP95": 249.9,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 6430,
+      "points": 0,
+      "lines": 1056,
+      "rainDrops": 1024,
+      "splashInstances": 32,
+      "activeBatches": 2,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": null
+    },
+    {
+      "quality": "reduced",
+      "camera": 1,
+      "repeat": 1,
+      "frameP50": 216.7,
+      "frameP95": 233.3,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 6430,
+      "points": 0,
+      "lines": 1056,
+      "rainDrops": 1024,
+      "splashInstances": 32,
+      "activeBatches": 2,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": "capture-harness-reduced-cam1.png"
+    },
+    {
+      "quality": "reduced",
+      "camera": 1,
+      "repeat": 2,
+      "frameP50": 233.4,
+      "frameP95": 283.3,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 6430,
+      "points": 0,
+      "lines": 1056,
+      "rainDrops": 1024,
+      "splashInstances": 32,
+      "activeBatches": 2,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": null
+    },
+    {
+      "quality": "reduced",
+      "camera": 1,
+      "repeat": 3,
+      "frameP50": 216.7,
+      "frameP95": 233.2,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 6430,
+      "points": 0,
+      "lines": 1056,
+      "rainDrops": 1024,
+      "splashInstances": 32,
+      "activeBatches": 2,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": null
+    },
+    {
+      "quality": "reduced",
+      "camera": 2,
+      "repeat": 1,
+      "frameP50": 200.1,
+      "frameP95": 216.7,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 6430,
+      "points": 0,
+      "lines": 1056,
+      "rainDrops": 1024,
+      "splashInstances": 32,
+      "activeBatches": 2,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": "capture-harness-reduced-cam2.png"
+    },
+    {
+      "quality": "reduced",
+      "camera": 2,
+      "repeat": 2,
+      "frameP50": 200,
+      "frameP95": 200,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 6430,
+      "points": 0,
+      "lines": 1056,
+      "rainDrops": 1024,
+      "splashInstances": 32,
+      "activeBatches": 2,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": null
+    },
+    {
+      "quality": "reduced",
+      "camera": 2,
+      "repeat": 3,
+      "frameP50": 200,
+      "frameP95": 200,
+      "cpuP50": 0,
+      "cpuP95": 0.2,
+      "drawCalls": 34,
+      "atmosphereDrawCalls": 6,
+      "triangles": 6430,
+      "points": 0,
+      "lines": 1056,
+      "rainDrops": 1024,
+      "splashInstances": 32,
+      "activeBatches": 2,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": null
+    },
+    {
+      "quality": "reduced",
+      "camera": 3,
+      "repeat": 1,
+      "frameP50": 216.6,
+      "frameP95": 233.4,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 32,
+      "atmosphereDrawCalls": 4,
+      "triangles": 6406,
+      "points": 0,
+      "lines": 1056,
+      "rainDrops": 1024,
+      "splashInstances": 32,
+      "activeBatches": 2,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": "capture-harness-reduced-cam3.png"
+    },
+    {
+      "quality": "reduced",
+      "camera": 3,
+      "repeat": 2,
+      "frameP50": 216.6,
+      "frameP95": 233.3,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 32,
+      "atmosphereDrawCalls": 4,
+      "triangles": 6406,
+      "points": 0,
+      "lines": 1056,
+      "rainDrops": 1024,
+      "splashInstances": 32,
+      "activeBatches": 2,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": null
+    },
+    {
+      "quality": "reduced",
+      "camera": 3,
+      "repeat": 3,
+      "frameP50": 216.6,
+      "frameP95": 233.3,
+      "cpuP50": 0.1,
+      "cpuP95": 0.2,
+      "drawCalls": 32,
+      "atmosphereDrawCalls": 4,
+      "triangles": 6406,
+      "points": 0,
+      "lines": 1056,
+      "rainDrops": 1024,
+      "splashInstances": 32,
+      "activeBatches": 2,
+      "lights": 2,
+      "shadowLights": 1,
+      "screenshot": null
+    }
+  ],
+  "soak": {
+    "cycles": 20,
+    "before": {
+      "renderer": {
+        "calls": 32,
+        "triangles": 6406,
+        "points": 0,
+        "lines": 1056,
+        "geometries": 8,
+        "textures": 14
+      },
+      "controller": {
+        "active": true,
+        "tier": "reduced",
+        "stats": {
+          "frames": 373,
+          "updates": 372,
+          "skippedFrames": 1,
+          "activations": 2,
+          "failedActivations": 0
+        }
+      },
+      "events": {
+        "flashMode": "reduced",
+        "seenCount": 0,
+        "stats": {
+          "consumed": 0,
+          "deduped": 0,
+          "lightning": 0,
+          "meteors": 0,
+          "thunderScheduled": 0,
+          "replaced": 0
+        }
+      },
+      "particles": {
+        "rainDrops": 1024,
+        "splashInstances": 32,
+        "activeBatches": 2
+      },
+      "lights": {
+        "total": 2,
+        "shadowLights": 1
+      },
+      "audio": {
+        "activeNodes": 0,
+        "mixerStatus": "unavailable"
+      },
+      "sample": {
+        "intensity": 0.6,
+        "windX": 0.2,
+        "windZ": 0.05,
+        "rain": 0.7,
+        "cloud": 0.7,
+        "wetnessTarget": 1,
+        "timePhase": 0.8,
+        "transitionU": null,
+        "wetness": 1,
+        "synced": true,
+        "active": true,
+        "serverNow": 1772000014009.5002
+      },
+      "perf": {
+        "sampleCount": 19,
+        "frameP50": 216.6,
+        "frameP95": 233.3,
+        "cpuP50": 0.1,
+        "cpuP95": 0.2
+      }
+    },
+    "after": {
+      "renderer": {
+        "calls": 26,
+        "triangles": 5222,
+        "points": 0,
+        "lines": 0,
+        "geometries": 3,
+        "textures": 13
+      },
+      "controller": {
+        "active": true,
+        "tier": "reduced",
+        "stats": {
+          "frames": 379,
+          "updates": 374,
+          "skippedFrames": 5,
+          "activations": 22,
+          "failedActivations": 0
+        }
+      },
+      "events": {
+        "flashMode": "reduced",
+        "seenCount": 0,
+        "stats": {
+          "consumed": 0,
+          "deduped": 0,
+          "lightning": 0,
+          "meteors": 0,
+          "thunderScheduled": 0,
+          "replaced": 0
+        }
+      },
+      "particles": {
+        "rainDrops": 1024,
+        "splashInstances": 32,
+        "activeBatches": 2
+      },
+      "lights": {
+        "total": 2,
+        "shadowLights": 1
+      },
+      "audio": {
+        "activeNodes": 0,
+        "mixerStatus": "unavailable"
+      },
+      "sample": {
+        "intensity": 0.6,
+        "windX": 0.2,
+        "windZ": 0.05,
+        "rain": 0.7,
+        "cloud": 0.7,
+        "wetnessTarget": 1,
+        "timePhase": 0.8,
+        "transitionU": null,
+        "wetness": 1,
+        "synced": true,
+        "active": true,
+        "serverNow": 1772000014202.9001
+      },
+      "perf": {
+        "sampleCount": 25,
+        "frameP50": 216.6,
+        "frameP95": 350,
+        "cpuP50": 0.1,
+        "cpuP95": 0.2
+      }
+    },
+    "diff": {
+      "geometries": -5,
+      "textures": -1,
+      "audioNodes": 0
+    },
+    "leakDetected": false
+  },
+  "budgets": {
+    "normalRainDrops": {
+      "value": 4096,
+      "ceiling": 4096,
+      "pass": true
+    },
+    "reducedRainDrops": {
+      "value": 1024,
+      "ceiling": 1024,
+      "pass": true
+    },
+    "normalSplashes": {
+      "value": 128,
+      "ceiling": 128,
+      "pass": true
+    },
+    "reducedSplashes": {
+      "value": 32,
+      "ceiling": 32,
+      "pass": true
+    },
+    "normalBatches": {
+      "value": 3,
+      "ceiling": 6,
+      "pass": true
+    },
+    "reducedBatches": {
+      "value": 2,
+      "ceiling": 3,
+      "pass": true
+    },
+    "normalAtmosphereDrawCalls": {
+      "value": 6,
+      "ceiling": 12,
+      "pass": true
+    },
+    "reducedAtmosphereDrawCalls": {
+      "value": 6,
+      "ceiling": 6,
+      "pass": true
+    },
+    "normalCpuP95Ms": {
+      "value": 0.5,
+      "ceiling": 2,
+      "pass": true
+    },
+    "reducedCpuP95Ms": {
+      "value": 0.2,
+      "ceiling": 1,
+      "pass": true
+    },
+    "additionalShadowLights": {
+      "value": 0,
+      "ceiling": 0,
+      "pass": true
+    },
+    "soakNoLeak": {
+      "value": "clean",
+      "pass": true
+    }
+  },
+  "passed": true,
+  "failures": [],
+  "screenshots": [
+    {
+      "name": "capture-harness-normal-cam0.png",
+      "quality": "normal",
+      "camera": 0
+    },
+    {
+      "name": "capture-harness-normal-cam1.png",
+      "quality": "normal",
+      "camera": 1
+    },
+    {
+      "name": "capture-harness-normal-cam2.png",
+      "quality": "normal",
+      "camera": 2
+    },
+    {
+      "name": "capture-harness-normal-cam3.png",
+      "quality": "normal",
+      "camera": 3
+    },
+    {
+      "name": "capture-harness-reduced-cam0.png",
+      "quality": "reduced",
+      "camera": 0
+    },
+    {
+      "name": "capture-harness-reduced-cam1.png",
+      "quality": "reduced",
+      "camera": 1
+    },
+    {
+      "name": "capture-harness-reduced-cam2.png",
+      "quality": "reduced",
+      "camera": 2
+    },
+    {
+      "name": "capture-harness-reduced-cam3.png",
+      "quality": "reduced",
+      "camera": 3
+    },
+    {
+      "name": "capture-harness-layout-390x844.png",
+      "quality": "normal",
+      "camera": "mobile"
+    }
+  ]
+}
