@@ -265,6 +265,17 @@ export class NetworkClient {
   sendEpgLookup(keys) { this.send(MSG_TYPES.EPG_LOOKUP, { keys }); }
 
   /**
+   * Conferencing: join an authorized call channel (P8).
+   * Returns a Phoenix Channel on phoenix transport, or null if transport is node/unsupported.
+   */
+  joinCallChannel(callId, params = {}) {
+    if (this.transport?.joinChannel) {
+      return this.transport.joinChannel(`call:${callId}`, params);
+    }
+    return null;
+  }
+
+  /**
    * Base URL of the game server's HTTP side, derived from the WS URL
    * (ws://host:3001/ws -> http://host:3001). Uploads (playlists, program
    * guide files) ride HTTP POST, not WS frames. Through the Phoenix gateway

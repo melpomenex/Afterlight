@@ -1,4 +1,5 @@
 import { Socket } from 'phoenix';
+import { envelopeMatchesRoom } from './roomEpoch.js';
 
 /**
  * Phoenix Channels transport for the NetworkClient facade (P2 gateway
@@ -40,6 +41,24 @@ export function flatFrameFromChannelEvent(event, payload) {
     return { type: event, ...payload };
   }
   return { type: event };
+}
+
+/**
+ * Decode an `rt_binary` envelope into an ArrayBuffer for handleBinary, or
+ * return null when the envelope is malformed — or belongs to a room other
+ * than the desired one (add-social-place-framework D3, task 3.2): queued
+ * old-room flushes are rejected BEFORE binary consumption. The additive
+ * `roomId` rides only the outer envelope; the SoA bytes are untouched, and
+ * untagged legacy envelopes (old servers) decode exactly as before.
+ * Exported for tests: this is the JSON/binary convergence seam.
+ */
+export function binaryBufferFromEnvelope(payload, desiredRoom) {
+  if (!payload?.data || typeof payload.data !== 'string') return null;
+  if (!envelopeMatchesRoom(desiredRoom, payload.roomId)) return null;
+  const raw = atob(payload.data);
+  const buf = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+  return buf.buffer;
 }
 
 function deriveHttpBase(wsUrl) {
@@ -112,12 +131,10 @@ export function createPhoenixTransport(client, wsUrl) {
                 joined = true;
                 connecting = false;
                 channel.on('rt_binary', (payload) => {
-                  if (!payload?.data || typeof payload.data !== 'string') return;
                   if (!client.handleBinary) return;
-                  const raw = atob(payload.data);
-                  const buf = new Uint8Array(raw.length);
-                  for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
-                  client.handleBinary(buf.buffer);
+                  const buffer = binaryBufferFromEnvelope(payload, client.desiredRoom);
+                  if (!buffer) return;
+                  client.handleBinary(buffer);
                 });
                 client.handleOpen();
               })
@@ -165,6 +182,15 @@ export function createPhoenixTransport(client, wsUrl) {
 
     close() {
       teardown();
+    },
+
+    getSocket() {
+      return socket;
+    },
+
+    joinChannel(topic, params = {}) {
+      if (!socket) return null;
+      return socket.channel(topic, params);
     },
   };
 }

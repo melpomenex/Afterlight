@@ -191,6 +191,60 @@ test('JOIN_ROOM racing the handshake still joins the requested room', async () =
   }
 });
 
+test('joinRoom while disconnected re-binds the desired room and replays it on reconnect', async () => {
+  // The travel runtime's retry path: the socket is down, the player (or an
+  // automatic reconnect) lands in a DIFFERENT room than the one originally
+  // joined. The facade must replay the newest desiredRoom, not the stale one.
+  const storage = new Storage(`/tmp/test-presence-rebind-${Date.now()}.json`);
+  const { handle, wsUrl } = await listen(storage);
+  const gardenRoom = ROOMS.gardenFor('guest_rebind_a');
+
+  // Client B waits in A's garden.
+  const wsB = new WebSocket(wsUrl);
+  const inboxB = [];
+  wsB.on('message', data => inboxB.push(parse(data)));
+  wsB.on('error', () => {});
+
+  const clientA = new NetworkClient(wsUrl);
+  clientA.guestId = 'guest_rebind_a';
+  const inboxA = [];
+  recordMessages(clientA, inboxA);
+
+  try {
+    wsB.on('open', () => {
+      wsB.send(serialize({ type: MSG_TYPES.HELLO, guestId: 'guest_rebind_b', nickname: 'RebindWatch' }));
+      wsB.send(serialize({ type: MSG_TYPES.JOIN_ROOM, roomId: gardenRoom }));
+    });
+    await waitFor(() => inboxB.some(m => m.type === MSG_TYPES.WELCOME), 'B connected');
+
+    // A joins the market, then loses the socket before ever being seen.
+    clientA.joinRoom(ROOMS.MARKET);
+    clientA.connect();
+    await waitFor(() => clientA.connected, 'A connected to market');
+    // Drop the socket; the client schedules its own reconnect.
+    clientA.ws.close();
+    await waitFor(() => !clientA.connected, 'A disconnected');
+
+    // While disconnected, travel re-binds the desired room to the garden.
+    clientA.joinRoom(gardenRoom);
+    await waitFor(() => clientA.connected, 'A reconnected', 8000);
+
+    // The replayed JOIN_ROOM carried the garden, not the stale market.
+    await waitFor(() => joinsFor(inboxB, 'guest_rebind_a').length === 1, 'B sees A join the garden exactly once', 8000);
+    await waitFor(() => seesPlayer(inboxA, 'guest_rebind_b'), 'A sees the garden roster', 8000);
+    assert.ok(
+      !inboxB.some(m => m.type === MSG_TYPES.PRESENCE_JOIN && m.player?.id === 'guest_rebind_a' && m.roomId === ROOMS.MARKET),
+      'no stale market join was replayed',
+    );
+  } finally {
+    stopReconnecting(clientA);
+    try { clientA.ws?.close(); } catch {}
+    try { wsB.close(); } catch {}
+    await new Promise(r => setTimeout(r, 50));
+    handle.close();
+  }
+});
+
 test('reconnect restores room membership and presence flow without a reload', async () => {
   const storage = new Storage(`/tmp/test-presence-reconnect-${Date.now()}.json`);
   const { handle, wsUrl } = await listen(storage);
