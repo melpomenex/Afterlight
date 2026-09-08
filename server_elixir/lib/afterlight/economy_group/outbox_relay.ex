@@ -41,6 +41,12 @@ defmodule Afterlight.EconomyGroup.OutboxRelay do
     publish_aggregate("economy_group", "market", :market)
   end
 
+  @doc "Publish pending room-scoped outbox rows and broadcast updates."
+  @spec flush_room(String.t()) :: [{String.t(), map()}]
+  def flush_room(room_id) when is_binary(room_id) do
+    publish_aggregate("economy_group", room_id, :room)
+  end
+
   @doc "Periodic poller: flush all pending economy-group outbox rows."
   @spec publish_pending(non_neg_integer()) :: non_neg_integer()
   def publish_pending(limit \\ 100) do
@@ -100,10 +106,16 @@ defmodule Afterlight.EconomyGroup.OutboxRelay do
     )
   end
 
-  defp deliver(%OutboxEvent{aggregate_id: player_id} = event, _now) when is_binary(player_id) do
+  defp deliver(%OutboxEvent{aggregate_id: target} = event, _now) when is_binary(target) do
     Phoenix.PubSub.broadcast(
       Afterlight.PubSub,
-      "players:#{player_id}",
+      "players:#{target}",
+      {:economy_frame, event.event_type, wire_payload(event.payload)}
+    )
+
+    Phoenix.PubSub.broadcast(
+      Afterlight.PubSub,
+      "rooms:#{target}",
       {:economy_frame, event.event_type, wire_payload(event.payload)}
     )
   end

@@ -25,6 +25,7 @@ defmodule Afterlight.EconomyGroup.RehearsalTest do
     Repo.delete_all(from(o in "orders"))
     Repo.delete_all(from(t in "trades"))
     Repo.delete_all(from(l in "ledger_entries"))
+    Repo.update_all("gather_nodes", set: [depleted_at: nil])
 
     :ok
   end
@@ -245,7 +246,7 @@ defmodule Afterlight.EconomyGroup.RehearsalTest do
 
     assert {:ok, replies} = Gateway.handle("machine_mill", %{"quantity" => 1, "actionId" => "act_mill"}, alice_market_ctx)
     assert Enum.any?(replies, fn {"action_result", %{"title" => "The Great Mill", "message" => msg, "success" => true}} ->
-      msg == "Ground 1x wheat into 1x Stone-ground Flour."
+      msg == "Ground 1x wheat into 1x Stone-Ground Flour."
       _ -> false
     end)
     assert Inventory.get_quantity("alice", "produce", "flour_B") == 1
@@ -254,8 +255,8 @@ defmodule Afterlight.EconomyGroup.RehearsalTest do
     # Craft: Alice crafts a sprinkler (costs 2 copper, 2 glass)
     # Alice has >= 2 copper and 2 glass in inventory
     assert {:ok, replies} = Gateway.handle("machine_craft", %{"fixture" => "sprinkler", "actionId" => "act_craft"}, alice_market_ctx)
-    assert Enum.any?(replies, fn {"action_result", %{"title" => "Machine Shop", "message" => msg, "success" => true}} ->
-      msg == "Assembled 1x Rotary Sprinkler."
+    assert Enum.any?(replies, fn {"action_result", %{"title" => "Crafted", "message" => msg, "success" => true}} ->
+      msg == "Assembled 1x Garden Sprinkler. Place it on a garden bed from your satchel."
       _ -> false
     end)
     assert Inventory.get_quantity("alice", "fixture", "sprinklers") == 1

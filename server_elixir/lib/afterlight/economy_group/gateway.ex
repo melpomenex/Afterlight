@@ -19,7 +19,15 @@ defmodule Afterlight.EconomyGroup.Gateway do
     actor = Actor.session(player_id, nil)
 
     case gate_room(type, player_id, ctx) do
-      :ok -> do_handle(type, payload, actor)
+      :ok ->
+        payload =
+          if type == "node_harvest" and is_nil(payload["currentRoom"]) and is_nil(payload[:currentRoom]) do
+            Map.put(payload, "currentRoom", room_wire(ctx))
+          else
+            payload
+          end
+
+        do_handle(type, payload, actor)
       {:reject, replies} -> {:ok, replies}
       {:error, reply} -> {:error, reply}
     end
@@ -93,7 +101,7 @@ defmodule Afterlight.EconomyGroup.Gateway do
     room = payload["currentRoom"] || payload[:currentRoom]
 
     result = Restoration.gather(actor, request_id, node_id, room)
-    finalize(actor.player_id, result, request_id, &map_gather_result/2)
+    finalize(actor.player_id, result, request_id, &map_gather_result/2, room)
   end
 
   defp do_handle("machine_contribute", payload, actor) do
@@ -134,10 +142,10 @@ defmodule Afterlight.EconomyGroup.Gateway do
 
   defp do_handle(_type, _payload, _actor), do: {:error, {"error", %{"message" => "unrouted"}}}
 
-  defp finalize(player_id, result, request_id, mapper) do
+  defp finalize(player_id, result, request_id, mapper, room \\ nil) do
     case result do
       {:ok, {:applied, value}} ->
-        replies = mapper.(request_id, value) ++ outbox_replies(player_id)
+        replies = mapper.(request_id, value) ++ outbox_replies(player_id, room)
         {:ok, replies}
 
       {:ok, {:replay, %{"result" => replay}}} ->
@@ -169,7 +177,7 @@ defmodule Afterlight.EconomyGroup.Gateway do
     end
   end
 
-  defp outbox_replies(player_id) do
+  defp outbox_replies(player_id, room \\ nil) do
     player_frames =
       player_id
       |> OutboxRelay.flush_player()
@@ -179,7 +187,16 @@ defmodule Afterlight.EconomyGroup.Gateway do
       OutboxRelay.flush_market()
       |> Enum.map(&frame_tuple/1)
 
-    player_frames ++ market_frames
+    room_frames =
+      if is_binary(room) and room != "market" do
+        room
+        |> OutboxRelay.flush_room()
+        |> Enum.map(&frame_tuple/1)
+      else
+        []
+      end
+
+    player_frames ++ market_frames ++ room_frames
   end
 
   defp frame_tuple({event, payload}), do: {event, stringify(payload)}
