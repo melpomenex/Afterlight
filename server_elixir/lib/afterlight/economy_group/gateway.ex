@@ -196,12 +196,20 @@ defmodule Afterlight.EconomyGroup.Gateway do
 
   defp map_gather_result(request_id, _), do: [action_ok(request_id, title: "Gathered")]
 
-  defp map_contribute_result(request_id, %{applied: applied, restored: restored}) do
+  defp map_contribute_result(request_id, %{applied: applied, restored: restored} = res) do
+    mat_name =
+      case Map.get(res, :material) do
+        "copper" -> "Copper Scrap"
+        "timber" -> "Trestle Timber"
+        "glass" -> "Glass Shards"
+        _ -> "Material"
+      end
+
     message =
       if restored do
-        "The Great Mill turns for the first time in years! Material accepted: #{applied}."
+        "The Great Mill turns for the first time in years! #{mat_name} accepted: #{applied}."
       else
-        "Material accepted: #{applied}. The mill takes shape."
+        "#{mat_name} accepted: #{applied}. The mill takes shape."
       end
 
     [action_ok(request_id, title: "The Great Mill", message: message)]
@@ -210,7 +218,7 @@ defmodule Afterlight.EconomyGroup.Gateway do
   defp map_contribute_result(request_id, _), do: [action_ok(request_id, title: "The Great Mill")]
 
   defp map_mill_result(request_id, %{milled: milled}) do
-    good = Catalog.get("flour")
+    good = Catalog.good("flour")
 
     [
       action_ok(

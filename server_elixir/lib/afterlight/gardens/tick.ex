@@ -40,7 +40,7 @@ defmodule Afterlight.Gardens.Tick do
     garden = Gardens.fetch_garden(player_id)
     covered = sprinkler_coverage_set(garden)
 
-    {changed?, beds} =
+    {beds, changed?} =
       Enum.map_reduce(garden.beds, false, fn bed, changed ->
         old_stage = bed.stage
         sprinkled = MapSet.member?(covered, bed.index)

@@ -87,6 +87,7 @@ defmodule Afterlight.Accounts.OutboxEvent do
 
     policy action(:enqueue) do
       authorize_if expr(aggregate_id == ^actor(:player_id))
+      authorize_if actor_attribute_equals(:role, :session)
     end
 
     policy action(:mark_published) do

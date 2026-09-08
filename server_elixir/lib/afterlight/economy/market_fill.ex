@@ -24,11 +24,11 @@ defmodule Afterlight.Economy.MarketFill do
 
     Ledger.insert!(buyer, "order_fill", "reserved_coins", -debit_reserved, command_ref: command_ref, trade_id: trade.db_id)
     Ledger.insert!(buyer, "order_fill", "produce", trade.quantity, item_id: produce_key, command_ref: command_ref, trade_id: trade.db_id)
-    Ledger.insert!(seller, "order_fill", "coins", seller_credit, command_ref: command_ref, trade_id: trade.db_id)
+    Ledger.insert!(seller, "order_fill", "coins", trade.value, command_ref: command_ref, trade_id: trade.db_id)
     Ledger.insert!(seller, "order_fill", "reserved_produce", -trade.quantity, item_id: produce_key, command_ref: command_ref, trade_id: trade.db_id)
     Ledger.insert!(seller, "fee", "coins", -trade.fee, command_ref: command_ref, trade_id: trade.db_id)
 
-    assert_conservation!(buyer, seller, trade.fee)
+    assert_conservation!(trade.db_id, trade.fee)
     :ok
   end
 
@@ -57,10 +57,10 @@ defmodule Afterlight.Economy.MarketFill do
             seller_id: trade.seller_id,
             crop_id: trade.crop_id,
             quality: trade.quality,
-            price: trade.price,
-            quantity: trade.quantity,
-            value: trade.value,
-            fee: trade.fee,
+            price: trunc(trade.price),
+            quantity: trunc(trade.quantity),
+            value: trunc(trade.value),
+            fee: trunc(trade.fee),
             executed_at: trade.executed_at,
             taker_order_id: trade.taker_order_id,
             maker_order_id: trade.maker_order_id
@@ -76,8 +76,25 @@ defmodule Afterlight.Economy.MarketFill do
     Map.put(trade, :db_id, id)
   end
 
-  defp assert_conservation!(buyer, seller, fee) do
-    # Per-trade: Δ(buyer coins)+Δ(buyer reserved)+Δ(seller coins) = -fee
+  defp assert_conservation!(trade_db_id, fee) do
+    sum =
+      Repo.one(
+        from l in "ledger_entries",
+          where: l.trade_id == ^trade_db_id and l.account in ["coins", "reserved_coins"],
+          select: sum(l.delta)
+      )
+
+    sum_int =
+      cond do
+        is_nil(sum) -> 0
+        is_struct(sum, Decimal) -> Decimal.to_integer(sum)
+        true -> sum
+      end
+
+    if sum_int != -fee do
+      raise "Ledger conservation violation: expected -#{fee}, got #{sum_int}"
+    end
+
     :ok
   end
 end

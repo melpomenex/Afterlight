@@ -5,30 +5,26 @@ defmodule Afterlight.EconomyGroup.Wallet do
   alias Afterlight.Repo
 
   def ensure!(player_id) do
-    Repo.insert_all(
-      "wallets",
-      [%{player_id: player_id, coins: 0, reserved_coins: 0}],
-      on_conflict: :nothing
-    )
-
     case Repo.one(from w in "wallets", where: w.player_id == ^player_id, select: map(w, [:player_id, :coins, :reserved_coins])) do
       nil ->
         # Bootstrap from players shadow row
-        player = Repo.one!(from p in "players", where: p.id == ^player_id, select: map(p, [:coins, :reserved_coins]))
+        player = Repo.one(from p in "players", where: p.id == ^player_id, select: map(p, [:coins, :reserved_coins]))
+        coins = if player, do: player.coins || 0, else: 0
+        reserved = if player, do: player.reserved_coins || 0, else: 0
 
         Repo.insert_all(
           "wallets",
           [
             %{
               player_id: player_id,
-              coins: player.coins,
-              reserved_coins: player.reserved_coins
+              coins: coins,
+              reserved_coins: reserved
             }
           ],
           on_conflict: :nothing
         )
 
-        %{player_id: player_id, coins: player.coins, reserved_coins: player.reserved_coins}
+        %{player_id: player_id, coins: coins, reserved_coins: reserved}
 
       wallet ->
         wallet

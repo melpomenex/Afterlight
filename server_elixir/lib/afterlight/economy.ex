@@ -21,9 +21,9 @@ defmodule Afterlight.Economy do
           produce_key = "#{crop_id}_#{effective_quality}"
 
           Inventory.adjust!(actor.player_id, "produce", produce_key, -qty)
-          total = unit * qty
+          total = round(unit * qty)
           Wallet.adjust_coins!(actor.player_id, total)
-          xp = Numeric.js_round(qty * 3)
+          xp = round(qty * 3)
           add_xp!(actor.player_id, xp, false)
           set_multiplier!(crop_id, Economy.update_market_multiplier(mult, -qty * 0.5))
 
@@ -33,7 +33,7 @@ defmodule Afterlight.Economy do
 
           broadcast_market(actor)
           outbox_inventory(actor, actor.player_id)
-          {:ok, %{success: true}}
+          %{success: true}
         end)
       else
         _ -> {:error, :invalid_request}
@@ -49,18 +49,18 @@ defmodule Afterlight.Economy do
         Repo.transaction(fn ->
           mult = get_multiplier!(crop_id)
           unit = Economy.calculate_npc_seed_price(crop_id, mult)
-          total = unit * qty
+          total = round(unit * qty)
 
           Wallet.adjust_coins!(actor.player_id, -total)
           Inventory.adjust!(actor.player_id, "seed", crop_id, qty)
-              set_multiplier!(crop_id, Economy.update_market_multiplier(mult, qty * 0.2))
+          set_multiplier!(crop_id, Economy.update_market_multiplier(mult, qty * 0.2))
 
-              Ledger.insert!(actor.player_id, "npc_buy", "coins", -total, command_ref: request_id)
-              Ledger.insert!(actor.player_id, "npc_buy", "seed", qty, item_id: crop_id, command_ref: request_id)
+          Ledger.insert!(actor.player_id, "npc_buy", "coins", -total, command_ref: request_id)
+          Ledger.insert!(actor.player_id, "npc_buy", "seed", qty, item_id: crop_id, command_ref: request_id)
 
-              broadcast_market(actor)
-              outbox_inventory(actor, actor.player_id)
-              {:ok, %{success: true}}
+          broadcast_market(actor)
+          outbox_inventory(actor, actor.player_id)
+          %{success: true}
         end)
       else
         nil -> {:error, :unknown_crop}
@@ -82,14 +82,23 @@ defmodule Afterlight.Economy do
           case side do
             "buy" ->
               total = price * quantity
+              Wallet.adjust_coins!(actor.player_id, -total)
               Wallet.adjust_reserved!(actor.player_id, total)
+              Ledger.insert!(actor.player_id, "order_escrow_coins", "coins", -total, command_ref: request_id)
               Ledger.insert!(actor.player_id, "order_escrow_coins", "reserved_coins", total, command_ref: request_id)
 
             "sell" ->
               key = "#{crop_id}_#{quality}"
-              Inventory.adjust!(actor.player_id, "produce", key, -quantity)
-              Inventory.adjust!(actor.player_id, "reserved_produce", key, quantity)
-              Ledger.insert!(actor.player_id, "order_escrow_produce", "reserved_produce", quantity, item_id: key, command_ref: request_id)
+              held = Inventory.get_quantity(actor.player_id, "produce", key)
+
+              if held < quantity do
+                Repo.rollback(:insufficient_produce)
+              else
+                Inventory.adjust!(actor.player_id, "produce", key, -quantity)
+                Inventory.adjust!(actor.player_id, "reserved_produce", key, quantity)
+                Ledger.insert!(actor.player_id, "order_escrow_produce", "produce", -quantity, item_id: key, command_ref: request_id)
+                Ledger.insert!(actor.player_id, "order_escrow_produce", "reserved_produce", quantity, item_id: key, command_ref: request_id)
+              end
 
             _ ->
               Repo.rollback(:invalid_order_params)
@@ -98,7 +107,7 @@ defmodule Afterlight.Economy do
           book = load_book_from_db()
           now = Accounts.now_ms()
 
-          {:ok, %{trades: trades}, book2} =
+          {:ok, %{order: placed_order, trades: trades}, book2} =
             Orderbook.place_order(book, %{
               id: order_id,
               player_id: actor.player_id,
@@ -123,7 +132,7 @@ defmodule Afterlight.Economy do
             Command.enqueue_outbox(t.seller_id, "trade_filled", Payloads.trade_filled(t), actor)
           end)
 
-          {:ok, %{success: true, trades: trades}}
+          %{success: true, order_id: order_id, order: placed_order, trades: trades}
         end)
       end)
     else
@@ -134,7 +143,13 @@ defmodule Afterlight.Economy do
   def cancel_order(actor, request_id, order_id) do
     Command.run_idempotent(actor, request_id, %{op: :cancel_order, order_id: order_id}, fn ->
       Repo.transaction(fn ->
-        order = Repo.one(from o in "orders", where: o.id == ^order_id and o.player_id == ^actor.player_id)
+        order =
+          Repo.one(
+            from(o in "orders",
+              where: o.id == ^order_id and o.player_id == ^actor.player_id,
+              select: map(o, [:id, :player_id, :side, :crop_id, :quality, :price, :quantity, :filled])
+            )
+          )
 
         if is_nil(order) do
           Repo.rollback(:not_found)
@@ -147,7 +162,9 @@ defmodule Afterlight.Economy do
           case order.side do
             "buy" ->
               refund = remaining * order.price
+              Wallet.adjust_coins!(actor.player_id, refund)
               Wallet.adjust_reserved!(actor.player_id, -refund)
+              Ledger.insert!(actor.player_id, "order_cancel_refund", "coins", refund, command_ref: request_id)
               Ledger.insert!(actor.player_id, "order_cancel_refund", "reserved_coins", -refund, command_ref: request_id)
 
             "sell" ->
@@ -155,11 +172,12 @@ defmodule Afterlight.Economy do
               Inventory.adjust!(actor.player_id, "reserved_produce", key, -remaining)
               Inventory.adjust!(actor.player_id, "produce", key, remaining)
               Ledger.insert!(actor.player_id, "order_cancel_refund", "reserved_produce", -remaining, item_id: key, command_ref: request_id)
+              Ledger.insert!(actor.player_id, "order_cancel_refund", "produce", remaining, item_id: key, command_ref: request_id)
           end
 
           broadcast_market(actor)
           outbox_inventory(actor, actor.player_id)
-          {:ok, %{success: true}}
+          %{success: true}
         end
       end)
     end)
@@ -168,7 +186,13 @@ defmodule Afterlight.Economy do
   def complete_contract(actor, request_id, contract_id) do
     Command.run_idempotent(actor, request_id, %{op: :complete_contract, contract_id: contract_id}, fn ->
       Repo.transaction(fn ->
-        contract = Repo.one(from c in "contracts", where: c.id == ^contract_id)
+        contract =
+          Repo.one(
+            from(c in "contracts",
+              where: c.id == ^contract_id,
+              select: map(c, [:id, :crop_id, :min_quality, :quantity, :reward, :reputation, :xp])
+            )
+          )
 
         if is_nil(contract) do
           Repo.rollback(:contract_not_found)
@@ -187,7 +211,7 @@ defmodule Afterlight.Economy do
 
           Command.enqueue_outbox(actor.player_id, "contract_update", Payloads.contract_update(ContractBoard.list()), actor)
           outbox_inventory(actor, actor.player_id)
-          {:ok, %{success: true}}
+          %{success: true}
         end
       end)
     end)

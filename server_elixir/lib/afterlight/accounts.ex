@@ -124,42 +124,61 @@ defmodule Afterlight.Accounts do
     player_id = actor.player_id
     hash = payload_hash(payload)
 
-    case fetch_receipt(player_id, request_id) do
-      %{payload_hash: ^hash, outcome: outcome} ->
-        :telemetry.execute([:afterlight, :durable, :dedup, :hit], %{count: 1}, %{player_id: player_id})
-        {:ok, {:replay, outcome}}
+    Repo.transaction(fn ->
+      Repo.query!("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", ["receipt:#{player_id}:#{request_id}"])
 
-      %{payload_hash: _other} ->
-        {:error, :idempotency_conflict}
+      case fetch_receipt(player_id, request_id) do
+        %{payload_hash: ^hash, outcome: outcome} ->
+          :telemetry.execute([:afterlight, :durable, :dedup, :hit], %{count: 1}, %{player_id: player_id})
+          {:replay, outcome}
 
-      nil ->
-        case fun.() do
-          {:ok, result} ->
-            outcome = %{"ok" => true, "result" => dump_result(result)}
+        %{payload_hash: _other} ->
+          Repo.rollback(:idempotency_conflict)
 
-            {:ok, _} =
-              CommandReceipt
-              |> Ash.Changeset.for_create(
-                :record,
-                %{
-                  actor: player_id,
-                  request_id: request_id,
-                  payload_hash: hash,
-                  outcome: outcome,
-                  created_at: now_ms()
-                },
-                actor: actor
-              )
-              |> Ash.create()
+        nil ->
+          case fun.() do
+            {:ok, result} ->
+              outcome = %{"ok" => true, "result" => dump_result(result)}
 
-            {:ok, {:applied, result}}
+              case CommandReceipt
+                   |> Ash.Changeset.for_create(
+                     :record,
+                     %{
+                       actor: player_id,
+                       request_id: request_id,
+                       payload_hash: hash,
+                       outcome: outcome,
+                       created_at: now_ms()
+                     },
+                     actor: actor
+                   )
+                   |> Ash.create() do
+                {:ok, _} ->
+                  {:applied, result}
 
-          {:error, _} = err ->
-            err
+                {:error, _} ->
+                  case fetch_receipt(player_id, request_id) do
+                    %{payload_hash: ^hash, outcome: outcome} ->
+                      :telemetry.execute([:afterlight, :durable, :dedup, :hit], %{count: 1}, %{player_id: player_id})
+                      {:replay, outcome}
 
-          other ->
-            {:error, other}
-        end
+                    _ ->
+                      Repo.rollback(:idempotency_conflict)
+                  end
+              end
+
+            {:error, reason} ->
+              Repo.rollback(reason)
+
+            other ->
+              Repo.rollback(other)
+          end
+      end
+    end)
+    |> case do
+      {:ok, {:replay, outcome}} -> {:ok, {:replay, outcome}}
+      {:ok, {:applied, result}} -> {:ok, {:applied, result}}
+      {:error, reason} -> {:error, reason}
     end
   end
 

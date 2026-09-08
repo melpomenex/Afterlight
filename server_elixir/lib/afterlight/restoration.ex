@@ -49,17 +49,22 @@ defmodule Afterlight.Restoration do
             outbox_inventory(actor, actor.player_id)
             outbox_node_state(actor, node.district)
 
-            {:ok,
-             Payloads.action_result(
-               actionId: request_id,
-               success: true,
-               title: "Gathered",
-               message: "Pried loose 1x #{material_name(node.material)}."
-             )}
+            Payloads.action_result(
+              actionId: request_id,
+              success: true,
+              title: "Gathered",
+              message: "Pried loose 1x #{material_name(node.material)}."
+            )
           else
-            row = Repo.one!(from n in "gather_nodes", where: n.node_id == ^node_id)
+            row =
+              Repo.one!(
+                from(n in "gather_nodes",
+                  where: n.node_id == ^node_id,
+                  select: %{depleted_at: n.depleted_at, respawn_ms: n.respawn_ms}
+                )
+              )
             respawn_at = row.depleted_at + row.respawn_ms
-            {:error, %{reason: "node_depleted", respawn_at: respawn_at}}
+            Repo.rollback(%{reason: "node_depleted", respawn_at: respawn_at})
           end
         end)
       end)
@@ -111,7 +116,7 @@ defmodule Afterlight.Restoration do
           Command.enqueue_outbox("market", "machine_update", Payloads.machine_update(Payloads.mill_status(fetch_mill!())), actor)
           outbox_inventory(actor, actor.player_id)
 
-          {:ok, %{success: true, applied: applied, restored: restored}}
+          %{success: true, applied: applied, restored: restored, material: material}
         end
       end)
     end)
@@ -157,7 +162,7 @@ defmodule Afterlight.Restoration do
         Inventory.adjust!(actor.player_id, "produce", "flour_B", milled)
         Ledger.insert!(actor.player_id, "mill_output", "produce", milled, item_id: "flour_B", command_ref: request_id)
         outbox_inventory(actor, actor.player_id)
-        {:ok, %{success: true, milled: milled}}
+        %{success: true, milled: milled}
       end)
     end)
   end
@@ -182,13 +187,12 @@ defmodule Afterlight.Restoration do
         Ledger.insert!(actor.player_id, "craft", "fixture", 1, item_id: "sprinklers", command_ref: request_id)
         outbox_inventory(actor, actor.player_id)
 
-        {:ok,
-         Payloads.action_result(
-           actionId: request_id,
-           success: true,
-           title: "Crafted",
-           message: "Assembled 1x #{sprinkler.name}. Place it on a garden bed from your satchel."
-         )}
+        Payloads.action_result(
+          actionId: request_id,
+          success: true,
+          title: "Crafted",
+          message: "Assembled 1x #{sprinkler.name}. Place it on a garden bed from your satchel."
+        )
       end)
     end)
   end

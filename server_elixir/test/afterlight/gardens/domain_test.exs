@@ -60,7 +60,7 @@ defmodule Afterlight.Gardens.DomainTest do
     now = Accounts.now_ms()
 
     harvestable =
-      %{bed | stage: 6, planted_at: now - 30_000, crop_id: "radish", moisture_checks: 1.0, moisture_history_sum: 0.8}
+      %{bed | stage: 6, planted_at: now - 30_000, crop_id: "radish", moisture_checks: 1.0, moisture_history_sum: 0.5}
 
     Gardens.persist_bed!("garden_b", harvestable)
 

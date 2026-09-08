@@ -13,8 +13,9 @@ defmodule Afterlight.Specialty.ResolveGuardTest do
     assert :ok = ResolveGuard.acquire("guest_a")
     assert {:error, :in_flight} = ResolveGuard.acquire("guest_a")
     ResolveGuard.release("guest_a")
-    assert :ok = ResolveGuard.acquire("guest_a")
-    ResolveGuard.release("guest_a")
+    assert {:error, :cooldown} = ResolveGuard.acquire("guest_a")
+    assert :ok = ResolveGuard.acquire("guest_c")
+    ResolveGuard.release("guest_c")
   end
 
   test "enforces per-player cooldown after release" do

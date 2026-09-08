@@ -40,7 +40,13 @@ defmodule Afterlight.Economy.ContractBoard do
   end
 
   def tick_if_due(rng \\ default_rng()) do
-    board = Repo.one!(from b in "contract_board", where: b.id == 1)
+    board =
+      Repo.one!(
+        from b in "contract_board",
+          where: b.id == 1,
+          select: %{last_refresh_at: b.last_refresh_at}
+      )
+
     now = Accounts.now_ms()
 
     if now - board.last_refresh_at > @refresh_ms do

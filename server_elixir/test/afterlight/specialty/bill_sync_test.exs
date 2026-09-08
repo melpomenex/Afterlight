@@ -4,6 +4,11 @@ defmodule Afterlight.Specialty.BillSyncTest do
   alias Afterlight.Specialty.BillSource
   alias Afterlight.Specialty.BillSync
 
+  setup do
+    _ = start_supervised!({BillSync, name: BillSync})
+    :ok
+  end
+
   test "bill source returns a list when theater_items is absent" do
     assert is_list(BillSource.torrent_infohashes())
   end

@@ -21,18 +21,18 @@ defmodule Afterlight.Parity.Orderbook do
         player_id: player_id,
         side: side,
         crop_id: crop_id,
-        price: Numeric.js_round(price),
-        quantity: Numeric.js_round(quantity),
+        price: trunc(Numeric.js_round(price)),
+        quantity: trunc(Numeric.js_round(quantity)),
         filled: 0,
         quality: quality,
         created_at: Map.get(params, :created_at, System.system_time(:millisecond))
       }
 
-      {book, trades} =
+      {order, book, trades} =
         case side do
           "buy" -> match_buy(book, order)
           "sell" -> match_sell(book, order)
-          _ -> {book, []}
+          _ -> {order, book, []}
         end
 
       book =
@@ -68,9 +68,13 @@ defmodule Afterlight.Parity.Orderbook do
       %{
         id: o.id,
         player_id: o.player_id,
+        side: o.side,
+        crop_id: o.crop_id,
         price: o.price,
-        quantity: o.quantity - o.filled,
-        crop_id: o.crop_id
+        quantity: o.quantity,
+        filled: o.filled,
+        quality: o.quality,
+        created_at: o.created_at
       }
     end
 
@@ -93,23 +97,23 @@ defmodule Afterlight.Parity.Orderbook do
     match_loop(:sell, book.bids, book.asks, order, [], book.trades, book)
   end
 
-  defp match_loop(_side, [], makers, order, trades_acc, all_trades, book) do
-    {%{book | bids: makers, asks: book.asks}, Enum.reverse(trades_acc)}
+  defp match_loop(_side, [], _makers, order, trades_acc, _all_trades, book) do
+    {order, book, Enum.reverse(trades_acc)}
   end
 
   defp match_loop(:buy, [best | rest], bids, order, trades_acc, all_trades, book) do
     cond do
       order.filled >= order.quantity ->
-        {book, Enum.reverse(trades_acc)}
+        {order, book, Enum.reverse(trades_acc)}
 
       best.crop_id != order.crop_id ->
-        {book, Enum.reverse(trades_acc)}
+        {order, book, Enum.reverse(trades_acc)}
 
       best.price > order.price ->
-        {book, Enum.reverse(trades_acc)}
+        {order, book, Enum.reverse(trades_acc)}
 
       true ->
-        {order, best, qty, trade} = fill_trade(order, best, :buy)
+        {order, best, _qty, trade} = fill_trade(order, best, :buy)
         trades_acc = [trade | trades_acc]
         all_trades = [trade | all_trades]
         book = %{book | trades: all_trades}
@@ -125,13 +129,13 @@ defmodule Afterlight.Parity.Orderbook do
   defp match_loop(:sell, [best | rest], asks, order, trades_acc, all_trades, book) do
     cond do
       order.filled >= order.quantity ->
-        {book, Enum.reverse(trades_acc)}
+        {order, book, Enum.reverse(trades_acc)}
 
       best.crop_id != order.crop_id ->
-        {book, Enum.reverse(trades_acc)}
+        {order, book, Enum.reverse(trades_acc)}
 
       best.price < order.price ->
-        {book, Enum.reverse(trades_acc)}
+        {order, book, Enum.reverse(trades_acc)}
 
       true ->
         {order, best, _qty, trade} = fill_trade(order, best, :sell)
@@ -150,10 +154,10 @@ defmodule Afterlight.Parity.Orderbook do
   defp fill_trade(order, maker, side) do
     available = maker.quantity - maker.filled
     remaining = order.quantity - order.filled
-    qty = min(available, remaining)
-    exec_price = maker.price
-    value = qty * exec_price
-    fee = Economy.trade_fee(value)
+    qty = trunc(min(available, remaining))
+    exec_price = trunc(maker.price)
+    value = trunc(qty * exec_price)
+    fee = trunc(Economy.trade_fee(value))
 
     {buyer, seller, quality} =
       if side == :buy,
