@@ -134,10 +134,26 @@ defmodule Afterlight.World.RoomServer do
     GenServer.call(room_pid, {:member?, player_id, conn_ref})
   end
 
+  @doc "Returns the member's current pose or :not_found."
+  def member_pose(room_pid, player_id) do
+    GenServer.call(room_pid, {:member_pose, player_id})
+  end
+
   @doc false
   def stats(room_pid) do
     GenServer.call(room_pid, :stats)
   end
+
+  @doc "Returns the room's ownership lease handle and frame epoch: `{lease, epoch}`."
+  def lease_handle(room_pid), do: GenServer.call(room_pid, :lease_handle)
+
+  @doc """
+  The room's semantic atmosphere snapshot (`{:ok, frame}`), or
+  `:unavailable` when the room has no projected atmosphere or holds no
+  valid lease (task 2.1: un-owned rooms never present atmosphere state).
+  One `GenServer.call` per join/`atmosphere_get` — never per tick.
+  """
+  def atmosphere_snapshot(room_pid), do: GenServer.call(room_pid, :atmosphere_snapshot)
 
   @doc "Fan out a flat domain frame to every live member."
   def broadcast_frame(room_pid, frame) when is_map(frame) do
@@ -315,17 +331,20 @@ defmodule Afterlight.World.RoomServer do
     {:reply, member != nil and member.conn_ref == conn_ref, state}
   end
 
+  def handle_call({:member_pose, player_id}, _from, state) do
+    case Map.get(state.members, player_id) do
+      nil -> {:reply, :not_found, state}
+      member -> {:reply, {:ok, member.pose}, state}
+    end
+  end
+
   def handle_call(:epoch, _from, state) do
     {:reply, frame_epoch(state), state}
   end
 
-  @doc """
-  The room's semantic atmosphere snapshot (`{:ok, frame}`), or
-  `:unavailable` when the room has no projected atmosphere or holds no
-  valid lease (task 2.1: un-owned rooms never present atmosphere state).
-  One `GenServer.call` per join/`atmosphere_get` — never per tick.
-  """
-  def atmosphere_snapshot(room_pid), do: GenServer.call(room_pid, :atmosphere_snapshot)
+  def handle_call(:lease_handle, _from, state) do
+    {:reply, {state.lease, frame_epoch(state)}, state}
+  end
 
   def handle_call(:atmosphere_snapshot, _from, state) do
     # Persist the adopted epoch first (task 2.1): the bounded future event
@@ -381,9 +400,6 @@ defmodule Afterlight.World.RoomServer do
     end
   end
 
-  defp start_renewer(handle), do: Renewer.start_link(room_pid: self(), handle: handle, query_timeout: lease_query_timeout())
-
-
   def handle_call(:stats, _from, state) do
     depth =
       case Process.info(self(), :message_queue_len) do
@@ -403,6 +419,8 @@ defmodule Afterlight.World.RoomServer do
         {:reply, :ok, do_leave(state, player_id, member.conn_ref, reason)}
     end
   end
+
+  defp start_renewer(handle), do: Renewer.start_link(room_pid: self(), handle: handle, query_timeout: lease_query_timeout())
 
   @impl true
   def handle_cast({:broadcast_frame, frame}, state) do

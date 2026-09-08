@@ -51,11 +51,12 @@ defmodule Afterlight.Application do
         Afterlight.Theater.Supervisor,
         Afterlight.TheaterMedia.Supervisor,
         Afterlight.World.Supervisor,
+        Afterlight.Activities.Supervisor,
         Afterlight.Social.Supervisor,
         Afterlight.Specialty.Supervisor
       ]
     else
-      [Afterlight.World.Supervisor]
+      [Afterlight.World.Supervisor, Afterlight.Activities.Supervisor]
     end
   end
 

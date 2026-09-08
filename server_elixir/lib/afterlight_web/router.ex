@@ -6,10 +6,11 @@ defmodule AfterlightWeb.Router do
   use Phoenix.Router
 
   scope "/", AfterlightWeb do
-    get "/", HealthController, :show
-    get "/health", HealthController, :show
+    get("/", HealthController, :show)
+    get("/health", HealthController, :show)
 
-    post "/api/auth/guest", AuthController, :create
-    post "/internal/irc/adapter/event", IrcAdapterController, :create
+    post("/api/auth/guest", AuthController, :create)
+    get("/api/activities/leaderboard/:game", LeaderboardController, :show)
+    post("/internal/irc/adapter/event", IrcAdapterController, :create)
   end
 end

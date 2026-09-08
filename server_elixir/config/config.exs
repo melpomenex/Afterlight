@@ -13,7 +13,8 @@ config :afterlight,
     Afterlight.Theater,
     Afterlight.Gardens.Domain,
     Afterlight.Economy.Domain,
-    Afterlight.Restoration.Domain
+    Afterlight.Restoration.Domain,
+    Afterlight.Activities.Domain
   ],
   accounts: [
     claim_window_grace_ms: 2_592_000_000,

@@ -25,6 +25,7 @@ defmodule Afterlight.Gateway.Router do
           | {:catalog, type :: String.t(), payload :: map}
           | {:theater, type :: String.t(), payload :: map}
           | {:economy, type :: String.t(), payload :: map}
+          | {:activity, type :: String.t(), payload :: map}
           | {:specialty, type :: String.t(), payload :: map}
           | {:relay, frame :: %{binary() => term}}
           | {:unrouted, type :: String.t()}
@@ -35,6 +36,7 @@ defmodule Afterlight.Gateway.Router do
   @chat_types ~w(chat_send)
   @catalog_types ~w(iptv_list_get iptv_list_remove epg_lookup)
   @theater_types ~w(theater_queue theater_control theater_channel theater_playlist_resolve)
+  @activity_types ~w(activity_join activity_leave activity_ready activity_input activity_resnapshot)
 
   @economy_types ~w(
     garden_action market_buy market_sell order_place order_cancel contract_complete
@@ -83,12 +85,19 @@ defmodule Afterlight.Gateway.Router do
 
   defp default_disposition("atmosphere_get"), do: if(world_phx?(), do: :phoenix, else: :unrouted)
 
+  defp default_disposition(type) when type in @activity_types,
+    do: if(world_phx?(), do: :phoenix, else: :unrouted)
+
   defp default_disposition(type) when type in @node_relay_types, do: :node
   defp default_disposition(_type), do: :unrouted
 
   @doc "Types still relayed to the Node sidecar when not flipped to Phoenix."
   @spec node_relay_types() :: [String.t()]
   def node_relay_types, do: @node_relay_types
+
+  @doc "Activity types owned by Phoenix world runtime."
+  @spec activity_types() :: [String.t()]
+  def activity_types, do: @activity_types
 
   @doc "Types handled by the P7 specialty adapters instead of raw Node relay."
   @spec specialty_types() :: [String.t()]
@@ -168,6 +177,9 @@ defmodule Afterlight.Gateway.Router do
 
       :phoenix when type in @economy_types ->
         {:economy, type, payload || %{}}
+
+      :phoenix when type in @activity_types ->
+        {:activity, type, payload || %{}}
 
       :phoenix when type in @world_types ->
         {:world, type, payload || %{}}

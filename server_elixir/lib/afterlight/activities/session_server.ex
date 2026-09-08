@@ -1,0 +1,1660 @@
+defmodule Afterlight.Activities.SessionServer do
+  @moduledoc """
+  Authoritative room-owned activity session (tasks 2.1, 2.2, 2.3, design D2/D3).
+  Session key: `{room_key, room_epoch, activity_id}`.
+  A match/session ID changes on restart.
+  Monitors the room process: owner loss or lease fencing shuts down the session.
+  Owns atomic player slot admissions, duplicate-tab policy, readiness,
+  capacity enforcement, FIFO timed offers, monitored disconnect grace,
+  input watchdog, and idle session reaping.
+  """
+  use GenServer, restart: :transient
+  require Logger
+
+  alias Afterlight.Activities
+  alias Afterlight.Activities.Admission
+  alias Afterlight.Activities.Pong
+  alias Afterlight.Activities.RainRunner
+  alias Afterlight.Activities.SignalLost
+  alias Afterlight.Activities.Sporefall
+  alias Afterlight.World.Fence
+  alias Afterlight.World.RoomServer
+
+  @default_offer_timeout_ms 30_000
+  @default_reconnect_grace_ms 30_000
+  @default_input_watchdog_ms 250
+  @default_ready_timeout_ms 60_000
+  @default_idle_reap_ms 60_000
+
+  defstruct [
+    :room_key,
+    :room_epoch,
+    :activity_id,
+    :session_id,
+    :room_pid,
+    :room_monitor_ref,
+    :ownership_handle,
+    :activity_def,
+    :match_id,
+    :match_outcome,
+    :idle_timer_ref,
+    :tick_timer_ref,
+    :last_tick_at,
+    :last_snapshot_at,
+    status: :lobby,
+    max_players: 2,
+    max_queue: 16,
+    max_spectators: 32,
+    players: %{},
+    player_to_slot: %{},
+    queue: [],
+    spectators: %{},
+    offers: %{},
+    disconnects: %{},
+    recent_events: [],
+    sim_state: %{},
+    sim_tick_count: 0,
+    tick_interval_ms: 16,
+    snapshot_interval_ms: 50,
+    revision: 0,
+    fenced: false,
+    started_at: nil,
+    offer_timeout_ms: @default_offer_timeout_ms,
+    reconnect_grace_ms: @default_reconnect_grace_ms,
+    input_watchdog_ms: @default_input_watchdog_ms,
+    ready_timeout_ms: @default_ready_timeout_ms,
+    idle_reap_ms: @default_idle_reap_ms,
+    check_proximity: true
+  ]
+
+  def start_link(args) do
+    room_key = Map.fetch!(args, :room_key)
+    room_epoch = Map.fetch!(args, :room_epoch)
+    activity_id = Map.fetch!(args, :activity_id)
+
+    name = Activities.via_tuple(room_key, room_epoch, activity_id)
+    GenServer.start_link(__MODULE__, args, name: name)
+  end
+
+  @impl true
+  def init(args) do
+    room_pid = Map.fetch!(args, :room_pid)
+    room_key = Map.fetch!(args, :room_key)
+    room_epoch = Map.fetch!(args, :room_epoch)
+    activity_id = Map.fetch!(args, :activity_id)
+    handle = Map.get(args, :ownership_handle)
+    act_def = Map.get(args, :activity_def, %{})
+
+    if not Process.alive?(room_pid) do
+      {:stop, :room_unavailable}
+    else
+      ref = Process.monitor(room_pid)
+
+      if handle && handle.fenced do
+        {:stop, :lease_lost}
+      else
+        capacities = Map.get(act_def, "capacities", %{})
+        max_players = Map.get(capacities, "players", 2)
+        max_queue = Map.get(capacities, "queue", 16)
+        max_spectators = Map.get(capacities, "spectators", 32)
+
+        offer_timeout = Map.get(args, :offer_timeout_ms, @default_offer_timeout_ms)
+        reconnect_grace = Map.get(args, :reconnect_grace_ms, @default_reconnect_grace_ms)
+        input_watchdog = Map.get(args, :input_watchdog_ms, @default_input_watchdog_ms)
+        ready_timeout = Map.get(args, :ready_timeout_ms, @default_ready_timeout_ms)
+        idle_reap = Map.get(args, :idle_reap_ms, @default_idle_reap_ms)
+        check_prox = Map.get(args, :check_proximity, true)
+
+        tick_interval = Map.get(args, :tick_interval_ms, 16)
+        snapshot_interval = Map.get(args, :snapshot_interval_ms, 50)
+        session_id = Map.get(args, :session_id) || generate_session_id()
+
+        state = %__MODULE__{
+          room_key: room_key,
+          room_epoch: room_epoch,
+          activity_id: activity_id,
+          session_id: session_id,
+          room_pid: room_pid,
+          room_monitor_ref: ref,
+          ownership_handle: handle,
+          activity_def: act_def,
+          max_players: max_players,
+          max_queue: max_queue,
+          max_spectators: max_spectators,
+          players: %{},
+          player_to_slot: %{},
+          queue: [],
+          spectators: %{},
+          offers: %{},
+          disconnects: %{},
+          recent_events: [],
+          sim_state: %{},
+          sim_tick_count: 0,
+          status: :lobby,
+          revision: 0,
+          fenced: false,
+          started_at: System.system_time(:millisecond),
+          offer_timeout_ms: offer_timeout,
+          reconnect_grace_ms: reconnect_grace,
+          input_watchdog_ms: input_watchdog,
+          ready_timeout_ms: ready_timeout,
+          idle_reap_ms: idle_reap,
+          tick_interval_ms: tick_interval,
+          snapshot_interval_ms: snapshot_interval,
+          check_proximity: check_prox
+        }
+
+        # Start idle timer since session starts empty
+        state = maybe_start_idle_timer(state)
+
+        {:ok, state}
+      end
+    end
+  end
+
+  @impl true
+  def terminate(reason, state) do
+    if state do
+      if state.room_monitor_ref do
+        Process.demonitor(state.room_monitor_ref, [:flush])
+      end
+
+      # Cancel idle timer
+      if state.idle_timer_ref, do: Process.cancel_timer(state.idle_timer_ref)
+
+      # Cancel tick timer
+      if state.tick_timer_ref, do: Process.cancel_timer(state.tick_timer_ref)
+
+      # Cancel pending timed offers
+      for {_slot, offer} <- state.offers do
+        if offer[:timer_ref], do: Process.cancel_timer(offer.timer_ref)
+      end
+
+      # Cancel disconnect grace timers
+      for {_player_id, disc} <- state.disconnects do
+        if disc[:timer_ref], do: Process.cancel_timer(disc.timer_ref)
+      end
+
+      # Cancel ready timers & watchdog timers, demonitor channel monitors
+      for {_slot, player} <- state.players do
+        if player[:channel_monitor], do: Process.demonitor(player.channel_monitor, [:flush])
+        if player[:ready_timer_ref], do: Process.cancel_timer(player.ready_timer_ref)
+        if player[:watchdog_timer_ref], do: Process.cancel_timer(player.watchdog_timer_ref)
+        Admission.release(player.player_id)
+      end
+    end
+
+    Logger.debug(
+      "activity session terminated room=#{state.room_key} act=#{state.activity_id} sess=#{state.session_id} reason=#{inspect(reason)}"
+    )
+
+    :ok
+  end
+
+  # Owner-loss detection: room process terminated
+  @impl true
+  def handle_info(
+        {:DOWN, ref, :process, room_pid, reason},
+        %{room_monitor_ref: ref, room_pid: room_pid} = state
+      ) do
+    Logger.info(
+      "activity session owner lost room=#{state.room_key} act=#{state.activity_id} reason=#{inspect(reason)}"
+    )
+
+    {:stop, :shutdown, %{state | fenced: true}}
+  end
+
+  # Channel process terminated: handle disconnect grace (Task 2.3)
+  def handle_info({:DOWN, ref, :process, pid, reason}, state) do
+    case find_player_by_monitor(state, ref) do
+      {:player, player} ->
+        handle_player_disconnect(player, reason, state)
+
+      :not_found ->
+        # Check queue or spectators
+        state = purge_disconnected_channel(state, pid)
+        {:noreply, state}
+    end
+  end
+
+  # Room owner notify about lease fencing
+  def handle_info({:lease_fenced, _reason}, state) do
+    {:stop, :shutdown, %{state | fenced: true}}
+  end
+
+  # Simulation tick (Task 2.4 & 2.7): 60 Hz bounded simulation, at most 4 catch-up steps, 20 Hz snapshots
+  def handle_info(:sim_tick, state) do
+    if state.status == :in_progress do
+      now = System.monotonic_time(:millisecond)
+      last_tick = state.last_tick_at || now
+      elapsed = max(now - last_tick, 0)
+      steps = div(elapsed, state.tick_interval_ms)
+      steps_to_run = min(max(steps, 1), 4)
+
+      if steps > 4 do
+        Logger.warning(
+          "Activity #{state.activity_id} sim tick lagging (#{steps} steps), clamped to 4"
+        )
+      end
+
+      act_type = (state.activity_def && state.activity_def["type"]) || "unknown"
+
+      {sim_state, maybe_ended} =
+        step_simulation(act_type, state.sim_state, state.players, steps_to_run)
+
+      sim_tick_count = state.sim_tick_count + steps_to_run
+
+      state = %{
+        state
+        | sim_state: sim_state,
+          sim_tick_count: sim_tick_count,
+          last_tick_at: now
+      }
+
+      state =
+        case maybe_ended do
+          {:match_ended, winner_slot, details} ->
+            winner_player = Map.get(state.players, winner_slot)
+            max_players = state.max_players || 2
+            is_single_player = max_players == 1
+
+            loser_slot = if is_single_player, do: nil, else: 1 - winner_slot
+            loser_player = if loser_slot, do: Map.get(state.players, loser_slot), else: nil
+
+            winner_id = if winner_player, do: winner_player.player_id, else: "slot_#{winner_slot}"
+            loser_id = if loser_player, do: loser_player.player_id, else: nil
+
+            details_map =
+              if is_map(details),
+                do: details,
+                else: if(is_list(details), do: Map.new(details), else: %{})
+
+            reason = Map.get(details_map, :reason, Map.get(details_map, "reason", "score"))
+
+            outcome = %{
+              "winner" => winner_id,
+              "winnerSlot" => winner_slot,
+              "reason" => to_string(reason),
+              "score" => Map.get(sim_state, "score", %{}),
+              "matchId" => state.match_id
+            }
+
+            outcome =
+              if loser_id do
+                outcome
+                |> Map.put("loser", loser_id)
+                |> Map.put("loserSlot", loser_slot)
+              else
+                outcome
+              end
+
+            outcome = Map.merge(outcome, Map.take(sim_state, ["distance", "level", "lives"]))
+
+            if state.tick_timer_ref, do: Process.cancel_timer(state.tick_timer_ref)
+
+            players =
+              Map.new(state.players, fn {slot, p} ->
+                {slot, %{p | ready: false}}
+              end)
+
+            state = %{
+              state
+              | status: :ended,
+                tick_timer_ref: nil,
+                players: players,
+                match_outcome: outcome,
+                revision: state.revision + 1
+            }
+
+            state = record_and_broadcast_event(state, "match_ended", outcome)
+            broadcast_activity_state(state)
+            state
+
+          nil ->
+            # Broadcast 20 Hz snapshot if interval elapsed
+            last_snap = state.last_snapshot_at || 0
+
+            if now - last_snap >= state.snapshot_interval_ms do
+              broadcast_activity_state(state)
+              %{state | last_snapshot_at: now}
+            else
+              state
+            end
+        end
+
+      if state.status == :in_progress do
+        tick_ref = Process.send_after(self(), :sim_tick, state.tick_interval_ms)
+        {:noreply, %{state | tick_timer_ref: tick_ref}}
+      else
+        {:noreply, %{state | tick_timer_ref: nil}}
+      end
+    else
+      {:noreply, %{state | tick_timer_ref: nil}}
+    end
+  end
+
+  # Timed offer expired: advance to next queued visitor
+  def handle_info({:offer_timeout, slot, player_id}, state) do
+    case Map.get(state.offers, slot) do
+      %{player_id: ^player_id} = offer ->
+        Logger.info(
+          "Offer for slot #{slot} to #{player_id} expired after #{state.offer_timeout_ms}ms"
+        )
+
+        if offer[:channel_pid] && Process.alive?(offer[:channel_pid]) do
+          send(
+            offer[:channel_pid],
+            {:activity_event,
+             %{
+               "type" => "activity_event",
+               "version" => 1,
+               "roomId" => state.room_key,
+               "roomEpoch" => state.room_epoch,
+               "activityId" => state.activity_id,
+               "sessionId" => state.session_id,
+               "eventId" => "evt_" <> Base.encode16(:crypto.strong_rand_bytes(8), case: :lower),
+               "eventType" => "offer_expired",
+               "event" => "offer_expired",
+               "slot" => slot,
+               "data" => %{"slot" => slot},
+               "serverNow" => System.system_time(:millisecond)
+             }}
+          )
+        end
+
+        state = %{state | offers: Map.delete(state.offers, slot), revision: state.revision + 1}
+        state = maybe_offer_next_slot(state, slot)
+        broadcast_activity_state(state)
+        {:noreply, state}
+
+      _ ->
+        {:noreply, state}
+    end
+  end
+
+  # Reconnect grace expired (Task 2.3)
+  def handle_info({:disconnect_timeout, player_id}, state) do
+    case Map.get(state.disconnects, player_id) do
+      %{slot: slot} ->
+        Logger.info("Reconnect grace expired for player=#{player_id} slot=#{slot}")
+        disconnects = Map.delete(state.disconnects, player_id)
+        Admission.release(player_id)
+        players = Map.delete(state.players, slot)
+        player_to_slot = Map.delete(state.player_to_slot, player_id)
+
+        cond do
+          state.status in [:in_progress, :paused] ->
+            # Connected players are those not in disconnect grace
+            connected_players =
+              Enum.reject(players, fn {_slot, p} -> Map.has_key?(disconnects, p.player_id) end)
+
+            cond do
+              length(connected_players) == 1 ->
+                # Exactly one connected player remains -> forfeit win!
+                [{_w_slot, winner}] = connected_players
+
+                outcome = %{
+                  "winner" => winner.player_id,
+                  "loser" => player_id,
+                  "reason" => "forfeit"
+                }
+
+                if state.tick_timer_ref, do: Process.cancel_timer(state.tick_timer_ref)
+
+                state = %{
+                  state
+                  | status: :ended,
+                    match_outcome: outcome,
+                    players: players,
+                    player_to_slot: player_to_slot,
+                    disconnects: disconnects,
+                    tick_timer_ref: nil
+                }
+
+                state = record_and_broadcast_event(state, "match_ended", outcome)
+                broadcast_activity_state(state)
+                state = maybe_offer_next_slot(state, slot)
+                state = maybe_start_idle_timer(state)
+                {:noreply, state}
+
+              length(connected_players) == 0 ->
+                # With nobody remaining, it SHALL abort (no winner invented)!
+                outcome = %{"reason" => "aborted"}
+
+                if state.tick_timer_ref, do: Process.cancel_timer(state.tick_timer_ref)
+
+                state = %{
+                  state
+                  | status: :lobby,
+                    match_outcome: outcome,
+                    players: players,
+                    player_to_slot: player_to_slot,
+                    disconnects: disconnects,
+                    tick_timer_ref: nil
+                }
+
+                state = record_and_broadcast_event(state, "match_aborted", outcome)
+                broadcast_activity_state(state)
+                state = maybe_start_idle_timer(state)
+                {:noreply, state}
+
+              true ->
+                state = %{
+                  state
+                  | players: players,
+                    player_to_slot: player_to_slot,
+                    disconnects: disconnects,
+                    revision: state.revision + 1
+                }
+
+                broadcast_activity_state(state)
+                state = maybe_offer_next_slot(state, slot)
+                state = maybe_start_idle_timer(state)
+                {:noreply, state}
+            end
+
+          true ->
+            # Lobby disconnect expired: remove player and advance queue
+            state = %{
+              state
+              | players: players,
+                player_to_slot: player_to_slot,
+                disconnects: disconnects,
+                revision: state.revision + 1
+            }
+
+            broadcast_activity_state(state)
+            state = maybe_offer_next_slot(state, slot)
+            state = maybe_start_idle_timer(state)
+            {:noreply, state}
+        end
+
+      nil ->
+        {:noreply, state}
+    end
+  end
+
+  # Input watchdog timeout (250ms without fresh control sample)
+  def handle_info({:input_watchdog_timeout, player_id}, state) do
+    case Map.get(state.player_to_slot, player_id) do
+      slot when is_integer(slot) ->
+        player = Map.fetch!(state.players, slot)
+        # Neutralize input
+        player = %{player | input_state: %{}, watchdog_timer_ref: nil}
+        players = Map.put(state.players, slot, player)
+        {:noreply, %{state | players: players}}
+
+      nil ->
+        {:noreply, state}
+    end
+  end
+
+  # AFK readiness timeout (60s in lobby)
+  def handle_info({:ready_timeout, player_id}, state) do
+    case Map.get(state.player_to_slot, player_id) do
+      slot when is_integer(slot) ->
+        player = Map.fetch!(state.players, slot)
+
+        if state.status == :lobby and player.ready do
+          Logger.info("AFK readiness expired for #{player_id}")
+          player = %{player | ready: false, ready_timer_ref: nil}
+          players = Map.put(state.players, slot, player)
+          state = %{state | players: players, revision: state.revision + 1}
+          broadcast_activity_state(state)
+          {:noreply, state}
+        else
+          {:noreply, state}
+        end
+
+      nil ->
+        {:noreply, state}
+    end
+  end
+
+  # Idle session reap
+  def handle_info(:idle_reap_timeout, state) do
+    if empty_session?(state) do
+      Logger.info("Reaping idle empty session room=#{state.room_key} act=#{state.activity_id}")
+      {:stop, :normal, state}
+    else
+      {:noreply, %{state | idle_timer_ref: nil}}
+    end
+  end
+
+  def handle_info(_other, state), do: {:noreply, state}
+
+  @impl true
+  def handle_call(:get_session_info, _from, state) do
+    reply = %{
+      session_id: state.session_id,
+      room_key: state.room_key,
+      room_epoch: state.room_epoch,
+      activity_id: state.activity_id,
+      revision: state.revision,
+      status: state.status,
+      match_id: state.match_id,
+      match_outcome: state.match_outcome,
+      fenced: state.fenced or (state.ownership_handle != nil and state.ownership_handle.fenced),
+      started_at: state.started_at,
+      players: state.players,
+      player_to_slot: state.player_to_slot,
+      queue: state.queue,
+      spectators: state.spectators,
+      offers: state.offers,
+      disconnects: state.disconnects,
+      recent_events: state.recent_events,
+      sim_state: state.sim_state,
+      sim_tick_count: state.sim_tick_count
+    }
+
+    {:reply, reply, state}
+  end
+
+  def handle_call(:get_full_snapshot, _from, state) do
+    {:reply, build_full_snapshot(state), state}
+  end
+
+  def handle_call({:command, action, payload, ctx}, _from, state) do
+    if state.fenced or (state.ownership_handle != nil and state.ownership_handle.fenced) do
+      {:reply, {:error, :lease_lost}, state}
+    else
+      if not Fence.allows_command?(state.ownership_handle) do
+        {:reply, {:error, :lease_lost}, state}
+      else
+        handle_command(action, payload, ctx, state)
+      end
+    end
+  end
+
+  def handle_call({:fence!, _reason}, _from, state) do
+    {:reply, :ok, %{state | fenced: true}}
+  end
+
+  ## Command handlers
+
+  defp handle_command("activity_join", payload, ctx, state) do
+    state = maybe_cancel_idle_timer(state)
+    role = Map.get(payload, "role", "player")
+    player_id = Map.fetch!(ctx, :player_id)
+    do_join(role, payload, ctx, player_id, state)
+  end
+
+  defp handle_command("activity_leave", _payload, ctx, state) do
+    player_id = Map.fetch!(ctx, :player_id)
+    do_leave(player_id, state)
+  end
+
+  defp handle_command("activity_ready", payload, ctx, state) do
+    ready = Map.get(payload, "ready", true)
+    player_id = Map.fetch!(ctx, :player_id)
+    do_ready(ready, player_id, ctx, state)
+  end
+
+  defp handle_command("activity_input", payload, ctx, state) do
+    player_id = Map.fetch!(ctx, :player_id)
+    do_input(payload, player_id, ctx, state)
+  end
+
+  defp handle_command("activity_resnapshot", payload, _ctx, state) do
+    client_sess = Map.get(payload, "sessionId")
+
+    cond do
+      client_sess != nil and client_sess != state.session_id ->
+        {:reply, {:error, :stale_session}, state}
+
+      true ->
+        snapshot = build_full_snapshot(state)
+        {:reply, {:ok, snapshot}, state}
+    end
+  end
+
+  defp handle_command(action, _payload, _ctx, state) do
+    {:reply, {:ok, %{action: action, session_id: state.session_id, revision: state.revision}},
+     state}
+  end
+
+  ## Join & Reconnect
+
+  defp do_join("player", _payload, ctx, player_id, state) do
+    case Map.get(state.player_to_slot, player_id) do
+      # Duplicate tab or reconnect: update connection in place, do not allocate second slot
+      # On reconnect: mint a fresh participant lease, reset sequence and unplayed inputs (spec D4)
+      slot when is_integer(slot) ->
+        player = Map.fetch!(state.players, slot)
+
+        if player[:channel_monitor] do
+          Process.demonitor(player.channel_monitor, [:flush])
+        end
+
+        mref = if ctx.channel_pid, do: Process.monitor(ctx.channel_pid), else: nil
+
+        # If player was in disconnect grace, cancel disconnect timer!
+        disconnects =
+          case Map.get(state.disconnects, player_id) do
+            nil ->
+              state.disconnects
+
+            disc ->
+              if disc[:timer_ref], do: Process.cancel_timer(disc.timer_ref)
+              Map.delete(state.disconnects, player_id)
+          end
+
+        new_lease = generate_lease_id()
+
+        player = %{
+          player
+          | conn_ref: ctx.conn_ref,
+            channel_pid: ctx.channel_pid,
+            channel_monitor: mref,
+            lease_id: new_lease,
+            last_seq: 0,
+            input_state: %{}
+        }
+
+        players = Map.put(state.players, slot, player)
+
+        # If match was paused and no other player is in disconnect grace, resume!
+        {status, state} =
+          if state.status == :paused and disconnects == %{} do
+            now_mono = System.monotonic_time(:millisecond)
+            if state.tick_timer_ref, do: Process.cancel_timer(state.tick_timer_ref)
+            tick_ref = Process.send_after(self(), :sim_tick, state.tick_interval_ms)
+
+            s = %{
+              state
+              | tick_timer_ref: tick_ref,
+                last_tick_at: now_mono,
+                last_snapshot_at: now_mono,
+                status: :in_progress
+            }
+
+            s = record_and_broadcast_event(s, "match_resumed", %{})
+            {:in_progress, s}
+          else
+            {state.status, state}
+          end
+
+        state = %{state | players: players, disconnects: disconnects, status: status}
+
+        result = %{
+          result: "seated",
+          role: "player",
+          slot: slot,
+          leaseId: new_lease,
+          lease: new_lease,
+          sessionId: state.session_id,
+          revision: state.revision,
+          status: state.status
+        }
+
+        {:reply, {:ok, result}, state}
+
+      nil ->
+        free_slot =
+          Enum.find(0..(state.max_players - 1), fn s ->
+            not Map.has_key?(state.players, s) and not Map.has_key?(state.offers, s)
+          end)
+
+        cond do
+          is_nil(free_slot) ->
+            {:reply, {:error, :activity_full}, state}
+
+          true ->
+            case check_proximity(state, player_id, ctx.conn_ref) do
+              {:error, reason} ->
+                {:reply, {:error, reason}, state}
+
+              :ok ->
+                metadata = %{
+                  room_key: state.room_key,
+                  activity_id: state.activity_id,
+                  session_id: state.session_id,
+                  slot: free_slot
+                }
+
+                case Admission.acquire(player_id, metadata) do
+                  {:error, :already_playing} ->
+                    {:reply, {:error, :already_playing}, state}
+
+                  {:ok, _} ->
+                    now = System.system_time(:millisecond)
+                    mref = if ctx.channel_pid, do: Process.monitor(ctx.channel_pid), else: nil
+                    lease_id = generate_lease_id()
+
+                    player = %{
+                      player_id: player_id,
+                      conn_ref: ctx.conn_ref,
+                      channel_pid: ctx.channel_pid,
+                      channel_monitor: mref,
+                      slot: free_slot,
+                      lease_id: lease_id,
+                      last_seq: 0,
+                      ready: false,
+                      ready_timer_ref: nil,
+                      watchdog_timer_ref: nil,
+                      input_state: %{},
+                      joined_at: now
+                    }
+
+                    players = Map.put(state.players, free_slot, player)
+                    player_to_slot = Map.put(state.player_to_slot, player_id, free_slot)
+                    queue = Enum.reject(state.queue, &(&1.player_id == player_id))
+                    spectators = Map.delete(state.spectators, player_id)
+
+                    state = %{
+                      state
+                      | players: players,
+                        player_to_slot: player_to_slot,
+                        queue: queue,
+                        spectators: spectators,
+                        revision: state.revision + 1
+                    }
+
+                    broadcast_activity_state(state)
+
+                    result = %{
+                      result: "seated",
+                      role: "player",
+                      slot: free_slot,
+                      leaseId: lease_id,
+                      lease: lease_id,
+                      sessionId: state.session_id,
+                      revision: state.revision,
+                      status: state.status
+                    }
+
+                    {:reply, {:ok, result}, state}
+                end
+            end
+        end
+    end
+  end
+
+  defp do_join("queue", _payload, ctx, player_id, state) do
+    cond do
+      Map.has_key?(state.player_to_slot, player_id) ->
+        {:reply, {:error, :already_seated}, state}
+
+      Enum.any?(state.queue, &(&1.player_id == player_id)) ->
+        queue =
+          Enum.map(state.queue, fn q ->
+            if q.player_id == player_id,
+              do: %{q | conn_ref: ctx.conn_ref, channel_pid: ctx.channel_pid},
+              else: q
+          end)
+
+        pos = Enum.find_index(queue, &(&1.player_id == player_id)) + 1
+        state = %{state | queue: queue}
+
+        {:reply,
+         {:ok, %{result: "queued", role: "queue", position: pos, revision: state.revision}},
+         state}
+
+      length(state.queue) >= state.max_queue ->
+        {:reply, {:error, :queue_full}, state}
+
+      true ->
+        entry = %{
+          player_id: player_id,
+          conn_ref: ctx.conn_ref,
+          channel_pid: ctx.channel_pid,
+          queued_at: System.system_time(:millisecond)
+        }
+
+        queue = state.queue ++ [entry]
+        pos = length(queue)
+        state = %{state | queue: queue, revision: state.revision + 1}
+        broadcast_activity_state(state)
+
+        {:reply,
+         {:ok, %{result: "queued", role: "queue", position: pos, revision: state.revision}},
+         state}
+    end
+  end
+
+  defp do_join("spectator", _payload, ctx, player_id, state) do
+    cond do
+      Map.has_key?(state.player_to_slot, player_id) ->
+        {:reply, {:error, :already_seated}, state}
+
+      not Map.has_key?(state.spectators, player_id) and
+          map_size(state.spectators) >= state.max_spectators ->
+        {:reply, {:error, :spectators_full}, state}
+
+      true ->
+        entry = %{
+          conn_ref: ctx.conn_ref,
+          channel_pid: ctx.channel_pid,
+          joined_at: System.system_time(:millisecond)
+        }
+
+        spectators = Map.put(state.spectators, player_id, entry)
+        state = %{state | spectators: spectators, revision: state.revision + 1}
+        {:reply, {:ok, %{result: "watching", role: "spectator", revision: state.revision}}, state}
+    end
+  end
+
+  defp do_join(_other_role, _payload, _ctx, _player_id, state) do
+    {:reply, {:error, :invalid_role}, state}
+  end
+
+  ## Leave Logic
+
+  defp do_leave(player_id, state) do
+    cond do
+      Map.has_key?(state.player_to_slot, player_id) ->
+        slot = Map.fetch!(state.player_to_slot, player_id)
+        player = Map.fetch!(state.players, slot)
+
+        if player[:channel_monitor], do: Process.demonitor(player.channel_monitor, [:flush])
+        if player[:ready_timer_ref], do: Process.cancel_timer(player.ready_timer_ref)
+        if player[:watchdog_timer_ref], do: Process.cancel_timer(player.watchdog_timer_ref)
+
+        Admission.release(player_id)
+        players = Map.delete(state.players, slot)
+        player_to_slot = Map.delete(state.player_to_slot, player_id)
+
+        # If in an active match, explicit leave is an immediate forfeit!
+        state =
+          if state.status in [:in_progress, :paused] do
+            remaining = map_size(players)
+
+            if remaining == 1 do
+              [{_w_slot, winner}] = Map.to_list(players)
+
+              outcome = %{
+                "winner" => winner.player_id,
+                "loser" => player_id,
+                "reason" => "forfeit"
+              }
+
+              broadcast_activity_event(state, "match_ended", outcome)
+              %{state | status: :ended, match_outcome: outcome}
+            else
+              outcome = %{"reason" => "aborted"}
+              broadcast_activity_event(state, "match_aborted", outcome)
+              %{state | status: :lobby, match_outcome: outcome}
+            end
+          else
+            state
+          end
+
+        state = %{
+          state
+          | players: players,
+            player_to_slot: player_to_slot,
+            revision: state.revision + 1
+        }
+
+        state = maybe_offer_next_slot(state, slot)
+        state = maybe_start_idle_timer(state)
+        broadcast_activity_state(state)
+        {:reply, {:ok, %{result: "left", role: "player", revision: state.revision}}, state}
+
+      Enum.any?(state.queue, &(&1.player_id == player_id)) ->
+        queue = Enum.reject(state.queue, &(&1.player_id == player_id))
+        state = %{state | queue: queue, revision: state.revision + 1}
+        broadcast_activity_state(state)
+        state = maybe_start_idle_timer(state)
+        {:reply, {:ok, %{result: "left", role: "queue", revision: state.revision}}, state}
+
+      Map.has_key?(state.spectators, player_id) ->
+        spectators = Map.delete(state.spectators, player_id)
+        state = %{state | spectators: spectators, revision: state.revision + 1}
+        state = maybe_start_idle_timer(state)
+        {:reply, {:ok, %{result: "left", role: "spectator", revision: state.revision}}, state}
+
+      Enum.any?(state.offers, fn {_s, o} -> o.player_id == player_id end) ->
+        offer_slot =
+          Enum.find_value(state.offers, fn {s, o} ->
+            if o.player_id == player_id, do: s, else: nil
+          end)
+
+        state = cancel_and_advance_offer(state, offer_slot)
+        state = maybe_start_idle_timer(state)
+        {:reply, {:ok, %{result: "left", role: "offered", revision: state.revision}}, state}
+
+      true ->
+        {:reply, {:ok, %{result: "left", revision: state.revision}}, state}
+    end
+  end
+
+  ## Ready Logic
+
+  defp do_ready(ready, player_id, ctx, state) do
+    case Enum.find(state.offers, fn {_s, o} -> o.player_id == player_id end) do
+      {slot, offer} ->
+        if ready do
+          case recheck_member_and_proximity(state, player_id, ctx.conn_ref) do
+            :ok ->
+              if offer[:timer_ref], do: Process.cancel_timer(offer.timer_ref)
+              offers = Map.delete(state.offers, slot)
+
+              metadata = %{
+                room_key: state.room_key,
+                activity_id: state.activity_id,
+                session_id: state.session_id,
+                slot: slot
+              }
+
+              case Admission.acquire(player_id, metadata) do
+                {:ok, _} ->
+                  now = System.system_time(:millisecond)
+                  mref = if ctx.channel_pid, do: Process.monitor(ctx.channel_pid), else: nil
+                  lease_id = generate_lease_id()
+
+                  player = %{
+                    player_id: player_id,
+                    conn_ref: ctx.conn_ref,
+                    channel_pid: ctx.channel_pid,
+                    channel_monitor: mref,
+                    slot: slot,
+                    lease_id: lease_id,
+                    last_seq: 0,
+                    ready: true,
+                    ready_timer_ref: nil,
+                    watchdog_timer_ref: nil,
+                    input_state: %{},
+                    joined_at: now
+                  }
+
+                  players = Map.put(state.players, slot, player)
+                  player_to_slot = Map.put(state.player_to_slot, player_id, slot)
+
+                  state = %{
+                    state
+                    | players: players,
+                      player_to_slot: player_to_slot,
+                      offers: offers,
+                      revision: state.revision + 1
+                  }
+
+                  state = maybe_start_match(state)
+                  broadcast_activity_state(state)
+
+                  reply = %{
+                    result: "accepted_offer",
+                    slot: slot,
+                    ready: true,
+                    leaseId: lease_id,
+                    lease: lease_id,
+                    status: state.status,
+                    revision: state.revision
+                  }
+
+                  {:reply, {:ok, reply}, state}
+
+                {:error, :already_playing} ->
+                  if offer[:timer_ref], do: Process.cancel_timer(offer.timer_ref)
+                  offers = Map.delete(state.offers, slot)
+                  state = %{state | offers: offers}
+                  state = maybe_offer_next_slot(state, slot)
+                  {:reply, {:error, :already_playing}, state}
+              end
+
+            {:error, reason} ->
+              if offer[:timer_ref], do: Process.cancel_timer(offer.timer_ref)
+              offers = Map.delete(state.offers, slot)
+              state = %{state | offers: offers}
+              state = maybe_offer_next_slot(state, slot)
+              {:reply, {:error, reason}, state}
+          end
+        else
+          if offer[:timer_ref], do: Process.cancel_timer(offer.timer_ref)
+          offers = Map.delete(state.offers, slot)
+          state = %{state | offers: offers}
+          state = maybe_offer_next_slot(state, slot)
+
+          {:reply, {:ok, %{result: "declined_offer", slot: slot, revision: state.revision}},
+           state}
+        end
+
+      nil ->
+        case Map.get(state.player_to_slot, player_id) do
+          nil ->
+            {:reply, {:error, :not_seated}, state}
+
+          slot ->
+            player = Map.fetch!(state.players, slot)
+
+            # Idempotent ready retry (spec D4)
+            if player.ready == ready do
+              reply = %{
+                result: "ready",
+                slot: slot,
+                ready: ready,
+                status: state.status,
+                revision: state.revision
+              }
+
+              {:reply, {:ok, reply}, state}
+            else
+              if player[:ready_timer_ref] do
+                Process.cancel_timer(player.ready_timer_ref)
+              end
+
+              # AFK ready timeout (expires after 60s if match does not start)
+              ready_timer_ref =
+                if ready and state.status == :lobby do
+                  Process.send_after(self(), {:ready_timeout, player_id}, state.ready_timeout_ms)
+                else
+                  nil
+                end
+
+              player = %{player | ready: ready, ready_timer_ref: ready_timer_ref}
+              players = Map.put(state.players, slot, player)
+              state = %{state | players: players, revision: state.revision + 1}
+              state = maybe_start_match(state)
+              broadcast_activity_state(state)
+
+              reply = %{
+                result: "ready",
+                slot: slot,
+                ready: ready,
+                status: state.status,
+                revision: state.revision
+              }
+
+              {:reply, {:ok, reply}, state}
+            end
+        end
+    end
+  end
+
+  ## Input handling (Tasks 2.3 & 2.4)
+  # Validates participant lease, monotonic seq, canonical authority, bounded mailbox, and watchdog
+
+  defp do_input(payload, player_id, _ctx, state) do
+    # 1. Check mailbox overload (drop obsolete inputs if queue > 100)
+    {:message_queue_len, qlen} = Process.info(self(), :message_queue_len)
+
+    if qlen > 100 do
+      Logger.warning(
+        "Activity #{state.activity_id} session queue overloaded (#{qlen}), dropping input"
+      )
+
+      {:reply, {:error, :input_dropped}, state}
+    else
+      # 2. Check stale session or stale epoch if present in payload
+      client_sess = Map.get(payload, "sessionId")
+      client_epoch = Map.get(payload, "roomEpoch")
+
+      cond do
+        client_sess != nil and client_sess != state.session_id ->
+          {:reply, {:error, :stale_session}, state}
+
+        client_epoch != nil and client_epoch != state.room_epoch ->
+          {:reply, {:error, :stale_epoch}, state}
+
+        true ->
+          case Map.get(state.player_to_slot, player_id) do
+            nil ->
+              {:reply, {:error, :not_seated}, state}
+
+            slot ->
+              player = Map.fetch!(state.players, slot)
+              client_lease = Map.get(payload, "lease") || Map.get(payload, "leaseId")
+
+              cond do
+                is_nil(client_lease) or client_lease != player.lease_id ->
+                  {:reply, {:error, :invalid_participant_lease}, state}
+
+                true ->
+                  seq = Map.get(payload, "seq") || Map.get(payload, "sequence")
+
+                  cond do
+                    is_nil(seq) or not is_integer(seq) or seq < 0 ->
+                      {:reply, {:error, :invalid_sequence}, state}
+
+                    seq <= Map.get(player, :last_seq, 0) ->
+                      {:reply, {:error, :stale_sequence}, state}
+
+                    true ->
+                      controls = Map.get(payload, "controls") || Map.get(payload, "input") || %{}
+
+                      cond do
+                        not valid_controls?(controls) ->
+                          {:reply, {:error, :invalid_input}, state}
+
+                        true ->
+                          # Cancel previous watchdog timer if present
+                          if player[:watchdog_timer_ref] do
+                            Process.cancel_timer(player.watchdog_timer_ref)
+                          end
+
+                          # Reset watchdog timer (250ms)
+                          watchdog_ref =
+                            if state.input_watchdog_ms > 0 do
+                              Process.send_after(
+                                self(),
+                                {:input_watchdog_timeout, player_id},
+                                state.input_watchdog_ms
+                              )
+                            else
+                              nil
+                            end
+
+                          player = %{
+                            player
+                            | last_seq: seq,
+                              input_state: controls,
+                              watchdog_timer_ref: watchdog_ref
+                          }
+
+                          players = Map.put(state.players, slot, player)
+                          state = %{state | players: players}
+
+                          reply = %{
+                            result: "input_accepted",
+                            ackSeq: seq,
+                            seq: seq,
+                            revision: state.revision
+                          }
+
+                          {:reply, {:ok, reply}, state}
+                      end
+                  end
+              end
+          end
+      end
+    end
+  end
+
+  ## Disconnect handling
+
+  defp handle_player_disconnect(player, reason, state) do
+    player_id = player.player_id
+    slot = player.slot
+
+    Logger.info(
+      "Player #{player_id} channel disconnected (slot #{slot}) reason=#{inspect(reason)}"
+    )
+
+    if player[:channel_monitor] do
+      Process.demonitor(player.channel_monitor, [:flush])
+    end
+
+    player = %{player | channel_pid: nil, channel_monitor: nil}
+    players = Map.put(state.players, slot, player)
+
+    # Start 30-second disconnect grace timer
+    timer_ref =
+      Process.send_after(self(), {:disconnect_timeout, player_id}, state.reconnect_grace_ms)
+
+    disc = %{
+      slot: slot,
+      timer_ref: timer_ref,
+      disconnected_at: System.system_time(:millisecond)
+    }
+
+    disconnects = Map.put(state.disconnects, player_id, disc)
+
+    # If in progress, pause the match during grace (design D3)
+    {status, state} =
+      if state.status == :in_progress do
+        if state.tick_timer_ref, do: Process.cancel_timer(state.tick_timer_ref)
+        s = %{state | tick_timer_ref: nil}
+
+        s =
+          record_and_broadcast_event(s, "match_paused", %{
+            "disconnectedPlayer" => player_id,
+            "graceMs" => state.reconnect_grace_ms
+          })
+
+        {:paused, s}
+      else
+        {state.status, state}
+      end
+
+    state = %{
+      state
+      | players: players,
+        disconnects: disconnects,
+        status: status
+    }
+
+    broadcast_activity_state(state)
+    {:noreply, state}
+  end
+
+  defp purge_disconnected_channel(state, pid) do
+    queue = Enum.reject(state.queue, &(&1.channel_pid == pid))
+
+    spectators =
+      Enum.reject(state.spectators, fn {_id, s} -> s.channel_pid == pid end) |> Map.new()
+
+    offers =
+      Enum.reject(state.offers, fn {_slot, o} ->
+        if o.channel_pid == pid do
+          if o[:timer_ref], do: Process.cancel_timer(o.timer_ref)
+          true
+        else
+          false
+        end
+      end)
+      |> Map.new()
+
+    %{state | queue: queue, spectators: spectators, offers: offers}
+  end
+
+  defp find_player_by_monitor(state, ref) do
+    case Enum.find(state.players, fn {_s, p} -> p[:channel_monitor] == ref end) do
+      {_slot, player} -> {:player, player}
+      nil -> :not_found
+    end
+  end
+
+  ## Idle Reaping Helpers
+
+  defp empty_session?(state) do
+    state.players == %{} and state.queue == [] and state.spectators == %{} and
+      state.offers == %{} and state.disconnects == %{}
+  end
+
+  defp maybe_start_idle_timer(state) do
+    if empty_session?(state) and is_nil(state.idle_timer_ref) do
+      ref = Process.send_after(self(), :idle_reap_timeout, state.idle_reap_ms)
+      %{state | idle_timer_ref: ref}
+    else
+      state
+    end
+  end
+
+  defp maybe_cancel_idle_timer(state) do
+    if state.idle_timer_ref do
+      Process.cancel_timer(state.idle_timer_ref)
+      %{state | idle_timer_ref: nil}
+    else
+      state
+    end
+  end
+
+  ## General Helpers
+
+  defp maybe_start_match(state) do
+    if map_size(state.players) == state.max_players and
+         Enum.all?(state.players, fn {_slot, p} -> p.ready end) and
+         state.status != :in_progress do
+      match_id = "match_" <> Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
+
+      # Cancel ready timers since match has started
+      players =
+        Map.new(state.players, fn {s, p} ->
+          if p[:ready_timer_ref], do: Process.cancel_timer(p.ready_timer_ref)
+          {s, %{p | ready_timer_ref: nil, input_state: %{}}}
+        end)
+
+      if state.tick_timer_ref, do: Process.cancel_timer(state.tick_timer_ref)
+      now_mono = System.monotonic_time(:millisecond)
+      tick_ref = Process.send_after(self(), :sim_tick, state.tick_interval_ms)
+
+      act_type = (state.activity_def && state.activity_def["type"]) || "unknown"
+      sim_state = init_simulation(act_type)
+
+      state = %{
+        state
+        | players: players,
+          status: :in_progress,
+          match_id: match_id,
+          match_outcome: nil,
+          sim_state: sim_state,
+          tick_timer_ref: tick_ref,
+          last_tick_at: now_mono,
+          last_snapshot_at: now_mono,
+          sim_tick_count: 0
+      }
+
+      state = record_and_broadcast_event(state, "match_started", %{"matchId" => match_id})
+      broadcast_activity_state(state)
+      state
+    else
+      state
+    end
+  end
+
+  defp init_simulation("pong"), do: Pong.init_sim_state()
+  defp init_simulation("rain-runner"), do: RainRunner.init_sim_state()
+  defp init_simulation("signal-lost"), do: SignalLost.init_sim_state()
+  defp init_simulation("sporefall"), do: Sporefall.init_sim_state()
+  defp init_simulation(_other), do: %{}
+
+  defp step_simulation("pong", sim_state, players, steps) do
+    Pong.step(sim_state, players, steps)
+  end
+
+  defp step_simulation("rain-runner", sim_state, players, steps) do
+    RainRunner.step(sim_state, players, steps)
+  end
+
+  defp step_simulation("signal-lost", sim_state, players, steps) do
+    SignalLost.step(sim_state, players, steps)
+  end
+
+  defp step_simulation("sporefall", sim_state, players, steps) do
+    Sporefall.step(sim_state, players, steps)
+  end
+
+  defp step_simulation(_other, sim_state, _players, steps) do
+    curr_tick = Map.get(sim_state, "tick", 0)
+    {Map.put(sim_state, "tick", curr_tick + steps), nil}
+  end
+
+  defp valid_controls?(controls) when is_map(controls) do
+    forbidden_keys = ~w(score scores winner transform transforms)
+
+    has_forbidden? =
+      Enum.any?(forbidden_keys, fn k ->
+        Map.has_key?(controls, k) or Map.has_key?(controls, String.to_atom(k))
+      end)
+
+    if has_forbidden? do
+      false
+    else
+      Enum.all?(controls, fn {_k, v} -> valid_control_val?(v) end)
+    end
+  end
+
+  defp valid_controls?(_), do: false
+
+  defp valid_control_val?(v) when is_boolean(v), do: true
+  defp valid_control_val?(v) when is_binary(v), do: byte_size(v) <= 1024
+  defp valid_control_val?(v) when is_integer(v), do: abs(v) <= 1_000_000_000
+  defp valid_control_val?(v) when is_float(v), do: abs(v) <= 1_000_000.0
+  defp valid_control_val?(v) when is_map(v), do: valid_controls?(v)
+  defp valid_control_val?(v) when is_list(v), do: Enum.all?(v, &valid_control_val?/1)
+  defp valid_control_val?(_), do: false
+
+  defp maybe_offer_next_slot(state, slot) do
+    if not Map.has_key?(state.players, slot) and not Map.has_key?(state.offers, slot) and
+         state.queue != [] do
+      [next | rest] = state.queue
+
+      case recheck_member_and_proximity(state, next.player_id, next.conn_ref) do
+        :ok ->
+          timeout = state.offer_timeout_ms
+          timer_ref = Process.send_after(self(), {:offer_timeout, slot, next.player_id}, timeout)
+
+          offer = %{
+            slot: slot,
+            player_id: next.player_id,
+            conn_ref: next.conn_ref,
+            channel_pid: next.channel_pid,
+            timer_ref: timer_ref,
+            offered_at: System.system_time(:millisecond)
+          }
+
+          if next.channel_pid && Process.alive?(next.channel_pid) do
+            send(
+              next.channel_pid,
+              {:activity_event,
+               %{
+                 "type" => "activity_event",
+                 "version" => 1,
+                 "roomId" => state.room_key,
+                 "roomEpoch" => state.room_epoch,
+                 "activityId" => state.activity_id,
+                 "sessionId" => state.session_id,
+                 "eventId" => "evt_" <> Base.encode16(:crypto.strong_rand_bytes(8), case: :lower),
+                 "eventType" => "slot_offered",
+                 "event" => "slot_offered",
+                 "slot" => slot,
+                 "timeoutMs" => timeout,
+                 "data" => %{"slot" => slot, "timeoutMs" => timeout},
+                 "serverNow" => System.system_time(:millisecond)
+               }}
+            )
+          end
+
+          %{
+            state
+            | offers: Map.put(state.offers, slot, offer),
+              queue: rest,
+              revision: state.revision + 1
+          }
+
+        {:error, _reason} ->
+          maybe_offer_next_slot(%{state | queue: rest}, slot)
+      end
+    else
+      state
+    end
+  end
+
+  defp cancel_and_advance_offer(state, slot) do
+    case Map.get(state.offers, slot) do
+      nil ->
+        state
+
+      offer ->
+        if offer[:timer_ref], do: Process.cancel_timer(offer.timer_ref)
+        state = %{state | offers: Map.delete(state.offers, slot), revision: state.revision + 1}
+        maybe_offer_next_slot(state, slot)
+    end
+  end
+
+  defp check_proximity(state, player_id, conn_ref) do
+    if state.check_proximity do
+      recheck_member_and_proximity(state, player_id, conn_ref)
+    else
+      :ok
+    end
+  end
+
+  defp recheck_member_and_proximity(state, player_id, conn_ref) do
+    if not state.check_proximity do
+      :ok
+    else
+      cond do
+        is_nil(state.room_pid) or not Process.alive?(state.room_pid) ->
+          {:error, :room_unavailable}
+
+        true ->
+          try do
+            if not RoomServer.member?(state.room_pid, player_id, conn_ref) do
+              {:error, :not_in_room}
+            else
+              case RoomServer.member_pose(state.room_pid, player_id) do
+                {:ok, pose} ->
+                  check_pose_proximity(state, pose)
+
+                :not_found ->
+                  {:error, :not_in_room}
+
+                _ ->
+                  :ok
+              end
+            end
+          catch
+            :exit, _ -> :ok
+          end
+      end
+    end
+  end
+
+  defp check_pose_proximity(state, pose) do
+    radius = Map.get(state.activity_def, "interactionRadius", 3.5)
+    transform = Map.get(state.activity_def, "transform", %{})
+    pos = Map.get(transform, "position", [0.0, 0.0, 0.0])
+
+    [tx, _ty, tz] =
+      case pos do
+        [x, y, z] -> [x, y, z]
+        [x, z] -> [x, 0.0, z]
+        _ -> [0.0, 0.0, 0.0]
+      end
+
+    px = (pose[:x] || pose["x"] || 0.0) * 1.0
+    pz = (pose[:z] || pose["z"] || 0.0) * 1.0
+
+    dx = px - tx
+    dz = pz - tz
+    dist_sq = dx * dx + dz * dz
+
+    max_r = radius * 1.5
+
+    if dist_sq <= max_r * max_r do
+      :ok
+    else
+      {:error, :out_of_range}
+    end
+  end
+
+  defp build_full_snapshot(state, ack_seq \\ nil) do
+    now_ms = System.system_time(:millisecond)
+
+    raw_state = %{
+      "status" => to_string(state.status),
+      "matchId" => state.match_id,
+      "players" =>
+        Enum.map(state.players, fn {slot, p} ->
+          %{
+            "slot" => slot,
+            "playerId" => p.player_id,
+            "ready" => p.ready,
+            "lastAcceptedSeq" => Map.get(p, :last_seq, 0),
+            "inputState" => p.input_state
+          }
+        end),
+      "queue" => Enum.map(state.queue, fn q -> %{"playerId" => q.player_id} end),
+      "queueLength" => length(state.queue),
+      "spectatorCount" => map_size(state.spectators),
+      "sim" => state.sim_state,
+      "events" => state.recent_events || [],
+      "lastAcceptedSeqs" =>
+        Map.new(state.players, fn {_s, p} -> {p.player_id, Map.get(p, :last_seq, 0)} end)
+    }
+
+    envelope = %{
+      "type" => "activity_state",
+      "version" => 1,
+      "roomId" => state.room_key,
+      "roomEpoch" => state.room_epoch,
+      "activityId" => state.activity_id,
+      "sessionId" => state.session_id,
+      "revision" => state.revision,
+      "serverNow" => now_ms,
+      "status" => to_string(state.status),
+      "matchId" => state.match_id,
+      "players" => raw_state["players"],
+      "queueLength" => raw_state["queueLength"],
+      "spectatorCount" => raw_state["spectatorCount"],
+      "state" => raw_state
+    }
+
+    envelope =
+      if ack_seq != nil do
+        Map.put(envelope, "ackSeq", ack_seq)
+      else
+        envelope
+      end
+
+    case Jason.encode(envelope) do
+      {:ok, json} when byte_size(json) <= 32_768 ->
+        envelope
+
+      {:ok, _json} ->
+        Logger.warning("Snapshot for #{state.activity_id} exceeds 32 KiB, trimming events")
+        trimmed_state = %{raw_state | "events" => []}
+        %{envelope | "state" => trimmed_state}
+
+      {:error, _} ->
+        envelope
+    end
+  end
+
+  defp broadcast_activity_state(state) do
+    snapshot = build_full_snapshot(state)
+
+    if state.room_pid && Process.alive?(state.room_pid) do
+      try do
+        RoomServer.broadcast_frame(state.room_pid, snapshot)
+      catch
+        :exit, _ -> :ok
+      end
+    end
+  end
+
+  defp record_and_broadcast_event(state, event_name, data) do
+    maybe_record_result(event_name, state, data)
+    now_ms = System.system_time(:millisecond)
+    event_id = "evt_" <> Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
+    event_rec = %{"id" => event_id, "type" => event_name, "data" => data, "at" => now_ms}
+    recent_events = Enum.take([event_rec | state.recent_events || []], 20)
+    revision = state.revision + 1
+    state = %{state | recent_events: recent_events, revision: revision}
+
+    frame = %{
+      "type" => "activity_event",
+      "version" => 1,
+      "roomId" => state.room_key,
+      "roomEpoch" => state.room_epoch,
+      "activityId" => state.activity_id,
+      "sessionId" => state.session_id,
+      "revision" => revision,
+      "eventId" => event_id,
+      "eventType" => event_name,
+      "event" => event_name,
+      "data" => data,
+      "payload" => data,
+      "serverNow" => now_ms
+    }
+
+    if state.room_pid && Process.alive?(state.room_pid) do
+      try do
+        RoomServer.broadcast_frame(state.room_pid, frame)
+      catch
+        :exit, _ -> :ok
+      end
+    end
+
+    state
+  end
+
+  # Durable result recording (task 3.9, design D8): terminal events only,
+  # best-effort, never blocking or crashing the session. The recording
+  # status is broadcast so clients can label local results honestly
+  # (verified / pending / unrecorded — task 3.10).
+  defp maybe_record_result(event_name, state, outcome)
+       when event_name in ["match_ended", "match_aborted"] do
+    status =
+      case Afterlight.Activities.Results.maybe_record(event_name, state, outcome) do
+        {:ok, s} when is_atom(s) -> s
+        {:error, r} when is_atom(r) -> r
+        _ -> :recording_failed
+      end
+
+    unless status == :ignore do
+      final_score =
+        case outcome do
+          %{"score" => s} when is_integer(s) and s >= 0 -> s
+          _ -> nil
+        end
+
+      data = %{
+        "status" => Atom.to_string(status),
+        "activityId" => state.activity_id,
+        "game" => Map.get(state.activity_def, "type"),
+        "rulesVersion" => Map.get(state.activity_def, "rulesVersion", 1),
+        "sessionId" => state.session_id,
+        "matchId" => state.match_id
+      }
+
+      data = if final_score == nil, do: data, else: Map.put(data, "score", final_score)
+      broadcast_activity_event(state, "result_recorded", data)
+    end
+  end
+
+  defp maybe_record_result(_event_name, _state, _outcome), do: :ok
+
+  defp broadcast_activity_event(state, event_name, data) do
+    record_and_broadcast_event(state, event_name, data)
+  end
+
+  defp generate_lease_id do
+    "lease_" <> Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
+  end
+
+  defp generate_session_id do
+    "act_sess_" <> Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
+  end
+end

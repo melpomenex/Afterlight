@@ -270,4 +270,31 @@ defmodule Afterlight.Gateway.RouterTest do
         end)
     end
   end
+
+  describe "activity types — Phase 1 session authority" do
+    test "activity types are never relayed to Node and stay :unrouted when world is :node" do
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
+          for type <- Router.activity_types() do
+            assert Router.disposition(type) == :unrouted, "expected #{type} => :unrouted on Node world"
+            assert Router.dispatch(type, %{}) == {:unrouted, type}
+          end
+
+          :ok
+        end)
+    end
+
+    test "activity types route to :phoenix when world is :phoenix" do
+      :ok =
+        GatewayTest.ConfigLock.with_lock(:routing, @world_routing, fn ->
+          for type <- Router.activity_types() do
+            assert Router.disposition(type) == :phoenix, "expected #{type} => :phoenix on Phoenix world"
+            assert {:activity, ^type, %{"activityId" => "pong"}} =
+                     Router.dispatch(type, %{"activityId" => "pong"})
+          end
+
+          :ok
+        end)
+    end
+  end
 end

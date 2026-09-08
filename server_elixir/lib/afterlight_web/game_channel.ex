@@ -69,6 +69,7 @@ defmodule AfterlightWeb.GameChannel do
   use Phoenix.Channel
   require Logger
 
+  alias Afterlight.Activities
   alias Afterlight.Catalog
   alias Afterlight.Catalog.Gateway, as: CatalogGateway
   alias Afterlight.EconomyGroup.Gateway, as: EconomyGateway
@@ -85,7 +86,9 @@ defmodule AfterlightWeb.GameChannel do
   alias Afterlight.World
   alias Afterlight.World.{BinaryFlush, Movement, Rooms}
   alias Afterlight.World.Atmosphere
+  alias Afterlight.World.Fence
   alias Afterlight.World.PlaceDirectory
+  alias Afterlight.World.RoomServer
   alias Afterlight.Realtime.Negotiation
 
   @topic "game:v1"
@@ -171,6 +174,9 @@ defmodule AfterlightWeb.GameChannel do
 
       {:theater, type, payload} ->
         handle_theater(type, payload || %{}, socket)
+
+      {:activity, type, payload} ->
+        handle_activity(type, payload || %{}, socket)
 
       {:specialty, type, payload} ->
         handle_specialty(type, payload || %{}, socket)
@@ -797,6 +803,213 @@ defmodule AfterlightWeb.GameChannel do
     {:noreply, socket}
   end
 
+  defp handle_activity(type, payload, socket) do
+    req_id = Map.get(payload, "requestId")
+    act_id = Map.get(payload, "activityId")
+
+    payload_size =
+      case Jason.encode(payload) do
+        {:ok, json} -> byte_size(json)
+        _ -> 0
+      end
+
+    cond do
+      payload_size > 2048 ->
+        push(socket, "activity_error", %{
+          "error" => "payload_too_large",
+          "message" => "Activity payload exceeds 2 KiB limit (#{payload_size} > 2048)",
+          "requestId" => req_id,
+          "activityId" => act_id
+        })
+
+        {:noreply, socket}
+
+      is_nil(socket.assigns[:world_room_pid]) ->
+        push(socket, "activity_error", %{
+          "error" => "room_unavailable",
+          "message" => "Must join a room before participating in activities",
+          "requestId" => req_id,
+          "activityId" => act_id
+        })
+
+        {:noreply, socket}
+
+      is_nil(act_id) or not is_binary(act_id) ->
+        push(socket, "activity_error", %{
+          "error" => "invalid_input",
+          "message" => "activityId is required",
+          "requestId" => req_id,
+          "activityId" => act_id
+        })
+
+        {:noreply, socket}
+
+      true ->
+        case check_activity_rate_limit(type, socket) do
+          {:error, :rate_limited, socket} ->
+            push(socket, "activity_error", %{
+              "error" => "rate_limited",
+              "message" => "Rate limit exceeded for #{type}",
+              "requestId" => req_id,
+              "activityId" => act_id
+            })
+
+            {:noreply, socket}
+
+          {:ok, socket} ->
+            room = socket.assigns.world_room
+            room_pid = socket.assigns.world_room_pid
+            room_key = if is_map(room) && Map.has_key?(room, :wire_id), do: room.wire_id, else: "unknown"
+
+            {lease, epoch} =
+              try do
+                RoomServer.lease_handle(room_pid)
+              catch
+                :exit, _ -> {nil, 0}
+              end
+
+            cond do
+              not Fence.allows_command?(lease) ->
+                push(socket, "activity_error", %{
+                  "error" => "lease_lost",
+                  "message" => "Room lease lost or room unavailable",
+                  "requestId" => req_id,
+                  "activityId" => act_id
+                })
+
+                {:noreply, socket}
+
+              true ->
+                case Activities.get_or_start_session(room_pid, room_key, epoch, act_id, lease) do
+                  {:error, :activity_not_found} ->
+                    push(socket, "activity_error", %{
+                      "error" => "activity_not_found",
+                      "message" => "Activity #{act_id} is not declared in #{room_key}",
+                      "requestId" => req_id,
+                      "activityId" => act_id
+                    })
+
+                    {:noreply, socket}
+
+                  {:error, :lease_lost} ->
+                    push(socket, "activity_error", %{
+                      "error" => "lease_lost",
+                      "message" => "Room lease lost",
+                      "requestId" => req_id,
+                      "activityId" => act_id
+                    })
+
+                    {:noreply, socket}
+
+                  {:ok, session_pid} ->
+                    ctx = %{
+                      player_id: socket.assigns.guest_id,
+                      conn_ref: socket.assigns.conn_ref,
+                      channel_pid: self(),
+                      room_key: room_key,
+                      room_epoch: epoch
+                    }
+
+                    case Activities.command(session_pid, type, payload, ctx) do
+                      {:ok, %{"type" => "activity_state"} = snapshot} ->
+                        push(socket, "activity_state", snapshot)
+                        {:noreply, socket}
+
+                      {:ok, reply} ->
+                        if is_map(reply) and (Map.has_key?(reply, :result) or Map.has_key?(reply, "result")) do
+                          reply = if req_id, do: Map.put_new(reply, "requestId", req_id), else: reply
+                          push(socket, "activity_result", reply)
+                        end
+
+                        {:noreply, socket}
+
+                      {:error, :lease_lost} ->
+                        push(socket, "activity_error", %{
+                          "error" => "lease_lost",
+                          "message" => "Activity lease lost",
+                          "requestId" => req_id,
+                          "activityId" => act_id
+                        })
+
+                        {:noreply, socket}
+
+                      {:error, reason} ->
+                        push(socket, "activity_error", %{
+                          "error" => to_string(reason),
+                          "message" => "Activity command failed: #{inspect(reason)}",
+                          "requestId" => req_id,
+                          "activityId" => act_id
+                        })
+
+                        {:noreply, socket}
+                    end
+
+                  {:error, reason} ->
+                    push(socket, "activity_error", %{
+                      "error" => to_string(reason),
+                      "message" => "Could not start activity session: #{inspect(reason)}",
+                      "requestId" => req_id,
+                      "activityId" => act_id
+                    })
+
+                    {:noreply, socket}
+                end
+            end
+        end
+    end
+  end
+
+  defp check_activity_rate_limit(type, socket) do
+    limits = socket.assigns[:activity_rate_limits] || %{}
+    now_ms = System.system_time(:millisecond)
+    now_sec = div(now_ms, 1000)
+
+    case type do
+      "activity_input" ->
+        {win_sec, count} = Map.get(limits, :input_window, {now_sec, 0})
+
+        if win_sec == now_sec do
+          if count >= 70 do
+            {:error, :rate_limited, socket}
+          else
+            new_limits = Map.put(limits, :input_window, {win_sec, count + 1})
+            {:ok, assign(socket, :activity_rate_limits, new_limits)}
+          end
+        else
+          new_limits = Map.put(limits, :input_window, {now_sec, 1})
+          {:ok, assign(socket, :activity_rate_limits, new_limits)}
+        end
+
+      "activity_resnapshot" ->
+        last_ms = Map.get(limits, :last_resnapshot_ms, 0)
+
+        if now_ms - last_ms < 5000 do
+          {:error, :rate_limited, socket}
+        else
+          new_limits = Map.put(limits, :last_resnapshot_ms, now_ms)
+          {:ok, assign(socket, :activity_rate_limits, new_limits)}
+        end
+
+      action when action in ["activity_join", "activity_leave", "activity_ready"] ->
+        {win_sec, count} = Map.get(limits, :control_window, {now_sec, 0})
+
+        if win_sec == now_sec do
+          if count >= 5 do
+            {:error, :rate_limited, socket}
+          else
+            new_limits = Map.put(limits, :control_window, {win_sec, count + 1})
+            {:ok, assign(socket, :activity_rate_limits, new_limits)}
+          end
+        else
+          new_limits = Map.put(limits, :control_window, {now_sec, 1})
+          {:ok, assign(socket, :activity_rate_limits, new_limits)}
+        end
+
+      _ ->
+        {:ok, socket}
+    end
+  end
+
   ## Relay
 
   # Design D3: hello is forwarded only after binding the connection to
@@ -811,30 +1024,6 @@ defmodule AfterlightWeb.GameChannel do
       handle_hello(frame, socket)
     else
       relay_hello_node(frame, socket)
-    end
-  end
-
-  defp relay_hello_node(%{"type" => "hello"} = frame, socket) do
-    claim = socket.assigns.guest_id
-
-    case frame do
-      %{"guestId" => ^claim} ->
-        socket = assign(socket, :nickname, frame["nickname"])
-        socket = maybe_assign_rt(socket, frame)
-        forward(frame, socket)
-
-      %{"guestId" => _mismatch} ->
-        Logger.warning(
-          "gateway hello guestId mismatch corr=#{corr(socket)} guest=#{claim}"
-        )
-
-        push(socket, "error", %{"message" => "identity_mismatch"})
-        {:stop, :shutdown, socket}
-
-      _ ->
-        socket = assign(socket, :nickname, frame["nickname"])
-        socket = maybe_assign_rt(socket, frame)
-        forward(Map.put(frame, "guestId", claim), socket)
     end
   end
 
@@ -861,6 +1050,30 @@ defmodule AfterlightWeb.GameChannel do
   end
 
   defp relay(frame, socket), do: forward(frame, socket)
+
+  defp relay_hello_node(%{"type" => "hello"} = frame, socket) do
+    claim = socket.assigns.guest_id
+
+    case frame do
+      %{"guestId" => ^claim} ->
+        socket = assign(socket, :nickname, frame["nickname"])
+        socket = maybe_assign_rt(socket, frame)
+        forward(frame, socket)
+
+      %{"guestId" => _mismatch} ->
+        Logger.warning(
+          "gateway hello guestId mismatch corr=#{corr(socket)} guest=#{claim}"
+        )
+
+        push(socket, "error", %{"message" => "identity_mismatch"})
+        {:stop, :shutdown, socket}
+
+      _ ->
+        socket = assign(socket, :nickname, frame["nickname"])
+        socket = maybe_assign_rt(socket, frame)
+        forward(Map.put(frame, "guestId", claim), socket)
+    end
+  end
 
   defp relay_welcome(%{"player" => %{"id" => guest_id, "nickname" => nickname}} = fields, socket)
        when guest_id == socket.assigns.guest_id do
