@@ -27,7 +27,13 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PLACE_DEFINITIONS } from '../shared/placeDefinitions.js';
+import {
+  PLACE_DEFINITIONS,
+  ACTIVITY_TYPES,
+  ACTIVITY_ENVIRONMENT_POLICIES,
+  DEFAULT_ACTIVITY_CAPACITIES,
+  MAX_ACTIVITIES_PER_PLACE,
+} from '../shared/placeDefinitions.js';
 import { ATMOSPHERE_PRESETS, LIGHTNING_SPACING_MS, METEOR_SPACING_MS } from '../shared/atmospherePresets.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -35,6 +41,7 @@ export const PLACE_PROJECTION_PATH = path.join(REPO_ROOT, 'server_elixir', 'priv
 
 export const PLACE_PROJECTION_SCHEMA_VERSION = 1;
 export const PLACE_PROJECTION_MAX_ENTRIES = 64;
+export const PLACE_PROJECTION_MAX_ACTIVITIES = MAX_ACTIVITIES_PER_PLACE;
 /** The preset table projection stays bounded like the entries themselves. */
 export const PLACE_PROJECTION_MAX_PRESETS = 32;
 const GARDEN_PREFIX = 'garden:';
@@ -75,7 +82,95 @@ export function projectPlace(definition) {
     kind: definition.kind,
     bounds: { minX: b.minX, maxX: b.maxX, minZ: b.minZ, maxZ: b.maxZ },
     atmosphere: { preset: atmosphere.preset, weatherMode: atmosphere.weatherMode, timeMode: atmosphere.timeMode },
+    activities: projectActivities(definition.activities, b),
   };
+}
+
+export function projectActivity(act, placeBounds) {
+  const at = (ok, message) => { if (!ok) throw new Error(`activity ${act?.id ?? 'unknown'}: ${message}`); };
+  at(act && typeof act === 'object' && !Array.isArray(act), 'activity must be an object');
+  at(typeof act.id === 'string' && /^[a-z0-9-]+$/.test(act.id), 'id must be a kebab-case string');
+  at(ACTIVITY_TYPES.includes(act.type), `unknown activity type "${act.type}"`);
+  at(Number.isInteger(act.rulesVersion) && act.rulesVersion >= 1, 'rulesVersion must be an integer >= 1');
+
+  const t = act.transform;
+  at(t && typeof t === 'object', 'transform must be an object');
+  at(Array.isArray(t.position) && (t.position.length === 2 || t.position.length === 3) && t.position.every(Number.isFinite),
+    'transform.position must be finite numbers');
+  const posX = t.position[0];
+  const posZ = t.position.length === 3 ? t.position[2] : t.position[1];
+  if (placeBounds) {
+    at(posX > placeBounds.minX && posX < placeBounds.maxX && posZ > placeBounds.minZ && posZ < placeBounds.maxZ,
+      `transform.position [${posX}, ${posZ}] is outside place bounds`);
+  }
+  const rotY = t.rotationY !== undefined ? t.rotationY : 0;
+  at(Number.isFinite(rotY), 'transform.rotationY must be a finite number');
+
+  const fp = act.footprint;
+  at(fp && typeof fp === 'object', 'footprint must be an object');
+  at(Number.isFinite(fp.width) && fp.width > 0 && Number.isFinite(fp.depth) && fp.depth > 0,
+    'footprint must have positive finite width and depth');
+
+  at(Number.isFinite(act.interactionRadius) && act.interactionRadius > 0,
+    'interactionRadius must be a positive finite number');
+
+  at(Array.isArray(act.participantAnchors) && act.participantAnchors.length > 0,
+    'participantAnchors must be a non-empty array');
+  const anchors = act.participantAnchors.map((a, i) => {
+    at(a && typeof a === 'object', `participantAnchor ${i} must be an object`);
+    at(a.slot !== undefined, `participantAnchor ${i} must have slot`);
+    at(Array.isArray(a.position) && (a.position.length === 2 || a.position.length === 3) && a.position.every(Number.isFinite),
+      `participantAnchor ${i} position must be finite numbers`);
+    const aX = a.position[0];
+    const aZ = a.position.length === 3 ? a.position[2] : a.position[1];
+    if (placeBounds) {
+      at(aX > placeBounds.minX && aX < placeBounds.maxX && aZ > placeBounds.minZ && aZ < placeBounds.maxZ,
+        `participantAnchor ${i} position [${aX}, ${aZ}] is outside place bounds`);
+    }
+    const facing = a.facing !== undefined ? a.facing : 0;
+    at(Number.isFinite(facing), `participantAnchor ${i} facing must be a finite number`);
+    return {
+      facing,
+      position: a.position.length === 3 ? [a.position[0], a.position[1], a.position[2]] : [a.position[0], a.position[1]],
+      slot: typeof a.slot === 'number' ? a.slot : String(a.slot),
+    };
+  });
+
+  const c = act.capacities || DEFAULT_ACTIVITY_CAPACITIES;
+  at(Number.isInteger(c.players) && c.players >= 1 && c.players <= 8, 'capacities.players must be 1..8');
+  at(Number.isInteger(c.spectators) && c.spectators >= 0 && c.spectators <= 32, 'capacities.spectators must be 0..32');
+  at(Number.isInteger(c.queue) && c.queue >= 0 && c.queue <= 16, 'capacities.queue must be 0..16');
+
+  const envPolicy = act.environmentPolicy ?? 'none';
+  at(ACTIVITY_ENVIRONMENT_POLICIES.includes(envPolicy), 'environmentPolicy must be valid');
+
+  return {
+    id: act.id,
+    type: act.type,
+    rulesVersion: act.rulesVersion,
+    transform: {
+      position: t.position.length === 3 ? [t.position[0], t.position[1], t.position[2]] : [t.position[0], t.position[1]],
+      rotationY: rotY,
+    },
+    footprint: { width: fp.width, depth: fp.depth },
+    interactionRadius: act.interactionRadius,
+    participantAnchors: anchors,
+    capacities: { players: c.players, spectators: c.spectators, queue: c.queue },
+    environmentPolicy: envPolicy,
+  };
+}
+
+export function projectActivities(activities, placeBounds) {
+  if (!activities || !Array.isArray(activities)) return [];
+  if (activities.length > PLACE_PROJECTION_MAX_ACTIVITIES) {
+    throw new Error(`activities exceeds ${PLACE_PROJECTION_MAX_ACTIVITIES} entries (${activities.length})`);
+  }
+  const seenIds = new Set();
+  return activities.map(act => {
+    if (seenIds.has(act.id)) throw new Error(`duplicate activity id "${act.id}"`);
+    seenIds.add(act.id);
+    return projectActivity(act, placeBounds);
+  });
 }
 
 /**

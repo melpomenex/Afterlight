@@ -35,9 +35,126 @@ const LEGACY_DISPLAY = [
 
 export const PLACE_KINDS = ['environment', 'venue', 'view'];
 export const PLACE_SHELLS = ['legacy-urban', 'none'];
-export const PLACE_CAPABILITIES = ['seating', 'sharedMedia', 'conferencing'];
+export const PLACE_CAPABILITIES = ['seating', 'sharedMedia', 'conferencing', 'activities'];
 export const PLACE_WEATHER_MODES = ['fixed', 'scheduled'];
 export const PLACE_TIME_MODES = ['fixed', 'scheduled'];
+
+export const MAX_ACTIVITIES_PER_PLACE = 16;
+export const ACTIVITY_TYPES = Object.freeze([
+  'pong',
+  'rain-runner',
+  'signal-lost',
+  'sporefall',
+  'pool',
+  'billiards',
+  'air-hockey',
+  'foosball',
+  'drones',
+  'paper-airplanes',
+  'gutter-boats',
+  'rc-boats',
+  'chess',
+  'checkers',
+  'tile-puzzle',
+  'horseshoes',
+  'telescope',
+  'curling',
+  'hammer-strike',
+  'forge-challenge',
+  'fishing',
+  'skipping-stones',
+  'light-music-puzzle',
+  'darts',
+  'piano',
+  'photo-booth',
+]);
+export const ACTIVITY_ENVIRONMENT_POLICIES = Object.freeze(['none', 'frozen', 'live']);
+export const ACTIVITY_SPECTATOR_POLICIES = Object.freeze(['world', 'focused']);
+export const DEFAULT_ACTIVITY_CAPACITIES = Object.freeze({ players: 2, spectators: 32, queue: 16 });
+
+export const PONG_ACTIVITY_DEFINITION = Object.freeze({
+  id: 'orpheum-pong',
+  type: 'pong',
+  title: 'Pong Cabinet',
+  sub: 'Press E to play · Spectate / Queue',
+  rulesVersion: 1,
+  transform: Object.freeze({ position: Object.freeze([8.0, 0, -3.5]), rotationY: 0 }),
+  footprint: Object.freeze({ width: 1.4, depth: 1.0 }),
+  interactionRadius: 2.2,
+  participantAnchors: Object.freeze([
+    Object.freeze({ slot: 0, position: Object.freeze([7.5, 0, -2.6]), facing: Math.PI, dismount: Object.freeze([Object.freeze({ x: 7.5, z: -1.8 })]) }),
+    Object.freeze({ slot: 1, position: Object.freeze([8.5, 0, -2.6]), facing: Math.PI, dismount: Object.freeze([Object.freeze({ x: 8.5, z: -1.8 })]) }),
+  ]),
+  capacities: Object.freeze({ players: 2, spectators: 32, queue: 16 }),
+  environmentPolicy: 'none',
+  spectatorPolicy: 'world',
+  rendererKey: 'pongCabinet',
+  controllerKey: 'pong',
+});
+
+export const RAIN_RUNNER_ACTIVITY_DEFINITION = Object.freeze({
+  id: 'orpheum-rain-runner',
+  type: 'rain-runner',
+  title: 'Rain Runner',
+  sub: 'Press E to drive · High score run',
+  rulesVersion: 1,
+  transform: Object.freeze({ position: Object.freeze([8.0, 0, -5.8]), rotationY: 0 }),
+  footprint: Object.freeze({ width: 1.4, depth: 1.0 }),
+  interactionRadius: 2.2,
+  participantAnchors: Object.freeze([
+    Object.freeze({ slot: 0, position: Object.freeze([8.0, 0, -4.9]), facing: Math.PI, dismount: Object.freeze([Object.freeze({ x: 8.0, z: -4.65 })]) }),
+  ]),
+  capacities: Object.freeze({ players: 1, spectators: 16, queue: 8 }),
+  environmentPolicy: 'none',
+  spectatorPolicy: 'world',
+  rendererKey: 'rainRunnerCabinet',
+  controllerKey: 'rain-runner',
+});
+
+export const SIGNAL_LOST_ACTIVITY_DEFINITION = Object.freeze({
+  id: 'orpheum-signal-lost',
+  type: 'signal-lost',
+  title: 'Signal Lost',
+  sub: 'Press E to fly · Asteroid survival',
+  rulesVersion: 1,
+  transform: Object.freeze({ position: Object.freeze([9.8, 0, -5.8]), rotationY: 0 }),
+  footprint: Object.freeze({ width: 1.4, depth: 1.0 }),
+  interactionRadius: 2.2,
+  participantAnchors: Object.freeze([
+    Object.freeze({ slot: 0, position: Object.freeze([9.8, 0, -4.9]), facing: Math.PI, dismount: Object.freeze([Object.freeze({ x: 9.8, z: -4.65 })]) }),
+  ]),
+  capacities: Object.freeze({ players: 1, spectators: 16, queue: 8 }),
+  environmentPolicy: 'none',
+  spectatorPolicy: 'world',
+  rendererKey: 'signalLostCabinet',
+  controllerKey: 'signal-lost',
+});
+
+export const SPOREFALL_ACTIVITY_DEFINITION = Object.freeze({
+  id: 'orpheum-sporefall',
+  type: 'sporefall',
+  title: 'Sporefall',
+  sub: 'Press E to drop · Block clear puzzle',
+  rulesVersion: 1,
+  transform: Object.freeze({ position: Object.freeze([9.8, 0, -3.5]), rotationY: 0 }),
+  footprint: Object.freeze({ width: 1.4, depth: 1.0 }),
+  interactionRadius: 2.2,
+  participantAnchors: Object.freeze([
+    Object.freeze({ slot: 0, position: Object.freeze([9.8, 0, -2.6]), facing: Math.PI, dismount: Object.freeze([Object.freeze({ x: 9.8, z: -1.8 })]) }),
+  ]),
+  capacities: Object.freeze({ players: 1, spectators: 16, queue: 8 }),
+  environmentPolicy: 'none',
+  spectatorPolicy: 'world',
+  rendererKey: 'sporefallCabinet',
+  controllerKey: 'sporefall',
+});
+
+export const ORPHEUM_ACTIVITIES = Object.freeze([
+  PONG_ACTIVITY_DEFINITION,
+  RAIN_RUNNER_ACTIVITY_DEFINITION,
+  SIGNAL_LOST_ACTIVITY_DEFINITION,
+  SPOREFALL_ACTIVITY_DEFINITION,
+]);
 
 // The universal urban shell every legacy district shares: floor, paving,
 // perimeter walls, skyline backdrop and street lamps. `legacy-urban`
@@ -74,7 +191,7 @@ const LEGACY_MINIMAP_PATHS = {
   delta: 'M24 24H130V96H24Z M24 45C55 40 85 75 130 55 M24 75C60 70 90 90 130 85 M70 24V96',
   archives: 'M24 24H130V96H24Z M35 35H115 M35 50H115 M35 65H115 M35 80H115 M75 24V96',
   'kiln-terrace': 'M24 24H130V96H24Z M45 35H105V85H45Z M75 45A15 15 0 1 0 75 75A15 15 0 1 0 75 45 M24 60H45 M105 60H130',
-  theater: 'M24 24H130V96H24Z M42 34H112 M42 38H112 M34 52H62 M70 52H120 M34 68H62 M70 68H120 M34 84H120',
+  theater: 'M24 24H130V96H24Z M42 34H112 M42 38H112 M34 52H62 M70 52H120 M34 68H62 M70 68H120 M34 84H120 M114 36H126V48H114Z',
   garden: 'M24 24H130V96H24Z M38 36H116V84H38Z M65 24V96',
 };
 
@@ -122,6 +239,7 @@ function defineLegacyPlace(display, index) {
       : { seating: false, sharedMedia: false, conferencing: false },
     social: { featured: theater || display.id === 'court', legacy: true },
     exits: legacyExits(display.id),
+    ...(theater ? { activities: ORPHEUM_ACTIVITIES } : {}),
     ...SOCIAL_PLACE_OVERRIDES[display.id],
   });
 }
@@ -217,8 +335,11 @@ export function validatePlaceDefinition(def, { knownIds = null } = {}) {
       at(PLACE_CAPABILITIES.includes(key), `unknown capability: ${key}`);
       at(typeof value === 'boolean', `capability ${key} must be a boolean`);
     }
-    for (const key of PLACE_CAPABILITIES) {
+    for (const key of ['seating', 'sharedMedia', 'conferencing']) {
       at(typeof capabilities[key] === 'boolean', `capability ${key} must be declared`);
+    }
+    if (capabilities.activities !== undefined) {
+      at(typeof capabilities.activities === 'boolean', 'capability activities must be a boolean');
     }
   }
 
@@ -249,7 +370,137 @@ export function validatePlaceDefinition(def, { knownIds = null } = {}) {
     at(!noteParts.some(part => part != null), 'note fields (noteTitle/noteBody) require a note position; social places stay note-free');
   }
 
+  if (def.activities != null) {
+    at(Array.isArray(def.activities), 'activities must be an array');
+    if (Array.isArray(def.activities)) {
+      at(def.activities.length <= MAX_ACTIVITIES_PER_PLACE, `activities list exceeds maximum of ${MAX_ACTIVITIES_PER_PLACE}`);
+      const seenActIds = new Set();
+      for (const [idx, act] of def.activities.entries()) {
+        const actId = act?.id ?? `index_${idx}`;
+        if (act && typeof act.id === 'string') {
+          if (seenActIds.has(act.id)) {
+            problems.push(`activity "${act.id}": duplicate activity id`);
+          }
+          seenActIds.add(act.id);
+        }
+        const actProblems = validateActivityDefinition(act, { placeBounds: def.bounds });
+        for (const prob of actProblems) {
+          problems.push(`activity "${actId}": ${prob}`);
+        }
+      }
+    }
+  }
+
   return problems;
+}
+
+export function validateActivityDefinition(activity, { placeBounds = null } = {}) {
+  const problems = [];
+  const at = (ok, message) => { if (!ok) problems.push(message); };
+
+  if (!activity || typeof activity !== 'object' || Array.isArray(activity)) {
+    return ['activity must be an object'];
+  }
+
+  const id = activity.id;
+  at(typeof id === 'string' && /^[a-z0-9-]+$/.test(id), `id must be a kebab-case string, got ${JSON.stringify(id)}`);
+
+  at(ACTIVITY_TYPES.includes(activity.type), `unknown activity type: "${activity.type}"`);
+
+  at(Number.isInteger(activity.rulesVersion) && activity.rulesVersion >= 1, 'rulesVersion must be an integer >= 1');
+
+  const transform = activity.transform;
+  at(transform && typeof transform === 'object', 'transform must be an object');
+  if (transform) {
+    const pos = transform.position;
+    const isPosValid = Array.isArray(pos) && (pos.length === 2 || pos.length === 3) && pos.every(Number.isFinite);
+    at(isPosValid, 'transform.position must be a finite [x, z] or [x, y, z] array');
+    if (isPosValid && placeBounds) {
+      const x = pos[0];
+      const z = pos.length === 3 ? pos[2] : pos[1];
+      at(x > placeBounds.minX && x < placeBounds.maxX && z > placeBounds.minZ && z < placeBounds.maxZ,
+        `transform.position [${x}, ${z}] is outside place bounds`);
+    }
+    if (transform.rotationY !== undefined) {
+      at(Number.isFinite(transform.rotationY), 'transform.rotationY must be a finite number');
+    }
+  }
+
+  const footprint = activity.footprint;
+  at(footprint && typeof footprint === 'object', 'footprint must be an object');
+  if (footprint) {
+    at(Number.isFinite(footprint.width) && footprint.width > 0, 'footprint.width must be a positive finite number');
+    at(Number.isFinite(footprint.depth) && footprint.depth > 0, 'footprint.depth must be a positive finite number');
+  }
+
+  at(Number.isFinite(activity.interactionRadius) && activity.interactionRadius > 0,
+    'interactionRadius must be a positive finite number');
+
+  const anchors = activity.participantAnchors;
+  at(Array.isArray(anchors) && anchors.length > 0, 'participantAnchors must be a non-empty array');
+  if (Array.isArray(anchors)) {
+    for (const [idx, anchor] of anchors.entries()) {
+      at(anchor && typeof anchor === 'object', `participantAnchors[${idx}] must be an object`);
+      if (anchor) {
+        at(anchor.slot !== undefined && (typeof anchor.slot === 'string' || Number.isInteger(anchor.slot)),
+          `participantAnchors[${idx}].slot must be a string or integer`);
+        const aPos = anchor.position;
+        const isAPosValid = Array.isArray(aPos) && (aPos.length === 2 || aPos.length === 3) && aPos.every(Number.isFinite);
+        at(isAPosValid, `participantAnchors[${idx}].position must be a finite [x, z] or [x, y, z] array`);
+        if (isAPosValid && placeBounds) {
+          const ax = aPos[0];
+          const az = aPos.length === 3 ? aPos[2] : aPos[1];
+          at(ax > placeBounds.minX && ax < placeBounds.maxX && az > placeBounds.minZ && az < placeBounds.maxZ,
+            `anchor for slot "${anchor.slot}" position [${ax}, ${az}] is outside place bounds`);
+        }
+        if (anchor.facing !== undefined) {
+          at(Number.isFinite(anchor.facing), `participantAnchors[${idx}].facing must be a finite number`);
+        }
+      }
+    }
+  }
+
+  const caps = activity.capacities;
+  at(caps && typeof caps === 'object', 'capacities must be an object');
+  if (caps) {
+    at(Number.isInteger(caps.players) && caps.players >= 1 && caps.players <= 8,
+      'capacities.players must be an integer between 1 and 8');
+    at(Number.isInteger(caps.spectators) && caps.spectators >= 0 && caps.spectators <= 32,
+      'capacities.spectators must be an integer between 0 and 32');
+    at(Number.isInteger(caps.queue) && caps.queue >= 0 && caps.queue <= 16,
+      'capacities.queue must be an integer between 0 and 16');
+  }
+
+  const envPolicy = activity.environmentPolicy ?? 'none';
+  at(ACTIVITY_ENVIRONMENT_POLICIES.includes(envPolicy),
+    `environmentPolicy must be one of ${ACTIVITY_ENVIRONMENT_POLICIES.join(', ')}`);
+
+  const specPolicy = activity.spectatorPolicy ?? 'world';
+  at(ACTIVITY_SPECTATOR_POLICIES.includes(specPolicy),
+    `spectatorPolicy must be one of ${ACTIVITY_SPECTATOR_POLICIES.join(', ')}`);
+
+  at(typeof activity.rendererKey === 'string' && activity.rendererKey.length > 0,
+    'rendererKey must be a non-empty string');
+  at(typeof activity.controllerKey === 'string' && activity.controllerKey.length > 0,
+    'controllerKey must be a non-empty string');
+
+  return problems;
+}
+
+export function placeHasCapability(place, capability) {
+  if (!place) return false;
+  if (place.capabilities && typeof place.capabilities[capability] === 'boolean') {
+    return place.capabilities[capability];
+  }
+  if (capability === 'activities') {
+    return Array.isArray(place.activities) && place.activities.length > 0;
+  }
+  return false;
+}
+
+export function getPlaceActivities(placeOrId) {
+  const def = typeof placeOrId === 'string' ? getPlaceDefinition(placeOrId) : placeOrId;
+  return def?.activities ?? [];
 }
 
 // Validates a whole list: per-definition problems plus duplicate ids, each

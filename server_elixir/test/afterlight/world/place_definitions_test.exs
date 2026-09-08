@@ -32,10 +32,11 @@ defmodule Afterlight.World.PlaceDefinitionsTest do
     test "every entry is public and carries only the whitelisted fields" do
       for entry <- PlaceDefinitions.all() do
         assert MapSet.new(Map.keys(entry)) ==
-                 MapSet.new(["id", "public", "kind", "bounds", "atmosphere"])
+                 MapSet.new(["id", "public", "kind", "bounds", "atmosphere", "activities"])
 
         assert entry["public"] == true
         assert entry["kind"] in ~w(environment venue view)
+        assert is_list(entry["activities"])
       end
     end
 
@@ -161,7 +162,8 @@ defmodule Afterlight.World.PlaceDefinitionsTest do
       "public" => true,
       "kind" => "environment",
       "bounds" => %{"minX" => -11.3, "maxX" => 11.3, "minZ" => -9.5, "maxZ" => 10.3},
-      "atmosphere" => %{"preset" => nil, "weatherMode" => "fixed", "timeMode" => "fixed"}
+      "atmosphere" => %{"preset" => nil, "weatherMode" => "fixed", "timeMode" => "fixed"},
+      "activities" => []
     }
   end
 
@@ -234,6 +236,118 @@ defmodule Afterlight.World.PlaceDefinitionsTest do
       cleanup_tmp("bad-preset")
       cleanup_tmp("bad-preset-spacing")
       cleanup_tmp("bad-preset-dup")
+    end
+  end
+
+  describe "activities projection and validation" do
+    test "backwards compatibility: entries without activities default to []" do
+      entry_without_activities = %{
+        "id" => "legacy-venue",
+        "public" => true,
+        "kind" => "venue",
+        "bounds" => %{"minX" => -11.3, "maxX" => 11.3, "minZ" => -9.5, "maxZ" => 10.3},
+        "atmosphere" => %{"preset" => nil, "weatherMode" => "fixed", "timeMode" => "fixed"}
+      }
+
+      path = tmp_path("no-activities")
+      File.write!(path, Jason.encode!(%{"schemaVersion" => 1, "entries" => [entry_without_activities]}))
+
+      assert {:ok, [loaded]} = PlaceDefinitions.load(path)
+      assert loaded["activities"] == []
+    after
+      cleanup_tmp("no-activities")
+    end
+
+    test "valid activity passes validation and is served by activities/1" do
+      act = %{
+        "id" => "pong-1",
+        "type" => "pong",
+        "rulesVersion" => 1,
+        "transform" => %{"position" => [0, 0], "rotationY" => 0},
+        "footprint" => %{"width" => 2, "depth" => 1.5},
+        "interactionRadius" => 2.5,
+        "participantAnchors" => [
+          %{"slot" => "p1", "position" => [-1.5, 0], "facing" => 1.57},
+          %{"slot" => "p2", "position" => [1.5, 0], "facing" => -1.57}
+        ],
+        "capacities" => %{"players" => 2, "spectators" => 32, "queue" => 16},
+        "environmentPolicy" => "none"
+      }
+
+      entry = valid_entry("pong-place") |> Map.put("activities", [act])
+      path = tmp_path("valid-activity")
+      File.write!(path, Jason.encode!(%{"schemaVersion" => 1, "entries" => [entry]}))
+
+      assert {:ok, [loaded]} = PlaceDefinitions.load(path)
+      assert length(loaded["activities"]) == 1
+    after
+      cleanup_tmp("valid-activity")
+    end
+
+    test "invalid activity type is rejected" do
+      bad_act = %{
+        "id" => "bad-act",
+        "type" => "unknown-game",
+        "rulesVersion" => 1,
+        "transform" => %{"position" => [0, 0]},
+        "footprint" => %{"width" => 2, "depth" => 1.5},
+        "interactionRadius" => 2.5,
+        "participantAnchors" => [%{"slot" => "p1", "position" => [0, 0]}],
+        "capacities" => %{"players" => 2, "spectators" => 32, "queue" => 16}
+      }
+
+      entry = valid_entry("bad-type-place") |> Map.put("activities", [bad_act])
+      path = tmp_path("bad-type")
+      File.write!(path, Jason.encode!(%{"schemaVersion" => 1, "entries" => [entry]}))
+
+      assert {:error, {:invalid_entry, "bad-type-place", problems}} = PlaceDefinitions.load(path)
+      assert Enum.any?(problems, &String.contains?(&1, "unknown activity type"))
+    after
+      cleanup_tmp("bad-type")
+    end
+
+    test "out-of-bounds activity position or anchor is rejected" do
+      bad_pos = %{
+        "id" => "out-act",
+        "type" => "pong",
+        "rulesVersion" => 1,
+        "transform" => %{"position" => [50, 0]},
+        "footprint" => %{"width" => 2, "depth" => 1.5},
+        "interactionRadius" => 2.5,
+        "participantAnchors" => [%{"slot" => "p1", "position" => [0, 0]}],
+        "capacities" => %{"players" => 2, "spectators" => 32, "queue" => 16}
+      }
+
+      entry = valid_entry("out-pos-place") |> Map.put("activities", [bad_pos])
+      path = tmp_path("out-pos")
+      File.write!(path, Jason.encode!(%{"schemaVersion" => 1, "entries" => [entry]}))
+
+      assert {:error, {:invalid_entry, "out-pos-place", problems}} = PlaceDefinitions.load(path)
+      assert Enum.any?(problems, &String.contains?(&1, "transform position outside bounds"))
+    after
+      cleanup_tmp("out-pos")
+    end
+
+    test "duplicate activity id within the same place is rejected" do
+      act = %{
+        "id" => "dupe-act",
+        "type" => "pong",
+        "rulesVersion" => 1,
+        "transform" => %{"position" => [0, 0]},
+        "footprint" => %{"width" => 2, "depth" => 1.5},
+        "interactionRadius" => 2.5,
+        "participantAnchors" => [%{"slot" => "p1", "position" => [0, 0]}],
+        "capacities" => %{"players" => 2, "spectators" => 32, "queue" => 16}
+      }
+
+      entry = valid_entry("dupe-act-place") |> Map.put("activities", [act, act])
+      path = tmp_path("dupe-act")
+      File.write!(path, Jason.encode!(%{"schemaVersion" => 1, "entries" => [entry]}))
+
+      assert {:error, {:invalid_entry, "dupe-act-place", problems}} = PlaceDefinitions.load(path)
+      assert Enum.any?(problems, &String.contains?(&1, "duplicate activity id"))
+    after
+      cleanup_tmp("dupe-act")
     end
   end
 

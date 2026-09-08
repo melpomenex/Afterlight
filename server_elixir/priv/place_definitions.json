@@ -15,7 +15,8 @@
         "preset": "rain-night",
         "weatherMode": "fixed",
         "timeMode": "fixed"
-      }
+      },
+      "activities": []
     },
     {
       "id": "canal",
@@ -31,7 +32,8 @@
         "preset": null,
         "weatherMode": "fixed",
         "timeMode": "fixed"
-      }
+      },
+      "activities": []
     },
     {
       "id": "garden",
@@ -47,7 +49,8 @@
         "preset": null,
         "weatherMode": "fixed",
         "timeMode": "fixed"
-      }
+      },
+      "activities": []
     },
     {
       "id": "station",
@@ -63,7 +66,8 @@
         "preset": null,
         "weatherMode": "fixed",
         "timeMode": "fixed"
-      }
+      },
+      "activities": []
     },
     {
       "id": "aqueduct",
@@ -79,7 +83,8 @@
         "preset": null,
         "weatherMode": "fixed",
         "timeMode": "fixed"
-      }
+      },
+      "activities": []
     },
     {
       "id": "caldera",
@@ -95,7 +100,8 @@
         "preset": null,
         "weatherMode": "fixed",
         "timeMode": "fixed"
-      }
+      },
+      "activities": []
     },
     {
       "id": "understory",
@@ -111,7 +117,8 @@
         "preset": null,
         "weatherMode": "fixed",
         "timeMode": "fixed"
-      }
+      },
+      "activities": []
     },
     {
       "id": "saltworks",
@@ -127,7 +134,8 @@
         "preset": null,
         "weatherMode": "fixed",
         "timeMode": "fixed"
-      }
+      },
+      "activities": []
     },
     {
       "id": "rooftops",
@@ -143,7 +151,8 @@
         "preset": "rooftop-cycle",
         "weatherMode": "scheduled",
         "timeMode": "fixed"
-      }
+      },
+      "activities": []
     },
     {
       "id": "mangrove",
@@ -159,7 +168,8 @@
         "preset": null,
         "weatherMode": "fixed",
         "timeMode": "fixed"
-      }
+      },
+      "activities": []
     },
     {
       "id": "trestle",
@@ -175,7 +185,8 @@
         "preset": null,
         "weatherMode": "fixed",
         "timeMode": "fixed"
-      }
+      },
+      "activities": []
     },
     {
       "id": "foundry",
@@ -191,7 +202,8 @@
         "preset": null,
         "weatherMode": "fixed",
         "timeMode": "fixed"
-      }
+      },
+      "activities": []
     },
     {
       "id": "frost-spire",
@@ -207,7 +219,8 @@
         "preset": null,
         "weatherMode": "fixed",
         "timeMode": "fixed"
-      }
+      },
+      "activities": []
     },
     {
       "id": "delta",
@@ -223,7 +236,8 @@
         "preset": null,
         "weatherMode": "fixed",
         "timeMode": "fixed"
-      }
+      },
+      "activities": []
     },
     {
       "id": "archives",
@@ -239,7 +253,8 @@
         "preset": null,
         "weatherMode": "fixed",
         "timeMode": "fixed"
-      }
+      },
+      "activities": []
     },
     {
       "id": "kiln-terrace",
@@ -255,7 +270,8 @@
         "preset": null,
         "weatherMode": "fixed",
         "timeMode": "fixed"
-      }
+      },
+      "activities": []
     },
     {
       "id": "theater",
@@ -271,7 +287,158 @@
         "preset": null,
         "weatherMode": "fixed",
         "timeMode": "fixed"
-      }
+      },
+      "activities": [
+        {
+          "id": "orpheum-pong",
+          "type": "pong",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              8,
+              0,
+              -3.5
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 1.4,
+            "depth": 1
+          },
+          "interactionRadius": 2.2,
+          "participantAnchors": [
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                7.5,
+                0,
+                -2.6
+              ],
+              "slot": 0
+            },
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                8.5,
+                0,
+                -2.6
+              ],
+              "slot": 1
+            }
+          ],
+          "capacities": {
+            "players": 2,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "none"
+        },
+        {
+          "id": "orpheum-rain-runner",
+          "type": "rain-runner",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              8,
+              0,
+              -5.8
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 1.4,
+            "depth": 1
+          },
+          "interactionRadius": 2.2,
+          "participantAnchors": [
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                8,
+                0,
+                -4.9
+              ],
+              "slot": 0
+            }
+          ],
+          "capacities": {
+            "players": 1,
+            "spectators": 16,
+            "queue": 8
+          },
+          "environmentPolicy": "none"
+        },
+        {
+          "id": "orpheum-signal-lost",
+          "type": "signal-lost",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              9.8,
+              0,
+              -5.8
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 1.4,
+            "depth": 1
+          },
+          "interactionRadius": 2.2,
+          "participantAnchors": [
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                9.8,
+                0,
+                -4.9
+              ],
+              "slot": 0
+            }
+          ],
+          "capacities": {
+            "players": 1,
+            "spectators": 16,
+            "queue": 8
+          },
+          "environmentPolicy": "none"
+        },
+        {
+          "id": "orpheum-sporefall",
+          "type": "sporefall",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              9.8,
+              0,
+              -3.5
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 1.4,
+            "depth": 1
+          },
+          "interactionRadius": 2.2,
+          "participantAnchors": [
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                9.8,
+                0,
+                -2.6
+              ],
+              "slot": 0
+            }
+          ],
+          "capacities": {
+            "players": 1,
+            "spectators": 16,
+            "queue": 8
+          },
+          "environmentPolicy": "none"
+        }
+      ]
     },
     {
       "id": "desert-camp",
@@ -287,7 +454,8 @@
         "preset": "desert-night",
         "weatherMode": "fixed",
         "timeMode": "fixed"
-      }
+      },
+      "activities": []
     }
   ],
   "presets": [

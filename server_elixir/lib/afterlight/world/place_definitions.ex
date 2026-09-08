@@ -31,6 +31,15 @@ defmodule Afterlight.World.PlaceDefinitions do
   @kinds ~w(environment venue view)
   @modes ~w(fixed scheduled)
 
+  @max_activities 16
+  @activity_types ~w(
+    pong rain-runner signal-lost sporefall pool billiards air-hockey foosball
+    drones paper-airplanes gutter-boats rc-boats chess checkers tile-puzzle
+    horseshoes telescope curling hammer-strike forge-challenge fishing
+    skipping-stones light-music-puzzle darts piano photo-booth
+  )
+  @activity_env_policies ~w(none frozen live)
+
   # The semantic subset the JS exporter projects per preset
   # (add-atmosphere-weather-system B 1.2). Visual colors and audio mixes
   # stay client-side and must never appear in the projection.
@@ -95,6 +104,21 @@ defmodule Afterlight.World.PlaceDefinitions do
   @spec max_entries() :: pos_integer()
   def max_entries, do: @max_entries
 
+  @doc "The maximum activities a place may carry."
+  @spec max_activities() :: pos_integer()
+  def max_activities, do: @max_activities
+
+  @doc "The activities list for a wire room id, or [] if none/unknown."
+  @spec activities(term) :: [map()]
+  def activities(id) when is_binary(id) do
+    case get(id) do
+      %{"activities" => acts} when is_list(acts) -> acts
+      _ -> []
+    end
+  end
+
+  def activities(_other), do: []
+
   @doc """
   Loads and validates a projection file. Returns `{:ok, entries}` or
   `{:error, named_reason}` — never a partial catalog. The optional
@@ -105,7 +129,12 @@ defmodule Afterlight.World.PlaceDefinitions do
     with {:ok, bytes} <- File.read(path),
          {:ok, decoded} <- decode(bytes),
          :ok <- validate(decoded) do
-      {:ok, decoded["entries"]}
+      entries =
+        Enum.map(decoded["entries"], fn entry ->
+          Map.put_new(entry, "activities", [])
+        end)
+
+      {:ok, entries}
     end
   end
 
@@ -247,7 +276,7 @@ defmodule Afterlight.World.PlaceDefinitions do
     problems
   end
 
-  defp validate_preset(id, _preset),
+  defp validate_preset(_id, _preset),
     do: ["preset must carry its id and a fixed/scheduled weather mode"]
 
   defp preset_key_problems(problems, id, preset) do
@@ -383,6 +412,7 @@ defmodule Afterlight.World.PlaceDefinitions do
       |> kind_problems(entry)
       |> bounds_problems(entry)
       |> atmosphere_problems(entry)
+      |> activities_problems(entry)
       |> public_problems(entry)
 
     problems
@@ -416,4 +446,140 @@ defmodule Afterlight.World.PlaceDefinitions do
 
   defp public_problems(problems, %{"public" => true}), do: problems
   defp public_problems(problems, _), do: ["only public places are projected" | problems]
+
+  defp activities_problems(problems, %{"activities" => nil}), do: problems
+
+  defp activities_problems(problems, %{"activities" => activities} = entry) when is_list(activities) do
+    bounds = entry["bounds"]
+
+    cond do
+      length(activities) > @max_activities ->
+        ["activities list exceeds maximum of #{@max_activities}" | problems]
+
+      true ->
+        {act_problems, _seen} =
+          Enum.reduce(activities, {[], MapSet.new()}, fn act, {acc, seen} ->
+            id = is_map(act) && act["id"]
+
+            cond do
+              not is_binary(id) ->
+                {["every activity needs a string id" | acc], seen}
+
+              MapSet.member?(seen, id) ->
+                {["duplicate activity id: #{id}" | acc], seen}
+
+              true ->
+                case validate_activity(act, bounds) do
+                  [] -> {acc, MapSet.put(seen, id)}
+                  probs -> {probs ++ acc, MapSet.put(seen, id)}
+                end
+            end
+          end)
+
+        act_problems ++ problems
+    end
+  end
+
+  defp activities_problems(problems, %{"activities" => _other}) do
+    ["activities must be a list" | problems]
+  end
+
+  defp activities_problems(problems, _entry), do: problems
+
+  defp validate_activity(act, bounds) when is_map(act) do
+    []
+    |> activity_type_problems(act)
+    |> activity_rules_problems(act)
+    |> activity_transform_problems(act, bounds)
+    |> activity_footprint_problems(act)
+    |> activity_interaction_problems(act)
+    |> activity_anchors_problems(act, bounds)
+    |> activity_capacities_problems(act)
+    |> activity_env_policy_problems(act)
+  end
+
+  defp validate_activity(_act, _bounds), do: ["activity must be a map"]
+
+  defp activity_type_problems(problems, %{"type" => type}) when type in @activity_types, do: problems
+  defp activity_type_problems(problems, %{"id" => id, "type" => type}),
+    do: ["activity #{id}: unknown activity type #{inspect(type)}" | problems]
+  defp activity_type_problems(problems, %{"id" => id}),
+    do: ["activity #{id}: missing type" | problems]
+
+  defp activity_rules_problems(problems, %{"rulesVersion" => v}) when is_integer(v) and v >= 1, do: problems
+  defp activity_rules_problems(problems, %{"id" => id}),
+    do: ["activity #{id}: rulesVersion must be an integer >= 1" | problems]
+
+  defp activity_transform_problems(problems, %{"id" => id, "transform" => %{"position" => pos} = t}, bounds)
+       when is_list(pos) and (length(pos) == 2 or length(pos) == 3) do
+    in_bounds =
+      case pos do
+        [x, z] when is_number(x) and is_number(z) and is_map(bounds) ->
+          x > bounds["minX"] and x < bounds["maxX"] and z > bounds["minZ"] and z < bounds["maxZ"]
+        [x, _y, z] when is_number(x) and is_number(z) and is_map(bounds) ->
+          x > bounds["minX"] and x < bounds["maxX"] and z > bounds["minZ"] and z < bounds["maxZ"]
+        _ ->
+          false
+      end
+
+    rot_ok = is_nil(t["rotationY"]) or is_number(t["rotationY"])
+
+    cond do
+      not in_bounds -> ["activity #{id}: transform position outside bounds" | problems]
+      not rot_ok -> ["activity #{id}: transform rotationY must be a number" | problems]
+      true -> problems
+    end
+  end
+
+  defp activity_transform_problems(problems, %{"id" => id, "transform" => _}, _bounds),
+    do: ["activity #{id}: transform position must be 2 or 3 numbers" | problems]
+  defp activity_transform_problems(problems, %{"id" => id}, _bounds),
+    do: ["activity #{id}: transform is required" | problems]
+
+  defp activity_footprint_problems(problems, %{"id" => _id, "footprint" => %{"width" => w, "depth" => d}})
+       when is_number(w) and w > 0 and is_number(d) and d > 0, do: problems
+  defp activity_footprint_problems(problems, %{"id" => id}),
+    do: ["activity #{id}: footprint width and depth must be positive numbers" | problems]
+
+  defp activity_interaction_problems(problems, %{"id" => _id, "interactionRadius" => r})
+       when is_number(r) and r > 0, do: problems
+  defp activity_interaction_problems(problems, %{"id" => id}),
+    do: ["activity #{id}: interactionRadius must be a positive number" | problems]
+
+  defp activity_anchors_problems(problems, %{"id" => id, "participantAnchors" => anchors}, bounds)
+       when is_list(anchors) and length(anchors) > 0 do
+    bad_anchor =
+      Enum.find(anchors, fn a ->
+        case a do
+          %{"slot" => _s, "position" => [x, z]} when is_number(x) and is_number(z) and is_map(bounds) ->
+            not (x > bounds["minX"] and x < bounds["maxX"] and z > bounds["minZ"] and z < bounds["maxZ"])
+          %{"slot" => _s, "position" => [x, _y, z]} when is_number(x) and is_number(z) and is_map(bounds) ->
+            not (x > bounds["minX"] and x < bounds["maxX"] and z > bounds["minZ"] and z < bounds["maxZ"])
+          _ ->
+            true
+        end
+      end)
+
+    if bad_anchor do
+      ["activity #{id}: participantAnchors contains invalid or out-of-bounds anchor" | problems]
+    else
+      problems
+    end
+  end
+
+  defp activity_anchors_problems(problems, %{"id" => id}, _bounds),
+    do: ["activity #{id}: participantAnchors must be a non-empty list" | problems]
+
+  defp activity_capacities_problems(problems, %{"id" => _id, "capacities" => %{"players" => p, "spectators" => s, "queue" => q}})
+       when is_integer(p) and p >= 1 and p <= 8 and
+            is_integer(s) and s >= 0 and s <= 32 and
+            is_integer(q) and q >= 0 and q <= 16, do: problems
+  defp activity_capacities_problems(problems, %{"id" => id}),
+    do: ["activity #{id}: capacities must specify players (1..8), spectators (0..32), queue (0..16)" | problems]
+
+  defp activity_env_policy_problems(problems, %{"environmentPolicy" => policy}) when policy in @activity_env_policies, do: problems
+  defp activity_env_policy_problems(problems, %{"environmentPolicy" => nil}), do: problems
+  defp activity_env_policy_problems(problems, %{"id" => id, "environmentPolicy" => policy}),
+    do: ["activity #{id}: unknown environmentPolicy #{inspect(policy)}" | problems]
+  defp activity_env_policy_problems(problems, _act), do: problems
 end

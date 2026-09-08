@@ -11,6 +11,8 @@ import {
   PLACE_PROJECTION_MAX_ENTRIES,
   PLACE_PROJECTION_MAX_PRESETS,
   projectPlace,
+  projectActivity,
+  projectActivities,
   projectPreset,
   projectPresets,
   projectPlaceDefinitions,
@@ -34,9 +36,10 @@ test('projection is the build-controlled whitelist of the shared manifest', () =
 
 test('projected entries carry only the whitelisted plain fields, in canonical key order', () => {
   for (const [index, entry] of projectPlaceDefinitions().entries.entries()) {
-    assert.deepEqual(Object.keys(entry), ['id', 'public', 'kind', 'bounds', 'atmosphere']);
+    assert.deepEqual(Object.keys(entry), ['id', 'public', 'kind', 'bounds', 'atmosphere', 'activities']);
     assert.deepEqual(Object.keys(entry.bounds), ['minX', 'maxX', 'minZ', 'maxZ']);
     assert.deepEqual(Object.keys(entry.atmosphere), ['preset', 'weatherMode', 'timeMode']);
+    assert.ok(Array.isArray(entry.activities));
     assert.equal(entry.public, true);
     assert.deepEqual(entry.bounds, {
       minX: PLACE_DEFINITIONS[index].bounds.minX,
@@ -175,3 +178,66 @@ test('the committed file ships the preset table verbatim for the Phoenix reader'
   assert.equal(rain.wetness, 1, 'fixed rain arrives wet (late-join rule)');
   assert.equal(rain.events.lightning.minMs, 45_000);
 });
+
+test('activity projection enforces canonical order and excludes client-only properties', () => {
+  const sampleActivity = {
+    id: 'pong-1',
+    type: 'pong',
+    rulesVersion: 1,
+    transform: { position: [1, 2, 3], rotationY: 1.5 },
+    footprint: { width: 2, depth: 1 },
+    interactionRadius: 2.5,
+    participantAnchors: [
+      { slot: 0, position: [0, 1, 2], facing: 0 },
+    ],
+    capacities: { players: 2, spectators: 32, queue: 16 },
+    environmentPolicy: 'none',
+    spectatorPolicy: 'world',
+    rendererKey: 'secretPongRenderer',
+    controllerKey: 'secretPongController',
+  };
+
+  const projected = projectActivity(sampleActivity, { minX: -10, maxX: 10, minZ: -10, maxZ: 10 });
+  assert.deepEqual(Object.keys(projected), [
+    'id', 'type', 'rulesVersion', 'transform', 'footprint',
+    'interactionRadius', 'participantAnchors', 'capacities', 'environmentPolicy',
+  ]);
+  assert.equal(projected.rendererKey, undefined, 'rendererKey must not leak to server projection');
+  assert.equal(projected.controllerKey, undefined, 'controllerKey must not leak to server projection');
+  assert.equal(projected.spectatorPolicy, undefined, 'client spectatorPolicy stays client-side');
+});
+
+test('the exporter fails closed on out-of-bounds or malformed activities', () => {
+  const badActivity = {
+    id: 'broken-pong',
+    type: 'pong',
+    rulesVersion: 1,
+    transform: { position: [99, 0, 99] },
+    footprint: { width: 2, depth: 1 },
+    interactionRadius: 2.5,
+    participantAnchors: [{ slot: 0, position: [0, 0] }],
+    capacities: { players: 2, spectators: 32, queue: 16 },
+  };
+  assert.throws(
+    () => projectPlace({ ...PLACE_DEFINITIONS[0], activities: [badActivity] }),
+    /outside place bounds/,
+  );
+});
+
+test('backwards compatibility: entries without activities validate and normalize to empty list', () => {
+  const legacyEntry = {
+    id: 'legacy-room',
+    public: true,
+    kind: 'environment',
+    bounds: { minX: -10, maxX: 10, minZ: -10, maxZ: 10 },
+    atmosphere: { preset: null, weatherMode: 'fixed', timeMode: 'fixed' },
+  };
+  const doc = {
+    schemaVersion: 1,
+    entries: [legacyEntry],
+  };
+  const serialized = JSON.stringify(doc);
+  const parsed = JSON.parse(serialized);
+  assert.equal(parsed.entries[0].activities, undefined);
+});
+

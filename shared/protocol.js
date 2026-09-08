@@ -123,6 +123,20 @@
  *   - epg_schedule (S→C): { entries: [{ key, now, next }] } — the reply
  *   Uploads (playlist text, URL imports, guide files) ride HTTP POST on the
  *   game server's /api/theater/* endpoints, not WS frames.
+ *
+ * Activity payloads (additive, place activities program — P1):
+ *   - activity_join (C→S): { requestId, activityId, role: 'play'|'watch'|'queue' }
+ *   - activity_leave (C→S): { requestId, activityId, reason? }
+ *   - activity_ready (C→S): { requestId, activityId, ready: boolean }
+ *   - activity_input (C→S): { activityId, sessionId, lease, seq, controls }
+ *   - activity_resnapshot (C→S): { requestId, activityId, sessionId? }
+ *   - activity_state (S→C): { version, roomId, roomEpoch, activityId, sessionId,
+ *     revision, serverNow, state, ackSeq? }
+ *   - activity_event (S→C): { version, roomId, roomEpoch, activityId, sessionId,
+ *     revision, serverNow, eventId, eventType, payload }
+ *   - activity_result (S→C): { version, roomId, roomEpoch, activityId, sessionId,
+ *     revision, serverNow, result }
+ *   - activity_error (S→C): { version?, roomId?, activityId?, requestId?, error, message }
  */
 
 export const MSG_TYPES = {
@@ -157,6 +171,13 @@ export const MSG_TYPES = {
   PING: 'ping',
   PLACE_DIRECTORY_GET: 'place_directory_get',
 
+  // Activities Client -> Server (Phase 1, place activities program)
+  ACTIVITY_JOIN: 'activity_join',
+  ACTIVITY_LEAVE: 'activity_leave',
+  ACTIVITY_READY: 'activity_ready',
+  ACTIVITY_INPUT: 'activity_input',
+  ACTIVITY_RESNAPSHOT: 'activity_resnapshot',
+
   // Server -> Client
   WELCOME: 'welcome',
   FULL_STATE: 'full_state',
@@ -188,6 +209,13 @@ export const MSG_TYPES = {
   ATMOSPHERE_GET: 'atmosphere_get',
   ATMOSPHERE_STATE: 'atmosphere_state',
   ATMOSPHERE_UNAVAILABLE: 'atmosphere_unavailable',
+
+  // Activities Server -> Client (Phase 1, place activities program)
+  ACTIVITY_STATE: 'activity_state',
+  ACTIVITY_EVENT: 'activity_event',
+  ACTIVITY_RESULT: 'activity_result',
+  ACTIVITY_ERROR: 'activity_error',
+
   ERROR: 'error',
   PONG: 'pong',
 };
