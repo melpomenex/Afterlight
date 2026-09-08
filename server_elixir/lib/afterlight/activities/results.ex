@@ -23,7 +23,7 @@ defmodule Afterlight.Activities.Results do
   @max_id_length 64
   @max_score 100_000_000
   @arcade_games MapSet.new(["rain-runner", "signal-lost", "sporefall"])
-  @match_games MapSet.new(["pong"])
+  @match_games MapSet.new(["pong", "pool", "billiards"])
   @valid_outcomes MapSet.new([
                     "completed",
                     "score",
@@ -32,7 +32,12 @@ defmodule Afterlight.Activities.Results do
                     "collision",
                     "crashed",
                     "forfeit",
-                    "aborted"
+                    "aborted",
+                    "eight_ball",
+                    "early_eight",
+                    "wrong_pocket_eight",
+                    "scratch_on_eight",
+                    "resignation"
                   ])
 
   @doc "Activity types recorded as single-player runs."

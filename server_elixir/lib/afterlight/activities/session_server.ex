@@ -1528,6 +1528,9 @@ defmodule Afterlight.Activities.SessionServer do
                         snowboard?(state) and Map.get(controls, "kind") not in [nil, "ride", "neutral"] ->
                           {:reply, {:error, :invalid_input}, state}
 
+                        pool?(state) ->
+                          handle_pool_input(state, player, slot, seq, controls)
+
                         true ->
                           # Cancel previous watchdog timer if present
                           if player[:watchdog_timer_ref] do
@@ -1896,7 +1899,13 @@ defmodule Afterlight.Activities.SessionServer do
   defp init_simulation("rain-runner"), do: RainRunner.init_sim_state()
   defp init_simulation("signal-lost"), do: SignalLost.init_sim_state()
   defp init_simulation("sporefall"), do: Sporefall.init_sim_state()
+  defp init_simulation("pool"), do: Afterlight.Activities.Pool.Rules.init_game()
+  defp init_simulation("billiards"), do: Afterlight.Activities.Pool.Rules.init_game()
   defp init_simulation(_other), do: %{}
+
+  defp pool?(state) do
+    snowboard_type(state) in ["pool", "billiards"]
+  end
 
   # Snowboard race policy helpers (add-multiplayer-snowboard-arcade 4.2):
   # per-type cadence plus a single discriminator, so every lifecycle branch
@@ -1992,10 +2001,143 @@ defmodule Afterlight.Activities.SessionServer do
     Sporefall.step(sim_state, players, steps)
   end
 
+  defp step_simulation("pool", sim_state, _players, steps) do
+    step_pool_simulation(sim_state, steps)
+  end
+
+  defp step_simulation("billiards", sim_state, _players, steps) do
+    step_pool_simulation(sim_state, steps)
+  end
+
   defp step_simulation(_other, sim_state, _players, steps) do
     curr_tick = Map.get(sim_state, "tick", 0)
     {Map.put(sim_state, "tick", curr_tick + steps), nil}
   end
+
+  defp step_pool_simulation(sim_state, steps) do
+    {final_state, _events} =
+      Enum.reduce(1..steps, {sim_state, []}, fn _i, {curr, _} ->
+        Afterlight.Activities.Pool.Rules.step(curr, 1.0 / 60.0)
+      end)
+
+    if final_state["status"] == "game_over" do
+      winner_slot = final_state["winner"]
+      reason = final_state["win_reason"] || "completed"
+      {final_state, {:match_ended, winner_slot, %{reason: reason}}}
+    else
+      {final_state, nil}
+    end
+  end
+
+  defp handle_pool_input(state, player, slot, seq, controls) do
+    if state.status != :in_progress do
+      {:reply, {:error, :not_in_progress}, state}
+    else
+      action = Map.get(controls, "type") || Map.get(controls, "action") || "shoot"
+      turn = state.sim_state["turn"]
+
+      cond do
+        action in ["shoot", "place_cue_ball", "call_pocket"] and turn != slot ->
+          {:reply, {:error, :out_of_turn}, state}
+
+        action == "shoot" and (state.sim_state["status"] == "shooting" or not get_in(state.sim_state, ["physics", "settled"])) ->
+          {:reply, {:error, :balls_in_motion}, state}
+
+        action == "shoot" ->
+          angle = float_or(Map.get(controls, "angle"), 0.0)
+          power = float_or(Map.get(controls, "power"), 1.0)
+          spin_x = float_or(Map.get(controls, "spinX") || Map.get(controls, "spin_x"), 0.0)
+          spin_y = float_or(Map.get(controls, "spinY") || Map.get(controls, "spin_y"), 0.0)
+
+          case Afterlight.Activities.Pool.Rules.shoot(state.sim_state, slot, angle, power, spin_x, spin_y) do
+            {:ok, new_sim} ->
+              accept_pool_input(state, player, slot, seq, controls, new_sim)
+
+            {:error, :not_your_turn} ->
+              {:reply, {:error, :out_of_turn}, state}
+
+            {:error, :balls_in_motion} ->
+              {:reply, {:error, :balls_in_motion}, state}
+
+            {:error, err} ->
+              {:reply, {:error, err}, state}
+          end
+
+        action == "place_cue_ball" ->
+          x = float_or(Map.get(controls, "x"), 0.0)
+          z = float_or(Map.get(controls, "z"), 0.0)
+
+          case Afterlight.Activities.Pool.Rules.place_cue_ball(state.sim_state, slot, x, z) do
+            {:ok, new_sim} ->
+              accept_pool_input(state, player, slot, seq, controls, new_sim)
+
+            {:error, :invalid_position} ->
+              {:reply, {:error, :overlap_placement}, state}
+
+            {:error, :not_your_turn} ->
+              {:reply, {:error, :out_of_turn}, state}
+
+            {:error, err} ->
+              {:reply, {:error, err}, state}
+          end
+
+        action == "call_pocket" ->
+          pocket_id = Map.get(controls, "pocketId") || Map.get(controls, "pocket_id")
+
+          case Afterlight.Activities.Pool.Rules.call_pocket(state.sim_state, slot, pocket_id) do
+            {:ok, new_sim} ->
+              accept_pool_input(state, player, slot, seq, controls, new_sim)
+
+            {:error, :not_your_turn} ->
+              {:reply, {:error, :out_of_turn}, state}
+
+            {:error, err} ->
+              {:reply, {:error, err}, state}
+          end
+
+        action == "resign" ->
+          new_sim = Afterlight.Activities.Pool.Rules.resign(state.sim_state, slot)
+          accept_pool_input(state, player, slot, seq, controls, new_sim)
+
+        true ->
+          {:reply, {:error, :invalid_input}, state}
+      end
+    end
+  end
+
+  defp accept_pool_input(state, player, slot, seq, controls, new_sim) do
+    if player[:watchdog_timer_ref], do: Process.cancel_timer(player.watchdog_timer_ref)
+
+    watchdog_ref =
+      if state.input_watchdog_ms > 0 do
+        Process.send_after(self(), {:input_watchdog_timeout, player.player_id}, state.input_watchdog_ms)
+      else
+        nil
+      end
+
+    updated_player = %{
+      player
+      | last_seq: seq,
+        input_state: controls,
+        watchdog_timer_ref: watchdog_ref
+    }
+
+    players = Map.put(state.players, slot, updated_player)
+    state = %{state | players: players, sim_state: new_sim, revision: state.revision + 1}
+
+    reply = %{
+      result: "input_accepted",
+      ackSeq: seq,
+      seq: seq,
+      revision: state.revision
+    }
+
+    {:reply, {:ok, reply}, state}
+  end
+
+  defp float_or(v, default) when is_float(v), do: v
+  defp float_or(v, _default) when is_integer(v), do: v * 1.0
+  defp float_or(_, default), do: default
 
   defp valid_controls?(controls) when is_map(controls) do
     forbidden_keys = ~w(score scores winner transform transforms)

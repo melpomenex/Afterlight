@@ -33,11 +33,11 @@
 
 ## 4. P3 — Pool physics and rules
 
-- [ ] 4.1 Run the bounded physics selection spike described in D5; record planar-vs-worker results, numerical tolerances, maximum-power tunneling, spin reference behavior, CPU budget and any pinned dependency/build footprint.
-- [ ] 4.2 Implement the selected authoritative pool stepping boundary and worker failure isolation if needed; add reference fixtures for sliding/rolling, collisions, rails, pockets and settling.
-- [ ] 4.3 Implement the versioned casual 8-ball reducer with break/open-table/group assignment, fouls, ball-in-hand, called eight, win/loss, resignation and reconnect; cover rule edge cases independently of rendering.
-- [ ] 4.4 Implement server shot validation and input acknowledgments; test out-of-turn, moving-ball, overlap placement, repeated-shot and stale-session commands.
-- [ ] 4.5 Extend durable match records and stats to verified pool completion; distinguish aborts, forfeits and completed play.
+- [x] 4.1 Run the bounded physics selection spike described in D5; record planar-vs-worker results, numerical tolerances, maximum-power tunneling, spin reference behavior, CPU budget and any pinned dependency/build footprint.
+- [x] 4.2 Implement the selected authoritative pool stepping boundary and worker failure isolation if needed; add reference fixtures for sliding/rolling, collisions, rails, pockets and settling.
+- [x] 4.3 Implement the versioned casual 8-ball reducer with break/open-table/group assignment, fouls, ball-in-hand, called eight, win/loss, resignation and reconnect; cover rule edge cases independently of rendering.
+- [x] 4.4 Implement server shot validation and input acknowledgments; test out-of-turn, moving-ball, overlap placement, repeated-shot and stale-session commands.
+- [x] 4.5 Extend durable match records and stats to verified pool completion; distinguish aborts, forfeits and completed play.
 
 ## 5. P3 — Pool experience
 
