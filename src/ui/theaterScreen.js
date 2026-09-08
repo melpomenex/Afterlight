@@ -63,6 +63,11 @@ const IPTV_LISTS_KEY = 'afterlight-iptv-lists';
 const IPTV_LISTS_MAX = 12;
 const IPTV_CHANNELS_MAX = 5000;
 const EPG_REFRESH_INTERVAL_MS = 60_000; // now/next refresh while the guide is open
+const YT_TITLES_KEY = 'afterlight-youtube-titles'; // videoId -> real title, so the booth shows names not placeholders
+const YT_TITLES_MAX = 200;
+const YT_TITLE_FETCH_TIMEOUT_MS = 8000;
+const YT_TITLE_LOOKUPS_MAX = 8; // bounded lookup wave per snapshot
+const YT_VIDEO_ID_RE = /^[\w-]{6,}$/; // same shape classifySource accepts
 
 // --- Pure exported helpers (unit-tested under Node) ---
 
@@ -283,6 +288,45 @@ export function sanitizeSavedLists(raw, nowMs = 0) {
   return out;
 }
 
+/**
+ * Sanitize a persisted/received videoId -> title map (stored as [id, title]
+ * pairs). Drops junk ids, empty/oversized titles; caps the entry count with
+ * last-wins ordering (freshest pairs last).
+ */
+export function sanitizeYouTubeTitles(raw, maxEntries = YT_TITLES_MAX) {
+  const out = new Map();
+  if (!Array.isArray(raw)) return out;
+  for (const pair of raw) {
+    if (!Array.isArray(pair) || pair.length < 2) continue;
+    const [videoId, title] = pair;
+    if (typeof videoId !== 'string' || !YT_VIDEO_ID_RE.test(videoId)) continue;
+    if (typeof title !== 'string') continue;
+    const clean = title.trim().slice(0, THEATER_LIMITS.TITLE_MAX);
+    if (!clean) continue;
+    out.delete(videoId); // last wins
+    out.set(videoId, clean);
+    if (out.size >= maxEntries) break;
+  }
+  return out;
+}
+
+/**
+ * Display title for a bill item: the local YouTube title cache only fills
+ * the generic placeholder ("A YouTube video"); real titles already carried
+ * by the item (playlist imports, adds that knew the name) are never
+ * overridden. Returns '' for missing items.
+ */
+export function displayTitleFor(item, titles = null) {
+  if (!item || typeof item !== 'object') return '';
+  const fallback = typeof item.title === 'string' ? item.title.trim() : '';
+  const generic = !fallback || fallback === defaultTitle(item.kind);
+  if (generic && item.kind === 'youtube' && item.videoId && titles instanceof Map) {
+    const cached = titles.get(item.videoId);
+    if (typeof cached === 'string' && cached) return cached;
+  }
+  return fallback;
+}
+
 /** True when a mouse event landed on a dialog's backdrop, outside its panel. */
 function clickedOutsideDialog(dialog, e) {
   const rect = dialog.getBoundingClientRect();
@@ -410,6 +454,14 @@ export class TheaterScreenUI {
     this.playlistChoice = null; // { classified, playNow } while the choice is open
     this.playlistPreview = null; // { title, videos, playNow } while the preview is open
 
+    // YouTube display titles: a local videoId -> title cache (localStorage
+    // backed) that replaces the generic "A YouTube video" placeholder.
+    // Presentation only — the shared bill's titles are the server's business.
+    this.youTubeTitles = this.loadYouTubeTitles();
+    this.ytTitlePending = new Set(); // videoIds queued/in flight for oEmbed lookup
+    this.ytTitleInFlight = null; // the active lookup's promise (one at a time)
+    this.ytTitleFailed = new Set(); // videoIds that failed this session (no retry)
+
     this.overlayW = OVERLAY_BASE; // Untransformed overlay rect (CSS px)
     this.overlayH = OVERLAY_BASE;
     this.quadTransform = ''; // last transform string written to the overlay
@@ -525,6 +577,10 @@ export class TheaterScreenUI {
     if (Number.isFinite(serverNowMs) && serverNowMs > 0) {
       this.serverDelta = serverNowMs - Date.now();
     }
+
+    // Snapshots carry generic labels for single-added YouTube videos; look
+    // up real names in the background (bounded, cached, display-only).
+    this.queueYouTubeTitleLookups();
 
     if (this.dom?.controlsDialog?.open) this.renderControls();
     if (this.dom?.guideDialog?.open) this.renderGuide();
@@ -716,7 +772,7 @@ export class TheaterScreenUI {
     this.watchbar.hidden = !this.watching;
     if (!this.watching) return;
     const now = this.state?.now;
-    this.watchbarTitle.textContent = now ? `Now playing · ${now.title}` : 'The Orpheum · the screen sleeps';
+    this.watchbarTitle.textContent = now ? `Now playing · ${this.titleFor(now)}` : 'The Orpheum · the screen sleeps';
     this.watchbarState.textContent = now ? (now.playing ? '▶' : '⏸') : '';
     const leaveBtn = this.watchbar.querySelector('#theater-watchbar-leave');
     if (leaveBtn) {
@@ -1017,6 +1073,12 @@ export class TheaterScreenUI {
             if (this.engine !== engine || token !== this.loadToken) return;
             engine.ready = true;
             engine.player = player;
+            // The player knows the real title for free — cache it so the
+            // booth shows the name even if the oEmbed lookup is blocked.
+            try {
+              const data = player.getVideoData?.();
+              if (data?.title) this.rememberYouTubeTitle(item.videoId, data.title);
+            } catch {}
             try {
               player.setVolume(Math.round(this.effectiveVolume() * 100));
             } catch {}
@@ -1231,11 +1293,11 @@ export class TheaterScreenUI {
       else if (prep === PREPARE_STATUS.PREPARING || prep === PREPARE_STATUS.PENDING) prepLine = 'Preparing video…';
       const waiting = now?.kind === 'torrent' ? this.torrentStatusText(now.infohash) : '';
       const base = prepLine || (waiting ? waiting : 'Warming up the projector…');
-      text = now ? `${base} ${now.title}` : base;
+      text = now ? `${base} ${this.titleFor(now)}` : base;
     } else if (this.overlayState === 'error') {
-      text = `Couldn't play: ${this.errorTitle || now?.title || 'unknown item'}`;
+      text = `Couldn't play: ${this.errorTitle || (now ? this.titleFor(now) : '') || 'unknown item'}`;
     } else {
-      text = now ? now.title : '';
+      text = now ? this.titleFor(now) : '';
     }
     el.textContent = text;
   }
@@ -1272,7 +1334,7 @@ export class TheaterScreenUI {
 
   failItem() {
     const now = this.state?.now;
-    this.errorTitle = now?.title || 'the current item';
+    this.errorTitle = (now && this.titleFor(now)) || 'the current item';
     this.teardownEngine();
     this.setOverlayState('error');
     this.sendItemReport('failed');
@@ -1918,12 +1980,22 @@ export class TheaterScreenUI {
   /** Plain single-video path shared by the input and the mixed-link choice. */
   addSingleVideo(classified, playNow) {
     this.setAddStatus('');
+    // When the real title is already cached, send it along — both reducers
+    // store the op's title, so the shared bill shows the name for everyone.
+    // Uncached items keep the generic label here and get filled in locally
+    // once the snapshot's background lookup lands.
+    const knownTitle = displayTitleFor(
+      { kind: classified.kind, videoId: classified.videoId, title: '' },
+      this.youTubeTitles,
+    );
     if (playNow) {
       // Start this URL on the shared screen right now, replacing whatever
       // is playing (theater_channel is the immediate-start op).
-      this.sendChannel(classified.url, defaultTitle(classified.kind));
+      this.sendChannel(classified.url, knownTitle || defaultTitle(classified.kind));
     } else {
-      this.sendQueue({ op: 'add', url: classified.url });
+      const action = { op: 'add', url: classified.url };
+      if (knownTitle) action.title = knownTitle;
+      this.sendQueue(action);
     }
   }
 
@@ -2113,7 +2185,7 @@ export class TheaterScreenUI {
       head.className = 'theater-now-head';
       const title = document.createElement('strong');
       title.className = 'theater-now-title';
-      title.textContent = now.title || 'Untitled';
+      title.textContent = this.titleFor(now) || 'Untitled';
       const tag = document.createElement('span');
       tag.className = 'theater-kind-tag';
       tag.textContent = KIND_LABELS[now.kind] || now.kind || 'media';
@@ -2155,7 +2227,7 @@ export class TheaterScreenUI {
       row.className = 'theater-queue-row';
       const title = document.createElement('span');
       title.className = 'theater-queue-title';
-      title.textContent = item.title || 'Untitled';
+      title.textContent = this.titleFor(item) || 'Untitled';
       const tag = document.createElement('span');
       tag.className = 'theater-kind-tag';
       tag.textContent = KIND_LABELS[item.kind] || item.kind || 'media';
@@ -2229,6 +2301,103 @@ export class TheaterScreenUI {
     try {
       localStorage.setItem(IPTV_LISTS_KEY, JSON.stringify(sanitizeSavedLists(this.savedLists, Date.now())));
     } catch {}
+  }
+
+  // --- YouTube display titles (client-side, display only) ---
+
+  /**
+   * Title to show for a bill item: the local cache fills the generic
+   * "A YouTube video" placeholder with the real name when known.
+   */
+  titleFor(item) {
+    return displayTitleFor(item, this.youTubeTitles);
+  }
+
+  loadYouTubeTitles() {
+    try {
+      return sanitizeYouTubeTitles(JSON.parse(localStorage.getItem(YT_TITLES_KEY) || '[]'));
+    } catch {
+      return new Map();
+    }
+  }
+
+  saveYouTubeTitles() {
+    try {
+      localStorage.setItem(YT_TITLES_KEY, JSON.stringify([...this.youTubeTitles]));
+    } catch {}
+  }
+
+  /** Remember a real title (oEmbed or the player itself) and refresh what's visible. */
+  rememberYouTubeTitle(videoId, title) {
+    if (typeof videoId !== 'string' || !YT_VIDEO_ID_RE.test(videoId)) return false;
+    if (typeof title !== 'string' || !title.trim()) return false;
+    const clean = title.trim().slice(0, THEATER_LIMITS.TITLE_MAX);
+    if (this.youTubeTitles.get(videoId) === clean) return false;
+    this.youTubeTitles.delete(videoId); // re-insert as freshest for the LRU cap
+    this.youTubeTitles.set(videoId, clean);
+    while (this.youTubeTitles.size > YT_TITLES_MAX) {
+      this.youTubeTitles.delete(this.youTubeTitles.keys().next().value);
+    }
+    this.saveYouTubeTitles();
+    this.refreshTitleDisplays();
+    return true;
+  }
+
+  /** Collect uncached YouTube items from the current snapshot and look them up. */
+  queueYouTubeTitleLookups() {
+    const now = this.state?.now;
+    const items = [...(now ? [now] : []), ...(this.state?.queue || [])];
+    let slots = YT_TITLE_LOOKUPS_MAX;
+    for (const item of items) {
+      if (slots <= 0) break;
+      if (item?.kind !== 'youtube' || !item.videoId) continue;
+      if (this.youTubeTitles.has(item.videoId)) continue;
+      if (this.ytTitlePending.has(item.videoId) || this.ytTitleFailed.has(item.videoId)) continue;
+      this.ytTitlePending.add(item.videoId);
+      slots -= 1;
+    }
+    this.pumpYouTubeTitleQueue();
+  }
+
+  /** One oEmbed lookup at a time; failures sit out the rest of the session. */
+  pumpYouTubeTitleQueue() {
+    if (this.ytTitleInFlight) return;
+    const videoId = this.ytTitlePending.values().next().value;
+    if (!videoId) return;
+    this.ytTitleInFlight = this.fetchYouTubeTitle(videoId)
+      .then((title) => {
+        if (!this.rememberYouTubeTitle(videoId, title)) this.ytTitleFailed.add(videoId);
+      })
+      .catch(() => this.ytTitleFailed.add(videoId))
+      .finally(() => {
+        this.ytTitlePending.delete(videoId);
+        this.ytTitleInFlight = null;
+        this.pumpYouTubeTitleQueue();
+      });
+  }
+
+  /** YouTube's oEmbed endpoint is CORS-enabled; returns a clean title or null. */
+  async fetchYouTubeTitle(videoId) {
+    const target = encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), YT_TITLE_FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(`https://www.youtube.com/oembed?url=${target}&format=json`, {
+        signal: controller.signal,
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return typeof data?.title === 'string' && data.title.trim() ? data.title.trim() : null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /** Re-render whatever is on screen that shows item titles. */
+  refreshTitleDisplays() {
+    this.renderCaption();
+    if (this.dom?.controlsDialog?.open) this.renderControls();
+    if (this.watching) this.updateWatchBar();
   }
 
   // --- Shared library state from the server ---
@@ -2442,7 +2611,7 @@ export class TheaterScreenUI {
     this.dom.iptvCurrent.textContent = channel
       ? `Tuned: ${channel.name}`
       : this.state?.now
-        ? `On screen: ${this.state.now.title}`
+        ? `On screen: ${this.titleFor(this.state.now)}`
         : 'No channel tuned';
     // "Add to theater" only makes sense for a private list.
     if (this.dom.iptvPush) this.dom.iptvPush.hidden = !(list && !list.shared);
@@ -2711,7 +2880,7 @@ export class TheaterScreenUI {
       listEl.append(empty);
     }
     const source = meta.shared ? `theater library` : `your lists`;
-    this.dom.guideCount.textContent = `${list.channels.length} channels · showing ${shown}${this.state?.now ? ` · on screen: ${this.state.now.title}` : ''} · ${source}`;
+    this.dom.guideCount.textContent = `${list.channels.length} channels · showing ${shown}${this.state?.now ? ` · on screen: ${this.titleFor(this.state.now)}` : ''} · ${source}`;
     this.requestEpgSchedule();
   }
 }

@@ -385,3 +385,122 @@ test('fitOverlaySize: vertically-foreshortened quad sizes to satisfy horizontal 
   assert.equal(h, Math.round(1300 / 3.25), 'height matches aspect ratio');
 });
 
+
+// --- YouTube display titles: cache, display rule, oEmbed lookup ---
+
+test('sanitizeYouTubeTitles: keeps clean pairs, drops junk, caps and dedupes', async () => {
+  const mod2 = await import('../src/ui/theaterScreen.js');
+  const map = mod2.sanitizeYouTubeTitles([
+    ['dQw4w9WgXcQ', 'Never Gonna Give You Up'],
+    ['bad id!', 'nope'], // invalid id shape
+    ['abcdefgh123', '   '], // empty title
+    ['short1', 42], // non-string title
+    ['abcdefgh123', 'Renamed'], // last wins
+    ['x'.repeat(6), 't'.repeat(500)], // oversized title clamps to TITLE_MAX
+  ]);
+  assert.equal(map.size, 3);
+  assert.equal(map.get('dQw4w9WgXcQ'), 'Never Gonna Give You Up');
+  assert.equal(map.get('abcdefgh123'), 'Renamed');
+  assert.equal(map.get('xxxxxx').length, 120);
+  assert.equal(mod2.sanitizeYouTubeTitles('nonsense').size, 0);
+  assert.equal(mod2.sanitizeYouTubeTitles([['okidok1', 'ok']], 1).size, 1);
+  assert.equal(
+    mod2.sanitizeYouTubeTitles([['okidok1', 'a'], ['second2', 'b']], 1).size,
+    1,
+    'entry cap is respected',
+  );
+});
+
+test('displayTitleFor: cache fills the generic placeholder, never a real title', async () => {
+  const mod2 = await import('../src/ui/theaterScreen.js');
+  const titles = new Map([['dQw4w9WgXcQ', 'Never Gonna Give You Up']]);
+  // Generic placeholder is replaced by the cached real name
+  assert.equal(
+    mod2.displayTitleFor({ kind: 'youtube', videoId: 'dQw4w9WgXcQ', title: 'A YouTube video' }, titles),
+    'Never Gonna Give You Up',
+  );
+  // A real title carried by the item always wins over the cache
+  assert.equal(
+    mod2.displayTitleFor({ kind: 'youtube', videoId: 'dQw4w9WgXcQ', title: 'Playlist-given name' }, titles),
+    'Playlist-given name',
+  );
+  // Uncached item keeps its own (default) title
+  assert.equal(
+    mod2.displayTitleFor({ kind: 'youtube', videoId: 'zzzzzzzzzzz', title: 'A YouTube video' }, titles),
+    'A YouTube video',
+  );
+  // Non-youtube kinds are untouched, missing/absent inputs are safe
+  assert.equal(mod2.displayTitleFor({ kind: 'file', url: 'http://x/a.mp4', title: 'A video link' }, titles), 'A video link');
+  assert.equal(mod2.displayTitleFor(null, titles), '');
+  assert.equal(mod2.displayTitleFor({ kind: 'youtube', videoId: 'dQw4w9WgXcQ', title: 'A YouTube video' }, null), 'A YouTube video');
+});
+
+test('rememberYouTubeTitle: caches, and titles show through titleFor without localStorage', async () => {
+  const mod2 = await import('../src/ui/theaterScreen.js');
+  const ui2 = new mod2.TheaterScreenUI(null);
+  assert.equal(ui2.rememberYouTubeTitle('bad id!', 'Nope'), false, 'junk ids are refused');
+  assert.equal(ui2.rememberYouTubeTitle('dQw4w9WgXcQ', '  Never Gonna Give You Up  '), true);
+  assert.equal(
+    ui2.titleFor({ kind: 'youtube', videoId: 'dQw4w9WgXcQ', title: 'A YouTube video' }),
+    'Never Gonna Give You Up',
+  );
+  assert.equal(ui2.rememberYouTubeTitle('dQw4w9WgXcQ', 'Never Gonna Give You Up'), false, 'unchanged titles are no-ops');
+});
+
+test('YouTube title lookups: snapshots fetch real names via oEmbed; failures sit out the session', async () => {
+  const mod2 = await import('../src/ui/theaterScreen.js');
+  const stubNet = {
+    handlers: new Map(),
+    on(type, fn) {
+      if (!this.handlers.has(type)) this.handlers.set(type, []);
+      this.handlers.get(type).push(fn);
+    },
+  };
+  const ui2 = new mod2.TheaterScreenUI(stubNet);
+  const calls = [];
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    calls.push(String(url));
+    if (String(url).includes('dQw4w9WgXcQ')) {
+      return { ok: true, json: async () => ({ title: 'Never Gonna Give You Up' }) };
+    }
+    return { ok: false, status: 400, json: async () => ({}) }; // unavailable video
+  };
+  try {
+    const base = { playing: true, positionSec: 0, updatedAt: Date.now(), by: 'T', queuedBy: 'T' };
+    ui2.applyState({
+      now: { id: 'itm_y1', kind: 'youtube', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', videoId: 'dQw4w9WgXcQ', title: 'A YouTube video', ...base },
+      queue: [
+        { id: 'itm_y2', kind: 'youtube', url: 'https://www.youtube.com/watch?v=brokenvid99', videoId: 'brokenvid99', title: 'A YouTube video', ...base },
+        { id: 'itm_f', kind: 'file', url: 'http://example.com/a.mp4', title: 'A video link', ...base },
+      ],
+    }, Date.now());
+
+    // The pump works sequentially in the background; wait for it to drain.
+    for (let i = 0; i < 200 && (ui2.ytTitlePending.size || ui2.ytTitleInFlight); i++) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    assert.ok(!ui2.ytTitleInFlight, 'lookup queue drains');
+    assert.equal(calls.length, 2, 'one oEmbed request per uncached youtube item (the file item is skipped)');
+    assert.ok(calls[0].startsWith('https://www.youtube.com/oembed?'), 'requests hit the oEmbed endpoint');
+    assert.equal(
+      ui2.titleFor({ kind: 'youtube', videoId: 'dQw4w9WgXcQ', title: 'A YouTube video' }),
+      'Never Gonna Give You Up',
+      'successful lookup is cached and displayed',
+    );
+    assert.equal(
+      ui2.titleFor({ kind: 'youtube', videoId: 'brokenvid99', title: 'A YouTube video' }),
+      'A YouTube video',
+      'failed lookup keeps the generic placeholder',
+    );
+
+    // A fresh snapshot must not re-request the cached or the failed id.
+    ui2.applyState({
+      now: { id: 'itm_y1', kind: 'youtube', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', videoId: 'dQw4w9WgXcQ', title: 'A YouTube video', ...base },
+      queue: [],
+    }, Date.now());
+    assert.equal(calls.length, 2, 'no retry for cached or failed ids');
+  } finally {
+    globalThis.fetch = origFetch;
+  }
+});
