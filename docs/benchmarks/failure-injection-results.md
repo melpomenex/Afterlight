@@ -25,7 +25,19 @@ mix test --include failure_injection test/afterlight/failure_injection/
 
 ## Status
 
-_Suite authored; execution deferred when `mix test` cannot compile the application (e.g. `Afterlight.World.Lease` compile errors in the current tree). Re-run after the lease module compiles._
+**Executed:** 2026-09-08
+**Result:** 10 tests, 0 failures (passed)
+
+```
+Running ExUnit with seed: 859910, max_cases: 48
+Excluding tags: [:integration, :database]
+Including tags: [:failure_injection]
+
+Finished in 0.6 seconds (0.00s async, 0.6s sync)
+10 tests, 0 failures
+```
+
+All failure-injection invariants verified: room restart/rejoin, gateway supersession, DB unavailable fail-closed, DB slow delay precedence, idempotent duplicate delivery exactly-once, stale revision rejection, stale epoch discard contract, DB partition fencing, outbox at-least-once recovery, and deploy drain replay protection.
 
 ## Helper
 

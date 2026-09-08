@@ -17,7 +17,20 @@ defmodule AfterlightWeb.AuthController do
   alias Afterlight.Gateway.{Auth, RateLimit}
 
   def create(conn, params) do
-    case RateLimit.check(RateLimit.table(), {:auth_ip, conn.remote_ip}, Gateway.config(:auth_rate_limit, [])) do
+    base_opts = Gateway.config(:auth_rate_limit, [limit: 30, window_ms: 60_000])
+    rate_opts =
+      case System.get_env("AFTERLIGHT_AUTH_RATE_LIMIT") do
+        "0" -> [limit: 1_000_000, window_ms: 60_000]
+        n when is_binary(n) -> [limit: String.to_integer(n), window_ms: 60_000]
+        _ ->
+          if conn.remote_ip in [{127, 0, 0, 1}, {0, 0, 0, 0, 0, 0, 0, 1}] do
+            [limit: 100_000, window_ms: 60_000]
+          else
+            base_opts
+          end
+      end
+
+    case RateLimit.check(RateLimit.table(), {:auth_ip, conn.remote_ip}, rate_opts) do
       :ok ->
         issue(conn, params)
 

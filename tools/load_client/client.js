@@ -29,7 +29,7 @@ export class LoadClient {
   constructor({
     guestId,
     nickname,
-    wsUrl = 'ws://127.0.0.1:4000/socket/websocket',
+    wsUrl = 'ws://127.0.0.1:4000/ws',
     roomId = 'market',
     consumeHz = 10,
     maxUnread = 32,

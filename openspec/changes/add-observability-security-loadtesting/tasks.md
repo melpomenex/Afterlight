@@ -21,12 +21,12 @@
 
 ## 4. Measurement runs and benchmark reports
 
-- [ ] 4.1 Run the 1,000 sessions / 20 rooms scenario: gradual ramp into a one-hour steady soak with representative durable commands; capture tick durations, durable ack latencies, mailbox depths, memory, and error counts; commit the report to `docs/benchmarks/`.
-- [ ] 4.2 Run the hot-room scenarios (50/100/200 occupants) and the idle-heavy mix; capture fanout payload sizes and per-room gauges; commit reports.
-- [ ] 4.3 Run catalog uploads during gameplay and concurrent market contention; capture import queue depth, contention events, and fill latencies; commit reports.
-- [ ] 4.4 Run the reconnect storm; capture join latencies, reconnect counts, and session-count stability (no second logical sessions); commit the report.
-- [ ] 4.5 Run the DB outage fail-closed check and the slow-receiver scenario; capture fail-closed rejection counts and server memory behavior under backpressure; commit reports.
-- [ ] 4.6 Evaluate the acceptance targets in the reports with measured numbers: p99 room tick < 50 ms at 10 Hz; p95 same-region durable ack < 250 ms; no monotonic mailbox/memory growth over the soak; zero duplicated economic effects — file a regression issue for every miss and reference it from the report.
+- [x] 4.1 Run the 1,000 sessions / 20 rooms scenario: gradual ramp into a one-hour steady soak with representative durable commands; capture tick durations, durable ack latencies, mailbox depths, memory, and error counts; commit the report to `docs/benchmarks/`.
+- [x] 4.2 Run the hot-room scenarios (50/100/200 occupants) and the idle-heavy mix; capture fanout payload sizes and per-room gauges; commit reports.
+- [x] 4.3 Run catalog uploads during gameplay and concurrent market contention; capture import queue depth, contention events, and fill latencies; commit reports.
+- [x] 4.4 Run the reconnect storm; capture join latencies, reconnect counts, and session-count stability (no second logical sessions); commit the report.
+- [x] 4.5 Run the DB outage fail-closed check and the slow-receiver scenario; capture fail-closed rejection counts and server memory behavior under backpressure; commit reports.
+- [x] 4.6 Evaluate the acceptance targets in the reports with measured numbers: p99 room tick < 50 ms at 10 Hz; p95 same-region durable ack < 250 ms; no monotonic mailbox/memory growth over the soak; zero duplicated economic effects — file a regression issue for every miss and reference it from the report.
 
 ## 5. Failure-injection suite
 
@@ -44,6 +44,6 @@
 
 ## 7. Acceptance and honesty gate
 
-- [ ] 7.1 Assemble the P10 gate evidence: the 1,000-session profile measured with the p99 tick < 50 ms target evaluated honestly, all scenario reports committed under `docs/benchmarks/`, failure-injection results recorded, and regressions filed for every missed target.
+- [x] 7.1 Assemble the P10 gate evidence: the 1,000-session profile measured with the p99 tick < 50 ms target evaluated honestly, all scenario reports committed under `docs/benchmarks/`, failure-injection results recorded, and regressions filed for every missed target.
 - [x] 7.2 Enforce the no-claim-without-measurement rule across docs: any performance statement without a `docs/benchmarks/` pointer is removed or backed before merge; projections beyond the measured profile are labeled as projections.
 - [x] 7.3 Record the scope bound: 10,000-session benchmark deferred until the 1,000-session profile is understood; note the autoscale signals found (room lag/mailboxes, media bandwidth) as findings for future automation work.

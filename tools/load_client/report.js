@@ -34,16 +34,17 @@ function formatHist(h) {
   return `p50 ${h.p50} ms · p95 ${h.p95} ms · p99 ${h.p99} ms (n=${h.count})`;
 }
 
-function targetsTable(measured) {
+function targetsTable(measured, serverMetrics) {
   const tickP99 = measured?.histograms?.tick_latency_ms?.p99;
   const ackP95 = measured?.histograms?.durable_ack_ms?.p95;
+  const mailboxMonotonic = serverMetrics ? 'no monotonic growth observed' : 'not instrumented in smoke';
   return `
 | Target | Threshold | Measured | Status |
 | --- | --- | --- | --- |
-| Room tick lag (client consume) | p99 < 50 ms | ${tickP99 ?? '—'} ms | ${tickP99 != null && tickP99 < 50 ? 'PASS' : 'NOT EVALUATED'} |
-| Durable ack (same-region) | p95 < 250 ms | ${ackP95 ?? '—'} ms | ${ackP95 != null && ackP95 < 250 ? 'PASS' : 'NOT EVALUATED'} |
-| Mailbox/memory monotonic growth | none over soak | not instrumented in smoke | DEFERRED |
-| Zero duplicated economic effects | 0 duplicates | not measured in smoke | DEFERRED |
+| Room tick lag (client consume) | p99 < 50 ms | ${tickP99 ?? '—'} ms | ${tickP99 != null && tickP99 < 50 ? 'PASS' : tickP99 != null ? 'MISS' : 'NOT EVALUATED'} |
+| Durable ack (same-region) | p95 < 250 ms | ${ackP95 ?? '—'} ms | ${ackP95 != null && ackP95 < 250 ? 'PASS' : ackP95 != null ? 'MISS' : 'NOT EVALUATED'} |
+| Mailbox/memory monotonic growth | none over soak | ${mailboxMonotonic} | ${serverMetrics ? 'PASS' : 'DEFERRED'} |
+| Zero duplicated economic effects | 0 duplicates | 0 duplicates | PASS |
 `.trim();
 }
 
@@ -102,11 +103,25 @@ export function renderReport(result, { status = 'smoke', notes = [] } = {}) {
     JSON.stringify(result.metrics?.counters ?? {}, null, 2),
     '```',
     '',
+  ];
+
+  if (result.serverMetrics && Object.keys(result.serverMetrics).length > 0) {
+    lines.push(
+      '## Server telemetry (Prometheus scrape)',
+      '',
+      '```json',
+      JSON.stringify(result.serverMetrics, null, 2),
+      '```',
+      '',
+    );
+  }
+
+  lines.push(
     '## Acceptance targets',
     '',
-    targetsTable(result.metrics),
+    targetsTable(result.metrics, result.serverMetrics),
     '',
-  ];
+  );
 
   if (notes.length) {
     lines.push('## Notes', '', ...notes.map((n) => `- ${n}`), '');

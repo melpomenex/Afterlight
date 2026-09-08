@@ -27,9 +27,11 @@ function parseArgs(argv) {
 
 async function main() {
   const { cmd, positional, flags } = parseArgs(process.argv.slice(2));
-  const wsUrl = flags.ws ?? process.env.LOAD_WS_URL ?? 'ws://127.0.0.1:4000/socket/websocket';
+  const wsUrl = flags.ws ?? process.env.LOAD_WS_URL ?? 'ws://127.0.0.1:4000/ws';
   const overrides = { wsUrl };
   if (flags.sessions) overrides.sessions = Number(flags.sessions);
+  if (flags.rampMs) overrides.rampMs = Number(flags.rampMs);
+  if (flags.soakMs) overrides.soakMs = Number(flags.soakMs);
 
   if (cmd === 'list') {
     for (const name of listScenarios()) console.log(name);
@@ -45,8 +47,9 @@ async function main() {
     const result = await runScenario(name, overrides);
     console.log(JSON.stringify(result, null, 2));
     if (flags.report) {
-      const file = writeReport(result, `${name}-${Date.now()}.md`, {
-        status: flags.status ?? 'manual',
+      const filename = typeof flags.report === 'string' ? flags.report : `${name}-report.md`;
+      const file = writeReport(result, filename, {
+        status: flags.status ?? 'measured',
       });
       console.error(`wrote ${file}`);
     }

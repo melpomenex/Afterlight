@@ -31,7 +31,7 @@ function jitter(ms, spread = 0.3) {
 }
 
 async function spawnClient(config, idx, metrics) {
-  const guestId = `${config.guestPrefix}_${idx}`;
+  const guestId = `${config.guestPrefix ?? 'guest_load'}_${idx}_${Date.now()}`;
   const client = new LoadClient({
     guestId,
     nickname: config.nickname ?? 'Load',
@@ -118,6 +118,45 @@ async function runIdleSoak(clients, config) {
   }
 }
 
+async function runCatalogUploads(clients, config) {
+  const httpBase = clients[0]?.httpBase ?? 'http://127.0.0.1:4000';
+  const interval = config.uploadIntervalMs ?? 15000;
+  const endpoint = `${httpBase}/api/theater/playlists`;
+  const count = config.uploadCount ?? Math.max(1, Math.floor((config.soakMs ?? 30000) / interval));
+  for (let i = 0; i < count; i++) {
+    try {
+      await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: `https://www.youtube.com/playlist?list=PLloadtest_${i}` }),
+      });
+    } catch {}
+    if (i < count - 1) await sleep(interval);
+  }
+}
+
+async function scrapePrometheusMetrics(httpBase) {
+  try {
+    const res = await fetch(`${httpBase}/metrics`);
+    if (!res.ok) return null;
+    const text = await res.text();
+    const serverMetrics = {};
+    for (const line of text.split('\n')) {
+      if (!line || line.startsWith('#')) continue;
+      const spaceIdx = line.lastIndexOf(' ');
+      if (spaceIdx === -1) continue;
+      const key = line.slice(0, spaceIdx);
+      const val = parseFloat(line.slice(spaceIdx + 1));
+      if (!Number.isNaN(val)) {
+        serverMetrics[key] = val;
+      }
+    }
+    return serverMetrics;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Execute one named scenario; returns structured results for reporting.
  */
@@ -133,12 +172,21 @@ export async function runScenario(name, overrides = {}) {
   if (config.movementBursts) await runMovementBurst(clients, config);
   if (config.durableCommandsPerClient) await runDurableCommands(clients, config);
   if (config.reconnectStorm) await runReconnectStorm(clients, config);
-  if (config.soakMs) await runIdleSoak(clients, config);
+  if (config.catalogUploads) {
+    await Promise.all([
+      config.soakMs ? runIdleSoak(clients, config) : Promise.resolve(),
+      runCatalogUploads(clients, config),
+    ]);
+  } else if (config.soakMs) {
+    await runIdleSoak(clients, config);
+  }
 
   const soakMs = config.postSoakMs ?? 0;
   if (soakMs > 0) await sleep(soakMs);
 
   const clientStats = clients.map((c) => c.stats());
+  const httpBase = clients[0]?.httpBase ?? 'http://127.0.0.1:4000';
+  const serverMetrics = await scrapePrometheusMetrics(httpBase);
   for (const c of clients) c.close();
 
   const elapsedMs = Date.now() - t0;
@@ -149,6 +197,7 @@ export async function runScenario(name, overrides = {}) {
     elapsedMs,
     liveview,
     metrics: metrics.toJSON(),
+    serverMetrics,
     clients: clientStats,
     software: {
       node: process.version,

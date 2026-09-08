@@ -19,7 +19,7 @@ defmodule Afterlight.FailureInjection.DeployDrainTest do
 
     {:ok, %{player: player, session: session}} = Accounts.create_guest_session(token, claims)
     actor = Actor.session(player.id, session.id, session.token_hash)
-    calls = :counters.new(:drain_calls, [])
+    calls = :counters.new(1, [])
 
     payload = %{op: :order_place, sku: "sprinkler"}
 

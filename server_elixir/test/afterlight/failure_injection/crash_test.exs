@@ -2,7 +2,7 @@ defmodule Afterlight.FailureInjection.CrashTest do
   @moduledoc """
   P10 §5.1 — room-owner and gateway crash invariants.
   """
-  use ExUnit.Case, async: false
+  use Afterlight.DataCase, async: false
 
   import Phoenix.ChannelTest
 
@@ -69,6 +69,8 @@ defmodule Afterlight.FailureInjection.CrashTest do
       assert_push("presence_update", %{"players" => _players})
 
       assert Afterlight.World.member?("market", guest, second.assigns.conn_ref)
+      loser_ref = Process.monitor(first.channel_pid)
+      assert_receive {:DOWN, ^loser_ref, :process, _pid, _reason}, 1_000
       refute Process.alive?(first.channel_pid)
     end)
   end
