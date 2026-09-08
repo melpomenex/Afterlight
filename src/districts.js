@@ -1,136 +1,18 @@
+import { buildRainCourtScenery } from './world/rainCourtWorld.js';
+import { buildDesertCampScenery } from './world/desertCampWorld.js';
+import { buildRooftopScenery } from './world/rooftopWorld.js';
 import * as THREE from 'three';
-import { MATERIAL_NODES, MATERIALS } from '../shared/materials.js';
 import { buildTheaterScenery } from './world/theaterWorld.js';
+import { registerPlaceBuilder } from './places/registry.js';
+import { buildPlaceWorld } from './places/worldFactory.js';
+import { PLACE_DEFINITIONS as districts } from '../shared/placeDefinitions.js';
 
-export const districts = [
-  { id: 'court', name: 'The Rain Court', district: 'LOWER DISTRICT / 04', subtitle: 'AFTER THE RAIN', color: '#657264', sun: '#ffe0a5', description: 'Wet stone, warm windows. Where your journey began.' },
-  { id: 'canal', name: 'The Sluiceworks', district: 'WATER DISTRICT / 05', subtitle: 'BENEATH THE MIST', color: '#466b70', sun: '#c3e6e1', description: 'Cross the canal and wake the sleeping waterworks.', objective: 'Open the sluice valve', action: 'Turn the sluice valve', done: 'Waterworks flowing', message: 'Water moves through the old channels again. Somewhere below, a garden drinks.', landmark: [7, -5], note: [-7, 5], noteTitle: 'A waterkeeper’s promise', noteBody: '“Keep the water moving. The roots above us are still alive.”', spawn: [-9, 0] },
-  { id: 'garden', name: 'The Glass Garden', district: 'UPPER TERRACES / 06', subtitle: 'WHERE GREEN RETURNS', color: '#78846a', sun: '#ffe6ad', description: 'An overgrown greenhouse above the city. Something still grows.', objective: 'Wake the seed nursery', action: 'Tend the seed nursery', done: 'Nursery awakened', message: 'The nursery lights up, sheltering a new generation of green. Kiln watches the leaves unfold.', landmark: [4, -5], note: [-6, 5], noteTitle: 'The last gardener', noteBody: '“A city is not empty while something is growing. Leave a little room for the wild.”', spawn: [-9, 0] },
-  { id: 'station', name: 'The Last Platform', district: 'TRANSIT DISTRICT / 07', subtitle: 'THE BLUE HOUR', color: '#424d70', sun: '#b4c5fa', description: 'An abandoned tram stop, and a signal waiting to be heard.', objective: 'Light the signal beacon', action: 'Send the home signal', done: 'Signal broadcasting', message: 'A warm signal reaches across the rooftops. If someone is out there, they know the city is waking.', landmark: [7, 5], note: [-6, 5], noteTitle: 'An unsent timetable', noteBody: '“Last service: whenever you are ready. There will always be a way home.”', spawn: [-9, 0] },
-  { id: 'aqueduct', name: 'The Sunken Aqueduct', district: 'AQUEDUCT DISTRICT / 08', subtitle: 'DEEP RUNS THE WATER', color: '#384d52', sun: '#9ec4c0', description: 'Subterranean stone channels beneath the old city. Clear the silt sluice to let the cisterns breathe.', objective: 'Clear the silt sluice', action: 'Raise the silt gate', done: 'Cisterns breathing', message: 'Clear water rushes through the ancient conduit. The subterranean echoing returns to life.', landmark: [6, -4], note: [-6, 4], noteTitle: 'Cistern Overseer’s Log', noteBody: '“The masonry has held for three centuries. Give it clean water, and it will hold for three more.”', spawn: [-9, 0] },
-  { id: 'caldera', name: 'The Boiler Caldera', district: 'GEOTHERMAL DISTRICT / 09', subtitle: 'HEAT FROM THE DEEP', color: '#4d3b38', sun: '#f7aa74', description: 'Steam vents hiss through dark basalt crevices. Regulate the geothermal manifold.', objective: 'Regulate the geothermal manifold', action: 'Turn the pressure manifold', done: 'Manifold regulated', message: 'Steam settles into a steady, resonant rhythm. Warm air rises toward the cold terraces above.', landmark: [5, -4], note: [-6, 5], noteTitle: 'Thermal Watchman', noteBody: '“Listen to the pressure before you touch a valve. The rock speaks if you have patience.”', spawn: [-9, 0] },
-  { id: 'understory', name: 'The Spore Understory', district: 'FUNGAL DISTRICT / 10', subtitle: 'LIGHT IN THE DAMP', color: '#3b4737', sun: '#a5d9a0', description: 'A cavernous lower rotunda overtaken by luminous fungi. Awaken the bioluminescent mycelium.', objective: 'Awaken the mycelium lattice', action: 'Energize the mycelial node', done: 'Mycelium luminous', message: 'Soft green light pulses through the damp loam and ripples across the shelf fungi.', landmark: [6, -5], note: [-7, 5], noteTitle: 'Fungal Archivist', noteBody: '“Fungi remember where every tree once stood. They do not hurry, and they never forget.”', spawn: [-9, 0] },
-  { id: 'saltworks', name: 'The Bleached Saltworks', district: 'MINERAL DISTRICT / 11', subtitle: 'WHITE TERRACES OF BRINE', color: '#566668', sun: '#e3f3f7', description: 'Blinding white crystalline flats and evaporation pans. Free the stuck brine pump.', objective: 'Engage the brine pump', action: 'Prime the brine pump', done: 'Brine pump turning', message: 'Clear brine trickles into the shallow crystallizers. Salt crystals shimmer in the sunlight.', landmark: [7, -4], note: [-6, 4], noteTitle: 'Salt Harvester’s Tablet', noteBody: '“The tide gives, the wind takes, and the salt remains. A clean basin makes clean bread.”', spawn: [-9, 0] },
-  { id: 'rooftops', name: 'The High Awnings', district: 'SKYWARD DISTRICT / 12', subtitle: 'WHERE WINDS GATHER', color: '#546370', sun: '#e6d8b8', description: 'Wind-beaten scaffolding and catwalks overlooking the expanse. Free the anemometer array.', objective: 'Free the anemometer array', action: 'Align the wind vanes', done: 'Wind array spinning', message: 'The brass vanes catch the gusts and sing against the copper eaves. The city knows which way the wind blows.', landmark: [6, -5], note: [-5, 5], noteTitle: 'Roofkeeper’s Weather Log', noteBody: '“Up here, you feel the city breathing. The high wind is honest; it hides nothing.”', spawn: [-9, 0] },
-  { id: 'mangrove', name: 'The Brackish Basin', district: 'ESTUARY DISTRICT / 13', subtitle: 'ROOTS IN THE BRINE', color: '#44574c', sun: '#cde4cb', description: 'Submerged brickwork laced with tangle roots and stilt boardwalks. Restore the tidal weir.', objective: 'Clear the tidal weir', action: 'Lower the timber weir', done: 'Tidal weir secured', message: 'The water slows behind the timber barrier. Small fish dart among the submerged brick columns.', landmark: [6, -4], note: [-6, 5], noteTitle: 'Estuary Keeper’s Marker', noteBody: '“The tide doesn’t care about our masonry, but the roots hold both together.”', spawn: [-9, 0] },
-  { id: 'trestle', name: 'The Overgrown Trestle', district: 'CANOPY DISTRICT / 14', subtitle: 'IRON IN THE BOUGHS', color: '#4e5a42', sun: '#dce6b6', description: 'A massive iron railway viaduct gripped by ancient boughs. Restore the suspended maintenance crane.', objective: 'Anchor the canopy crane', action: 'Engage the hoist cable', done: 'Canopy crane anchored', message: 'Tension locks into the heavy iron cables. Kiln chirps as the suspension bridge stabilizes.', landmark: [7, -4], note: [-5, 5], noteTitle: 'Viaduct Inspector’s Plaque', noteBody: '“Steel will flex and timber will bend, but together they span the valley.”', spawn: [-9, 0] },
-  { id: 'foundry', name: 'The Rustfall Foundry', district: 'SMELTING DISTRICT / 15', subtitle: 'HEARTH OF SLAG AND ORE', color: '#4a3832', sun: '#f2a679', description: 'Red iron dust and towering crucible furnaces. Ignite the pilot hearth.', objective: 'Ignite the pilot hearth', action: 'Spark the furnace igniter', done: 'Pilot hearth glowing', message: 'A warm orange glow spreads through the blast flue. Warmth returns to the cold cast iron.', landmark: [6, -4], note: [-6, 5], noteTitle: 'Foundry Master’s Inscription', noteBody: '“Cold iron forgets its shape until fire reminds it. Never let the pilot flame die completely.”', spawn: [-9, 0] },
-  { id: 'frost-spire', name: 'The Glacial Glasshouse', district: 'ALPINE DISTRICT / 16', subtitle: 'ABOVE THE CLOUD LINE', color: '#45596e', sun: '#d6ecff', description: 'A fractured glass observatory battered by alpine frost. Clear the ice crystals from the solar collector.', objective: 'Clear the solar collector', action: 'Sweep the frost collector', done: 'Solar collector cleared', message: 'Sunlight catches the polished mirror facets. Warmth begins melting the frost along the rim.', landmark: [5, -5], note: [-6, 5], noteTitle: 'Alpine Observer’s Journal', noteBody: '“The cold is patient, but glass and copper remember the light. Keep looking upward.”', spawn: [-9, 0] },
-  { id: 'delta', name: 'The Reclaimed Marshes', district: 'DELTA DISTRICT / 17', subtitle: 'WHISPERS IN THE REEDS', color: '#525b45', sun: '#d9e0b2', description: 'Shallow sandbars and cattail marshes woven through stranded barges. Realign the channel beacon.', objective: 'Light the channel beacon', action: 'Strike the marsh beacon', done: 'Channel beacon lit', message: 'A warm beacon reflects across the delta shallows, cutting through the twilight mist.', landmark: [7, -4], note: [-6, 4], noteTitle: 'Delta Boatman’s Note', noteBody: '“Follow the reeds when the silt shifts. Where water moves slowly, green things thrive.”', spawn: [-9, 0] },
-  { id: 'archives', name: 'The Paper Catacombs', district: 'ARCHIVE DISTRICT / 18', subtitle: 'WHISPERING VAULTS', color: '#48444a', sun: '#f5e4bd', description: 'Stone shelves holding centuries of water-resistant parchment. Light the reading desk lamp.', objective: 'Illuminate the study rotunda', action: 'Turn the reading lamp switch', done: 'Study rotunda illuminated', message: 'A soft amber globe illuminates centuries of hand-bound volumes. The silence feels like peace.', landmark: [5, -4], note: [-6, 5], noteTitle: 'Chief Archivist’s Dedication', noteBody: '“Words outlive empires, provided someone keeps the rain from dripping on the ink.”', spawn: [-9, 0] },
-  { id: 'kiln-terrace', name: 'The Solar Kiln', district: 'TERRACOTTA DISTRICT / 19', subtitle: 'BAKED IN WARMTH', color: '#634b3e', sun: '#ffd09e', description: 'Baked clay tiles and parabolic sun collectors. Align the solar concentrator.', objective: 'Focus the solar concentrator', action: 'Calibrate the focal mirror', done: 'Concentrator focused', message: 'A brilliant point of concentrated sunlight gleams against the terracotta kiln. Warmth radiates.', landmark: [6, -4], note: [-5, 5], noteTitle: 'Potter’s Credo', noteBody: '“Earth, water, and sun. With these three, a broken city can remake itself cup by cup.”', spawn: [-9, 0] },
-  { id: 'theater', name: 'The Orpheum', district: 'CINEMA DISTRICT / 20', subtitle: 'PICTURES IN THE DARK', color: '#3a3345', sun: '#e8c9a0', description: 'A grand old cinema where the city gathers after dark. Queue a film, take a seat.', objective: 'Restore power to the projector', action: 'Restore the projector', done: 'Projector humming', message: 'The marquee blazes and the reel begins to turn. Take a seat — whatever plays here plays for everyone.', landmark: [8, -6], note: [-6, 7.2], noteTitle: 'The Orpheum’s house rules', noteBody: '“Anyone may change the picture. No one owns the screen. Leave the aisle lamps burning for whoever comes next.”', spawn: [-9, 0] },
-];
-
-// Gather-node visuals. These live in a dynamic subgroup that is explicitly
-// excluded from the static instanced batch: nodes change state at runtime
-// (depleted/available), and animating batched source meshes silently does
-// nothing (AGENTS.md §7). Geometry is shared module-level; only materials
-// that animate are per-instance.
-const nodeGeo = new THREE.BoxGeometry(1, 1, 1);
-const nodeMaterialCache = new Map();
-function nodeMaterial(color, emissive = null, emissiveIntensity = 0) {
-  const key = `${color}_${emissive || ''}_${emissiveIntensity}`;
-  if (!nodeMaterialCache.has(key)) {
-    nodeMaterialCache.set(key, new THREE.MeshStandardMaterial({
-      color, roughness: 0.62, metalness: 0.2,
-      emissive: emissive || '#000000', emissiveIntensity,
-    }));
-  }
-  return nodeMaterialCache.get(key);
-}
-function nbox(parent, x, y, z, w, h, d, mat, rotZ = 0, rotY = 0) {
-  const mesh = new THREE.Mesh(nodeGeo, mat);
-  mesh.position.set(x, y, z);
-  mesh.scale.set(w, h, d);
-  mesh.rotation.z = rotZ;
-  mesh.rotation.y = rotY;
-  mesh.castShadow = mesh.receiveShadow = true;
-  parent.add(mesh);
-  return mesh;
-}
-
-// Builds the harvestable material nodes owned by this district under a
-// dynamic subgroup, and returns { visuals, dynamicGroup }.
-function buildMaterialNodes(def, ctx) {
-  const { group, items, animated } = ctx;
-  const defs = MATERIAL_NODES.filter(node => node.district === def.id);
-  if (defs.length === 0) return null;
-
-  const dynamic = new THREE.Group();
-  dynamic.name = 'dynamic';
-  group.add(dynamic);
-
-  const visuals = defs.map((nodeDef, i) => {
-    const matDef = MATERIALS[nodeDef.material];
-    const [x, z] = nodeDef.position;
-    const nodeGroup = new THREE.Group();
-    nodeGroup.position.set(x, 0, z);
-    dynamic.add(nodeGroup);
-
-    // Shared base slab every node keeps, even picked clean.
-    nbox(nodeGroup, 0, 0.12, 0, 1.15, 0.24, 1.15, nodeMaterial('#3d4547'));
-
-    // The harvestable cache itself; hidden while depleted.
-    const rich = new THREE.Group();
-    nodeGroup.add(rich);
-    if (nodeDef.material === 'copper') {
-      nbox(rich, -0.18, 0.34, 0.1, 0.42, 0.34, 0.42, nodeMaterial(matDef.color), 0, 0.4);
-      nbox(rich, 0.22, 0.3, -0.14, 0.34, 0.26, 0.34, nodeMaterial('#a8663a'), 0.2, -0.5);
-      nbox(rich, 0.05, 0.54, 0.02, 0.2, 0.22, 0.2, nodeMaterial('#d18b52'), -0.3, 0.9);
-    } else if (nodeDef.material === 'timber') {
-      nbox(rich, 0, 0.36, 0.05, 1.05, 0.26, 0.3, nodeMaterial(matDef.color), 0, 0.18);
-      nbox(rich, 0.06, 0.6, -0.04, 0.95, 0.24, 0.28, nodeMaterial('#8a6842'), 0, -0.32);
-      nbox(rich, -0.05, 0.8, 0.02, 0.6, 0.2, 0.24, nodeMaterial('#6b4e30'), 0, 0.62);
-    } else {
-      nbox(rich, -0.16, 0.4, 0.08, 0.16, 0.5, 0.4, nodeMaterial(matDef.color), 0.12, 0.3);
-      nbox(rich, 0.18, 0.36, -0.1, 0.14, 0.44, 0.34, nodeMaterial('#b8d8e8'), -0.1, -0.6);
-      nbox(rich, 0.02, 0.52, 0.12, 0.12, 0.62, 0.3, nodeMaterial('#cfe4f0'), 0.05, 1.1);
-    }
-
-    // A single warm glint marks the cache as gatherable; it is extinguished
-    // while the node is depleted.
-    const sparkMat = new THREE.MeshStandardMaterial({
-      color: matDef.glowColor, emissive: matDef.glowColor, emissiveIntensity: 1.2,
-    });
-    const spark = new THREE.Mesh(nodeGeo, sparkMat);
-    spark.scale.set(0.12, 0.12, 0.12);
-    spark.position.y = 0.95;
-    nodeGroup.add(spark);
-
-    const item = {
-      type: 'material_node',
-      nodeId: nodeDef.id,
-      material: nodeDef.material,
-      x, z,
-      title: `${matDef.name} cache`,
-      sub: 'Press E to gather materials',
-    };
-    items.push(item);
-
-    const visual = { def: nodeDef, nodeGroup, rich, spark, sparkMat, item, depleted: false, phase: i * 1.7 };
-    animated.push(time => {
-      if (visual.depleted) return;
-      spark.position.y = 0.95 + Math.sin(time * 2 + visual.phase) * 0.07;
-      spark.rotation.y = time * 0.8 + visual.phase;
-      sparkMat.emissiveIntensity = 1.1 + Math.sin(time * 2.6 + visual.phase) * 0.35;
-    });
-    return visual;
-  });
-
-  return { visuals, dynamic };
-}
-
-function applyNodeState(visual, state) {
-  visual.depleted = !state.available;
-  visual.rich.visible = state.available;
-  visual.spark.visible = state.available;
-  if (visual.item) {
-    visual.item.sub = state.available
-      ? 'Press E to gather materials'
-      : 'Picked clean — it will regrow in time';
-  }
-}
+// Plain place metadata lives in the pure shared manifest (single editable
+// source for tests, projection and browser); this module keeps the renderer
+// side: the per-district builders, exploration-save normalization and the
+// compatible buildDistrict entry, which delegates construction to the place
+// world factory.
+export { districts };
 
 export function readExploration(value) {
   return {
@@ -509,7 +391,7 @@ function buildCourtScenery(ctx) {
 }
 
 const DISTRICT_BUILDERS = {
-  court: buildCourtScenery,
+  court: buildRainCourtScenery,
   canal: buildCanalScenery,
   garden: buildGardenScenery,
   station: buildStationScenery,
@@ -517,7 +399,8 @@ const DISTRICT_BUILDERS = {
   caldera: buildCalderaWorld,
   understory: buildUnderstoryWorld,
   saltworks: buildSaltworksWorld,
-  rooftops: buildRooftopsWorld,
+  rooftops: buildRooftopScenery,
+  'desert-camp': buildDesertCampScenery,
   mangrove: buildMangroveWorld,
   trestle: buildTrestleWorld,
   foundry: buildFoundryWorld,
@@ -528,108 +411,15 @@ const DISTRICT_BUILDERS = {
   theater: buildTheaterScenery,
 };
 
-// Each district owns its scenery and collision map. Only the current group is rendered.
+// Builder references resolve through the places registry; the manifest stays
+// pure data. Registering the legacy table keeps DISTRICT_BUILDERS as the
+// single place new biome builders are added to.
+for (const [key, build] of Object.entries(DISTRICT_BUILDERS)) registerPlaceBuilder(key, build);
+
+// Each district owns its scenery and collision map. Only the current group is
+// rendered. Construction lives in the place world factory: definition
+// validation before any geometry, explicit seed, shell selection, static
+// batching and the owned-resource set.
 export function buildDistrict(def, completed = false) {
-  const group = new THREE.Group();
-  group.name = def.id;
-  const obstacles = [], items = [], animated = [];
-  const geometry = new THREE.BoxGeometry(1, 1, 1);
-  const colors = { stone: '#6b776c', dark: '#233c3e', brass: '#b78d50', green: '#58734c' };
-  const materialCache = new Map();
-  const material = color => {
-    if (!materialCache.has(color)) materialCache.set(color, new THREE.MeshStandardMaterial({ color, roughness: .62, metalness: .2 }));
-    return materialCache.get(color);
-  };
-  function box(x, y, z, w, h, d, color = colors.stone) {
-    const mesh = new THREE.Mesh(geometry, material(color));
-    mesh.position.set(x, y, z); mesh.scale.set(w, h, d);
-    mesh.castShadow = mesh.receiveShadow = true; group.add(mesh); return mesh;
-  }
-  function block(x, z, w, d) { obstacles.push({ x, z, w: w / 2 + .38, d: d / 2 + .38 }); }
-  function glow(x, y, z, w, h, d, color, intensity = 1.5) {
-    const mesh = box(x, y, z, w, h, d, color);
-    mesh.material = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: intensity });
-    return mesh;
-  }
-  function lamp(x, z, color = '#ffcb79') {
-    box(x, 1.8, z, .12, 3.6, .12, colors.dark);
-    glow(x, 3.6, z, .35, .5, .35, color, 2);
-    box(x, 3.92, z, .6, .12, .6, colors.dark);
-    const light = new THREE.PointLight(color, 7, 7, 2);
-    light.position.set(x, 3.4, z); group.add(light);
-    block(x, z, .25, .25);
-  }
-  let seed = districts.indexOf(def) * 37;
-  function random() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
-  box(0, -.55, 0, 25, 1, 22, '#263638');
-  for (let x = -12; x < 12; x++) for (let z = -10; z < 11; z++) {
-    const palette = def.id === 'garden' ? ['#7b816a', '#8b8b70', '#64745e'] : ['#586b6d', '#657373', '#475b61'];
-    box(x + .5, .06, z + .5, .96, .15, .96, palette[Math.floor(random() * 3)]);
-  }
-  // Low perimeter walls leave the near side open to the camera.
-  for (let x = -12; x <= 12; x += .8) for (let y = .4; y < 3; y += .4) box(x, y, -10.5, .76, .37, .65, y > 2.6 ? '#a0a18a' : '#4d6561');
-  for (let z = -10; z < 11; z += .8) {
-    for (const x of [-12, 12]) {
-      if (Math.abs(z) < 2) continue;
-      box(x, .65, z, .5, 1.3, .76, colors.dark);
-      box(x, 1.35, z, .7, .15, .78, colors.stone);
-    }
-  }
-  for (const x of [-9, -3, 3, 9]) {
-    box(x, 4, -13, 5, 8, 4, '#2b4145');
-    for (let a = -1.5; a < 2; a += 1) for (let y = 3; y < 7; y += 1.5) glow(x + a, y, -10.96, .45, .7, .04, '#91b4ab', .25);
-  }
-  lamp(-10, -7); lamp(10, 8);
-
-  const builder = DISTRICT_BUILDERS[def.id];
-  if (!builder) {
-    throw new Error(`Unknown district id: ${def.id}`);
-  }
-  const ctx = { group, obstacles, items, animated, geometry, colors, material, box, block, glow, lamp, random, def, completed };
-  builder(ctx);
-
-  // Notes and landmarks remain accessible from a clear approach. Districts
-  // without one (the court) simply skip the block.
-  let signal = null, ring = null;
-  if (def.note) {
-    const [nx, nz] = def.note;
-    box(nx, .6, nz, .8, 1.2, .6, colors.dark); block(nx, nz, .8, .6);
-    glow(nx, 1.24, nz, .5, .035, .4, '#d4c9a1', .4);
-    items.push({ type: 'field-note', x: nx, z: nz, title: 'Read the field note', sub: def.noteTitle, body: def.noteBody });
-  }
-  if (def.landmark) {
-    const [lx, lz] = def.landmark;
-    signal = glow(lx, 2.5, lz, .13, .13, .13, '#ffe0a0', 2);
-    ring = new THREE.Mesh(new THREE.RingGeometry(.8, .84, 32), new THREE.MeshBasicMaterial({ color: '#e7c889', side: THREE.DoubleSide, transparent: true, opacity: .65 }));
-    ring.rotation.x = -Math.PI / 2; ring.position.set(lx, .25, lz); group.add(ring);
-    items.push({ type: 'landmark', x: lx, z: lz, title: def.action, sub: 'A small act of restoration' });
-  }
-
-  // Gather nodes for this district (server state applied on district entry).
-  // They live in a dynamic subgroup that the static batch below skips.
-  const nodeBuild = buildMaterialNodes(def, { group, items, animated });
-  function setNodeStates(states) {
-    if (!nodeBuild || !Array.isArray(states)) return;
-    for (const state of states) {
-      const visual = nodeBuild.visuals.find(v => v.def.id === state.nodeId);
-      if (visual) applyNodeState(visual, state);
-    }
-  }
-  function update(time, done) {
-    if (signal) {
-      signal.position.y = 2.5 + Math.sin(time * 2) * .12;
-      signal.material.emissive.set(done ? '#93e9b6' : '#ffe0a0');
-    }
-    if (ring) ring.material.color.set(done ? '#93e9b6' : '#e7c889');
-    animated.forEach(fn => fn(time, done));
-  }
-  update(0, completed);
-  // Instance opaque static boxes, preserving glass and emissive animated objects.
-  const statics = group.children.filter(o => o.isMesh && o.geometry === geometry && !o.material.transparent && o.material.emissive?.getHex() === 0);
-  const batch = new THREE.InstancedMesh(geometry, new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: .62, metalness: .2 }), statics.length);
-  statics.forEach((mesh, i) => { mesh.updateMatrix(); batch.setMatrixAt(i, mesh.matrix); batch.setColorAt(i, mesh.material.color); group.remove(mesh); });
-  batch.castShadow = batch.receiveShadow = true; group.add(batch);
-  // Districts may expose extra data (the theater's screen quad for the DOM
-  // overlay); existing consumers only read the fields above, so this is safe.
-  return { group, obstacles, items, update, setNodeStates, screenQuad: ctx.screenQuad || null };
+  return buildPlaceWorld(def, { completed });
 }

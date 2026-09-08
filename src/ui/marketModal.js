@@ -7,6 +7,10 @@ export class UIManager {
   constructor(client, onAction = {}) {
     this.client = client;
     this.onAction = onAction;
+    // Optional HUD-policy seam (deemphasize-legacy-farming): main.js injects
+    // a () => policy for the active place. When absent, every view below
+    // behaves exactly as before the contextual HUD existed.
+    this.hudPolicyProvider = null;
     this.selectedCropId = 'radish';
     this.activeTool = 'hands'; // 'hands' | 'hoe' | 'seed' | 'water' | 'harvest' | 'sprinkler'
     this.selectedSeed = 'radish';
@@ -149,8 +153,9 @@ export class UIManager {
     dialog.id = 'inventory-dialog';
     dialog.className = 'game-modal';
     dialog.innerHTML = `
-      <div class="micro modal-header-tag">GARDENER'S SATCHEL</div>
+      <div class="micro modal-header-tag">GARDENER’S SATCHEL</div>
       <h2>Inventory & Harvests</h2>
+      <p class="modal-sub" id="inv-player-summary"></p>
       <div class="inventory-sections">
         <div>
           <h3 class="micro">SEEDS & PROPAGATION</h3>
@@ -211,6 +216,7 @@ export class UIManager {
     dialog.innerHTML = `
       <div class="micro modal-header-tag">GARDENER IDENTITY</div>
       <h2>Gardener Pass</h2>
+      <p class="modal-sub" id="profile-player-summary"></p>
       <p>Your identity is stored permanently on the server via your persistent token.</p>
       <label>Nickname: <input type="text" id="profile-nick-input" maxlength="20"></label>
       <button id="btn-save-nickname" class="action-btn">Update Nickname</button>
@@ -273,6 +279,13 @@ export class UIManager {
     document.getElementById('close-profile').onclick = () => document.getElementById('profile-dialog').close();
     document.getElementById('close-machine-shop').onclick = () => document.getElementById('machine-shop-dialog').close();
 
+    // Closing a legacy dialog hands focus back to the game (native dialog
+    // behavior) and reports out so main.js can drop held keys and any live
+    // hop chain — the same hygiene as the Places selector and settings.
+    for (const dialogId of ['market-dialog', 'inventory-dialog']) {
+      document.getElementById(dialogId)?.addEventListener('close', () => this.onAction.onLegacyDialogClosed?.());
+    }
+
     // Profile nickname save
     document.getElementById('btn-save-nickname').onclick = () => {
       const nick = document.getElementById('profile-nick-input').value.trim();
@@ -285,6 +298,7 @@ export class UIManager {
 
   openMarket() {
     this.updateMarketView();
+    this.labelLegacyDialog('market-dialog', 'TOWN COMMERCE · LIVE SPOT & ORDER BOOK');
     document.getElementById('market-dialog').showModal();
   }
 
@@ -300,7 +314,20 @@ export class UIManager {
 
   openInventory() {
     this.updateInventoryView();
+    this.labelLegacyDialog('inventory-dialog', 'GARDENER’S SATCHEL');
     document.getElementById('inventory-dialog').showModal();
+  }
+
+  /**
+   * In social places the retained legacy dialogs open with an explicit
+   * "optional legacy" label; legacy contexts keep the original header. Only
+   * textContent changes — ids and structure stay as shipped.
+   */
+  labelLegacyDialog(dialogId, baseTag) {
+    const tag = document.querySelector(`#${dialogId} .modal-header-tag`);
+    if (!tag) return;
+    const social = this.hudPolicyProvider?.()?.context === 'social';
+    tag.textContent = social ? `OPTIONAL LEGACY · ${baseTag}` : baseTag;
   }
 
   openProfile() {
@@ -610,6 +637,11 @@ export class UIManager {
     }
   }
 
+  describePlayerProgress(player) {
+    if (!player) return '';
+    return `${player.coins} ⛁ · Lvl ${player.level || 1} · ${player.xp || 0} XP · ${player.reputation || 10} ★`;
+  }
+
   updatePlayerHUD(player) {
     this.lastPlayer = player;
     const coinsEl = document.getElementById('hud-coins');
@@ -621,5 +653,20 @@ export class UIManager {
     if (repEl) repEl.textContent = `${player.reputation || 10} ★`;
     if (xpEl) xpEl.textContent = `Lvl ${player.level || 1} · ${player.xp || 0} XP`;
     if (nickEl) nickEl.textContent = player.nickname;
+
+    // Contextual HUD seam (deemphasize-legacy-farming): a welcome or
+    // inventory snapshot refreshes cached values but can never reveal
+    // sections the active place's policy keeps hidden — visibility is
+    // re-asserted from the policy, never derived from the message. With no
+    // provider, this stays a no-op and the last explicit decision stands.
+    const policy = this.hudPolicyProvider?.() ?? null;
+    const statsRow = document.querySelector('.player-stats-row');
+    if (statsRow && policy) statsRow.hidden = !policy.sections.economyStats;
+    // Progression stays readable inside the legacy dialogs themselves.
+    const progress = this.describePlayerProgress(player);
+    const invSummary = document.getElementById('inv-player-summary');
+    if (invSummary) invSummary.textContent = progress;
+    const profileSummary = document.getElementById('profile-player-summary');
+    if (profileSummary) profileSummary.textContent = progress;
   }
 }

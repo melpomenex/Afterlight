@@ -536,17 +536,17 @@ kbd {
   .interact { left: 20px; transform: none; min-width: calc(100vw - 40px); }
 }
 
-/* --- DISTRICT TRAVEL DIALOG --- */
+/* --- PLACES SELECTOR (T / TRAVEL) --- */
 #district-dialog {
-  width: min(780px, calc(100vw - 32px));
-  max-width: 780px;
+  width: min(600px, calc(100vw - 32px));
+  max-width: 600px;
   max-height: 85vh;
   overflow-y: auto;
   background: #17292b;
   color: #e2e4d6;
   border: 1px solid #a99c6f75;
   border-radius: 4px 4px 18px 4px;
-  padding: 28px;
+  padding: 22px 24px;
   box-shadow: 0 20px 90px rgba(0, 0, 0, 0.7);
 }
 #district-dialog::backdrop {
@@ -561,25 +561,52 @@ kbd {
 #district-dialog p.dialog-sub {
   font-size: 12px;
   color: #adc0b8;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 #district-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 10px;
-  max-height: 52vh;
+  max-height: 54vh;
   overflow-y: auto;
   padding-right: 6px;
+}
+.place-group { margin: 0 0 14px; }
+.place-group-label {
+  margin-bottom: 8px;
+  color: #c4b582;
+}
+details.place-group > summary.place-group-label {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+details.place-group > summary.place-group-label::-webkit-details-marker { display: none; }
+details.place-group > summary.place-group-label::before {
+  content: '▸';
+  font-size: 8px;
+  transition: transform 0.15s;
+}
+details.place-group[open] > summary.place-group-label::before { transform: rotate(90deg); }
+details.place-group > summary.place-group-label:focus-visible,
+.place-card:focus-visible,
+#close-districts:focus-visible {
+  outline: 2px solid #bbded5;
+  outline-offset: 2px;
+}
+.place-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
 }
 .district-choice {
   text-align: left;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   line-height: 1.4;
-  min-height: 110px;
-  padding: 12px !important;
+  padding: 10px 12px !important;
   background: #192d30;
   border: 1px solid #71877e4a;
   border-radius: 4px;
@@ -634,10 +661,30 @@ kbd {
   font-size: 10px;
   color: #aebdb6;
 }
+.place-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.place-activity {
+  font-size: 10px;
+  color: #cdd8cc;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.place-activity:empty { display: none; }
+.place-count {
+  margin-left: auto;
+  font: 9px 'Space Mono', monospace;
+  letter-spacing: 0.5px;
+  color: #93b8a4;
+  white-space: nowrap;
+}
 #close-districts {
   display: block;
   width: 100%;
-  margin-top: 16px;
+  margin-top: 4px;
   padding: 10px 14px;
   background: #b8a87c;
   color: #182827;
@@ -869,6 +916,153 @@ kbd {
   border: 0;
 }
 
+/* ===== Conferencing call panel ===== */
+.call-panel {
+  position: fixed;
+  bottom: 80px;
+  right: 360px;
+  width: 280px;
+  max-height: 420px;
+  background: #0f1c1bd9;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid #c8b78233;
+  border-radius: 6px;
+  box-shadow: 0 12px 36px #00000088;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 10px;
+  z-index: 45;
+  color: #e8e7d9;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.call-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #b9c6a422;
+  padding-bottom: 6px;
+}
+
+.call-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+}
+.call-badge.status-idle { color: #889988; border-color: #88998855; }
+.call-badge.status-joining { color: #e2cfa0; border-color: #e2cfa088; }
+.call-badge.status-connected { color: #82c892; border-color: #82c89288; }
+.call-badge.status-rejoining { color: #e0a458; border-color: #e0a45888; }
+.call-badge.status-error { color: #e06868; border-color: #e0686888; }
+
+.call-notice {
+  font-size: 11px;
+  color: #e2cfa0;
+  background: #2b3a3288;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border-left: 2px solid #e2cfa0;
+}
+
+.call-participants {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.call-participant-tile {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #142523aa;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #9faa9222;
+}
+
+.participant-name {
+  font-weight: 500;
+  color: #f0ede1;
+}
+
+.participant-badge {
+  font-size: 10px;
+  color: #82c892;
+}
+.participant-badge.muted {
+  color: #c88282;
+}
+
+.call-empty-message {
+  color: #7f8f84;
+  font-style: italic;
+  font-size: 11px;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.call-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-top: 1px solid #b9c6a422;
+  padding-top: 8px;
+}
+
+.call-btn {
+  background: #1c302e;
+  border: 1px solid #9faa9240;
+  color: #e6d8b6;
+  border-radius: 4px;
+  padding: 5px 9px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.call-btn:hover:not(:disabled) {
+  background: #2a4744;
+  border-color: #c6b47a99;
+}
+.call-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.call-btn.primary {
+  background: #2c544b;
+  border-color: #82c89288;
+  color: #b2ebd4;
+}
+.call-btn.danger {
+  background: #542c2c;
+  border-color: #c8828288;
+  color: #ebb2b2;
+}
+.call-btn.active {
+  border-color: #82c892;
+  color: #82c892;
+}
+
+.call-ducking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  color: #b0bfb4;
+  margin-top: 4px;
+}
+.call-ducking input[type="range"] {
+  flex: 1;
+  accent-color: #c6b47a;
+}
+
 @media (max-width: 900px) {
   .chat-panel { right: 20px; bottom: 85px; width: 250px; }
   .chat-log { height: 140px; }
@@ -899,6 +1093,10 @@ kbd {
   box-shadow: 0 0 46px #000a;
   z-index: 40; /* above the canvas, below dialogs/HUD chrome */
   will-change: transform;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  backface-visibility: hidden;
 }
 #theater-screen.ts-hidden { display: none; }
 #theater-screen .ts-media { position: absolute; inset: 0; background: #000; }
@@ -913,9 +1111,9 @@ kbd {
 }
 #theater-screen .ts-state-layer { position: absolute; inset: 0; }
 #theater-screen.ts-state-idle .ts-state-layer {
-  /* faint static shimmer while the screen sleeps */
+  /* faint static shimmer while the screen sleeps, softened to avoid high-frequency 3D moiré */
   background:
-    repeating-linear-gradient(0deg, #0c1614 0 2px, #101d1a 2px 4px),
+    repeating-linear-gradient(0deg, rgba(12, 22, 20, 0.96) 0 4px, rgba(17, 29, 26, 0.96) 4px 8px),
     linear-gradient(110deg, #0c1614 30%, #18261f 50%, #0c1614 70%);
   background-size: 100% 100%, 280% 100%;
   animation: theater-shimmer 3.4s linear infinite;
@@ -951,9 +1149,10 @@ kbd {
   text-overflow: ellipsis;
 }
 /* Sleeping screen: a centered invitation instead of a bottom caption.
-   Sizes ride --ts-scale so the panel keeps its share of the projected
-   in-world screen; cinema view (which clears --ts-scale) overrides
-   with viewport clamps in the theater-watching block below. */
+   Sizes ride --ts-scale with minimum legibility floors so the panel
+   keeps its share of the projected in-world screen without collapsing
+   into unreadable sub-pixel glyphs at steep perspective angles;
+   cinema view overrides with viewport clamps in theater-watching. */
 #theater-screen.ts-state-idle .ts-caption { display: none; }
 #theater-screen .ts-idle {
   position: absolute;
@@ -962,37 +1161,46 @@ kbd {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: calc(2.8px * var(--ts-scale, 1));
+  gap: max(8px, calc(3.2px * var(--ts-scale, 1)));
   text-align: center;
   padding: 0 6%;
 }
 #theater-screen.ts-state-idle .ts-idle { display: flex; }
 #theater-screen .ts-idle-title {
-  font: 600 calc(8.5px * var(--ts-scale, 1)) 'DM Sans', sans-serif;
+  font: 700 max(16px, calc(9.5px * var(--ts-scale, 1))) 'DM Sans', sans-serif;
   letter-spacing: 0.5px;
-  color: #e8dcb9;
+  color: #ede2c2;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  margin: 0;
 }
 #theater-screen .ts-idle-hint {
-  font: calc(4.8px * var(--ts-scale, 1)) 'Space Mono', monospace;
+  font: 500 max(11px, calc(5.2px * var(--ts-scale, 1))) 'Space Mono', monospace;
   letter-spacing: 0.4px;
-  color: #a5b7ab;
+  color: #b0c2b5;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  margin: 0;
 }
 #theater-screen .ts-idle-hint kbd {
-  font-size: calc(4.4px * var(--ts-scale, 1));
-  padding: calc(0.9px * var(--ts-scale, 1)) calc(1.8px * var(--ts-scale, 1));
-  color: #e2c987;
-  border-color: #cbb88659;
+  font-size: max(10px, calc(4.8px * var(--ts-scale, 1)));
+  font-weight: 700;
+  padding: max(2px, calc(1.1px * var(--ts-scale, 1))) max(5px, calc(2.2px * var(--ts-scale, 1)));
+  color: #ebd18e;
+  border: 1px solid #cbb88677;
+  border-radius: max(2px, calc(1px * var(--ts-scale, 1)));
+  background: rgba(18, 34, 37, 0.85);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 #theater-screen .ts-idle-open {
   pointer-events: auto; /* the idle overlay's only interactive element */
-  font: bold calc(5.5px * var(--ts-scale, 1)) 'Space Mono', monospace;
+  font: 700 max(11px, calc(6px * var(--ts-scale, 1))) 'Space Mono', monospace;
   letter-spacing: 0.5px;
   color: #122020;
   background: #bfaa78;
-  border: none;
-  border-radius: calc(1px * var(--ts-scale, 1));
-  padding: calc(1.8px * var(--ts-scale, 1)) calc(4.2px * var(--ts-scale, 1));
-  margin-top: calc(1.6px * var(--ts-scale, 1));
+  border: 1px solid #d4bf88;
+  border-radius: max(3px, calc(1.4px * var(--ts-scale, 1)));
+  padding: max(4px, calc(2.2px * var(--ts-scale, 1))) max(10px, calc(4.8px * var(--ts-scale, 1)));
+  margin-top: max(4px, calc(2px * var(--ts-scale, 1)));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
   cursor: pointer;
 }
 #theater-screen .ts-idle-open:hover { background: #d4bf88; }
@@ -1437,6 +1645,21 @@ body.theater-watching #chat-log {
 #settings-dialog input[type="range"] { flex: 1; accent-color: #c9a86a; }
 #settings-dialog #footsteps-value { min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
 
+/* --- SETTINGS: weather comfort + ambience (add-atmosphere-weather-system 4.3) --- */
+#settings-dialog select {
+  margin-left: auto;
+  background: #1d2c2c;
+  color: inherit;
+  border: 1px solid #40554f;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font: inherit;
+  max-width: 170px;
+}
+#settings-dialog select:focus-visible { outline: 2px solid #bbded5; outline-offset: 2px; }
+#settings-dialog #ambience-value,
+#settings-dialog #weather-value { min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+
 /* Hold-to-select expression wheel; the live world remains visible behind it. */
 .emote-overlay { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: radial-gradient(circle, #10282720, #071b2570); touch-action: none; }
 .emote-overlay[hidden] { display: none; }
@@ -1457,3 +1680,13 @@ body.theater-watching #chat-log {
 @media (max-width: 560px) {
   #btn-emote { position: fixed; right: 20px; top: 180px; z-index: 25; min-height: 44px; padding: 10px 16px; background: #162d30ed; border: 1px solid #c6b47a99; border-radius: 14px 4px; color: #eee1ba; }
 }
+
+/* --- PLACE CONTEXT HUD (deemphasize-legacy-farming) ---
+   body[data-hud-context] is written only on successful place activation,
+   from the policy in src/ui/placeHudPolicy.js. In social places the policy
+   marks the legacy farming/economy sections hidden; this rule keeps them out
+   of layout AND tab order even where their own display rules (flex tool
+   belt, stat pills) would otherwise beat the hidden attribute. Legacy
+   contexts — market, personal garden, the old districts — and the cinema
+   view (body.theater-watching) are untouched. */
+body[data-hud-context='social'] [data-hud-legacy] { display: none !important; }

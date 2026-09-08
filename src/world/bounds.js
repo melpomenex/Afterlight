@@ -2,6 +2,8 @@
  * Configuration and helpers for world bounds, movement limits, click target clamping, and minimap projections.
  */
 
+import { PLACE_DEFINITIONS } from '../../shared/placeDefinitions.js';
+
 export const WORLD_BOUNDS = {
   market: {
     id: 'market',
@@ -23,10 +25,45 @@ export const WORLD_BOUNDS = {
   },
 };
 
+// Bounds belong to place definitions: every registered public place
+// contributes its declared bounds here, and additional definitions (the
+// test-only view fixture, runtime-registered views) can register through
+// registerPlaceBounds. The explicit market/personal-garden entries above
+// stay authoritative for their rooms.
+const registeredPlaces = new Map();
+for (const def of PLACE_DEFINITIONS) {
+  if (def.bounds) registeredPlaces.set(def.id, def);
+}
+
+export function registerPlaceBounds(def) {
+  if (!def || typeof def.id !== 'string' || !def.bounds) {
+    throw new Error(`Cannot register bounds for place: ${def?.id ?? 'unknown'}`);
+  }
+  registeredPlaces.set(def.id, def);
+  return def;
+}
+
+const exitPosition = (def, exitId, fallback) => def.exits?.find(exit => exit.id === exitId)?.position ?? fallback;
+
 export function getBoundsForRoom(roomId) {
+  // Checked before the manifest: `garden` the room id keeps its personal
+  // cultivation bounds, while `garden` the Glass Garden district retains the
+  // existing behavior for ?room=garden shorthand.
   if (!roomId || roomId === 'market') return WORLD_BOUNDS.market;
   if (roomId.startsWith('garden:') || roomId === 'garden') return WORLD_BOUNDS.garden;
-  if (WORLD_BOUNDS[roomId]) return WORLD_BOUNDS[roomId];
+  const def = registeredPlaces.get(roomId);
+  if (def) {
+    return {
+      id: roomId,
+      minX: def.bounds.minX,
+      maxX: def.bounds.maxX,
+      minZ: def.bounds.minZ,
+      maxZ: def.bounds.maxZ,
+      spawn: def.spawn ?? [-9, 0],
+      exitWest: exitPosition(def, 'west', [-10.7, 0]),
+      exitEast: exitPosition(def, 'east', [10.7, 0]),
+    };
+  }
   return {
     id: roomId,
     minX: -11.3,

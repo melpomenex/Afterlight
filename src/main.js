@@ -10,15 +10,44 @@ import { createGardenerAvatar, createKilnCompanion, RemotePlayersManager, startE
 import { buildMarketWorld } from './world/marketWorld.js';
 import { buildGardenWorld } from './world/gardenWorld.js';
 import { districts, buildDistrict, readExploration } from './districts.js';
+import { gateItemsFor } from './places/worldFactory.js';
 import { getBoundsForRoom, isWalkable, clampClickTarget, projectToMinimap } from './world/bounds.js';
 import { UIManager } from './ui/marketModal.js';
 import { ChatPanel } from './ui/chatPanel.js';
+import { CallClient } from './net/calls.js';
+import { CallPanel } from './ui/callPanel.js';
 import { TheaterScreenUI } from './ui/theaterScreen.js';
+import { createPlaceSelector } from './ui/placeSelector.js';
 import { MSG_TYPES, ROOMS } from '../shared/protocol.js';
 import { CROPS, CROP_LIST, GROWTH_STAGES } from '../shared/crops.js';
 import { MILL_REQUIREMENT } from '../shared/materials.js';
 import { FP_MODE, nextCameraMode, clampPitch, moveBasis, classifyDrag } from './cameraControl.js';
 import { createJumpState, resetJump, stepJump, moveSpeedFor, HOP_CAP_RATIO } from './jump.js';
+import { createPlaceRuntime } from './places/runtime.js';
+import { resolveRoomRequest, worldUpdateInput } from './places/travelState.js';
+import { createTheaterAdapter, registerTheaterAdapter } from './places/theaterAdapter.js';
+import { createAtmosphereStateClient, legacyWeatherDisplaySuppressed } from './atmosphere/stateClient.js';
+import { createAtmosphereController } from './atmosphere/controller.js';
+import { createAtmosphereEvents } from './atmosphere/events.js';
+import {
+  loadAtmospherePreferences,
+  saveAtmospherePreferences,
+  effectiveTier,
+} from './atmosphere/quality.js';
+import { normalizeZones, classifyExposure } from './atmosphere/exposure.js';
+import { createAudioMixer } from './audio/mixer.js';
+import { createEnvironmentAudio, zoneProfileFor } from './audio/environmentAudio.js';
+import { getPlaceController } from './places/registry.js';
+import { createSeatController } from './social/seating.js';
+import { createInteractionRegistry, registerCoreInteractions } from './social/interactions.js';
+import {
+  hudPolicy,
+  toolForDigit,
+  nextToolState,
+  applyHudPolicyToDom,
+  readLegacyUiPreference,
+  writeLegacyUiPreference,
+} from './ui/placeHudPolicy.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -56,8 +85,11 @@ composer.addPass(renderPass);
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.25, 0.65, 1.05);
 composer.addPass(bloom);
 
-// Lights
-scene.add(new THREE.HemisphereLight('#c5d9d4', '#343a2b', 2.2));
+// Lights. The hemisphere light is kept in a named reference: the atmosphere
+// controller (add-atmosphere-weather-system 3.1) captures/restores its exact
+// colors and intensity around an active place atmosphere.
+const hemisphere = new THREE.HemisphereLight('#c5d9d4', '#343a2b', 2.2);
+scene.add(hemisphere);
 const sun = new THREE.DirectionalLight('#ffe0a5', 3.0);
 sun.position.set(-14, 24, 7);
 sun.castShadow = true;
@@ -93,6 +125,101 @@ scene.add(particles);
 const net = new NetworkClient();
 const remotePlayers = new RemotePlayersManager(scene);
 
+// Room atmosphere state client (task 2.2): ONE instance on the shared
+// connection, routed only to the current place generation. It holds the
+// semantic snapshot/server-clock facts; the presentation controller that
+// consumes them arrives with the renderer work (3.x/4.x).
+const atmosphereStateClient = createAtmosphereStateClient({ net });
+
+// The one retained atmosphere presentation controller (task 3.1): captures
+// the shared fog/background/sun/hemisphere/exposure baseline on activation,
+// renders the sampled semantic state through the owned sky dome, batched
+// precipitation and wet-surface families, and restores the baseline exactly
+// on travel. It runs only from the existing frame loop and only for the
+// active, visible world.
+const atmosphereController = createAtmosphereController({
+  scene,
+  renderer,
+  sun,
+  hemisphere,
+  stateClient: atmosphereStateClient,
+  world: () => currentWorld,
+});
+
+// --- LOCAL AUDIO, SHARED EVENTS AND COMFORT (tasks 4.1–4.3) ---
+// ONE AudioContext for the whole game, created lazily on the existing Sound
+// gesture; environment ambience/weather loops are synthesized and retained
+// (no external assets), footsteps/chimes feed the shared effects bus, and
+// the Theater keeps its provider volume through the setMixGain seam.
+const audioMixer = createAudioMixer({});
+const environmentAudio = createEnvironmentAudio({ mixer: audioMixer });
+
+// Comfort preferences (task 4.3): OS reduced-motion default with a local
+// override, additive storage key, session defaults when storage is
+// unavailable. The separate effect tier never touches the DPR selector.
+const prefersReducedMotionOS = typeof window.matchMedia === 'function'
+  ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  : false;
+let atmospherePrefs = loadAtmospherePreferences({ prefersReducedMotion: prefersReducedMotionOS }).prefs;
+
+// Bounded shared lightning/thunder envelopes (task 4.2): ONE pooled visual,
+// pulled from the state client on the existing frame loop — no second
+// scheduler, and the HUD flash layer is never touched.
+const atmosphereEvents = createAtmosphereEvents({
+  stateClient: atmosphereStateClient,
+  audio: environmentAudio,
+  listenerPosition: () => player.position,
+  flashMode: atmospherePrefs.flash,
+});
+
+// Shadow map tier: reduced activations may use 1024, restored to the
+// original 2048 on place exit — applied once per activation, never per frame.
+const BASELINE_SHADOW_MAP = 2048;
+const REDUCED_SHADOW_MAP = 1024;
+function applyShadowTier(size) {
+  if (!Number.isFinite(size) || sun.shadow.mapSize.x === size) return;
+  sun.shadow.mapSize.set(size, size);
+  if (sun.shadow.map) {
+    sun.shadow.map.dispose();
+    sun.shadow.map = null; // forces the next shadow pass to reallocate at the new size
+  }
+}
+function shadowSizeForCurrentTier() {
+  return effectiveTier(atmospherePrefs, prefersReducedMotionOS) === 'reduced'
+    ? REDUCED_SHADOW_MAP
+    : BASELINE_SHADOW_MAP;
+}
+
+// Live application of the comfort preferences: limits apply once per change
+// (setQuality same-tier calls are no-ops inside the controller), and turning
+// flashes off cancels the incompatible pending flash immediately.
+function applyAtmospherePreferences() {
+  atmosphereController.setQuality(effectiveTier(atmospherePrefs, prefersReducedMotionOS));
+  atmosphereEvents.setFlashMode(atmospherePrefs.flash);
+  if (atmosphereController.isActive()) applyShadowTier(shadowSizeForCurrentTier());
+}
+
+// Authored zone audio for the active place (task 4.1): normalized once per
+// activation; the frame loop only classifies the listener and crossfades.
+let activeZones = [];
+const activeZonesById = new Map();
+const audioSample = {};
+const exposureSample = {};
+function cacheZoneAudio(seam) {
+  const worldObj = seam?.world !== undefined ? seam.world : currentWorld;
+  activeZones = normalizeZones(worldObj?.environment?.zones ?? []);
+  activeZonesById.clear();
+  for (const zone of activeZones) activeZonesById.set(zone.id, zone);
+}
+function updateEnvironmentAudio() {
+  atmosphereStateClient.sample(audioSample);
+  if (audioSample.active !== true) return;
+  environmentAudio.setWeather(audioSample.rain ?? 0);
+  const cls = classifyExposure(activeZones, player.position.x, player.position.z, exposureSample);
+  const zone = cls.zoneId ? activeZonesById.get(cls.zoneId) : null;
+  environmentAudio.setZone(zoneProfileFor(zone, cls.exposure));
+}
+
 /** @type {import('./realtime/wire.js').wireRealtime | null} */
 let rtWire = null;
 
@@ -112,6 +239,12 @@ const ui = new UIManager(net, {
       activeSeedIndex = seedKeys.indexOf(seedCropId);
       $('active-seed-label').textContent = CROPS[seedCropId]?.name || seedCropId;
     }
+  },
+  // Closing the legacy exchange/satchel hands the keyboard back with nothing
+  // held — same hygiene as the Places selector and settings.
+  onLegacyDialogClosed: () => {
+    keys.clear();
+    clearJumpMomentum();
   },
 });
 
@@ -133,6 +266,21 @@ const theaterUI = new TheaterScreenUI(net);
 // The cinema view's "Stand up" button hands the request to the game: the
 // player must actually leave the chair, not just the big screen.
 theaterUI.onStandUpRequest = () => standUp();
+
+// Conferencing: opt-in audio/video/screen call panel (P8)
+const callClient = new CallClient(net);
+const callPanel = new CallPanel(callClient, {
+  onFocusChange: (focusing) => {
+    if (focusing) {
+      keys.clear();
+      clearJumpMomentum();
+    }
+  },
+  onDuckingChange: (duckingRatio) => {
+    const gain = callClient.status === 'connected' ? Math.max(0, 1.0 - duckingRatio) : 1.0;
+    theaterUI.setMixGain(gain);
+  },
+});
 
 // Local player avatar & Kiln companion
 const player = createGardenerAvatar(net.guestId, net.nickname);
@@ -169,29 +317,19 @@ const marketWorld = buildMarketWorld();
 const gardenWorld = buildGardenWorld();
 scene.add(marketWorld.group);
 scene.add(gardenWorld.group);
+// Worlds stay dark until travel activates them: the first committed
+// destination shows itself and every other group remains hidden.
+marketWorld.group.visible = false;
+gardenWorld.group.visible = false;
 
 const districtWorlds = new Map();
 
-// Detailed SVG minimap schematics for every room/district
+// Detailed SVG minimap schematics for every room/district. Market keeps its
+// bespoke entry; district paths come from the shared place manifest so the
+// definitions stay the single editable source.
 const mapPaths = {
   market: 'M24 24H130V96H24Z M130 49H160V76H130 M65 24V13H87V24',
-  garden: 'M24 24H130V96H24Z M38 36H116V84H38Z M65 24V96',
-  court: 'M24 24H130V96H24Z M130 49H160V76H130 M65 24V13H87V24',
-  canal: 'M24 24H130V96H24Z M24 60H130 M70 24V96 M84 24V96',
-  station: 'M24 24H130V96H24Z M24 40H130 M24 75H130 M65 40V75',
-  aqueduct: 'M24 24H130V96H24Z M24 35H130 M45 24V96 M80 24V96 M105 24V96',
-  caldera: 'M24 24H130V96H24Z M50 35H100V80H50Z M75 35V80 M24 60H50 M100 60H130',
-  understory: 'M24 24H130V96H24Z M35 40H65V75H35Z M90 40H120V75H90Z M65 60H90',
-  saltworks: 'M24 24H130V96H24Z M35 30H115V55H35Z M35 65H115V90H35Z M75 24V96',
-  rooftops: 'M24 24H130V96H24Z M40 45H110 M75 24V96 M40 30L75 60L110 30 M40 90L75 60L110 90',
-  mangrove: 'M24 24H130V96H24Z M24 50Q75 20 130 50 M24 70Q75 100 130 70 M75 35V85',
-  trestle: 'M24 24H130V96H24Z M24 35H130 M24 85H130 M35 35L55 85 M55 35L75 85 M75 35L95 85 M95 35L115 85',
-  foundry: 'M24 24H130V96H24Z M40 35H70V65H40Z M85 35H115V65H85Z M24 75H130',
-  'frost-spire': 'M24 24H130V96H24Z M75 25L115 60L75 95L35 60Z M75 25V95 M35 60H115',
-  delta: 'M24 24H130V96H24Z M24 45C55 40 85 75 130 55 M24 75C60 70 90 90 130 85 M70 24V96',
-  archives: 'M24 24H130V96H24Z M35 35H115 M35 50H115 M35 65H115 M35 80H115 M75 24V96',
-  'kiln-terrace': 'M24 24H130V96H24Z M45 35H105V85H45Z M75 45A15 15 0 1 0 75 75A15 15 0 1 0 75 45 M24 60H45 M105 60H130',
-  theater: 'M24 24H130V96H24Z M42 34H112 M42 38H112 M34 52H62 M70 52H120 M34 68H62 M70 68H120 M34 84H120',
+  ...Object.fromEntries(districts.map(d => [d.id, d.minimapPath])),
 };
 
 function getOrCreateDistrictWorld(distId) {
@@ -201,35 +339,14 @@ function getOrCreateDistrictWorld(distId) {
   const isDone = exploration.completed.includes(distId);
   const world = buildDistrict(def, isDone);
 
-  const index = districts.findIndex(d => d.id === distId);
-  const prevDist = districts[(index - 1 + districts.length) % districts.length];
-  const nextDist = districts[(index + 1) % districts.length];
+  // Gates come from the definition's frozen exit declarations (the exact
+  // legacy west/east/south topology lives in shared/placeDefinitions.js), so
+  // appending a place can never reroute an existing destination.
+  world.items.push(...gateItemsFor(def));
 
-  world.items.push({
-    type: 'district_gate',
-    x: -10.7,
-    z: 0,
-    targetDistrict: prevDist.id,
-    title: `Gate to ${prevDist.name}`,
-    sub: `Westbound: ${prevDist.district}`,
-  });
-  world.items.push({
-    type: 'district_gate',
-    x: 10.7,
-    z: 0,
-    targetDistrict: nextDist.id,
-    title: `Gate to ${nextDist.name}`,
-    sub: `Eastbound: ${nextDist.district}`,
-  });
-  world.items.push({
-    type: 'market_gate',
-    x: 0,
-    z: 8.8,
-    targetDistrict: 'market',
-    title: 'Return to Market Court',
-    sub: 'Trade produce & visit your garden',
-  });
-
+  // Social builders author their declared exits; legacy slabs must not
+  // create a nonexistent south portal in a two-exit environment.
+  if (def.shell !== 'none') {
   const gateGeo = new THREE.BoxGeometry(1, 1, 1);
   const gateMat = new THREE.MeshStandardMaterial({ color: '#c5b478', emissive: '#857545', emissiveIntensity: 0.6 });
   const archMat = new THREE.MeshStandardMaterial({ color: '#2b3d3e', roughness: 0.6 });
@@ -240,6 +357,13 @@ function getOrCreateDistrictWorld(distId) {
   const southArch = new THREE.Mesh(gateGeo, archMat); southArch.position.set(0, 2.5, 8.8); southArch.scale.set(2.4, 5, 0.6); world.group.add(southArch);
   const southPortal = new THREE.Mesh(gateGeo, gateMat); southPortal.position.set(0, 1.8, 8.8); southPortal.scale.set(1.8, 3.4, 0.1); world.group.add(southPortal);
 
+  world.ownedResources.geometries.push(gateGeo);
+  world.ownedResources.materials.push(gateMat, archMat);
+  }
+
+  // A freshly built world stays hidden until travel activates it; only the
+  // destination room's group is shown.
+  world.group.visible = distId === currentRoomId;
   scene.add(world.group);
   districtWorlds.set(distId, world);
   // Apply any gather-node state already received for this district.
@@ -252,12 +376,14 @@ function getOrCreateDistrictWorld(distId) {
 // State & interaction variables
 let nearest = null;
 let target = null;
-let seated = null; // { x, z, rotY } while the player sits in a theater seat
 let emoteWheel = null;
 let paused = false;
 let t = 0;
 let toastTimer = null;
 const keys = new Set();
+// Pointer gesture state lives with the other travel-transient input so a
+// room change can clear it (declared before the first setRoom call below).
+let press = null; // { x, y, lastX, lastY, dragging }
 
 // Jump & bunny hop: session-local movement state, never saved or synced as
 // anything but an airborne flag. Space jumps; holding it chains hops whose
@@ -299,6 +425,9 @@ let currentRoomId = ROOMS.MARKET;
 let currentWorld = marketWorld;
 let currentBounds = getBoundsForRoom('market');
 let currentGardenBeds = null;
+// The active place's validated spawns; a seat dismount falls back to them
+// when every authored escape point is blocked.
+let activeSpawns = { spawn: [0, 3], companionSpawn: [0.8, 4] };
 
 // Gathering & crafting state mirrored from the server; the client only
 // renders what the server reports and never grants items locally.
@@ -312,51 +441,109 @@ let machineState = {
   },
 };
 
-function setRoom(roomId) {
-  // Leaving a room (or re-spawning inside one) always stands the player up.
-  standUp();
-  currentRoomId = roomId;
-  const isGarden = ROOMS.isGarden(roomId);
-  const isMarket = roomId === ROOMS.MARKET;
-  const distDef = districts.find(d => d.id === roomId);
+// --- PLACE RUNTIME: the tested transition coordinator behind setRoom ---
+// One active runtime owns travel (prepare before commit, transient input
+// resets, activation generations, network phase). main.js keeps renderer,
+// actors, the single rAF loop and UI orchestration, exposed to the runtime
+// through the seams below.
 
-  marketWorld.group.visible = isMarket;
-  gardenWorld.group.visible = isGarden;
-  districtWorlds.forEach((dw, id) => {
-    dw.group.visible = id === roomId;
+// The Orpheum's specialized controller: a lifecycle wrapper around the
+// existing TheaterScreenUI singleton (the object is never rebuilt). Only
+// this adapter may open cinema view, and only while the theater room is
+// active — an external bench can never invoke it.
+const theaterAdapter = createTheaterAdapter({ ui: theaterUI });
+registerTheaterAdapter(theaterAdapter);
+
+// Seated pose ownership: normalization (legacy Theater offsets reproduced
+// exactly), safe dismount choice and the pose flags on the wire.
+const seats = createSeatController({
+  worldFacts: () => ({ bounds: currentBounds, obstacles: currentWorld?.obstacles ?? [], spawn: activeSpawns.spawn }),
+  applySit: (seat, pose) => {
+    // Take the keyboard back: a focused chat input would silently swallow the
+    // keys that get the player out of the chair again.
+    if (document.activeElement?.id === 'chat-input') document.activeElement.blur();
+    player.position.set(pose.x, 0, pose.z);
+    player.rotation.y = pose.rotY;
+    // Seated in first person: open the view facing where the chair faces.
+    if (cameraMode === FP_MODE) fpYaw = pose.rotY + Math.PI;
+    player.userData.legs.forEach(leg => { leg.rotation.x = -1.35; });
+    target = null;
+    marker.visible = false;
+    clearJumpMomentum(); // sitting is a hard reset: no queued jump from the chair
+  },
+  applyStand: (seat, point) => {
+    // The chosen dismount point steps outside the chair's collision
+    // rectangle; standing at the seated spot would wedge the player between
+    // chair rows. The place's safe spawn backs the choice up.
+    player.position.set(point.x, 0, point.z);
+    clearJumpMomentum();
+    player.userData.legs.forEach(leg => { leg.rotation.x = 0; });
+  },
+  sendMovement: (sitting) => net.sendMovement(player.position.x, player.position.z, player.rotation.y, false, sitting),
+  onSeatChanged: (detail) => placeRuntime.notifySeatChanged(detail),
+  announce: (seat) => toast(
+    seat.title || 'Take a Seat',
+    `${seat.sub ? `${seat.sub} · ` : ''}Press E or a movement key to stand.`,
+    currentRoomId === ROOMS.THEATER ? 'THE ORPHEUM' : 'TAKE A SEAT',
+  ),
+});
+
+// --- PLACE CONTEXT HUD POLICY (deemphasize-legacy-farming F1) ---
+// Social places lead with place identity, people, chat, emotes and travel;
+// farming tools and coin progression step back but never disappear (I, M and
+// the Legacy areas remain). The policy derives only on successful place
+// activation — never from an inventory or network message — so async data
+// cannot reopen what a place hides. The saved preference rolls the whole
+// presentation back to the legacy HUD without touching any data.
+let activeHudPolicy = null;      // policy of the active place (hudPolicy shape)
+let rememberedLegacyTool = null; // held visual tool set aside on entering a social place
+let legacyUiHud = readLegacyUiPreference();
+
+const hudElements = {
+  contextRoot: document.body,
+  toolBelt: $('tool-belt'),
+  toolHint: $('hud-tool-hint'),
+  economyStats: document.querySelector('.player-stats-row'),
+  legacyButtons: [$('btn-inventory'), $('btn-market')],
+};
+
+function applyPlaceHud(res) {
+  activeHudPolicy = hudPolicy(res?.def ?? null, res?.roomId ?? null, { legacyUi: legacyUiHud });
+  applyHudPolicyToDom(activeHudPolicy, hudElements);
+  // Clearing to hands on entering a social place is presentation only: the
+  // choice is remembered and restored when the personal garden is re-entered,
+  // and inventory data is never read or written by either move.
+  const toolState = nextToolState({
+    policy: activeHudPolicy,
+    currentTool: activeTool,
+    rememberedTool: rememberedLegacyTool,
   });
+  rememberedLegacyTool = toolState.rememberedTool;
+  if (toolState.tool !== activeTool) setTool(toolState.tool);
+}
 
-  if (distDef) {
-    const distWorld = getOrCreateDistrictWorld(roomId);
-    currentWorld = distWorld;
-    currentBounds = getBoundsForRoom(roomId);
-    if (!exploration.visited.includes(roomId)) {
-      exploration.visited.push(roomId);
-    }
-    exploration.current = roomId;
-    saveExploration(exploration);
+// The market modal re-asserts section visibility from this same policy, so a
+// welcome or inventory snapshot refreshes cached values without ever
+// revealing the panels the active place hides.
+ui.hudPolicyProvider = () => activeHudPolicy;
 
+function presentDestination(res) {
+  // The runtime's active place is the game's active room from here on.
+  currentRoomId = res.roomId;
+  if (res.kind === 'place' && res.def) {
     // Dynamic lighting & background
-    scene.fog.color.set(distDef.color);
-    scene.background.set(distDef.color).multiplyScalar(0.45);
-    sun.color.set(distDef.sun);
+    scene.fog.color.set(res.def.color);
+    scene.background.set(res.def.color).multiplyScalar(0.45);
+    sun.color.set(res.def.sun);
 
-    // Safe spawn position
-    const spawn = distDef.spawn || [-9, 0];
-    player.position.set(spawn[0], 0, spawn[1]);
-    kiln.position.set(spawn[0] + 0.8, 0, spawn[1] + 1);
-
-    // Update HUD headers
-    $('location-title').textContent = distDef.name;
-    $('district-tag').textContent = distDef.district;
-    $('map-label').textContent = '• ' + distDef.subtitle;
-    $('map-path').setAttribute('d', mapPaths[roomId] || mapPaths.court);
-    toast(distDef.name, distDef.description, 'ARRIVED IN DISTRICT');
-  } else if (isGarden) {
-    currentWorld = gardenWorld;
-    currentBounds = getBoundsForRoom(roomId);
-    player.position.set(-9.5, 0, 0);
-    kiln.position.set(-8.7, 0, 1);
+    // HUD headers + the canvas accessible name travel with the place.
+    $('location-title').textContent = res.def.name;
+    $('district-tag').textContent = res.def.district;
+    $('map-label').textContent = '• ' + res.def.subtitle;
+    $('map-path').setAttribute('d', mapPaths[res.roomId] || mapPaths.court);
+    $('world').setAttribute('aria-label', `${res.def.name} — ${res.def.description}`);
+    toast(res.def.name, res.def.description, 'ARRIVED IN DISTRICT');
+  } else if (res.kind === 'garden') {
     scene.fog.color.set('#54645d');
     scene.background.set('#222d2a');
     sun.color.set('#ffe0a5');
@@ -365,12 +552,9 @@ function setRoom(roomId) {
     $('district-tag').textContent = "CULTIVATION DISTRICT / 02";
     $('map-label').textContent = "• MARKET GARDEN 02";
     $('map-path').setAttribute('d', mapPaths.garden);
+    $('world').setAttribute('aria-label', 'Your Market Garden — tend your garden beds and harvest fresh crops');
     toast("Your Garden Plot", "Tend your garden beds and harvest fresh crops.");
   } else {
-    currentWorld = marketWorld;
-    currentBounds = getBoundsForRoom('market');
-    player.position.set(0, 0, 3);
-    kiln.position.set(0.8, 0, 4);
     scene.fog.color.set('#54645d');
     scene.background.set('#222d2a');
     sun.color.set('#ffe0a5');
@@ -379,24 +563,154 @@ function setRoom(roomId) {
     $('district-tag').textContent = "MARKET SOCIAL DISTRICT / 01";
     $('map-label').textContent = "• MARKET COURT 01";
     $('map-path').setAttribute('d', mapPaths.market);
+    $('world').setAttribute('aria-label', 'The Market Court — trade produce, buy seeds, and fulfill town contracts');
     toast("The Market Court", "Trade produce, buy seeds, and fulfill contracts.");
   }
 
-  target = null;
-  marker.visible = false;
-  clearJumpMomentum(); // travel always spawns grounded, with no hop chain
-  remotePlayers.clear();
-  // Leaving the room (or re-entering it) always drops cinema view; standing
-  // is handled by the travel paths that call standUp() first.
-  theaterUI.setWatchMode(false);
-  // Records the desired room on the network client: sent immediately while
-  // connected, and replayed from onopen (including after reconnects) when
-  // the socket is not open yet, as during page load.
-  net.joinRoom(roomId);
-  theaterUI.setRoomActive(roomId === ROOMS.THEATER);
-  // Cinema view is the theater's default presentation: walking in starts
-  // the big screen. Esc, movement, or the watch bar steps back out.
-  if (roomId === ROOMS.THEATER) theaterUI.setWatchMode(true);
+  // The contextual HUD follows the place, on every successful activation.
+  applyPlaceHud(res);
+}
+
+// Exploration save follows the legacy contract: only registered places are
+// visited/current; market and the personal garden stay out of the save.
+function persistVisit(res) {
+  if (res.kind !== 'place' || !res.def) return;
+  if (!exploration.visited.includes(res.roomId)) {
+    exploration.visited.push(res.roomId);
+  }
+  exploration.current = res.roomId;
+  saveExploration(exploration);
+}
+
+// Network membership is rendered honestly: joining is not claimed before
+// accepted server evidence, and offline keeps the place rendered while
+// shared actions wait.
+function presentNetwork(status) {
+  const indicator = $('net-indicator');
+  if (!indicator) return;
+  if (status.phase === 'online') {
+    indicator.textContent = '● ONLINE';
+    indicator.style.color = '#85e0a3';
+  } else if (status.phase === 'joining') {
+    indicator.textContent = '● JOINING';
+    indicator.style.color = '#e0c583';
+  } else {
+    indicator.textContent = '● OFFLINE';
+    indicator.style.color = '#e0907c';
+  }
+}
+
+const placeRuntime = createPlaceRuntime({
+  resolve: (requested) => resolveRoomRequest(requested, {
+    hasDefinition: (id) => districts.find(d => d.id === id),
+  }),
+  // Prepare the destination world hidden and never committed; the factory
+  // keeps freshly built groups invisible until travel shows them.
+  build: (res) => {
+    if (res.kind === 'place' && res.def) return getOrCreateDistrictWorld(res.roomId);
+    if (res.kind === 'garden') return gardenWorld;
+    return marketWorld;
+  },
+  callAdapter: {
+    onPlaceLeaving: () => callClient.leaveCall(),
+  },
+  controllerFor: (res) => {
+    const controller = res.kind === 'place' ? getPlaceController(res.roomId) : null;
+    // Task 2.2: bind the atmosphere state client to the current place and
+    // generation through the runtime's activation order; task 3.1 layers the
+    // presentation controller on the same seam — it captures/restores the
+    // shared presentation baseline around every activation and only owns the
+    // frame while the place's manifest declares an atmosphere preset.
+    return {
+      activate: (seam) => {
+        atmosphereStateClient.activate(seam);
+        atmosphereController.activate(seam);
+        // Audio + comfort ride the same activation generation (tasks 4.1/4.3):
+        // retained loops start (silently before the Sound gesture), zone rows
+        // are cached for the frame loop, and the shadow tier applies once.
+        cacheZoneAudio(seam);
+        environmentAudio.start();
+        applyShadowTier(shadowSizeForCurrentTier());
+        controller?.activate?.(seam);
+      },
+      deactivate: () => {
+        atmosphereController.deactivate();
+        atmosphereStateClient.deactivate();
+        // Place exit: loops stop/disconnect synchronously (well inside the
+        // 200ms budget), scheduled thunder dies with the place, and the
+        // borrowed shadow quality is restored (task 4.3).
+        environmentAudio.stop();
+        atmosphereEvents.cancelAll();
+        applyShadowTier(BASELINE_SHADOW_MAP);
+        controller?.deactivate?.();
+      },
+      onSeatChanged: (detail) => controller?.onSeatChanged?.(detail),
+    };
+  },
+  // Every consumer (movement, seats, frame loop) reads the same active
+  // world and bounds the runtime just committed.
+  adoptWorld: (world, res) => {
+    currentWorld = world;
+    currentBounds = getBoundsForRoom(res.roomId);
+  },
+  // Optional P8 conferencing adapter arrives with its own change; absent is
+  // a no-op and travel never starts capture.
+  callAdapter: null,
+  seatControl: { standUp: () => standUp() },
+  resetInput: () => {
+    nearest = null;
+    target = null;
+    marker.visible = false;
+    keys.clear();
+    press = null;
+    // Grounds the player, drops any hop chain and closes the emote wheel
+    // and pose: nothing of the old room's motion survives travel.
+    clearJumpMomentum();
+  },
+  placeActors: (res, spawns) => {
+    activeSpawns = spawns;
+    player.position.set(spawns.spawn[0], 0, spawns.spawn[1]);
+    kiln.position.set(spawns.companionSpawn[0], 0, spawns.companionSpawn[1]);
+  },
+  bindNetwork: (roomId) => {
+    // Records the desired room on the network client: sent immediately while
+    // connected, and replayed from onopen (including after reconnects) when
+    // the socket is not open yet, as during page load. The realtime seam
+    // keeps intercepting this path.
+    net.joinRoom(roomId);
+  },
+  clearRoster: () => remotePlayers.clear(),
+  persistVisit,
+  present: {
+    destination: presentDestination,
+    fallback: (res) => toast(
+      'That place is not on the map',
+      `No known place answers to “${res.requested}” — you arrive at The Orpheum instead.`,
+      'TRAVEL',
+    ),
+    travelError: (res, error) => toast(
+      'Travel failed',
+      `The way to ${res.def?.name || res.requested || res.roomId} is blocked for now — pick the place again to retry.`,
+      'TRAVEL',
+    ),
+    network: presentNetwork,
+  },
+});
+
+// Framework-owned interactions: seats, travel gates, field notes and
+// specialized screen delegation answer first; every other item type falls
+// through to the legacy dispatch in interact().
+const interactions = createInteractionRegistry();
+registerCoreInteractions(interactions, {
+  travel: (roomId) => setRoom(roomId),
+  gardenRoom: () => ROOMS.gardenFor(net.guestId),
+  seatControl: seats,
+  readFieldNote: (item) => toast(item.sub, item.body, 'FIELD NOTE'),
+  openScreen: () => theaterAdapter.openScreen(),
+});
+
+function setRoom(roomId) {
+  placeRuntime.travel(roomId);
 }
 
 // New gardeners wake up in The Orpheum, in cinema view — the shared screen
@@ -410,8 +724,8 @@ setRoom(initialRoom);
 
 // --- NETWORK PACKET HANDLERS ---
 net.on(MSG_TYPES.WELCOME, (msg) => {
-  $('net-indicator').textContent = '● ONLINE';
-  $('net-indicator').style.color = '#85e0a3';
+  // Server acceptance evidence for the active room: shared actions resume.
+  placeRuntime.markNetworkOnline();
   if (msg.player) {
     ui.updatePlayerHUD(msg.player);
     player.userData.updateNickname(msg.player.nickname);
@@ -423,11 +737,21 @@ net.on(MSG_TYPES.WELCOME, (msg) => {
   if (msg.theater) theaterUI.applyState(msg.theater, msg.serverNow || Date.now());
 });
 
+// A dropped socket leaves the rendered place exactly where it is, marked
+// offline: shared actions wait, and the client's own reconnect replay (or
+// picking a place in Travel) restores membership without a rebuild.
+net.onDisconnect(() => {
+  placeRuntime.markNetworkOffline();
+  atmosphereEvents.cancelAll(); // shared one-shots stop with the connection (task 4.2)
+  toast('Connection Lost', 'The connection dropped — this place still renders, but shared actions wait for the server. It reconnects on its own, or pick a place to retry.', 'OFFLINE');
+});
+
 net.on(MSG_TYPES.PRESENCE_JOIN, (msg) => {
   if (rtWire?.consumePresenceJoin?.(msg)) return;
   if (msg.player && msg.player.id !== net.guestId) {
     remotePlayers.setPlayer(msg.player);
-    toast("Gardener Arrived", `${msg.player.nickname} entered the area.`);
+    // Social places greet visitors; legacy contexts greet gardeners.
+    toast(activeHudPolicy?.copy.visitorArrival ?? 'Gardener Arrived', `${msg.player.nickname} entered the area.`);
   }
 });
 
@@ -566,6 +890,11 @@ net.on(MSG_TYPES.EMOTE_BROADCAST, (msg) => {
 net.on(MSG_TYPES.WELCOME, () => chatPanel.setConnected(true));
 
 function updateWeatherDisplay(weather) {
+  // Legacy agricultural weather (World.Weather via weather_update/WELCOME)
+  // keeps feeding the HUD cache on legacy rooms, but it must never override
+  // an active place atmosphere's fog or caption (add-atmosphere-weather-system
+  // D1). No garden simulation is changed — only this presentation write.
+  if (legacyWeatherDisplaySuppressed(atmosphereStateClient)) return;
   const icon = weather === 'rain' ? '☔' : weather === 'drizzle' ? '☂' : '☼';
   const label = weather === 'rain' ? 'HEAVY RAIN' : weather === 'drizzle' ? 'RAINY MIST' : 'CLEAR AFTER RAIN';
   $('weather-icon').textContent = icon;
@@ -609,7 +938,7 @@ function chime(freqs = [440, 554, 660]) {
     gain.gain.setValueAtTime(0, audio.currentTime + i * 0.08);
     gain.gain.linearRampToValueAtTime(0.04, audio.currentTime + 0.02 + i * 0.08);
     gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.8 + i * 0.08);
-    osc.connect(gain).connect(audio.destination);
+    osc.connect(gain).connect(audioMixer.buses.effects); // chimes share the effects bus
     osc.start(audio.currentTime + i * 0.08);
     osc.stop(audio.currentTime + 0.9 + i * 0.08);
   });
@@ -647,29 +976,34 @@ function playFootstep() {
 $('sound').onclick = async () => {
   muted = !muted;
   if (!audio) {
-    audio = new AudioContext();
-    stepGain = audio.createGain();
-    stepGain.gain.value = stepsVolume;
-    stepGain.connect(audio.destination);
-    // Footstep source: a short noise burst, pre-decayed so it thuds.
-    stepBuffer = audio.createBuffer(1, Math.floor(audio.sampleRate * 0.09), audio.sampleRate);
-    const stepData = stepBuffer.getChannelData(0);
-    for (let i = 0; i < stepData.length; i++) {
-      stepData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / stepData.length, 2);
+    // The ONE shared AudioContext (task 4.1): buses for environment/effects
+    // live in the mixer; footsteps keep their own subgain on the effects bus.
+    audio = audioMixer.ensure();
+    if (audio) {
+      stepGain = audio.createGain();
+      stepGain.gain.value = stepsVolume;
+      stepGain.connect(audioMixer.buses.effects);
+      // Footstep source: a short noise burst, pre-decayed so it thuds.
+      stepBuffer = audio.createBuffer(1, Math.floor(audio.sampleRate * 0.09), audio.sampleRate);
+      const stepData = stepBuffer.getChannelData(0);
+      for (let i = 0; i < stepData.length; i++) {
+        stepData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / stepData.length, 2);
+      }
+      // Environment loops (ambience + weather layers) are synthesized once
+      // and retained; the old direct-to-destination ambient loop is gone.
+      environmentAudio.start();
     }
-    const buffer = audio.createBuffer(1, audio.sampleRate * 2, audio.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.04;
-    const source = audio.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
-    const filter = audio.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 320;
-    source.connect(filter).connect(audio.destination);
-    source.start();
   }
-  await (muted ? audio.suspend() : audio.resume());
+  if (audio) {
+    if (muted) {
+      atmosphereEvents.cancelAll(); // mute cancels scheduled thunder handles (task 4.2)
+      await audioMixer.suspend();
+    } else {
+      await audioMixer.resume();
+    }
+    // Autoplay denial: report honestly and let the next Sound gesture retry.
+    if (!muted && audioMixer.status() !== 'running') muted = true;
+  }
   $('sound').textContent = muted ? '♫  Sound off' : '♫  Sound on';
 };
 
@@ -680,6 +1014,67 @@ $('footsteps').oninput = () => {
   $('footsteps-value').textContent = `${Math.round(stepsVolume * 100)}%`;
   if (stepGain) stepGain.gain.value = stepsVolume;
   persistStepsVolume();
+};
+
+// Weather comfort preferences (task 4.3): the effect tier is separate from
+// the DPR selector above, reduced motion follows the OS until overridden,
+// and every change applies live — no restart. Storage is best-effort and
+// additive (`afterlight-atmosphere-v1`); failures keep the session choice.
+const atmospherePrefControls = {
+  quality: $('atmosphere-quality'),
+  motion: $('atmosphere-motion'),
+  flash: $('atmosphere-flash'),
+};
+function syncAtmosphereControls() {
+  if (!atmospherePrefControls.quality) return;
+  atmospherePrefControls.quality.value = atmospherePrefs.quality;
+  atmospherePrefControls.motion.value = atmospherePrefs.reduceMotion;
+  atmospherePrefControls.flash.value = atmospherePrefs.flash;
+}
+function setAtmospherePreference(change) {
+  atmospherePrefs = { ...atmospherePrefs, ...change };
+  saveAtmospherePreferences(atmospherePrefs, localStorage);
+  syncAtmosphereControls();
+  applyAtmospherePreferences();
+}
+syncAtmosphereControls();
+atmospherePrefControls.quality?.addEventListener('change', () => {
+  setAtmospherePreference({ quality: atmospherePrefControls.quality.value });
+});
+atmospherePrefControls.motion?.addEventListener('change', () => {
+  setAtmospherePreference({ reduceMotion: atmospherePrefControls.motion.value });
+});
+atmospherePrefControls.flash?.addEventListener('change', () => {
+  setAtmospherePreference({ flash: atmospherePrefControls.flash.value });
+});
+applyAtmospherePreferences();
+
+// Ambience / weather volume sliders (tasks 4.1/4.3): independent logical
+// gains on the shared mixer; malformed/unavailable storage stays session-only.
+function bindAudioVolume(inputId, labelId, prefName) {
+  const input = $(inputId);
+  const label = $(labelId);
+  if (!input || !label) return;
+  const pct = Math.round(audioMixer.preference(prefName) * 100);
+  input.value = String(pct);
+  label.textContent = `${pct}%`;
+  input.addEventListener('input', () => {
+    const value = Number(input.value) / 100;
+    label.textContent = `${input.value}%`;
+    audioMixer.setPreference(prefName, value);
+  });
+}
+bindAudioVolume('ambience-volume', 'ambience-value', 'ambience');
+bindAudioVolume('weather-volume', 'weather-value', 'weather');
+
+// Legacy gardener HUD: the reversible rollback for the contextual policy.
+// Flipping it re-applies the policy for the current place and persists the
+// preference; a storage failure simply keeps the choice for this session.
+$('legacy-hud').checked = legacyUiHud;
+$('legacy-hud').onchange = () => {
+  legacyUiHud = $('legacy-hud').checked;
+  writeLegacyUiPreference(legacyUiHud);
+  applyPlaceHud(placeRuntime.snapshot().resolution);
 };
 
 // --- TOOL SELECTION ---
@@ -713,77 +1108,33 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
 });
 
 // --- INTERACTION LOGIC ---
-// Sitting: the player snaps into a chair facing the screen (-z), legs folded.
-// Any movement key, walk-click, E, or travel stands them up again.
-function sitOn(seatItem) {
-  if (seated) return;
-  // standZ: a clear spot 0.8 in front of the seat center (the way it faces).
-  // The seated position sits inside the chair's collision rectangle; standing
-  // up must step outside it or small movement steps can never escape.
-  seated = { x: seatItem.x, z: seatItem.z - 0.08, standZ: seatItem.z - 0.8, rotY: Math.PI };
-  // Take the keyboard back: a focused chat input would silently swallow the
-  // keys that get the player out of the chair again.
-  if (document.activeElement?.id === 'chat-input') document.activeElement.blur();
-  player.position.set(seated.x, 0, seated.z);
-  player.rotation.y = seated.rotY;
-  // Seated in first person: open the view facing where the chair faces.
-  if (cameraMode === FP_MODE) fpYaw = seated.rotY + Math.PI;
-  player.userData.legs.forEach(leg => { leg.rotation.x = -1.35; });
-  target = null;
-  marker.visible = false;
-  clearJumpMomentum(); // sitting is a hard reset: no queued jump from the chair
-  net.sendMovement(player.position.x, player.position.z, player.rotation.y, false, true);
-  toast('Take a Seat', 'You settle into the velvet. Press E or a movement key to stand.', 'THE ORPHEUM');
-  // Cinema view: big stage, chat beside it, HUD out of the way.
-  theaterUI.setSeated(true);
-  theaterUI.setWatchMode(true);
-}
-
+// Sitting: the seat controller owns the pose (sit snap, folded legs, safe
+// dismount, wire flags) — the interaction registry routes seat items to it.
+// Cinema view is requested only by the active Theater adapter through the
+// runtime's seat notification — an external bench never opens it.
 function standUp() {
-  if (!seated) return;
-  // Step out in front of the chair (the way it faces). Standing at the seated
-  // spot would leave the player inside the seat's collision rectangle, wedged
-  // between chair rows — small movement steps never escape a blocked rect.
-  player.position.set(seated.x, 0, seated.standZ);
-  seated = null;
-  clearJumpMomentum();
-  player.userData.legs.forEach(leg => { leg.rotation.x = 0; });
-  net.sendMovement(player.position.x, player.position.z, player.rotation.y, false, false);
-  theaterUI.setSeated(false);
-  theaterUI.setWatchMode(false);
+  seats.stand();
 }
 
 function interact() {
   if (paused) return;
 
   // E while seated always stands up, regardless of what else is nearby.
-  if (seated) {
+  if (seats.current) {
     standUp();
     return;
   }
 
   if (!nearest) {
-    toast("No Target Nearby", "Approach a garden bed, market stall, or gateway to interact.");
+    toast("No Target Nearby", activeHudPolicy?.copy.noTargetHint
+      ?? "Approach a garden bed, market stall, or gateway to interact.");
     return;
   }
 
-  // Garden Gate in Market Court
-  if (nearest.type === 'garden_gate') {
-    setRoom(ROOMS.gardenFor(net.guestId));
-    return;
-  }
-
-  // Market Gate in Garden or Districts
-  if (nearest.type === 'market_gate') {
-    setRoom(ROOMS.MARKET);
-    return;
-  }
-
-  // District Gateway
-  if (nearest.type === 'district_gate') {
-    setRoom(nearest.targetDistrict);
-    return;
-  }
+  // Framework-owned types (seats, travel gates, field notes, screen
+  // delegation) answer first; unknown types fall through to the legacy
+  // dispatch below, unchanged.
+  if (interactions.dispatch(nearest).handled) return;
 
   // Landmark Restoration
   if (nearest.type === 'landmark') {
@@ -798,22 +1149,6 @@ function interact() {
         toast(def.done, 'This sector has already been restored.', 'RESTORATION ACTIVE');
       }
     }
-    return;
-  }
-
-  // Field Note Reading
-  if (nearest.type === 'field-note') {
-    toast(nearest.sub, nearest.body, 'FIELD NOTE');
-    return;
-  }
-
-  // Theater seating & the shared screen
-  if (nearest.type === 'seat') {
-    sitOn(nearest);
-    return;
-  }
-  if (nearest.type === 'theater_screen') {
-    theaterUI.openControls();
     return;
   }
 
@@ -907,61 +1242,14 @@ $('interact').onclick = interact;
 $('btn-inventory').onclick = () => ui.openInventory();
 $('btn-market').onclick = () => ui.openMarket();
 
-// District Travel Dialog Management
-function openDistricts() {
-  paused = true;
-  keys.clear();
-  clearJumpMomentum();
-  renderDistrictList();
-  $('district-dialog').showModal();
-}
-
-function closeDistricts() {
-  paused = false;
-  $('district-dialog').close();
-}
-
-function renderDistrictList() {
-  const container = $('district-list');
-  container.innerHTML = '';
-
-  // 1. Market Court option
-  const marketBtn = document.createElement('button');
-  marketBtn.className = 'district-choice' + (currentRoomId === 'market' ? ' active' : '');
-  marketBtn.innerHTML = `
-    <div>
-      <span class="micro">SOCIAL TRADING HUB</span>
-      <strong>The Market Court</strong>
-    </div>
-    <span class="desc">Exchange harvests, buy seeds, and fulfill town contracts.</span>
-    <span class="status-badge ${currentRoomId === 'market' ? 'current' : 'visited'}">${currentRoomId === 'market' ? 'CURRENT' : 'CIVIC HUB'}</span>
-  `;
-  marketBtn.onclick = () => { closeDistricts(); setRoom('market'); };
-  container.appendChild(marketBtn);
-
-  // 2. Personal Garden option
-  const gardenRoom = ROOMS.gardenFor(net.guestId);
-  const gardenBtn = document.createElement('button');
-  gardenBtn.className = 'district-choice' + (currentRoomId === gardenRoom ? ' active' : '');
-  gardenBtn.innerHTML = `
-    <div>
-      <span class="micro">CULTIVATION PLOT</span>
-      <strong>Your Market Garden</strong>
-    </div>
-    <span class="desc">Till soil, sow crops, water, and harvest fresh produce.</span>
-    <span class="status-badge ${currentRoomId === gardenRoom ? 'current' : 'visited'}">${currentRoomId === gardenRoom ? 'CURRENT' : 'PERSONAL PLOT'}</span>
-  `;
-  gardenBtn.onclick = () => { closeDistricts(); setRoom(gardenRoom); };
-  container.appendChild(gardenBtn);
-
-  // 3. All 16 districts
-  districts.forEach(def => {
+// Places selector (T / Travel): featured destinations first, an expandable
+// Legacy areas group that retains every old destination, and live occupancy
+// counts where the server can answer (unknown stays "—", never a guess).
+function placeDestinations() {
+  const entries = districts.map(def => {
     const isCurrent = currentRoomId === def.id;
     const isCompleted = exploration.completed.includes(def.id);
     const isVisited = exploration.visited.includes(def.id);
-
-    const btn = document.createElement('button');
-    btn.className = 'district-choice' + (isCurrent ? ' active' : '');
     let badgeClass = 'unexplored', badgeText = 'UNEXPLORED';
     if (isCurrent) {
       badgeClass = 'current'; badgeText = 'CURRENT';
@@ -970,23 +1258,69 @@ function renderDistrictList() {
     } else if (isVisited) {
       badgeClass = 'visited'; badgeText = 'VISITED';
     }
-
-    btn.innerHTML = `
-      <div>
-        <span class="micro">${def.district}</span>
-        <strong>${def.name}</strong>
-      </div>
-      <span class="desc">${def.description}</span>
-      <span class="status-badge ${badgeClass}">${badgeText}</span>
-    `;
-    btn.onclick = () => { closeDistricts(); setRoom(def.id); };
-    container.appendChild(btn);
+    return {
+      roomId: def.id,
+      featured: !!def.social?.featured,
+      micro: def.district,
+      name: def.name,
+      description: def.description,
+      badgeClass,
+      badgeText,
+      current: isCurrent,
+    };
   });
+  const gardenRoom = ROOMS.gardenFor(net.guestId);
+  entries.push(
+    {
+      roomId: ROOMS.MARKET,
+      featured: false,
+      micro: 'MARKET SOCIAL DISTRICT / 01',
+      name: 'The Market Court',
+      description: 'Exchange harvests, buy seeds, and fulfill town contracts.',
+      badgeClass: currentRoomId === ROOMS.MARKET ? 'current' : 'visited',
+      badgeText: currentRoomId === ROOMS.MARKET ? 'CURRENT' : 'CIVIC HUB',
+      current: currentRoomId === ROOMS.MARKET,
+    },
+    {
+      roomId: gardenRoom,
+      featured: false,
+      micro: 'CULTIVATION PLOT',
+      name: 'Your Market Garden',
+      description: 'Till soil, sow crops, water, and harvest fresh produce.',
+      badgeClass: currentRoomId === gardenRoom ? 'current' : 'visited',
+      badgeText: currentRoomId === gardenRoom ? 'CURRENT' : 'PERSONAL PLOT',
+      current: currentRoomId === gardenRoom,
+    },
+  );
+  return entries;
+}
+
+const placeSelector = createPlaceSelector({
+  dialog: $('district-dialog'),
+  container: $('district-list'),
+  closeButton: $('close-districts'),
+  net,
+  getDestinations: placeDestinations,
+  onTravel: (roomId) => setRoom(roomId),
+  onOpen: () => {
+    paused = true;
+    keys.clear();
+    clearJumpMomentum();
+  },
+  onClose: () => {
+    paused = false;
+    // Closing hands the keyboard back to the game with nothing held: keys
+    // pressed while the modal was up must not walk the gardener.
+    keys.clear();
+    clearJumpMomentum();
+  },
+});
+
+function openDistricts() {
+  placeSelector.open();
 }
 
 $('btn-travel').onclick = openDistricts;
-$('close-districts').onclick = closeDistricts;
-$('district-dialog').addEventListener('cancel', (e) => { e.preventDefault(); closeDistricts(); });
 emoteWheel = createEmoteWheel({
   canOpen: () => !paused && !document.querySelector('dialog[open]'),
   onOpen: () => {
@@ -1008,7 +1342,14 @@ function toggleSettings() {
   keys.clear();
   clearJumpMomentum();
   if (paused) $('settings-dialog').showModal();
-  else $('settings-dialog').close();
+  else {
+    $('settings-dialog').close();
+    // Resuming seeks the atmosphere to CURRENT server state and silently
+    // drops events that started or expired while paused (task 2.2 D3); the
+    // event envelopes drop clock-dependent thunder handles with it (4.2).
+    atmosphereStateClient.resume();
+    atmosphereEvents.resync();
+  }
 }
 $('settings').onclick = toggleSettings;
 $('resume').onclick = toggleSettings;
@@ -1037,12 +1378,12 @@ $('atmosphere').onchange = () => { particles.visible = $('atmosphere').checked; 
 
 // --- KEYBOARD CONTROLS ---
 window.addEventListener('keydown', (e) => {
-  if (e.target.closest('input,select,textarea,[contenteditable="true"]') && e.code !== 'Escape') return;
+  if ((e.target.closest('input,select,textarea,[contenteditable="true"]') || e.target.closest('#call-panel')) && e.code !== 'Escape') return;
 
   // A seated player can always free themselves with E or any movement key —
   // this runs even while some panel has paused the world, so sitting can
   // never become a trap.
-  if (seated && ['KeyE', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+  if (seats.current && ['KeyE', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
     standUp();
     if (e.code !== 'KeyE') {
       e.preventDefault();
@@ -1064,8 +1405,13 @@ window.addEventListener('keydown', (e) => {
   }
 
   if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6'].includes(e.code)) {
-    const map = { Digit1: 'hands', Digit2: 'hoe', Digit3: 'seed', Digit4: 'water', Digit5: 'harvest', Digit6: 'sprinkler' };
-    setTool(map[e.code]);
+    // Tool digits only exist in legacy contexts; in social places the numbers
+    // stay with the emote wheel, which consumes them in the capture phase.
+    const tool = toolForDigit(e.code, {
+      enabled: activeHudPolicy ? activeHudPolicy.shortcuts.toolDigits : true,
+      emoteWheelOpen: !!emoteWheel?.isOpen,
+    });
+    if (tool) setTool(tool);
     return;
   }
 
@@ -1075,7 +1421,7 @@ window.addEventListener('keydown', (e) => {
   keys.add(e.code);
 
   if (e.repeat) return;
-  if (e.code === 'Space' && !paused && !seated) jumpQueued = true; // consumed by the frame loop
+  if (e.code === 'Space' && !paused && !seats.current) jumpQueued = true; // consumed by the frame loop
   if (e.code === 'KeyE') interact();
   if (e.code === 'KeyI') ui.openInventory();
   if (e.code === 'KeyM') ui.openMarket();
@@ -1088,7 +1434,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyC') $('camera').click();
   if (e.code === 'Escape') {
     // Esc always frees a seated player completely (cinema view + chair).
-    if (seated) standUp();
+    if (seats.current) standUp();
     else if (!paused) {
       // In cinema view, Escape returns to the game first; settings needs a second press.
       if (theaterUI.isWatching()) theaterUI.setWatchMode(false);
@@ -1098,6 +1444,14 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('keyup', (e) => keys.delete(e.code));
+// Returning to a hidden-then-shown tab is a resume, not a catch-up: seek to
+// the current server state and drop clock-dependent thunder (tasks 2.2/4.2).
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    atmosphereStateClient.resume();
+    atmosphereEvents.resync();
+  }
+});
 window.addEventListener('blur', () => {
   keys.clear();
   clearJumpMomentum();
@@ -1108,7 +1462,7 @@ window.addEventListener('blur', () => {
 // (classifyDrag). In first person a drag turns the view instead; in every
 // mode a plain press-release does what the old pointerdown handler did:
 // stands a seated player up, leaves cinema view, and plants a walk target.
-let press = null; // { x, y, lastX, lastY, dragging }
+// (`press` is declared with the other travel-transient state above.)
 
 renderer.domElement.addEventListener('pointerdown', (e) => {
   if (paused || emoteWheel?.isOpen) return;
@@ -1134,7 +1488,7 @@ function endPress(e) {
   const started = press;
   press = null;
   if (!started || paused || started.dragging) return; // a look-drag never walks
-  if (seated) standUp();
+  if (seats.current) standUp();
   else if (theaterUI.isWatching()) theaterUI.setWatchMode(false); // tap-to-walk leaves cinema view
   ray.setFromCamera(new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), activeCamera);
   if (ray.ray.intersectPlane(plane, hit)) {
@@ -1220,11 +1574,11 @@ function frame(now) {
 
     // Any movement key stands a seated player up — or, when watching without
     // sitting, steps out of cinema view so the walk begins immediately.
-    if (seated && (moveX || moveZ)) {
+    if (seats.current && (moveX || moveZ)) {
       standUp();
       moveX = 0;
       moveZ = 0;
-    } else if (!seated && (moveX || moveZ) && theaterUI.isWatching()) {
+    } else if (!seats.current && (moveX || moveZ) && theaterUI.isWatching()) {
       theaterUI.setWatchMode(false);
     }
 
@@ -1251,7 +1605,7 @@ function frame(now) {
     const baseSpeed = running ? RUN_SPEED : WALK_SPEED;
     // Vertical physics first: a landing frame with Space held relaunches the
     // hop before this frame's horizontal step, so chains never touch ground.
-    if (!seated) {
+    if (!seats.current) {
       stepJump(jumpState, {
         jumpPressed: jumpQueued,
         jumpHeld: keys.has('Space'),
@@ -1262,7 +1616,7 @@ function frame(now) {
       jumpQueued = false;
     }
     dir.normalize().multiplyScalar(dt * moveSpeedFor(jumpState, baseSpeed));
-    const moved = seated ? false : move(player, dir.x, dir.z, dt);
+    const moved = seats.current ? false : move(player, dir.x, dir.z, dt);
     if (target && !moved) {
       target = null;
       marker.visible = false;
@@ -1270,7 +1624,7 @@ function frame(now) {
 
     // While airborne the jump owns the avatar's y and the legs tuck; the
     // grounded walk bob that move() just applied stays untouched.
-    if (!seated && jumpState.airborne) {
+    if (!seats.current && jumpState.airborne) {
       player.position.y = jumpState.y;
       player.userData.legs.forEach(leg => { leg.rotation.x = -0.8; });
     }
@@ -1289,8 +1643,10 @@ function frame(now) {
     }
 
     // Transmit position to multiplayer server (sitting rides along so remote
-    // players render the seated pose; airborne lets them render hops)
-    net.sendMovement(player.position.x, player.position.z, player.rotation.y, moved, !!seated, !seated && jumpState.airborne);
+    // players render the seated pose; airborne lets them render hops). The
+    // pose flags come from the seat controller, so a stand/sit whose immediate
+    // packet was throttled still lands with the next permitted send.
+    net.sendMovement(player.position.x, player.position.z, player.rotation.y, moved, !!seats.current, !seats.current && jumpState.airborne);
 
     // Companion Kiln follower movement
     const follow = new THREE.Vector3().subVectors(player.position, kiln.position);
@@ -1318,9 +1674,34 @@ function frame(now) {
     if (rtWire?.update) rtWire.update(dt, t);
     else remotePlayers.update(dt, t);
 
-    // Update active world
-    const isDone = exploration.completed.includes(currentRoomId);
-    currentWorld.update(t, currentGardenBeds || isDone);
+    // Update active world with typed inputs: a personal garden room receives
+    // its bed snapshot, and every other world receives only its boolean
+    // completion — a stale garden snapshot can never masquerade as district
+    // restoration state.
+    const worldInput = worldUpdateInput({
+      isGardenRoom: ROOMS.isGarden(currentRoomId),
+      gardenBeds: currentGardenBeds,
+      completed: exploration.completed.includes(currentRoomId),
+    });
+    currentWorld.update?.(t, worldInput.value);
+
+    // The atmosphere controller rides the existing loop (no second rAF): it
+    // samples the room's semantic state at the anchored server time and
+    // costs nothing while inactive or while the world is hidden.
+    atmosphereController.update(dt * 1000);
+
+    // Shared lightning envelopes + environmental audio (tasks 4.2/4.1), on
+    // the same loop. The flash applies ADDITIVELY on top of the controller's
+    // just-written presentation (≤0.2 exposure / ≤20% sun at full peak) and
+    // the next controller write restores the exact baseline; the HUD flash
+    // layer is never touched.
+    atmosphereEvents.update();
+    const flashPulse = atmosphereEvents.getPulse();
+    updateEnvironmentAudio();
+    if (flashPulse.active && flashPulse.amplitude > 0) {
+      renderer.toneMappingExposure += flashPulse.exposureAdd;
+      sun.intensity *= 1 + flashPulse.sunAdd;
+    }
 
     // Find nearest interactable
     nearest = null;
@@ -1341,7 +1722,8 @@ function frame(now) {
       const distDef = districts.find(d => d.id === currentRoomId);
       if (distDef) {
         $('action-title').textContent = distDef.name;
-        $('action-sub').textContent = "Explore sector with Kiln · Press T to travel";
+        $('action-sub').textContent = activeHudPolicy?.copy.idleActionHint
+          ?? "Explore sector with Kiln · Press T to travel";
       } else {
         $('action-title').textContent = currentRoomId === ROOMS.MARKET ? "Market Court" : "Your Market Garden";
         $('action-sub').textContent = currentRoomId === ROOMS.MARKET ? "Explore stalls or travel to outer districts" : "Approach beds to till, plant, water, and harvest";
@@ -1370,7 +1752,7 @@ function frame(now) {
   // Camera follow: isometric orbit modes vs first person at eye height
   // (lowered when seated in a theater chair).
   if (cameraMode === FP_MODE) {
-    const eye = seated ? SEATED_EYE_HEIGHT : EYE_HEIGHT;
+    const eye = seats.current ? SEATED_EYE_HEIGHT : EYE_HEIGHT;
     fpCamera.position.set(player.position.x, player.position.y + eye, player.position.z);
     fpCamera.rotation.set(fpPitch, fpYaw, 0, 'YXZ');
   } else {
