@@ -23,6 +23,7 @@ defmodule Afterlight.Application do
         Afterlight.Repo
       ] ++ oban_children() ++ domain_children() ++ [
         Afterlight.Conferencing.Reaper,
+        Afterlight.Media.Supervisor,
         {Phoenix.PubSub, name: Afterlight.PubSub},
         Afterlight.Telemetry,
         {Finch, name: Afterlight.Finch, pools: %{default: [count: 8, size: 32]}},

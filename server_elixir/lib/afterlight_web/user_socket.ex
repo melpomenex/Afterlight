@@ -22,6 +22,7 @@ defmodule AfterlightWeb.UserSocket do
   alias Afterlight.Gateway.{Auth, RateLimit}
 
   channel "game:v1", AfterlightWeb.GameChannel
+  channel "call:*", AfterlightWeb.CallChannel
 
   @impl true
   def connect(params, socket, connect_info) do
