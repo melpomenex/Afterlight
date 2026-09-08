@@ -1,11 +1,13 @@
 # Runtime configuration — environment reads only (D6).
 import Config
 
-database_url = System.get_env("DATABASE_URL") || "ecto://afterlight@127.0.0.1:5433/afterlight_dev"
+if config_env() != :test do
+  database_url = System.get_env("DATABASE_URL") || "ecto://afterlight@127.0.0.1:5433/afterlight_dev"
 
-config :afterlight, Afterlight.Repo,
-  url: database_url,
-  pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
+  config :afterlight, Afterlight.Repo,
+    url: database_url,
+    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
+end
 
 # Explicit non-production dev default; hard boot failure under :prod when
 # missing so a secretless release can never start.
@@ -17,22 +19,12 @@ secret_key_base =
       "afterlight-dev-only-secret-base-please-do-not-use-in-prod-0000000000000000"
     end
 
-check_origin =
-  case System.get_env("PHX_CHECK_ORIGIN") do
-    "false" ->
-      false
-
-    origins when is_binary(origins) and origins != "" ->
-      origins |> String.split(",", trim: true)
-
-    _ ->
-      [
-        "//localhost:5173",
-        "//localhost:4173",
-        "//127.0.0.1:5173",
-        "//*.vercel.app"
-      ]
-  end
+# Resolved by AfterlightWeb.OriginConfig (unit-tested): "false" disables the
+# check, a non-empty CSV overrides the list, anything else falls back to the
+# dev + Vercel defaults. A wrong value here reads to players as "the theater
+# never streams" — the browser's socket upgrade 403s — so the logic lives in
+# a tested module instead of inline config script.
+check_origin = AfterlightWeb.OriginConfig.resolve(System.get_env("PHX_CHECK_ORIGIN"))
 
 config :afterlight, AfterlightWeb.Endpoint,
   secret_key_base: secret_key_base,
@@ -148,10 +140,27 @@ if config_env() != :test do
       routing
     end
 
+  # P7 IRC adapter (specialty boundary): bridges Phoenix-owned chat into the
+  # embedded Node IRC server and pushes external IRC traffic (bots, IRC
+  # clients) back into the chat relay. Enabled with the chat flip;
+  # AFTERLIGHT_IRC_ADAPTER=0 disables it explicitly. Bridge-down degradation
+  # keeps game chat working without the sidecar.
+  config :afterlight, :irc_adapter,
+    enabled:
+      System.get_env("AFTERLIGHT_CHAT_OWNER", "node") == "phoenix" and
+        System.get_env("AFTERLIGHT_IRC_ADAPTER", "1") != "0",
+    sidecar_url: System.get_env("AFTERLIGHT_NODE_HTTP_URL") || "http://127.0.0.1:3001",
+    boundary_secret: System.get_env("AFTERLIGHT_BOUNDARY_SECRET")
+
   config :afterlight, :gateway,
     node_ws_url: System.get_env("AFTERLIGHT_NODE_WS_URL") || "ws://127.0.0.1:3001/ws",
     proxy_target: System.get_env("AFTERLIGHT_NODE_HTTP_URL") || "http://127.0.0.1:3001",
     boundary_secret: System.get_env("AFTERLIGHT_BOUNDARY_SECRET"),
+    # Per-read idle bound for proxied torrent Range streams; longer than the
+    # generic 60s proxy timeout because a paused <video> legitimately stops
+    # pulling bytes mid-transfer (see AfterlightWeb.HTTPProxy).
+    http_proxy_torrent_timeout_ms:
+      String.to_integer(System.get_env("AFTERLIGHT_PROXY_TORRENT_TIMEOUT_MS") || "300000"),
     token_secret: token_secret,
     token_max_age_secs: String.to_integer(System.get_env("AFTERLIGHT_TOKEN_MAX_AGE") || "43200"),
     routing: routing

@@ -70,8 +70,10 @@ defmodule Afterlight.Specialty.IrcBridge do
       }
 
       Bridge.set_adapter(Bridge, __MODULE__)
+      # schedule_health/1 already defers the first probe by one interval;
+      # probing immediately crashed at boot when Finch's registry did not
+      # exist yet (domain supervisors start ahead of it).
       health_ref = schedule_health(state.health_interval_ms)
-      send(self(), :health_check)
       {:ok, %{state | health_ref: health_ref}}
     else
       :ignore

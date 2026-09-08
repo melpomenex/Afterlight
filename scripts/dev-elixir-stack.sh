@@ -48,6 +48,35 @@ for i in $(seq 1 60); do
   sleep 0.5
 done
 
+# Browser-origin handshake smoke (fix-theater-streaming-after-elixir-cutover
+# D1): when the gateway rejects the Vite origin, the game presents as an
+# endless "reconnecting" loop and the theater never streams. Fail the boot
+# loudly here instead. PHX_CHECK_ORIGIN=false skips the check by design.
+if [[ "${PHX_CHECK_ORIGIN:-}" != "false" ]]; then
+  echo "→ Smoke check: WebSocket upgrade from the Vite dev origin…"
+  SMOKE_ORIGIN="http://localhost:5173"
+  SMOKE_TOKEN="$(curl -sf -m 10 -X POST "http://127.0.0.1:4000/api/auth/guest" \
+    -H "Content-Type: application/json" -H "Origin: $SMOKE_ORIGIN" \
+    -d '{"guestId":"stack-smoke","nickname":"StackSmoke"}' \
+    | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{console.log(JSON.parse(d).token||'')}catch{console.log('')}})" || true)"
+  if [[ -z "$SMOKE_TOKEN" ]]; then
+    echo "✗ Guest auth through the gateway failed — check the Phoenix log. Aborting before Vite starts."
+    exit 1
+  fi
+  SMOKE_CODE="$(curl -s -o /dev/null --http1.1 -m 8 -w "%{http_code}" \
+    "http://127.0.0.1:4000/ws/websocket?vsn=2.0.0&token=$SMOKE_TOKEN" \
+    -H "Connection: Upgrade" -H "Upgrade: websocket" \
+    -H "Sec-WebSocket-Key: c3RhY2stc21va2UtaGFuZHNob3c=" -H "Sec-WebSocket-Version: 13" \
+    -H "Origin: $SMOKE_ORIGIN" || true)"
+  if [[ "$SMOKE_CODE" != "101" ]]; then
+    echo "✗ WebSocket upgrade from $SMOKE_ORIGIN answered HTTP $SMOKE_CODE (want 101)."
+    echo "  The gateway's check_origin list does not include the dev client origin —"
+    echo "  see AfterlightWeb.OriginConfig / PHX_CHECK_ORIGIN in server_elixir/config/runtime.exs."
+    exit 1
+  fi
+  echo "   ✓ $SMOKE_ORIGIN upgrades to the gateway (101)"
+fi
+
 echo "→ Vite client (Phoenix transport via .env.development)…"
 echo "   Open http://localhost:5173 — gateway ws://localhost:4000/ws"
 npm run dev:phoenix

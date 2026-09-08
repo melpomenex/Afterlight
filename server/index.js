@@ -24,6 +24,7 @@ import { theaterErrorText } from '../shared/theaterModel.js';
 import { torrentErrorText } from '../shared/torrentModel.js';
 import { IrcServer } from './irc.js';
 import { ChatBridge } from './chat.js';
+import { IrcPhoenixAdapter } from './ircAdapter.js';
 import { MATERIALS } from '../shared/materials.js';
 
 const PORT = process.env.PORT || 3001;
@@ -99,6 +100,22 @@ export function createServer(customStorage = null, options = {}) {
     );
   }
 
+  // P7 IRC adapter: when the Phoenix gateway owns game chat (the legacy
+  // relay disabled via CHAT_RELAY_DISABLED=1) and a callback door is
+  // configured, this adapter replaces ChatBridge's game-relay halves —
+  // Phoenix posts chat/presence events in, external IRC traffic (bots,
+  // IRC clients) is pushed back to the gateway so it reaches the panel.
+  const ircAdapter = (!chatRelayEnabled && irc.enabled && process.env.AFTERLIGHT_IRC_CALLBACK_URL)
+    ? new IrcPhoenixAdapter({
+        irc,
+        callbackUrl: process.env.AFTERLIGHT_IRC_CALLBACK_URL,
+        boundarySecret: process.env.AFTERLIGHT_BOUNDARY_SECRET,
+      })
+    : null;
+  if (ircAdapter) {
+    console.log('Afterlight IRC adapter active: Phoenix owns game chat (POST /api/irc/adapter/event)');
+  }
+
   let currentWeather = WEATHER.CLEAR;
   let weatherTimer = Date.now();
   let serverTick = 0;
@@ -145,6 +162,52 @@ export function createServer(customStorage = null, options = {}) {
         online: world.clients.size,
         ircPort: irc.enabled ? irc.boundPort : null,
       }));
+      return;
+    }
+
+    // --- P7 IRC adapter (Phoenix-owned chat ↔ embedded IRC server).
+    // Authenticated like the torrent routes; the gateway health-probes
+    // /health and relays chat frames through /event. ---
+    if (ircAdapter && req.url?.startsWith('/api/irc/adapter')) {
+      if (adapterRejects(req)) {
+        respondJson(res, 403, { error: 'boundary' });
+        return;
+      }
+      let adapterUrl;
+      try {
+        adapterUrl = new URL(req.url, 'http://localhost');
+      } catch {
+        res.writeHead(400);
+        res.end();
+        return;
+      }
+      if (adapterUrl.pathname === '/api/irc/adapter/health' && req.method === 'GET') {
+        respondJson(res, 200, { ok: true });
+        return;
+      }
+      if (adapterUrl.pathname === '/api/irc/adapter/event' && req.method === 'POST') {
+        let body;
+        try {
+          body = await readBody(req, 64 * 1024);
+        } catch {
+          respondJson(res, 400, { error: 'bad_request' });
+          return;
+        }
+        let parsed;
+        try {
+          parsed = JSON.parse(body.toString('utf8'));
+        } catch {
+          respondJson(res, 400, { error: 'bad_request' });
+          return;
+        }
+        if (!parsed || typeof parsed.event !== 'object' || parsed.event === null) {
+          respondJson(res, 400, { error: 'bad_request' });
+          return;
+        }
+        respondJson(res, 200, ircAdapter.handleInboundEvent(parsed.event));
+        return;
+      }
+      respondJson(res, 404, { error: 'not_found' });
       return;
     }
 
@@ -1379,6 +1442,7 @@ export function createServer(customStorage = null, options = {}) {
     clearInterval(movementInterval);
     clearInterval(gardenInterval);
     chat.destroy();
+    ircAdapter?.destroy();
     irc.close();
     torrents.close();
     for (const client of wss.clients) {
