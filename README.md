@@ -139,6 +139,7 @@ The market garden, the economy and the restoration landmarks live on unchanged f
 | <kbd>I</kbd> | Open Satchel / Inventory — everywhere; in social places it opens labeled "optional legacy" |
 | <kbd>M</kbd> | Open Market Exchange Board — everywhere; in social places it opens labeled "optional legacy" |
 | <kbd>T</kbd> / **Travel** | Open the **Places** selector — featured destinations first, every legacy area retained under "Legacy areas"; live occupancy counts where the server can answer ("—" means unknown) |
+| **Records** | Open the arcade **Records** dialog: your machine-local bests for each Orpheum cabinet plus the server-verified leaderboard, per rules version. Local bests are labeled **Pending** until the arcade's own referee records them — and **Unrecorded** if recording failed — so the board never claims a score it cannot back. |
 | Hold <kbd>V</kbd> | Emote wheel: move the pointer outward, release V to perform. Center / Esc cancels. 1–6 or arrows select; Enter confirms. Click **Emotes** for touch / click selection. |
 | <kbd>G</kbd> | In The Orpheum: open the projection booth (screen controls, IPTV lists, channel guide) |
 | <kbd>Enter</kbd> / <kbd>/</kbd> | Open town chat (type & <kbd>Enter</kbd> to send, <kbd>Esc</kbd> to return to the game) |
@@ -253,6 +254,10 @@ Travel between districts seamlessly via physical east/west gateway conduits, or 
 At the far east end of the line sits **The Orpheum** (`theater`), a grand old cinema where everyone in the room watches one shared screen — and where every player wakes up. What plays there plays for **everyone at once**: one player queues a film or flips an IPTV channel and the whole auditorium sees it.
 
 The auditorium has rounded burgundy seats with padded headrests, armrests and cup holders, carpeted aisles, acoustic wall panels and speakers. At the back, a walnut concession counter holds a glass popcorn warmer and soda fountain. These furnishings are scenery; seat and projector controls work as before.
+
+### The arcade wall
+
+Along the auditorium's east wall stands a row of arcade cabinets — **Pong** (two players), **Rain Runner**, **Signal Lost** and **Sporefall** — each with its own marquee art, trim lighting and controls. Walk up to a machine and press <kbd>E</kbd> to play or queue; anyone nearby can watch the screen and wait for a slot. Your best runs are kept in the **Records** dialog.
 
 ### Watching
 
