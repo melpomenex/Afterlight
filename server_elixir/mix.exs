@@ -62,7 +62,8 @@ defmodule Afterlight.MixProject do
       {:websockex, "~> 0.4"},
       {:finch, "~> 0.19"},
       # P5 theater playlist import worker (design D3 — plain Oban, not AshOban).
-      {:oban, "~> 2.18"}
+      {:oban, "~> 2.18"},
+      {:stream_data, "~> 1.0"}
     ]
   end
 end
