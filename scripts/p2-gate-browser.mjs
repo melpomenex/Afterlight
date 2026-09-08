@@ -15,9 +15,39 @@
  * Dev-only tool: never imported by the app or the test suites.
  */
 
-import { execSync } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 
-const DRIVER = 'http://127.0.0.1:9515';
+// The harness owns its chromedriver: spawned as a child per run and killed
+// on exit, so no browser can outlive the harness (the tool sandbox denies
+// signaling processes from earlier invocations — owning the tree fixes it).
+const DRIVER_PORT = 9515 + Math.floor(Math.random() * 500);
+const DRIVER = `http://127.0.0.1:${DRIVER_PORT}`;
+let driverProc = null;
+
+function startDriver() {
+  driverProc = spawn('/snap/bin/chromium.chromedriver', [`--port=${DRIVER_PORT}`, '--whitelisted-ips=127.0.0.1'], {
+    stdio: 'ignore',
+  });
+  const t0 = Date.now();
+  return new Promise((resolve, reject) => {
+    const poll = async () => {
+      try {
+        const res = await fetch(`${DRIVER}/status`);
+        if (res.ok) return resolve(true);
+      } catch {}
+      if (Date.now() - t0 > 10000) return reject(new Error('chromedriver did not start'));
+      setTimeout(poll, 300);
+    };
+    poll();
+  });
+}
+
+function stopDriver() {
+  if (driverProc) {
+    try { driverProc.kill('SIGKILL'); } catch {}
+    driverProc = null;
+  }
+}
 const APP = 'http://localhost:4173/?room=theater&debug=1';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log('[gate]', ...a);
@@ -35,7 +65,7 @@ function chromeProcessCount() {
 
 function guardBeforeLaunch() {
   const n = chromeProcessCount();
-  if (n > 1) {
+  if (n > 0) {
     throw new Error(
       `SAFETY GUARD: ${n} chrome/chromedriver processes exist (expected <= 1). ` +
         'Clean up strays first: pkill -9 -f chromedriver; pkill -9 -f "chrome"',
@@ -46,16 +76,19 @@ function guardBeforeLaunch() {
 async function closeAll() {
   const id = LIVE;
   LIVE = null;
-  if (id == null) return;
-  try {
-    await fetch(`${DRIVER}/session/${id}`, { method: 'DELETE' });
-  } catch {}
+  if (id != null) {
+    try {
+      await fetch(`${DRIVER}/session/${id}`, { method: 'DELETE' });
+    } catch {}
+  }
+  stopDriver();
 }
 
 for (const sig of ['SIGINT', 'SIGTERM', 'uncaughtException', 'unhandledRejection']) {
   process.on(sig, async (err) => {
     if (err) console.error('[gate] fatal:', err?.message || err);
     await closeAll();
+    stopDriver();
     process.exit(1);
   });
 }
@@ -65,6 +98,7 @@ process.on('exit', () => {
       execSync(`curl -s -X DELETE ${DRIVER}/session/${LIVE} -o /dev/null`, { timeout: 3000 });
     } catch {}
   }
+  stopDriver();
 });
 
 async function req(method, path, body = null, allowFail = false) {
@@ -97,6 +131,10 @@ async function newSession(name, { webgpu = true } = {}) {
             '--use-angle=swiftshader',
             '--window-size=800,600',
             '--mute-audio',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-background-timer-throttling',
+            '--disable-renderer-backgrounding',
+            '--disable-hang-monitor',
             ...(webgpu ? [] : ['--disable-webgpu']),
           ],
           binary: '/usr/bin/chromium-browser',
@@ -120,10 +158,13 @@ async function go(s, url = APP) {
   await req('POST', `/session/${s.id}/url`, { url });
 }
 
+// key defaults from the code, EXCEPT Space whose e.key is ' ' (the arcade
+// modules match on e.key — 'Space'.slice(3) would falsely produce 'e').
+const keyFor = (code, key) => key ?? (code === 'Space' ? ' ' : code.slice(3).toLowerCase());
 const KEYDOWN = (code, key) => `
-  document.body.dispatchEvent(new KeyboardEvent('keydown', { code: ${JSON.stringify(code)}, key: ${JSON.stringify(key ?? code.slice(3).toLowerCase())}, bubbles: true, cancelable: true })); return true;`;
+  document.body.dispatchEvent(new KeyboardEvent('keydown', { code: ${JSON.stringify(code)}, key: ${JSON.stringify(keyFor(code, key))}, bubbles: true, cancelable: true })); return true;`;
 const KEYUP = (code, key) => `
-  document.body.dispatchEvent(new KeyboardEvent('keyup', { code: ${JSON.stringify(code)}, key: ${JSON.stringify(key ?? code.slice(3).toLowerCase())}, bubbles: true })); return true;`;
+  document.body.dispatchEvent(new KeyboardEvent('keyup', { code: ${JSON.stringify(code)}, key: ${JSON.stringify(keyFor(code, key))}, bubbles: true })); return true;`;
 
 const keyDown = (s, code, key) => js(s, KEYDOWN(code, key));
 const keyUp = (s, code, key) => js(s, KEYUP(code, key));
@@ -163,75 +204,48 @@ const pos = async (s) => {
   }
 };
 
-// Adaptive walker: probe which movement key reduces distance (works under
-// any camera mode), then hold it with progress checks and re-probe on stalls.
-async function runTo(s, tx, tz, timeoutMs = 240000) {
-  const start = Date.now();
-  const path = [];
-  const dist = (p) => Math.hypot(tx - p[0], tz - p[1]);
-
-  while (Date.now() - start < timeoutMs) {
-    let p = await pos(s);
-    if (!p) {
-      await sleep(1200);
-      continue;
-    }
-    path.push(p);
-    if (dist(p) <= 1.0) return { ok: true, path, final: p };
-
-    let bestKey = null;
-    let bestDist = dist(p);
-    for (const code of ['KeyW', 'KeyA', 'KeyS', 'KeyD']) {
-      await keyDown(s, 'ShiftLeft');
-      await keyDown(s, code);
-      await sleep(650);
-      await keyUp(s, code);
-      await keyUp(s, 'ShiftLeft');
-      const q = await pos(s);
-      if (!q) continue;
-      const d = dist(q);
-      if (d < bestDist) {
-        bestDist = d;
-        bestKey = code;
-      }
-      p = q;
-      if (d <= 1.0) return { ok: true, path, final: q };
-    }
-
-    if (!bestKey) {
-      // Wedged: no key improves. Nudge sideways to shake loose.
-      for (const code of ['KeyA', 'KeyD', 'KeyS', 'KeyW']) {
-        await keyDown(s, 'ShiftLeft');
-        await keyDown(s, code);
-        await sleep(500);
-        await keyUp(s, code);
-        await keyUp(s, 'ShiftLeft');
-      }
-      continue;
-    }
-
-    let stalls = 0;
-    await keyDown(s, 'ShiftLeft');
-    await keyDown(s, bestKey);
+// Click-to-walk: project the world point to screen coordinates (the debug
+// hook exposes the game's own camera projection), then tap there. The game's
+// own navigation does the walking — no synthetic movement keys needed.
+async function clickTo(s, wx, wz, timeoutMs = 120000) {
+  await waitWorld(s);
+  // The debug hook and pointer handlers must be live before clicking.
+  for (let i = 0; i < 20; i++) {
     try {
-      while (Date.now() - start < timeoutMs) {
-        await sleep(900);
-        const q = await pos(s);
-        if (!q) continue;
-        path.push(q);
-        const d = dist(q);
-        if (d <= 1.0) return { ok: true, path, final: q };
-        if (d < bestDist - 0.05) {
-          bestDist = d;
-          stalls = 0;
-        } else if (++stalls >= 3) break;
-      }
-    } finally {
-      await keyUp(s, bestKey).catch(() => {});
-      await keyUp(s, 'ShiftLeft').catch(() => {});
-    }
+      const ready = await js(s, `return !!(window.__afterlight && window.__afterlight.project);`);
+      if (ready) break;
+    } catch {}
+    await sleep(1500);
   }
-  return { ok: false, path, final: path[path.length - 1] ?? null };
+  return clickToOnce(s, wx, wz, timeoutMs) || clickToOnce(s, wx, wz, timeoutMs) || clickToOnce(s, wx, wz, timeoutMs);
+}
+
+async function clickToOnce(s, wx, wz, timeoutMs = 120000) {
+  const [sx, sy] = await js(s, `return window.__afterlight.project(${wx}, ${wz});`);
+  const dispatch = (type) => js(s, `
+    const c = document.querySelector('canvas');
+    const opts = { clientX: ${sx}, clientY: ${sy}, bubbles: true, isPrimary: true, pointerId: 1, pointerType: 'mouse', button: 0 };
+    c.dispatchEvent(new PointerEvent(${JSON.stringify(type)}, opts));
+    return true;`);
+  const t0 = Date.now();
+  await dispatch('pointerdown');
+  await sleep(80);
+  await dispatch('pointerup');
+  const start = await pos(s);
+  try {
+    let moved = false;
+    while (Date.now() - t0 < timeoutMs) {
+      const p = await pos(s);
+      if (p) {
+        if (Math.hypot(wx - p[0], wz - p[1]) <= 0.9) return { ok: true, final: p, at: [sx, sy] };
+        if (start && Math.hypot(p[0] - start[0], p[1] - start[1]) > 0.3) moved = true;
+      }
+      await sleep(500);
+    }
+    if (!moved) return null; // click never registered: let clickTo retry
+    return { ok: false, final: await pos(s), at: [sx, sy] };
+  } catch {}
+  return null;
 }
 
 async function shot(s, file) {
@@ -311,15 +325,36 @@ async function playOne(p1, name) {
     state: await js(p1, `return window.__afterlight ? window.__afterlight.participation() : null;`),
   };
 
-  const deadline = Date.now() + 240000;
+  // Runs end on the authoritative sim state (a completed arcade match keeps
+  // the seat, so the action prompt alone cannot signal the end).
+  const simOver = async () => {
+    try {
+      const sim = await js(p1, `return window.__afterlight ? (window.__afterlight.sim()?.simState?.state ?? window.__afterlight.sim()?.status) : null;`);
+      return sim === 'completed' || sim === 'ended';
+    } catch {
+      return false;
+    }
+  };
+
+  const simTrail = [];
+  const sampleSim = async () => {
+    try {
+      const s = await js(p1, `const q = window.__afterlight.sim(); return q ? JSON.stringify({ t: q.simState?.tick ?? null, sc: q.simState?.score ?? null, st: q.simState?.state ?? q.status ?? null, l: q.simState?.lives ?? null }) : 'none';`);
+      if (simTrail.length === 0 || simTrail[simTrail.length - 1] !== s) simTrail.push(s);
+    } catch {}
+  };
+
+  const deadline = Date.now() + 420000;
   if (name === 'Sporefall') {
+    // Long pulses so at least one client frame samples each hold (headless
+    // can render at ~3 fps); the server reads each hold as one hard drop.
     while (Date.now() < deadline) {
       await keyDown(p1, 'Space');
-      await sleep(140);
+      await sleep(520);
       await keyUp(p1, 'Space');
-      await sleep(300);
-      const action = await readAction(p1);
-      if (!action.includes('stop playing')) break;
+      await sleep(420);
+      await sampleSim();
+      if (await simOver()) break;
     }
   } else if (name === 'Signal Lost') {
     // Stationary ship: drifting asteroids drain the three lives to the end.
@@ -328,14 +363,14 @@ async function playOne(p1, name) {
       await sleep(120);
       await keyUp(p1, 'Space');
       await sleep(400);
-      const action = await readAction(p1);
-      if (!action.includes('stop playing')) break;
+      await sampleSim();
+      if (await simOver()) break;
     }
   } else if (name === 'Rain Runner') {
     await keyDown(p1, 'KeyW');
     while (Date.now() < deadline) {
-      const action = await readAction(p1);
-      if (!action.includes('stop playing')) break;
+      await sampleSim();
+      if (await simOver()) break;
       await sleep(800);
     }
     await keyUp(p1, 'KeyW').catch(() => {});
@@ -350,6 +385,7 @@ async function playOne(p1, name) {
     action: await readAction(p1),
     toast: await readToast(p1),
     state: await js(p1, `return window.__afterlight ? window.__afterlight.participation() : null;`),
+    simTrail: simTrail.slice(-8),
   };
   await sleep(6000);
   const game = name === 'Signal Lost' ? 'signal' : name.split(' ')[0].toLowerCase();
@@ -387,8 +423,8 @@ async function arcadeCrawl() {
     for (const anchor of ANCHORS) {
       const start = await pos(p1);
       log('walking to', anchor.name, 'from', JSON.stringify(start));
-      const walk = await runTo(p1, anchor.x, anchor.z, 240000);
-      log('walked:', JSON.stringify({ ok: walk.ok, final: walk.final }));
+      const walk = await clickTo(p1, anchor.x, anchor.z);
+      log('walked:', JSON.stringify({ ok: walk.ok, final: walk.final, at: walk.at }));
       const action = await readAction(p1);
       if (!walk.ok || !action.includes(anchor.name)) {
         evidence.cabinets[anchor.name] = { error: 'prompt not found', action, final: walk.final };
@@ -407,10 +443,12 @@ async function arcadeCrawl() {
 }
 
 const phase = process.argv[2];
+await startDriver();
 
 if (phase === 'boot') await boot();
 else if (phase === 'crawl') await arcadeCrawl();
 else {
   console.log('phases: boot | crawl');
+  stopDriver();
   process.exit(1);
 }

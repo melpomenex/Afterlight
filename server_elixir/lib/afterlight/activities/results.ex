@@ -26,6 +26,7 @@ defmodule Afterlight.Activities.Results do
   @match_games MapSet.new(["pong"])
   @valid_outcomes MapSet.new([
                     "completed",
+                    "score",
                     "run_cap",
                     "top_out",
                     "collision",
