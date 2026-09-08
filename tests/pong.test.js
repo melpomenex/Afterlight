@@ -34,9 +34,11 @@ test('createPongInstance creates 3D cabinet, screen, and camera', () => {
   assert.ok(instance.screenMesh instanceof THREE.Mesh);
   assert.ok(instance.activityCamera instanceof THREE.Camera);
 
-  // Position matches transform
-  assert.equal(instance.group.position.x, 8.0);
-  assert.equal(instance.group.position.z, -3.5);
+  // Position matches the manifest transform (placement may move between
+  // cabinet-layout revisions; the instance must follow the definition).
+  const [tx, , tz] = PONG_ACTIVITY_DEFINITION.transform.position;
+  assert.equal(instance.group.position.x, tx);
+  assert.equal(instance.group.position.z, tz);
 
   instance.dispose();
   assert.equal(worldGroup.children.includes(instance.group), false);

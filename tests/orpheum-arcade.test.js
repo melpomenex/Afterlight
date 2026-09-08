@@ -290,5 +290,8 @@ test('Movie screen sightlines remain unobstructed from all theater seats', () =>
 
 test('Orpheum minimap schematic incorporates the northeast arcade wing', () => {
   const theaterDef = getPlaceDefinition('theater');
-  assert.ok(theaterDef.minimapPath.includes('M114 36H126V48H114Z'), 'minimap path contains arcade wing rect');
+  // The wing rect (M121 30H125V56H121Z) covers the cabinet line (x = 10.42,
+  // z from -7.55 to -1.4) under the minimap projection: seat rows and the
+  // arcade wing are drawn as subpaths of the theater schematic.
+  assert.ok(theaterDef.minimapPath.includes('M121 30H125V56H121Z'), 'minimap path contains arcade wing rect');
 });

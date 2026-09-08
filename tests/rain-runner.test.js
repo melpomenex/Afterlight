@@ -38,9 +38,10 @@ test('createRainRunnerInstance builds 3D cabinet, screen, and camera', () => {
   assert.ok(instance.screenMesh instanceof THREE.Mesh);
   assert.ok(instance.activityCamera instanceof THREE.PerspectiveCamera);
 
-  // Position matches transform [8.0, 0, -5.8]
-  assert.equal(instance.group.position.x, 8.0);
-  assert.equal(instance.group.position.z, -5.8);
+  // Position matches the manifest transform
+  const [tx, , tz] = RAIN_RUNNER_ACTIVITY_DEFINITION.transform.position;
+  assert.equal(instance.group.position.x, tx);
+  assert.equal(instance.group.position.z, tz);
 
   // Clean disposal
   instance.dispose();

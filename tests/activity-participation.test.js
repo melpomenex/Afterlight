@@ -143,6 +143,7 @@ test('createParticipationController manages complete join -> participate -> leav
   const net = {
     sendActivityJoin: (payload) => sentMessages.push(['join', payload]),
     sendActivityLeave: (payload) => sentMessages.push(['leave', payload]),
+    sendActivityReady: (payload) => sentMessages.push(['ready', payload]),
   };
 
   const activityDef = {
@@ -204,6 +205,9 @@ test('createParticipationController manages complete join -> participate -> leav
   assert.equal(controller.isParticipating, true);
   assert.equal(controller.currentSlot, 1);
   assert.equal(controller.lease, 'lease_abc123');
+  // Accepting the seat readies the player server-side (match starts when
+  // every seated player is ready).
+  assert.deepEqual(sentMessages.at(-1), ['ready', { activityId: 'pong', ready: true }]);
 
   // Avatar snapped to anchor 1
   assert.equal(avatarPos.x, -1.5);

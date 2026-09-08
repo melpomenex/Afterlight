@@ -55,9 +55,11 @@ test('createSporefallInstance builds 3D cabinet, screen, and camera at its trans
   assert.ok(instance.screenMesh instanceof THREE.Mesh);
   assert.ok(instance.activityCamera instanceof THREE.PerspectiveCamera);
 
-  // Manifest transform position [9.8, 0, -3.5]
-  assert.equal(instance.group.position.x, 9.8);
-  assert.equal(instance.group.position.z, -3.5);
+  // Position matches the manifest transform (placement may move between
+  // cabinet-layout revisions; the instance must follow the definition).
+  const [tx, , tz] = SPOREFALL_ACTIVITY_DEFINITION.transform.position;
+  assert.equal(instance.group.position.x, tx);
+  assert.equal(instance.group.position.z, tz);
 
   instance.dispose();
   assert.equal(worldGroup.children.includes(instance.group), false);
