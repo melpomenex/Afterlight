@@ -257,7 +257,9 @@ The auditorium has rounded burgundy seats with padded headrests, armrests and cu
 
 ### The arcade wall
 
-Along the auditorium's east wall stands a row of arcade cabinets — **Pong** (two players), **Rain Runner**, **Signal Lost** and **Sporefall** — each with its own marquee art, trim lighting and controls. Walk up to a machine and press <kbd>E</kbd> to play or queue; anyone nearby can watch the screen and wait for a slot. Your best runs are kept in the **Records** dialog.
+Along the auditorium's east wall stands a row of arcade cabinets — **Pong** (two players), **Rain Runner**, **Signal Lost** and **Sporefall** — plus, in its own floodlit bay just south of the travel gate, **Summit Run**, a 2–8 rider multiplayer snowboard race. Each machine has its own marquee art, trim lighting and controls. Walk up and press <kbd>E</kbd> to play or queue; anyone nearby can watch the screen and wait for a slot. Your best runs on the classic machines are kept in the **Records** dialog.
+
+Summit Run loads its mountain on demand (cancellable), seats everyone at the same cabinet, and starts a race when all seated riders explicitly ready up — no AI, no solo start, no browser host. One rider disconnecting never ends the race for the others. Results are session-local records only. See `docs/summit-run.md` for controls, the full lifecycle and the operations runbook; Summit Run admission ships disabled and is enabled server-side with `AFTERLIGHT_SNOWBOARD_ENABLED=1`.
 
 ### Watching
 

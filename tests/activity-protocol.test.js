@@ -526,3 +526,50 @@ test('Old clients: receiving activity frames without registered handlers does no
     });
   });
 });
+
+// --- Summit Run fence (add-multiplayer-snowboard-arcade 5.1/D7) ------------------
+
+test('snowboard controls: strict allowlist per kind', async () => {
+  const { validateSnowboardControls, validateSnowboardFence } = await import('../shared/activityProtocol.js');
+
+  assert.equal(validateSnowboardControls({ kind: 'ride', steer: 0.5, tuck: false, brake: false, jumpHeld: false }).valid, true);
+  assert.equal(validateSnowboardControls({ kind: 'ride', steer: 2 }).valid, false, 'steer clamps rejected');
+  assert.equal(validateSnowboardControls({ kind: 'ride', steer: NaN }).valid, false, 'non-finite steer rejected');
+  assert.equal(validateSnowboardControls({ kind: 'ride', steer: 0, boost: true }).valid, false, 'unknown field rejected');
+  assert.equal(validateSnowboardControls({ kind: 'neutral' }).valid, true);
+  assert.equal(validateSnowboardControls({ kind: 'teleport', s: 1800 }).valid, false, 'forged kinds rejected');
+  assert.equal(
+    validateSnowboardControls({
+      kind: 'loaded', courseId: 'summit-night', courseVersion: 1,
+      courseHash: 'a'.repeat(64),
+    }).valid,
+    true,
+  );
+  assert.equal(validateSnowboardControls({ kind: 'loaded' }).valid, false);
+
+  assert.equal(validateSnowboardFence({ sessionId: 's', lease: 'l', matchId: 'm' }).valid, true);
+  assert.equal(validateSnowboardFence({ sessionId: 's', lease: 'l' }).valid, false, 'matchId required by default');
+});
+
+test('leave/ready/input validators carry the matchId fence through when present', async () => {
+  const { validateActivityLeave, validateActivityReady, validateActivityInput } = await import('../shared/activityProtocol.js');
+
+  const leave = validateActivityLeave({ requestId: 'r', activityId: 'summit-run', matchId: 'match-1' });
+  assert.equal(leave.valid, true);
+  assert.equal(leave.sanitized.matchId, 'match-1', 'leave fence retained (never stripped)');
+
+  const ready = validateActivityReady({ requestId: 'r', activityId: 'summit-run', ready: true, matchId: 'match-1' });
+  assert.equal(ready.valid, true);
+  assert.equal(ready.sanitized.matchId, 'match-1');
+
+  const input = validateActivityInput({
+    activityId: 'summit-run', sessionId: 's', lease: 'l', seq: 1,
+    controls: { kind: 'neutral' }, matchId: 'match-1',
+  });
+  assert.equal(input.valid, true);
+  assert.equal(input.sanitized.matchId, 'match-1');
+
+  // Generic clients that never send matchId are unaffected.
+  const plain = validateActivityLeave({ requestId: 'r', activityId: 'x' });
+  assert.equal('matchId' in plain.sanitized, false);
+});

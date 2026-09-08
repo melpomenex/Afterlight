@@ -93,6 +93,10 @@ export function createSnowboardInstance({
   world,
   generation,
   getPlayer = null,
+  getParticipation = null,
+  acquireView = null,
+  releaseView = null,
+  net = null,
 } = {}) {
   if (!activityDef || activityDef.type !== 'snowboard-race') {
     throw new Error('snowboard module requires a snowboard-race activity definition');
@@ -147,6 +151,35 @@ export function createSnowboardInstance({
   let disposed = false;
   const seenEventIds = new Set();
   let needsPaint = true;
+  // Lazy race controller (add-multiplayer-snowboard-arcade 6.1): loaded
+  // ONLY here, on E entry — never for passive bystanders.
+  let controllerPromise = null;
+  let controller = null;
+
+  function loadController() {
+    if (!controllerPromise) {
+      controllerPromise = import('./snowboard/controller.js')
+        .then((module) => module.createSnowboardController({
+          activityDef,
+          net: null,
+          getParticipation,
+          acquireView,
+          releaseView,
+          generation,
+          getPlayer,
+        }))
+        .then((instance) => {
+          controller = instance;
+          return instance;
+        })
+        .catch((error) => {
+          console.warn('[Snowboard] controller load failed:', error);
+          controllerPromise = null;
+          return null;
+        });
+    }
+    return controllerPromise;
+  }
 
   // --- screen painting -------------------------------------------------------
 
@@ -347,6 +380,26 @@ export function createSnowboardInstance({
     },
 
     /**
+     * Optional pre-join participation flow (6.1): route E here BEFORE the
+     * generic join. Loads the mountain (cancellable), then requests play
+     * admission. Old games keep immediate join — they have no
+     * beginParticipation.
+     */
+    beginParticipation() {
+      if (disposed) return Promise.resolve(false);
+      return loadController().then((instance) => {
+        if (!instance) return false;
+        try {
+          sessionStorage.setItem(
+            'afterlight-activity-hint',
+            JSON.stringify({ activityId: activityDef.id }),
+          );
+        } catch {}
+        return instance.beginParticipation();
+      });
+    },
+
+    /**
      * Summary frames drive the cabinet display. Full participant snapshots
      * (`audience:'participants'`) are ignored here: they belong to the
      * riders' prediction path inside the lazy mountain modules, never to the
@@ -356,7 +409,11 @@ export function createSnowboardInstance({
     acceptSnapshot(frame) {
       if (disposed || !frame) return;
       if (frame.activityId && frame.activityId !== activityDef.id) return;
-      if (frame.audience !== 'summary') return;
+      if (frame.audience !== 'summary') {
+        // Participant snapshots belong to the loaded race controller only.
+        if (controller) controller.acceptSnapshot(frame);
+        return;
+      }
       const next = summaryToDisplayState(frame, displayState);
       if (!next || next === displayState) return;
       displayState = next.status === 'countdown'
@@ -373,6 +430,7 @@ export function createSnowboardInstance({
     acceptEvent(frame) {
       if (disposed || !frame) return;
       if (frame.activityId && frame.activityId !== activityDef.id) return;
+      if (controller) controller.acceptEvent(frame);
       const eventId = typeof frame.eventId === 'string' ? frame.eventId : null;
       if (eventId) {
         if (seenEventIds.has(eventId)) return;
@@ -399,6 +457,7 @@ export function createSnowboardInstance({
     acceptResult(frame) {
       if (disposed || !frame) return;
       if (frame.activityId && frame.activityId !== activityDef.id) return;
+      if (controller) controller.acceptResult(frame);
       const result = frame.result && typeof frame.result === 'object' ? frame.result : null;
       if (!result) return;
       displayState = {
@@ -422,8 +481,9 @@ export function createSnowboardInstance({
       // The lightweight module owns no input capture.
     },
 
-    update(time) {
+    update(time, delta) {
       if (disposed) return;
+      if (controller) controller.update(time, delta);
       const player = getPlayer?.();
       const visible = throttler.shouldRender(false, true);
       if (needsPaint || (displayState.status === 'idle' && visible)) {
@@ -439,6 +499,13 @@ export function createSnowboardInstance({
       if (disposed) return;
       disposed = true;
       seenEventIds.clear();
+      if (controller) controller.dispose();
+      controller = null;
+      // The resume hint carries ONLY the activity id, never credentials or
+      // lease state (6.6): a reload can offer resume if the slot survives.
+      try {
+        sessionStorage.removeItem('afterlight-activity-hint');
+      } catch {}
       screenPipeline.dispose();
       cabinet.dispose();
     },

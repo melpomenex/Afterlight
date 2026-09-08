@@ -28,6 +28,124 @@ export const ACTIVITY_EVENTS = Object.freeze({
 
 export const ACTIVITY_ROLES = Object.freeze(['play', 'watch', 'queue']);
 
+// Summit Run (add-multiplayer-snowboard-arcade, design D7): the race adds a
+// type-scoped mutation fence (matchId) and a strict controls allowlist per
+// control kind. Server roles normalize from wire roles: play→player,
+// watch→spectator, queue→queue.
+export const SNOWBOARD_ACTIVITY_TYPE = 'snowboard-race';
+export const SNOWBOARD_ROLES = Object.freeze(['play', 'watch', 'queue']);
+export const SNOWBOARD_LEAVE_REASONS = Object.freeze(['exit', 'travel', 'load_failed']);
+export const SNOWBOARD_COURSE_ID = 'summit-night';
+export const SNOWBOARD_COURSE_VERSION = 1;
+
+/**
+ * Strict D7 controls validation for snowboard-race inputs. Returns
+ * `{ valid, error?, sanitized? }`. Unknown fields are rejected (exact
+ * allowlist), steer must be a finite number in [-1, 1], and the load
+ * handshake must name the exact course identity (hash compared against the
+ * authoritative copy by the server).
+ */
+export function validateSnowboardControls(controls, { courseHash = null } = {}) {
+  if (!controls || typeof controls !== 'object' || Array.isArray(controls)) {
+    return { valid: false, error: 'controls must be an object' };
+  }
+
+  const kind = controls.kind;
+
+  if (kind === 'neutral') {
+    const keys = Object.keys(controls);
+    if (keys.length > 1) return { valid: false, error: 'neutral controls take no fields' };
+    return { valid: true, sanitized: { kind: 'neutral' } };
+  }
+
+  if (kind === 'ride') {
+    const allowed = ['kind', 'steer', 'tuck', 'brake', 'jumpHeld'];
+    for (const key of Object.keys(controls)) {
+      if (!allowed.includes(key)) return { valid: false, error: `unknown ride control field: ${key}` };
+    }
+    const { steer, tuck, brake, jumpHeld } = controls;
+    if (!Number.isFinite(steer) || steer < -1 || steer > 1) {
+      return { valid: false, error: 'steer must be a finite number in [-1, 1]' };
+    }
+    if (tuck !== undefined && typeof tuck !== 'boolean') {
+      return { valid: false, error: 'tuck must be a boolean' };
+    }
+    if (brake !== undefined && typeof brake !== 'boolean') {
+      return { valid: false, error: 'brake must be a boolean' };
+    }
+    if (jumpHeld !== undefined && typeof jumpHeld !== 'boolean') {
+      return { valid: false, error: 'jumpHeld must be a boolean' };
+    }
+    return {
+      valid: true,
+      sanitized: {
+        kind: 'ride',
+        steer,
+        tuck: tuck === true,
+        brake: brake !== false,
+        jumpHeld: jumpHeld === true,
+      },
+    };
+  }
+
+  if (kind === 'loaded') {
+    const allowed = ['kind', 'courseId', 'courseVersion', 'courseHash'];
+    for (const key of Object.keys(controls)) {
+      if (!allowed.includes(key)) return { valid: false, error: `unknown loaded control field: ${key}` };
+    }
+    if (controls.courseId !== SNOWBOARD_COURSE_ID) {
+      return { valid: false, error: `courseId must be ${SNOWBOARD_COURSE_ID}` };
+    }
+    if (controls.courseVersion !== SNOWBOARD_COURSE_VERSION) {
+      return { valid: false, error: `courseVersion must be ${SNOWBOARD_COURSE_VERSION}` };
+    }
+    if (typeof controls.courseHash !== 'string' || !/^[0-9a-f]{64}$/.test(controls.courseHash)) {
+      return { valid: false, error: 'courseHash must be sha256 hex' };
+    }
+    if (courseHash !== null && controls.courseHash !== courseHash) {
+      return { valid: false, error: 'courseHash does not match the authoritative course' };
+    }
+    return {
+      valid: true,
+      sanitized: {
+        kind: 'loaded',
+        courseId: controls.courseId,
+        courseVersion: controls.courseVersion,
+        courseHash: controls.courseHash,
+      },
+    };
+  }
+
+  return { valid: false, error: 'controls.kind must be ride, neutral or loaded' };
+}
+
+/**
+ * Strict D7 mutation fence for snowboard commands that require it:
+ * {activityId, roomEpoch, sessionId, matchId, lease}. Additive fence fields
+ * are retained by validators, never silently stripped.
+ */
+export function validateSnowboardFence(payload, { requireMatchId = true } = {}) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return { valid: false, error: 'payload must be an object' };
+  }
+  for (const field of ['sessionId', 'lease']) {
+    const value = payload[field];
+    if (typeof value !== 'string' || value.length === 0 || value.length > 64) {
+      return { valid: false, error: `fence.${field} must be a string of 1..64 chars` };
+    }
+  }
+  if (requireMatchId) {
+    const value = payload.matchId;
+    if (typeof value !== 'string' || value.length === 0 || value.length > 64) {
+      return { valid: false, error: 'fence.matchId must be a string of 1..64 chars' };
+    }
+  }
+  if (payload.roomEpoch !== undefined && !Number.isInteger(payload.roomEpoch)) {
+    return { valid: false, error: 'fence.roomEpoch must be an integer when present' };
+  }
+  return { valid: true };
+}
+
 export const ACTIVITY_LIMITS = Object.freeze({
   MAX_INPUT_BYTES: 2048, // 2 KiB input cap
   MAX_SNAPSHOT_BYTES: 32768, // 32 KiB full snapshot cap
@@ -57,6 +175,7 @@ export const ACTIVITY_ERRORS = Object.freeze({
   ALREADY_PARTICIPATING: 'already_participating',
   PAYLOAD_TOO_LARGE: 'payload_too_large',
   INPUT_DROPPED: 'input_dropped',
+  STALE_MATCH: 'stale_match',
 });
 
 const textEncoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
@@ -138,7 +257,7 @@ export function validateActivityLeave(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     return { valid: false, error: 'Payload must be an object' };
   }
-  const { requestId, activityId, reason } = payload;
+  const { requestId, activityId, reason, matchId } = payload;
   if (!isValidStringId(requestId)) {
     return { valid: false, error: 'requestId must be a non-empty string <= 64 chars' };
   }
@@ -148,12 +267,18 @@ export function validateActivityLeave(payload) {
   if (reason !== undefined && (typeof reason !== 'string' || reason.length > ACTIVITY_LIMITS.MAX_ID_LENGTH)) {
     return { valid: false, error: 'reason must be a string <= 64 chars if provided' };
   }
+  if (matchId !== undefined && !isValidStringId(matchId)) {
+    return { valid: false, error: 'matchId must be a non-empty string <= 64 chars if provided' };
+  }
   return {
     valid: true,
     sanitized: {
       requestId,
       activityId,
       ...(reason ? { reason } : {}),
+      // Summit Run mutation fence (D7): carried through when present so the
+      // authority can reject leaves signed for an older match.
+      ...(matchId ? { matchId } : {}),
     },
   };
 }
@@ -167,7 +292,7 @@ export function validateActivityReady(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     return { valid: false, error: 'Payload must be an object' };
   }
-  const { requestId, activityId, ready } = payload;
+  const { requestId, activityId, ready, matchId } = payload;
   if (!isValidStringId(requestId)) {
     return { valid: false, error: 'requestId must be a non-empty string <= 64 chars' };
   }
@@ -177,12 +302,16 @@ export function validateActivityReady(payload) {
   if (typeof ready !== 'boolean') {
     return { valid: false, error: 'ready must be a boolean' };
   }
+  if (matchId !== undefined && !isValidStringId(matchId)) {
+    return { valid: false, error: 'matchId must be a non-empty string <= 64 chars if provided' };
+  }
   return {
     valid: true,
     sanitized: {
       requestId,
       activityId,
       ready,
+      ...(matchId ? { matchId } : {}),
     },
   };
 }
@@ -238,6 +367,8 @@ export function validateActivityInput(payload) {
       lease,
       seq,
       controls,
+      // Summit Run mutation fence (D7): carried through when present.
+      ...(typeof payload.matchId === 'string' && payload.matchId ? { matchId: payload.matchId } : {}),
     },
   };
 }

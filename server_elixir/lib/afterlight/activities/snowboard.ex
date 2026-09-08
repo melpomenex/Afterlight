@@ -58,6 +58,18 @@ defmodule Afterlight.Activities.Snowboard do
 
   @recovery_ticks trunc(:math.ceil(@tuning.crash_recovery_seconds / @dt))
 
+  @doc """
+  Whether snowboard-race admission is enabled. Disabled by default (design
+  D10/Migration plan 4): operators enable it via the
+  `AFTERLIGHT_SNOWBOARD_ENABLED` env var (or Application env). The flag gates
+  admission and capability advertisement; clients treat it as presentation
+  only and never as a security boundary. The Node-only legacy transport has
+  no session authority at all and simply reports the activity unavailable.
+  """
+  def enabled? do
+    Application.get_env(:afterlight, :snowboard_enabled, false)
+  end
+
   @doc "Fixed step in seconds."
   def dt, do: @dt
   def recovery_ticks, do: @recovery_ticks

@@ -165,3 +165,10 @@ if config_env() != :test do
     token_max_age_secs: String.to_integer(System.get_env("AFTERLIGHT_TOKEN_MAX_AGE") || "43200"),
     routing: routing
 end
+
+# Summit Run admission flag (add-multiplayer-snowboard-arcade 4.5):
+# disabled by default; AFTERLIGHT_SNOWBOARD_ENABLED=1 enables admission and
+# capability advertisement.
+config :afterlight, :snowboard_enabled,
+  System.get_env("AFTERLIGHT_SNOWBOARD_ENABLED") in ["1", "true"]
+

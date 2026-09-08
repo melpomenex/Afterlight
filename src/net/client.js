@@ -10,6 +10,7 @@ import {
   validateActivityLeave,
   validateActivityReady,
   validateActivityInput,
+  validateSnowboardControls,
   validateActivityResnapshot,
 } from '../../shared/activityProtocol.js';
 
@@ -485,7 +486,7 @@ export class NetworkClient {
   /**
    * Send an activity_leave command.
    */
-  sendActivityLeave({ activityId, reason = null, requestId = null } = {}) {
+  sendActivityLeave({ activityId, reason = null, requestId = null, matchId = null } = {}) {
     const reqId = requestId || generateActivityRequestId('act_leave');
     if (!this.supportsActivities) {
       this.dispatchLocalActivityError({
@@ -496,7 +497,7 @@ export class NetworkClient {
       });
       return { ok: false, error: ACTIVITY_ERRORS.ACTIVITIES_UNAVAILABLE, requestId: reqId };
     }
-    const validation = validateActivityLeave({ requestId: reqId, activityId, ...(reason ? { reason } : {}) });
+    const validation = validateActivityLeave({ requestId: reqId, activityId, ...(reason ? { reason } : {}), ...(matchId ? { matchId } : {}) });
     if (!validation.valid) {
       this.dispatchLocalActivityError({
         requestId: reqId,
@@ -513,7 +514,7 @@ export class NetworkClient {
   /**
    * Send an activity_ready command.
    */
-  sendActivityReady({ activityId, ready, requestId = null } = {}) {
+  sendActivityReady({ activityId, ready, requestId = null, matchId = null } = {}) {
     const reqId = requestId || generateActivityRequestId('act_ready');
     if (!this.supportsActivities) {
       this.dispatchLocalActivityError({
@@ -524,7 +525,7 @@ export class NetworkClient {
       });
       return { ok: false, error: ACTIVITY_ERRORS.ACTIVITIES_UNAVAILABLE, requestId: reqId };
     }
-    const validation = validateActivityReady({ requestId: reqId, activityId, ready });
+    const validation = validateActivityReady({ requestId: reqId, activityId, ready, ...(matchId ? { matchId } : {}) });
     if (!validation.valid) {
       this.dispatchLocalActivityError({
         requestId: reqId,
@@ -550,14 +551,28 @@ export class NetworkClient {
       });
       return { ok: false, error: ACTIVITY_ERRORS.ACTIVITIES_UNAVAILABLE };
     }
-    const validation = validateActivityInput({ activityId, sessionId, lease, seq, controls });
-    if (!validation.valid) {
+    // Summit Run (D7): ride/neutral/loaded controls get the strict type-
+    // scoped allowlist on top of the generic input validation.
+    let controlsError = null;
+    let sanitizedControls = controls;
+    if (controls && typeof controls === 'object' && 'kind' in controls) {
+      const snowboardValidation = validateSnowboardControls(controls);
+      if (!snowboardValidation.valid) {
+        controlsError = snowboardValidation.error;
+      } else {
+        sanitizedControls = snowboardValidation.sanitized;
+      }
+    }
+
+    const validation = validateActivityInput({ activityId, sessionId, lease, seq, controls: sanitizedControls });
+    if (!validation.valid || controlsError) {
+      const message = controlsError || validation.error;
       this.dispatchLocalActivityError({
         activityId,
         error: ACTIVITY_ERRORS.INVALID_REQUEST,
-        message: validation.error,
+        message,
       });
-      return { ok: false, error: ACTIVITY_ERRORS.INVALID_REQUEST, details: validation.error };
+      return { ok: false, error: ACTIVITY_ERRORS.INVALID_REQUEST, details: message };
     }
     this.send(MSG_TYPES.ACTIVITY_INPUT, validation.sanitized);
     return { ok: true, seq: validation.sanitized.seq };

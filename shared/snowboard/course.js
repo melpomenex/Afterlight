@@ -18,8 +18,6 @@
  * carries its own sha256 over the canonical (sorted-key, hash-free) form.
  */
 
-import { createHash } from 'node:crypto';
-
 export const COURSE_ID = 'summit-night';
 export const COURSE_VERSION = 1;
 export const RULES_VERSION = 1;
@@ -218,23 +216,25 @@ export function buildCourseDocument() {
     finish: { ...FINISH },
     recoveryPoints: RECOVERY_POINTS.map((p) => ({ ...p })),
   };
-  return { ...doc, hash: courseHash(doc) };
+  if (!hashImplementation) {
+    throw new Error('buildCourseDocument requires setCourseHashImplementation (Node-only authoring)');
+  }
+  return { ...doc, hash: courseHashOf(doc) };
 }
 
 // --- canonical form + hash -----------------------------------------------------
+// The BROWSER consumes the document's embedded hash and never recomputes it,
+// so node:crypto stays out of this module entirely: Node callers (export
+// script, tests) inject the implementation from courseHash.js.
+let hashImplementation = null;
 
-/** Canonical JSON: sorted object keys, no whitespace, arrays in order. */
-export function canonicalCourseJson(value) {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalCourseJson).join(',')}]`;
-  const keys = Object.keys(value).sort();
-  return `{${keys.map((key) => `${JSON.stringify(key)}:${canonicalCourseJson(value[key])}`).join(',')}}`;
+/** Node-only hook: inject courseHash from shared/snowboard/courseHash.js. */
+export function setCourseHashImplementation(fn) {
+  hashImplementation = fn;
 }
 
-/** sha256 hex of the canonical form of a hash-free document. */
-export function courseHash(doc) {
-  const { hash: _omit, ...rest } = doc;
-  return createHash('sha256').update(canonicalCourseJson(rest)).digest('hex');
+function courseHashOf(doc) {
+  return hashImplementation ? hashImplementation(doc) : null;
 }
 
 // --- validation (must pass before any physics use) -------------------------------
@@ -358,8 +358,10 @@ export function validateCourse(doc) {
   }
 
   at(typeof doc.hash === 'string' && /^[0-9a-f]{64}$/.test(doc.hash ?? ''), 'hash must be sha256 hex');
-  if (problems.length === 0) {
-    at(doc.hash === courseHash(doc), 'hash must match the canonical document');
+  if (problems.length === 0 && hashImplementation) {
+    // Hash verification only where a hash implementation was injected (Node).
+    // The browser trusts the server's authoritative copy by construction.
+    at(doc.hash === courseHashOf(doc), 'hash must match the canonical document');
   }
   return problems;
 }

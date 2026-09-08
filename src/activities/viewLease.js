@@ -1,0 +1,102 @@
+/**
+ * Activity view lease (add-multiplayer-snowboard-arcade 6.1, design D1).
+ *
+ * The ONE renderer/render-pass/frame-loop stay host-owned; a 3D activity
+ * (Summit Run) borrows the render pass's SCENE and the ACTIVE CAMERA
+ * together through this lease. Guarantees:
+ *   - `acquireView` rejects a second owner or a stale generation (travel
+ *     supersedes everything);
+ *   - `lease.release(reason)` is idempotent and only its owner can release;
+ *   - the host resolves renderPass.scene + activeCamera from the lease each
+ *     frame and restores the social presentation on release (camera
+ *     preference and first-person player visibility ride the existing
+ *     camera seam — the lease never mutates it).
+ *
+ * Pure state machine: the host supplies setters; nothing here touches
+ * Three.js.
+ */
+
+export function createActivityViewLease({
+  generation = () => 0,
+  apply = () => {},
+  restore = () => {},
+  onRelease = null,
+  now = () => 0,
+} = {}) {
+  let lease = null; // { owner, generation: g, scene, camera, resize, onRelease, acquiredAt }
+  let released = null; // tombstone of the last released lease { owner, reason, at }
+
+  return {
+    /**
+     * Borrow the render view. Returns `{ ok, lease }` or
+     * `{ ok: false, reason }` with 'stale_generation' | 'already_owned'.
+     */
+    acquireView({ owner, generation: requestedGeneration, scene, camera, resize = null, onRelease: releaseHook = null }) {
+      if (lease) return { ok: false, reason: 'already_owned', owner: lease.owner };
+      if (typeof requestedGeneration === 'number' && requestedGeneration < generation()) {
+        return { ok: false, reason: 'stale_generation' };
+      }
+
+      lease = {
+        owner,
+        generation: requestedGeneration,
+        scene,
+        camera,
+        resize,
+        onRelease: releaseHook,
+        acquiredAt: now(),
+      };
+
+      apply({ scene, camera, owner });
+      return { ok: true, lease: this.lease };
+    },
+
+    get lease() {
+      return lease ? { ...lease } : null;
+    },
+
+    get held() {
+      return lease !== null;
+    },
+
+    get owner() {
+      return lease?.owner ?? null;
+    },
+
+    /** Release only by the owning activity; idempotent; hooks run once. */
+    release(owner, reason = 'exit') {
+      if (!lease || lease.owner !== owner) return { released: false, reason: 'not_owner' };
+
+      const hook = lease.onRelease;
+      lease = null;
+      released = { owner, reason, at: now() };
+
+      restore({ owner, reason });
+      if (hook) {
+        try {
+          hook(reason);
+        } catch (error) {
+          console.warn('[ActivityViewLease] onRelease hook failed:', error);
+        }
+      }
+      if (onRelease) {
+        try {
+          onRelease({ owner, reason });
+        } catch (error) {
+          console.warn('[ActivityViewLease] release callback failed:', error);
+        }
+      }
+      return { released: true, reason };
+    },
+
+    /** Force-release regardless of owner (travel, disposal, host teardown). */
+    revoke(reason = 'revoked') {
+      if (!lease) return { released: false, reason: 'not_held' };
+      return this.release(lease.owner, reason);
+    },
+
+    lastReleased() {
+      return released ? { ...released } : null;
+    },
+  };
+}

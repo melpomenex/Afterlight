@@ -164,6 +164,10 @@ export function createParticipationController({
   let currentRole = null;
   let lease = null;
   let sessionId = null;
+  // Summit Run mutation fence (D7): the match identity the client last saw
+  // authoritatively; travels on leave/ready so a stale packet can never
+  // mutate a newer race.
+  let currentMatchId = null;
 
   function resetSession() {
     currentActivity = null;
@@ -172,6 +176,7 @@ export function createParticipationController({
     currentRole = null;
     lease = null;
     sessionId = null;
+    currentMatchId = null;
   }
 
   function safeDismount() {
@@ -199,6 +204,7 @@ export function createParticipationController({
     get currentRole() { return currentRole; },
     get lease() { return lease; },
     get sessionId() { return sessionId; },
+    get currentMatchId() { return currentMatchId; },
 
     get isParticipating() { return state === 'participating'; },
     get isJoining() { return state === 'joining'; },
@@ -254,6 +260,7 @@ export function createParticipationController({
         net?.sendActivityLeave?.({
           roomId: getRoomId?.() || '',
           activityId,
+          ...(currentMatchId ? { matchId: currentMatchId } : {}),
         });
       } catch {}
 
@@ -284,6 +291,7 @@ export function createParticipationController({
         net?.sendActivityLeave?.({
           roomId: getRoomId?.() || '',
           activityId: actId,
+          ...(currentMatchId ? { matchId: currentMatchId } : {}),
         });
       } catch {}
 
@@ -322,15 +330,21 @@ export function createParticipationController({
         currentSlot = frame?.slot ?? null;
         lease = frame?.lease ?? frame?.leaseId ?? null;
         sessionId = frame?.sessionId ?? null;
+        currentMatchId = frame?.matchId ?? currentMatchId;
         currentAnchor = findAnchorForSlot(currentActivity, currentSlot);
 
         // Accepting the seat readies the player: the server starts the match
         // only when every seated player is ready (design D2/D4), and AFK
         // readiness still expires server-side after 60 seconds. Rematches
-        // stay explicit (R on the cabinet screen).
-        try {
-          net?.sendActivityReady?.({ activityId: currentActivity.id, ready: true });
-        } catch {}
+        // stay explicit (R on the cabinet screen). EXCEPTION
+        // (add-multiplayer-snowboard-arcade 6.4): the snowboard race uses
+        // EXPLICIT readiness only — and only after the course handshake.
+        const isSnowboard = currentActivity.type === 'snowboard-race';
+        if (!isSnowboard) {
+          try {
+            net?.sendActivityReady?.({ activityId: currentActivity.id, ready: true });
+          } catch {}
+        }
 
         if (currentAnchor) {
           try {
@@ -416,6 +430,7 @@ export function createParticipationController({
     handleSnapshot(frame) {
       if (state !== 'participating' || !frame) return;
       if (frame.activityId && currentActivity && frame.activityId !== currentActivity.id) return;
+      if (typeof frame.matchId === 'string' && frame.matchId) currentMatchId = frame.matchId;
 
       // Ejection check: if the snapshot carries players and local slot is not in it
       if (Array.isArray(frame.players) && currentSlot !== null) {
@@ -457,27 +472,24 @@ export function createParticipationController({
     deactivate() {
       if (state === 'idle') return;
 
+      const leavePayload = () => ({
+        roomId: getRoomId?.() || '',
+        activityId: currentActivity?.id,
+        ...(currentMatchId ? { matchId: currentMatchId } : {}),
+      });
+
       if (state === 'joining') {
         try {
-          net?.sendActivityLeave?.({
-            roomId: getRoomId?.() || '',
-            activityId: currentActivity?.id,
-          });
+          net?.sendActivityLeave?.(leavePayload());
         } catch {}
       } else if (state === 'participating') {
         safeDismount();
         try {
-          net?.sendActivityLeave?.({
-            roomId: getRoomId?.() || '',
-            activityId: currentActivity?.id,
-          });
+          net?.sendActivityLeave?.(leavePayload());
         } catch {}
       } else if (state === 'watching' || state === 'queued') {
         try {
-          net?.sendActivityLeave?.({
-            roomId: getRoomId?.() || '',
-            activityId: currentActivity?.id,
-          });
+          net?.sendActivityLeave?.(leavePayload());
         } catch {}
       }
 

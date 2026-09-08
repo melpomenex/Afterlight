@@ -138,6 +138,227 @@ Measured at `850de04dd` before any snowboard implementation code:
   preserved untouched; snowboard edits to shared files must re-read the tree
   and layer on top of them, never revert them.
 
+## Implementation evidence (phases 1–4, 2026-09-08)
+
+- **Contracts (1.1–1.4)**: frozen fixture set under `tests/fixtures/snowboard/`
+  (contract constants, D4 lifecycle scenarios, D7 wire messages, course
+  format, course-parity golden points) with an Elixir loader
+  (`Afterlight.Test.SnowboardFixtures`) and Node integrity tests. Baseline
+  recorded above. Provenance in `docs/summit-run-assets.md`.
+- **Manifest (2.1)**: `snowboard-race` type + `summit-run` definition (8
+  wall-side queue anchors, minPlayers 2, explicit readiness, course
+  metadata, interactionRadius 3.0 so the seated proximity re-check can never
+  eject an anchored rider). JS validator, export projection and Elixir
+  reader extended together; projection parity green. Fifth machine stands at
+  (10.42, 2.6), south of the east gate arch.
+- **Cabinet (2.2–2.4)**: original `summit` artwork motif; unique-skin /
+  shared-geometry / disposal tests; fifth-machine layout tests green.
+  Lightweight `src/activities/snowboard.js` drives the public summary/
+  attract display from `audience:'summary'` frames only; a static-import
+  guard test proves bystanders never pull mountain code. Browser screenshots
+  deferred until the concurrently-used Chromedriver frees up.
+- **Course + rules (3.1–3.3)**: deterministic authored course
+  (`summit-night` v1, 22,525 height samples, 37 colliders, sha256-pinned,
+  byte-identical shared/priv copies). Pure fixed-step rules per D5 (grade/
+  tuck/brake/carve/shoulder/boundary/charge-release/ramp lips/normal-speed
+  landing/crash recovery) plus swept obstacles, ordered gates, finish keys
+  with within-tick fractions. 10 golden scenarios exported and reproduced by
+  Elixir within D10 tolerance (≤1cm/0.01m/s, exact gate/finish outcomes).
+- **Phoenix authority (4.1–4.5)**: pure reducer
+  (`Afterlight.Activities.Snowboard`) + `SessionPolicy` lifecycle (min2
+  explicit readiness → locked 3s countdown → 30Hz racing → session-local
+  results with 120s retention; disconnects never pause a race — freeze then
+  DNF(disconnect) at grace expiry; explicit leave → DNF(leave); 180s
+  deadline; >500ms sim debt aborts `server_overload`; 120s nonready
+  inactivity release). Canonical owner-derived session keys with wire
+  roomId preserved in envelopes; instance/epoch isolation tested.
+  `AFTERLIGHT_SNOWBOARD_ENABLED` admission flag fails closed with
+  `race_unavailable`; durable Results path never called for snowboard.
+  Single-owner-node admission constraint documented in `Admission`.
+
+Verified at this checkpoint: `npm test` 803/803, `npm run build` green
+(rustup toolchain on PATH for the wasm step), full `mix test` 615 + 1
+property, 0 failures.
+
+## Implementation evidence (phase 5, 2026-09-08)
+
+- **Protocol (5.1)**: `shared/activityProtocol.js` gains
+  `validateSnowboardControls` (strict per-kind allowlist: ride/neutral/
+  loaded, finite steer ∈ [-1,1], unknown fields rejected, course-hash shape)
+  and `validateSnowboardFence` (session/lease/match identity). The network
+  facade (`src/net/client.js`) applies the strict allowlist to any controls
+  carrying `kind` before the generic input validation.
+- **Snapshots (5.2)**: snowboard sessions emit D7-shaped participant
+  snapshots (`audience`, `snapshotSeq`, `serverTick`, course identity,
+  per-rider sim rows, `lastAcceptedSeqs`, private `self` attachment with
+  `appliedSeq`/`heldControls`/`serverTick`) and room-wide summaries
+  (`riderCount`/`readyCount`/`capacity`/`progress` ≤8/`result`) — never
+  leases, seqs or reconciliation data in summaries.
+- **Delivery (5.3)**: `RoomServer.send_to_members/3` + `send_to_member/3`
+  deliver addressed frames to current members only (stale pid sets can never
+  widen the audience; 64-pid cap). `broadcast_activity_state` splits for
+  snowboard: addressed full snapshots to seated riders + watchers, ≤2 Hz
+  room-wide summaries plus immediate phase changes (pacing state merged via
+  a self-message handler).
+- **Prediction (5.4)**: `src/activities/snowboard/prediction.js` — shared
+  fixed-step rules, 60-step history, accumulator stepping (any FPS, ≤4
+  catch-up), reconciliation on `appliedSeq` (never `lastAcceptedSeqs`),
+  replay of unapplied per-tick samples over the canonical held state,
+  ≤0.5m/100ms smooth corrections, >3m or checkpoint/grounded/terminal
+  mismatch hard reset, `resetSeq` clears prediction, 250ms freeze.
+- **Interpolation (5.5)**: `interpolation.js` — 100ms buffer, serverTick
+  interpolation, ≤100ms extrapolation then stale hold, non-increasing
+  `snapshotSeq` dropped, equal-revision newer motion accepted, `resetSeq`
+  clears buffers (teleports never animate).
+- **Clock (5.6)**: `clock.js` — RTT-midpoint samples, lowest-RTT-of-8,
+  monotonic `performance.now()` mapping, wall-clock changes irrelevant,
+  uncertainty renders "syncing" and never postpones the start.
+
+Verified: full `mix test` 616 + 1 property, 0 failures; `npm test` 815/815
+(includes `tests/snowboard-sync.test.js`, 12 tests).
+
+## Implementation evidence (phase 6 + scene, 2026-09-08)
+
+- **View lease (6.1/6.2)**: `src/activities/viewLease.js` — generation-bound,
+  owner-checked, idempotent release; wired into `main.js` so the lease
+  swaps `renderPass.scene` AND `activeCamera` together, the race updates
+  OUTSIDE the social pause gate (dialogs neutralize controls, never the
+  race), world raycasts/theater overlay anchor are suppressed while held,
+  resize reaches the leased camera, and release restores the social
+  presentation through the existing camera seam. Runtime exposes
+  `beginParticipationFor(item)`; `interact()` routes E there before the
+  generic join — old games keep immediate join.
+- **Resource cache (6.3)**: `src/activities/resourceCache.js` — refcounted,
+  60s idle eviction via injected scheduler, `disposeOwner` releases only
+  that attempt's handles; rematches share cached values.
+- **Controller (6.4–6.6)**: `src/activities/snowboard/controller.js` —
+  cancellable lazy load (attempt token), view capture on seat acceptance,
+  30Hz held-state heartbeat with ride controls (A/D steer, W/Shift tuck,
+  S brake, Space charge), blur/typing neutralization cancelling the charge,
+  scoped HUD overlay (phase/time/position/checkpoint/results + Exit/
+  Rematch), authoritative events own the HUD, exit/travel/dispose release
+  the view and dispose scene instances without evicting shared cache
+  resources. `snowboard.js` gains `beginParticipation` + controller
+  forwarding + the session-storage resume hint (activity id only).
+  Auto-ready on seat acceptance is disabled for `snowboard-race` only
+  (`participation.js`); the handshake gate (`not_loaded`/`course_mismatch`)
+  makes riders load before readying.
+- **Scene (3.4)**: `src/activities/snowboard/scene.js` — terrain mesh from
+  the canonical grid (render/contact agreement), instanced pines/rocks/
+  lift towers/fence from the document, gate markers + finish breakline,
+  floodlit lodge, ≤2000 snowfall points, one shadow-casting key light
+  following the rider, chase camera with lookahead/speed-FOV (64–76°)/
+  frame-independent smoothing/ground clearance, original robot rider rigs
+  with carve lean; high/low presets.
+- **Browser safety**: `shared/snowboard/course.js` is browser-importable —
+  node:crypto hashing lives in `courseHash.js` (Node injects it); the
+  lightweight module's import-guard test allows exactly one entry-gated
+  dynamic import (the controller).
+
+Verified: `npm test` 823/823; `npm run build` green (rustup toolchain on
+PATH for the wasm step).
+
+## Apply-phase completion state (2026-09-08, end of working block)
+
+Implemented and verified: tasks 1.1–1.4, 2.1, 2.2, 2.4, 3.1–3.4, 4.1–4.5,
+5.1–5.6, 6.1–6.6 (33 of 47), plus gate-script and documentation work:
+
+- `scripts/snowboard-gate-browser.mjs` (task 9.3's two-browser gate script)
+  is written and ready but has NOT been run — its evidence step remains
+  open. `docs/summit-run.md` (10.1/10.2 controls, lifecycle, runbook,
+  honest limits) and README/docs/arcade.md updates are in. `8.1` is
+  partially realized by the scene's capped snowfall/presets; 8.2/8.3, 9.4–
+  9.8 and the browser-dependent evidence (2.3 screenshots, 7.1–7.4,
+  9.3 run, 10.3 archival reconciliation) are deliberately UNCHECKED.
+- Browser verification is blocked by the concurrently active Chromedriver
+  session in this shared checkout (safety guard refuses to launch a second
+  flock); two-browser evidence and screenshots must run when it frees.
+- Load/perf gates (9.4–9.7) additionally require `tools/load_client/`,
+  which does NOT exist in this checkout despite planning references — its
+  creation is real remaining work, and no capacity claims are made.
+- 8.3 requires a two-human feel pass — inherently not automatable here.
+
+Deliberately NOT claimed: real two-browser race evidence, measured
+performance/load capacity, durable anything. The race ships disabled
+(`AFTERLIGHT_SNOWBOARD_ENABLED`); no deployment occurred.
+
+## Implementation evidence (fence hardening, audio, ripwire review — 2026-09-08 continued block)
+
+- **Stale-match fence enforced end-to-end (D7/spec "old match packet")**:
+  the client now tracks the authoritative `matchId` (join acceptance +
+  snapshots) and signs leave/ready/input with it
+  (`shared/activityProtocol.js` carries the field additively — generic
+  clients unaffected); `SessionServer` rejects missing (`invalid_request`)
+  and mismatched (`stale_match`) matchIds on ready (incl. queue-offer
+  acceptance), input and leave; server-initiated releases sign with the
+  current match. Tests: old-match leave/ready/input rejected with the race
+  untouched; malformed missing-matchId rejected.
+- **Audio (8.2)**: `src/activities/snowboard/audio.js` — synthesized
+  wind/slide/carve loops driven by the predicted state, landing/checkpoint/
+  countdown/finish one-shots, voice cap 16, injected mixer first with one
+  lazily-created fallback context, mute respected, dispose stops everything
+  and closes ONLY a fallback context (a host context outlives the race).
+  Wired into the controller (created on view capture, disposed on release).
+- **Ripwire review (9.8)**: fixed for real — the complexity-19 snapshot
+  broadcaster extracted into `Afterlight.Activities.Snowboard.Presentation`
+  (144 lines out of `SessionServer`; builders are pure and testable),
+  `do_input`'s handshake and `do_leave`'s racing branch extracted,
+  `do_ready_offer` split (accept/decline) with the expire pattern
+  deduplicated ×3, the unused plural `send_to_members` removed, and
+  `Presentation`'s internal-only functions privatized. `shared` root gate:
+  0 findings. Remaining `server_elixir` gates (4) are documented residual
+  debt: two module-size deltas (+250/+12/+22 LOC on a GenServer that was
+  already 2151 lines — the race lifecycle's planned extraction into the
+  policy module is the follow-up), an OTP handler-clause shape collision
+  (idiomatic), and a docstring. New-symbol debt read and addressed in the
+  same pass.
+- **Final state**: `npm test` 829/829; full `mix test` 619 + 1 property,
+  0 failures; `npm run build` green. Browser evidence (2.3 screenshots,
+  7.1–7.4, 9.3 run) still blocked by the concurrently held Chromedriver;
+  9.4–9.7 still require `tools/load_client` (absent) and an isolated
+  environment; 8.3 requires two humans; 10.3 waits for that evidence.
+
+## Implementation evidence (continued block 2 — fence, telemetry, review — 2026-09-08)
+
+- **Stale-match fence end-to-end (D7/spec "old match packet")**: client
+  tracks the authoritative matchId (join acceptance + snapshots) and signs
+  leave/ready/input (validators carry it additively — generic clients
+  unaffected); `SessionServer` rejects a missing matchId
+  (`invalid_request`) and a mismatched one (`stale_match`) on ready (incl.
+  queue-offer acceptance), input and leave; server-initiated releases sign
+  with the current match. Tests prove an old-match leave/ready/input is
+  rejected with the current race untouched.
+- **Telemetry (9.6)**: `[:afterlight, :activity, :snowboard,
+  join|start|leave|finish|abort|overload]` events through `:telemetry`
+  with bounded measurements (riders/seated/queue/spectators/finished/
+  debt_ms) and low-cardinality metadata (activity_type/phase/reason) — no
+  player/session ids or secrets. Proven by a handler test (join→start→
+  finish with `reason: "deadline"`, and abort on all-riders-gone).
+- **Ripwire review (9.8)**: `shared` gate 0 findings. `server_elixir`
+  fixes applied: the complexity-19 snapshot broadcaster extracted into
+  `Afterlight.Activities.Snowboard.Presentation` (144 lines out of
+  SessionServer, pure and testable), the loaded-handshake and
+  racing-leave branches extracted from `do_input`/`do_leave`,
+  `do_ready_offer` split with the offer-expiry pattern deduplicated ×3,
+  the unused plural `send_to_members` removed, Presentation's
+  internal-only surface privatized. Remaining 4 gates are documented
+  residual debt: module-size deltas (+250/+12/+22 LOC on a GenServer
+  already at 2151 — the race lifecycle's extraction into the policy
+  module is the planned follow-up), an OTP handler-clause shape
+  collision (idiomatic), and the Admission constraint docstring.
+- **Known pre-existing flake (not this change)**: the full Elixir suite
+  occasionally fails 1 theater/GameChannel global-state test
+  (`OutboxRelay.publish_pending` / GameChannel relay); it reproduces with
+  all snowboard test files removed (2 of 3 runs) and passes in isolation.
+  Unrelated paths; no snowboard code touches the relay.
+
+Final state of this block: full `mix test` 621 + 1 property with only the
+documented pre-existing flake (0 failures in the targeted suites, 121/121
+activities+channel); `npm test` 829/829; `npm run build` green. 36/47
+tasks checked; the 11 open ones all require the browser (Chromedriver held
+by the concurrent session), the absent `tools/load_client`, or two human
+playtesters.
+
 ## Final planning validation
 
 - `openspec validate add-multiplayer-snowboard-arcade --strict`: passed.

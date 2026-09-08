@@ -31,6 +31,8 @@ export function createActivityRuntime({
   onParticipationStateChange = null,
   setActivityCamera = null,
   clearActivityCamera = null,
+  acquireView = null,
+  releaseView = null,
 } = {}) {
   let active = false;
   let activeRoomId = null;
@@ -129,6 +131,8 @@ export function createActivityRuntime({
             setActivityCamera: seam.setActivityCamera || setActivityCamera,
             clearActivityCamera: seam.clearActivityCamera || clearActivityCamera,
             getParticipation: () => participation,
+            acquireView: seam.acquireView || acquireView,
+            releaseView: seam.releaseView || releaseView,
           });
           if (instance) {
             instances.set(actDef.id, instance);
@@ -270,6 +274,23 @@ export function createActivityRuntime({
         }
       }
       return handled;
+    },
+
+    /**
+     * Optional pre-join participation flow (add-multiplayer-snowboard-arcade
+     * 6.1): activities that must LOAD before joining declare
+     * instance.beginParticipation; the interaction route calls this before
+     * the generic participation.interact. Old games return undefined and
+     * keep immediate join.
+     */
+    beginParticipationFor(item) {
+      if (!item) return false;
+      const id = item.activityId ?? item.id;
+      if (!id) return false;
+      const instance = instances.get(id);
+      if (!instance || typeof instance.beginParticipation !== 'function') return false;
+      instance.beginParticipation();
+      return true;
     },
 
     /**

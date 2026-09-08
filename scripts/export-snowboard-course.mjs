@@ -20,7 +20,10 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCourseDocument, validateCourse, canonicalCourseJson, loadCourse } from '../shared/snowboard/course.js';
+import { buildCourseDocument, validateCourse, loadCourse, setCourseHashImplementation } from '../shared/snowboard/course.js';
+import { canonicalCourseJson, courseHash as _ch } from '../shared/snowboard/courseHash.js';
+
+setCourseHashImplementation(_ch);
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SHARED_PATH = path.join(REPO_ROOT, 'shared', 'snowboard', 'course-summit-night.json');

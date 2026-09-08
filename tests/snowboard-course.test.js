@@ -13,15 +13,16 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   buildCourseDocument,
-  canonicalCourseJson,
-  courseHash,
   loadCourse,
   validateCourse,
-  COURSE_ID,
+  setCourseHashImplementation,
   LENGTH_METERS,
   MAX_COLLIDERS,
   CHECKPOINT_PLANES,
 } from '../shared/snowboard/course.js';
+import { canonicalCourseJson, courseHash } from '../shared/snowboard/courseHash.js';
+
+setCourseHashImplementation(courseHash);
 import { generateCourseExport, checkCourse } from '../scripts/export-snowboard-course.mjs';
 
 const committed = JSON.parse(

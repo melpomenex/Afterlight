@@ -18,6 +18,7 @@ ONE CABINET MODEL  +  PER-GAME SKIN  +  PER-GAME SCREEN  +  PER-GAME LED  =  MAC
 | `src/arcade/skins.js` | Pure skin normalization + validation + screen aspect-fit math (node-testable). |
 | `src/arcade/artwork.js` | Procedural artwork painter per motif; used until real files exist. |
 | `shared/placeDefinitions.js` | Each activity definition's `cabinet` block (single editable source). |
+| `src/activities/snowboard.js` + `src/activities/snowboard/` | Summit Run: the lightweight summary/attract module plus the lazy race controller/scene (mountain code loads only on entry — see `docs/summit-run.md`). |
 | `tests/arcade-cabinet.test.js` | Skin, layout, isolation, and disposal contracts. |
 
 ## Model contract (verified against the GLB)

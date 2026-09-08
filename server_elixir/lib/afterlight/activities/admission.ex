@@ -3,6 +3,15 @@ defmodule Afterlight.Activities.Admission do
   Atomic cross-room player identity admission leases (task 2.2, design D3).
   Enforces that an identity occupies at most one active playing slot across activities.
   Backed by a unique Registry linked to the session process.
+
+  ## Single-owner-node constraint (add-multiplayer-snowboard-arcade 4.4)
+
+  This registry is NODE-LOCAL, not a distributed identity lease: release v1
+  for the Summit Run race is supported only on the current single-owner-node
+  deployment, where duplicate-connection prevention is complete. A
+  multi-owner-node rollout of `snowboard-race` requires an explicit global
+  admission/fencing gate BEFORE enabling the type there; do not advertise
+  cluster-wide duplicate prevention from this module.
   """
 
   @registry Afterlight.Activities.AdmissionRegistry

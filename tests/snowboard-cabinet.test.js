@@ -204,5 +204,11 @@ test('the lightweight module imports no mountain code', () => {
     assert.ok(!spec.includes('snowboard/'), `static import "${spec}" would pull mountain code for bystanders`);
     assert.ok(!/scene|prediction|controller|hud|audio/.test(spec.split('/').pop() ?? ''), `import "${spec}" is outside the lightweight set`);
   }
-  assert.ok(!/import\(/.test(source), 'no dynamic import in the bystander module');
+  const dynamicImports = [...source.matchAll(/import\((['"])([^'"]+)\1\)/g)].map(m => m[2]);
+  for (const spec of dynamicImports) {
+    assert.ok(
+      spec.endsWith('snowboard/controller.js'),
+      `dynamic import "${spec}" must be the entry-only controller (never the scene directly)`,
+    );
+  }
 });

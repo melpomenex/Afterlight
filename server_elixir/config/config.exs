@@ -27,6 +27,10 @@ config :afterlight,
 
 # P8 conferencing spike — OFF by default. Enabling this must not change
 # game rooms, economy, theater playback, or watch-together.
+# Summit Run admission is disabled by default (add-multiplayer-snowboard-arcade 4.5);
+# operators enable via AFTERLIGHT_SNOWBOARD_ENABLED=1 in the runtime environment.
+config :afterlight, :snowboard_enabled, false
+
 config :afterlight, :conferencing,
   enabled: false,
   grant_ttl_secs: 300,

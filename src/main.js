@@ -30,6 +30,7 @@ import { createPlaceRuntime } from './places/runtime.js';
 import { resolveRoomRequest, worldUpdateInput } from './places/travelState.js';
 import { createTheaterAdapter, registerTheaterAdapter } from './places/theaterAdapter.js';
 import { createActivityRuntime } from './activities/runtime.js';
+import { createActivityViewLease } from './activities/viewLease.js';
 import './activities/pong.js';
 import './activities/rainRunner.js';
 import './activities/signalLost.js';
@@ -94,6 +95,24 @@ let zoom = 24;
 const composer = new EffectComposer(renderer);
 const renderPass = new RenderPass(scene, camera);
 composer.addPass(renderPass);
+
+// Activity view lease (add-multiplayer-snowboard-arcade 6.1/6.2): a 3D
+// activity borrows the render pass scene AND the active camera together.
+// The social scene stays in memory and authoritative room membership never
+// changes; on release the existing camera seam restores the saved mode.
+const activityView = createActivityViewLease({
+  generation: () => activityRuntime.activeGeneration ?? 0,
+  apply: ({ scene: leasedScene, camera: leasedCamera }) => {
+    renderPass.scene = leasedScene;
+    activeCamera = leasedCamera;
+    renderPass.camera = activeCamera;
+  },
+  restore: () => {
+    renderPass.scene = scene;
+    activeCamera = cameraSeam.resolveActiveCamera({ isoCamera: camera, fpCamera });
+    renderPass.camera = activeCamera;
+  },
+});
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.25, 0.65, 1.05);
 composer.addPass(bloom);
 
@@ -474,6 +493,8 @@ const activityRuntime = createActivityRuntime({
   getPlayer: () => player,
   setActivityCamera: (cam) => setActivityCamera(cam),
   clearActivityCamera: () => clearActivityCamera(),
+  acquireView: (request) => activityView.acquireView(request),
+  releaseView: (owner, reason) => activityView.release(owner, reason),
   worldFacts: () => ({
     bounds: currentBounds,
     obstacles: currentWorld?.obstacles ?? [],
@@ -522,7 +543,15 @@ if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
     room: () => currentRoomId,
     participation: () => participation.state,
     activity: () => participation.currentActivity?.id ?? null,
+    sim: () => {
+      const inst = activityRuntime.getInstance(participation.currentActivity?.id);
+      return inst?.latestSnapshot ?? null;
+    },
     paused: () => paused,
+    project: (x, z) => {
+      const v = new THREE.Vector3(x, 0, z).project(activeCamera);
+      return [((v.x + 1) / 2) * innerWidth, ((1 - v.y) / 2) * innerHeight];
+    },
   };
 }
 
@@ -1199,7 +1228,16 @@ function standUp() {
 }
 
 function interact() {
-  if (paused) return;
+  if (paused && !activityView.held) return;
+
+  // E while a leased race view is up exits the race (focus hierarchy kept).
+  if (activityView.held) {
+    const lease = activityView.lease;
+    const instance = lease ? activityRuntime.getInstance(lease.owner) : null;
+    if (instance && typeof instance.exit === 'function') instance.exit('exit');
+    else activityView.revoke('exit');
+    return;
+  }
 
   // E while seated always stands up, regardless of what else is nearby.
   if (seats.current) {
@@ -1210,6 +1248,13 @@ function interact() {
   // E while participating or joining an activity leaves with safe dismount
   if (participation.isOccupied) {
     participation.leave();
+    return;
+  }
+
+  // Summit Run loads BEFORE joining (6.1): activities declaring
+  // beginParticipation take the E press; other games fall through to the
+  // generic immediate join below.
+  if (nearest?.type === 'activity' && activityRuntime.beginParticipationFor(nearest)) {
     return;
   }
 
@@ -1704,6 +1749,9 @@ function move(avatar, dx, dz, dt) {
 // --- RESIZE ---
 function resize() {
   const aspect = innerWidth / innerHeight;
+  if (activityView.held && activityView.lease?.resize) {
+    activityView.lease.resize(innerWidth, innerHeight);
+  }
   camera.left = (-zoom * aspect) / 2;
   camera.right = (zoom * aspect) / 2;
   camera.top = zoom / 2;
@@ -1727,6 +1775,22 @@ function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min((now - previousTime) / 1000, 0.04);
   previousTime = now;
+
+  // Leased activity view (add-multiplayer-snowboard-arcade 6.2): the race
+  // renders with its own scene+camera and updates OUTSIDE the social pause
+  // gate (dialogs/chat neutralize controls, never the race). World
+  // simulation, world raycasts and the theater overlay anchor stay paused;
+  // net/chat/theater synchronization live outside this loop and continue.
+  if (activityView.held) {
+    const lease = activityView.lease;
+    renderPass.scene = lease.scene;
+    activeCamera = lease.camera;
+    renderPass.camera = activeCamera;
+    activityRuntime.update(now / 1000, dt);
+    composer.render();
+    theaterUI.updateScreenQuad(null);
+    return;
+  }
 
   if (!paused) {
     t += dt;

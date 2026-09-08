@@ -26,6 +26,7 @@ defmodule Afterlight.Activities.SessionServer do
   @default_input_watchdog_ms 250
   @default_ready_timeout_ms 60_000
   @default_idle_reap_ms 60_000
+  @default_nonready_inactivity_ms 120_000
 
   defstruct [
     :room_key,
@@ -51,9 +52,14 @@ defmodule Afterlight.Activities.SessionServer do
     :countdown_ref,
     :deadline_ref,
     :results_ref,
+    :inactivity_ref,
+    :snapshot_seq,
+    :last_summary_at,
+    :last_summary_phase,
     :countdown_ms,
     :race_deadline_ms,
     :results_retention_ms,
+    :nonready_inactivity_ms,
     status: :lobby,
     max_players: 2,
     max_queue: 16,
@@ -128,6 +134,9 @@ defmodule Afterlight.Activities.SessionServer do
 
         results_retention_ms =
           Map.get(args, :results_retention_ms, Snowboard.SessionPolicy.results_retention_ms())
+
+        nonready_inactivity_ms =
+          Map.get(args, :nonready_inactivity_ms, @default_nonready_inactivity_ms)
         session_id = Map.get(args, :session_id) || generate_session_id()
         wire_room_id = Map.get(args, :wire_room_id) || room_key
         # D7: the initial lobby carries a nonempty matchId; every locked
@@ -168,9 +177,13 @@ defmodule Afterlight.Activities.SessionServer do
           idle_reap_ms: idle_reap,
           tick_interval_ms: tick_interval,
           snapshot_interval_ms: snapshot_interval,
+          snapshot_seq: 0,
+          last_summary_at: 0,
+          last_summary_phase: nil,
           countdown_ms: countdown_ms,
           race_deadline_ms: race_deadline_ms,
           results_retention_ms: results_retention_ms,
+          nonready_inactivity_ms: nonready_inactivity_ms,
           check_proximity: check_prox
         }
 
@@ -275,6 +288,7 @@ defmodule Afterlight.Activities.SessionServer do
     elapsed = max(now - last_tick, 0)
 
     if elapsed > 500 do
+      snowboard_telemetry(state, :overload, %{debt_ms: elapsed})
       {:noreply, abort_snowboard_race(%{state | tick_timer_ref: nil}, "server_overload")}
     else
       steps_to_run = min(max(div(elapsed, state.tick_interval_ms), 1), 4)
@@ -486,7 +500,7 @@ defmodule Afterlight.Activities.SessionServer do
         state.player_to_slot
         |> Map.keys()
         |> Enum.reduce(state, fn player_id, acc ->
-          case do_leave(player_id, acc) do
+          case do_leave(player_id, %{"matchId" => acc.match_id}, acc) do
             {:reply, _reply, new_state} -> new_state
             _ -> acc
           end
@@ -712,6 +726,45 @@ defmodule Afterlight.Activities.SessionServer do
     end
   end
 
+  # Snowboard D4: bounded inactivity release for nonready seated riders.
+  def handle_info(:inactivity_check, state) do
+    if snowboard?(state) and state.status == :lobby do
+      now = System.system_time(:millisecond)
+
+      expired =
+        for {_slot, p} <- state.players,
+            p.ready == false,
+            not Map.has_key?(state.disconnects, p.player_id),
+            (now - Map.get(p, :last_active_at, p.joined_at)) >= state.nonready_inactivity_ms do
+          p.player_id
+        end
+
+      state =
+        Enum.reduce(expired, state, fn player_id, acc ->
+          Logger.info("Snowboard inactivity release for player=#{player_id}")
+
+          case do_leave(player_id, %{"matchId" => acc.match_id}, acc) do
+            {:reply, _reply, new_state} -> new_state
+            _ -> acc
+          end
+        end)
+
+      state = %{state | inactivity_ref: nil}
+
+      cond do
+        state.status == :lobby and map_size(state.players) > 0 and expired == [] ->
+          # Window not yet elapsed for the remaining riders: re-check shortly.
+          ref = Process.send_after(self(), :inactivity_check, 250)
+          {:noreply, %{state | inactivity_ref: ref}}
+
+        true ->
+          {:noreply, maybe_start_idle_timer(state)}
+      end
+    else
+      {:noreply, %{state | inactivity_ref: nil}}
+    end
+  end
+
   # Idle session reap
   def handle_info(:idle_reap_timeout, state) do
     if empty_session?(state) do
@@ -720,6 +773,12 @@ defmodule Afterlight.Activities.SessionServer do
     else
       {:noreply, %{state | idle_timer_ref: nil}}
     end
+  end
+
+  # Pacing fields computed during snapshot broadcast merge back into the
+  # session state (broadcasts happen inside command/tick handlers).
+  def handle_info({:snowboard_summary_paced, last_summary_at, phase}, state) do
+    {:noreply, %{state | last_summary_at: last_summary_at, last_summary_phase: phase}}
   end
 
   def handle_info(_other, state), do: {:noreply, state}
@@ -762,8 +821,46 @@ defmodule Afterlight.Activities.SessionServer do
       if not Fence.allows_command?(state.ownership_handle) do
         {:reply, {:error, :lease_lost}, state}
       else
-        handle_command(action, payload, ctx, state)
+        state = touch_player_activity(state, ctx[:player_id])
+        result = handle_command(action, payload, ctx, state)
+
+        case result do
+          {:reply, reply, new_state} -> {:reply, reply, maybe_arm_inactivity_timer(new_state)}
+          other -> other
+        end
       end
+    end
+  end
+
+  # Snowboard D4: any user action refreshes that player's inactivity clock.
+  defp touch_player_activity(state, player_id) when is_binary(player_id) do
+    case Map.get(state.player_to_slot, player_id) do
+      nil ->
+        state
+
+      slot ->
+        player = Map.get(state.players, slot)
+
+        if player do
+          %{state | players: Map.put(state.players, slot, Map.put(player, :last_active_at, System.system_time(:millisecond)))}
+        else
+          state
+        end
+    end
+  end
+
+  defp touch_player_activity(state, _player_id), do: state
+
+  # Snowboard D4: nonready seated riders without any user action for the
+  # bounded inactivity window are released to the world/watch. Disconnected
+  # riders follow the reconnect grace instead of this timer.
+  defp maybe_arm_inactivity_timer(%__MODULE__{} = state) do
+    if snowboard?(state) and state.status == :lobby and map_size(state.players) > 0 do
+      if state.inactivity_ref, do: Process.cancel_timer(state.inactivity_ref)
+      ref = Process.send_after(self(), :inactivity_check, state.nonready_inactivity_ms)
+      %{state | inactivity_ref: ref}
+    else
+      state
     end
   end
 
@@ -790,15 +887,15 @@ defmodule Afterlight.Activities.SessionServer do
     do_join(normalized_role, payload, ctx, player_id, state)
   end
 
-  defp handle_command("activity_leave", _payload, ctx, state) do
+  defp handle_command("activity_leave", payload, ctx, state) do
     player_id = Map.fetch!(ctx, :player_id)
-    do_leave(player_id, state)
+    do_leave(player_id, payload, state)
   end
 
   defp handle_command("activity_ready", payload, ctx, state) do
     ready = Map.get(payload, "ready", true)
     player_id = Map.fetch!(ctx, :player_id)
-    do_ready(ready, player_id, ctx, state)
+    do_ready(ready, payload, player_id, ctx, state)
   end
 
   defp handle_command("activity_input", payload, ctx, state) do
@@ -963,6 +1060,7 @@ defmodule Afterlight.Activities.SessionServer do
                     }
 
                     broadcast_activity_state(state)
+                    if snowboard?(state), do: snowboard_telemetry(state, :join)
                     Logger.info("activity join seated player=#{player_id} slot=#{free_slot} act=#{state.activity_id}")
 
                     result = %{
@@ -1053,8 +1151,12 @@ defmodule Afterlight.Activities.SessionServer do
 
   ## Leave Logic
 
-  defp do_leave(player_id, state) do
+  defp do_leave(player_id, payload, state) do
     cond do
+      snowboard?(state) and Map.has_key?(state.player_to_slot, player_id) and
+          snowboard_match_fence(state, payload) == :stale ->
+        {:reply, {:error, :stale_match}, state}
+
       Map.has_key?(state.player_to_slot, player_id) ->
         slot = Map.fetch!(state.player_to_slot, player_id)
         player = Map.fetch!(state.players, slot)
@@ -1074,25 +1176,8 @@ defmodule Afterlight.Activities.SessionServer do
               cancel_snowboard_countdown(state)
 
             snowboard?(state) and state.status == :in_progress ->
-              # D4: an active racer leaving marks DNF(leave) once and releases
-              # the lease immediately; results remain for the others. A lone
-              # rider may still finish validly; nobody left → abort.
-              sim = Snowboard.SessionPolicy.dnf(state.sim_state, slot, "leave")
-
-              state = %{state | sim_state: sim}
-              record_and_broadcast_event(state, "rider_dnf", %{"playerId" => player_id, "reason" => "leave"})
-
-              cond do
-                Snowboard.SessionPolicy.race_over?(sim) and
-                    Enum.any?(sim["riders"], fn {_s, r} -> r["finishTick"] != nil end) ->
-                  finish_snowboard_race(state, "complete")
-
-                Snowboard.SessionPolicy.race_over?(sim) ->
-                  abort_snowboard_race(state, "all_riders_gone")
-
-                true ->
-                  state
-              end
+              snowboard_telemetry(state, :leave, %{}, %{reason: "exit"})
+              leave_racing_snowboard(state, slot, player_id)
 
             state.status in [:in_progress, :paused] ->
               remaining = map_size(players)
@@ -1158,12 +1243,66 @@ defmodule Afterlight.Activities.SessionServer do
     end
   end
 
+
+  # D4: an active racer leaving marks DNF(leave) once and releases the lease
+  # immediately; results remain for the others. A lone rider may still finish
+  # validly; nobody left -> abort.
+  defp leave_racing_snowboard(state, slot, player_id) do
+    sim = Snowboard.SessionPolicy.dnf(state.sim_state, slot, "leave")
+    state = %{state | sim_state: sim}
+    record_and_broadcast_event(state, "rider_dnf", %{"playerId" => player_id, "reason" => "leave"})
+
+    cond do
+      Snowboard.SessionPolicy.race_over?(sim) and
+          Enum.any?(sim["riders"], fn {_s, r} -> r["finishTick"] != nil end) ->
+        finish_snowboard_race(state, "complete")
+
+      Snowboard.SessionPolicy.race_over?(sim) ->
+        abort_snowboard_race(state, "all_riders_gone")
+
+      true ->
+        state
+    end
+  end
+
   ## Ready Logic
 
-  defp do_ready(ready, player_id, ctx, state) do
+  defp do_ready(ready, payload, player_id, ctx, state) do
     case Enum.find(state.offers, fn {_s, o} -> o.player_id == player_id end) do
       {slot, offer} ->
         if ready do
+          # D7: queue acceptance signs the current match too — a stale
+          # acceptance never seats anyone into a newer race.
+          if snowboard?(state) and snowboard_match_fence(state, payload) == :stale do
+            {:reply, {:error, :stale_match}, state}
+          else
+            :continue
+          end
+        else
+          :continue
+        end
+        |> case do
+          :continue ->
+            do_ready_offer(ready, player_id, ctx, state, slot, offer)
+
+          rejection ->
+            rejection
+        end
+
+      nil ->
+        do_ready_seated_lookup(ready, payload, player_id, ctx, state)
+    end
+  end
+
+  defp do_ready_offer(ready, player_id, ctx, state, slot, offer) do
+    if ready do
+      promote_queued_rider(player_id, ctx, state, slot, offer)
+    else
+      decline_queued_offer(state, slot, offer)
+    end
+  end
+
+  defp promote_queued_rider(player_id, ctx, state, slot, offer) do
           case recheck_member_and_proximity(state, player_id, ctx.conn_ref) do
             :ok ->
               if offer[:timer_ref], do: Process.cancel_timer(offer.timer_ref)
@@ -1225,52 +1364,54 @@ defmodule Afterlight.Activities.SessionServer do
                   {:reply, {:ok, reply}, state}
 
                 {:error, :already_playing} ->
-                  if offer[:timer_ref], do: Process.cancel_timer(offer.timer_ref)
-                  offers = Map.delete(state.offers, slot)
-                  state = %{state | offers: offers}
-                  state = maybe_offer_next_slot(state, slot)
-                  {:reply, {:error, :already_playing}, state}
-              end
+                  expire_offer(state, slot, offer, {:reply, {:error, :already_playing}, state})
 
-            {:error, reason} ->
-              if offer[:timer_ref], do: Process.cancel_timer(offer.timer_ref)
-              offers = Map.delete(state.offers, slot)
-              state = %{state | offers: offers}
-              state = maybe_offer_next_slot(state, slot)
-              {:reply, {:error, reason}, state}
+              {:error, reason} ->
+                expire_offer(state, slot, offer, {:reply, {:error, reason}, state})
           end
-        else
-          if offer[:timer_ref], do: Process.cancel_timer(offer.timer_ref)
-          offers = Map.delete(state.offers, slot)
-          state = %{state | offers: offers}
-          state = maybe_offer_next_slot(state, slot)
+    end
+  end
 
-          {:reply, {:ok, %{result: "declined_offer", slot: slot, revision: state.revision}},
-           state}
-        end
+  defp decline_queued_offer(state, slot, offer) do
+    expire_offer(state, slot, offer, {:reply, {:ok, %{result: "declined_offer", slot: slot, revision: state.revision}}, state})
+  end
 
+  # Cancels the offer timer, drops the offer and advances the FIFO queue.
+  defp expire_offer(state, slot, offer, reply) do
+    if offer[:timer_ref], do: Process.cancel_timer(offer.timer_ref)
+    state = %{state | offers: Map.delete(state.offers, slot)}
+    state = maybe_offer_next_slot(state, slot)
+    reply
+  end
+
+  defp do_ready_seated_lookup(ready, payload, player_id, ctx, state) do
+    case Map.get(state.player_to_slot, player_id) do
       nil ->
-        case Map.get(state.player_to_slot, player_id) do
-          nil ->
-            {:reply, {:error, :not_seated}, state}
+        {:reply, {:error, :not_seated}, state}
 
-          slot ->
-            player = Map.fetch!(state.players, slot)
+      slot ->
+        player = Map.fetch!(state.players, slot)
 
-            # Snowboard explicit readiness (D4/D7): no auto-ready, the course
-            # handshake must be complete, and unreading during the locked
-            # countdown cancels it for everyone.
-            cond do
-              snowboard?(state) and ready and not Map.get(player, :loaded, false) ->
-                {:reply, {:error, :not_loaded}, state}
+        # Snowboard explicit readiness (D4/D7): no auto-ready, the course
+        # handshake must be complete, and unreading during the locked
+        # countdown cancels it for everyone. A ready signed for an older
+        # match never touches the current one.
+        cond do
+          snowboard?(state) and snowboard_match_fence(state, payload) == :stale ->
+            {:reply, {:error, :stale_match}, state}
 
-              snowboard?(state) and state.status == :countdown and not ready ->
-                state = cancel_snowboard_countdown(state)
-                {:reply, {:ok, %{result: "ready", slot: slot, ready: false, status: state.status, revision: state.revision}}, state}
+          snowboard?(state) and snowboard_match_fence(state, payload) == :missing ->
+            {:reply, {:error, :invalid_request}, state}
 
-              true ->
-                do_ready_seated(ready, player_id, slot, player, ctx, state)
-            end
+          snowboard?(state) and ready and not Map.get(player, :loaded, false) ->
+            {:reply, {:error, :not_loaded}, state}
+
+          snowboard?(state) and state.status == :countdown and not ready ->
+            state = cancel_snowboard_countdown(state)
+            {:reply, {:ok, %{result: "ready", slot: slot, ready: false, status: state.status, revision: state.revision}}, state}
+
+          true ->
+            do_ready_seated(ready, player_id, slot, player, ctx, state)
         end
     end
   end
@@ -1344,6 +1485,12 @@ defmodule Afterlight.Activities.SessionServer do
         client_epoch != nil and client_epoch != state.room_epoch ->
           {:reply, {:error, :stale_epoch}, state}
 
+        snowboard?(state) and snowboard_match_fence(state, payload) == :stale ->
+          {:reply, {:error, :stale_match}, state}
+
+        snowboard?(state) and snowboard_match_fence(state, payload) == :missing ->
+          {:reply, {:error, :invalid_request}, state}
+
         true ->
           case Map.get(state.player_to_slot, player_id) do
             nil ->
@@ -1377,35 +1524,7 @@ defmodule Afterlight.Activities.SessionServer do
                         # D7 load handshake: accepted in lobby/results or on
                         # reconnect, only with the exact server course hash.
                         snowboard?(state) and Map.get(controls, "kind") == "loaded" ->
-                          case course_handshake_ok?(controls) do
-                            true ->
-                              if player[:watchdog_timer_ref] do
-                                Process.cancel_timer(player.watchdog_timer_ref)
-                              end
-
-                              player =
-                                player
-                                |> Map.put(:last_seq, seq)
-                                |> Map.put(:loaded, true)
-                                |> Map.put(:watchdog_timer_ref, player[:watchdog_timer_ref])
-
-                              players = Map.put(state.players, slot, player)
-
-                              {:reply,
-                               {:ok,
-                                %{
-                                  result: "loaded",
-                                  ackSeq: seq,
-                                  seq: seq,
-                                  revision: state.revision,
-                                  serverNow: System.system_time(:millisecond)
-                                }},
-                               %{state | players: players}}
-
-                            false ->
-                              {:reply, {:error, :course_mismatch}, state}
-                          end
-
+                          accept_snowboard_loaded(state, player, slot, seq, controls)
                         snowboard?(state) and Map.get(controls, "kind") not in [nil, "ride", "neutral"] ->
                           {:reply, {:error, :invalid_input}, state}
 
@@ -1690,6 +1809,7 @@ defmodule Afterlight.Activities.SessionServer do
 
     state = record_and_broadcast_event(state, "match_started", %{"matchId" => match_id})
     broadcast_activity_state(state)
+    snowboard_telemetry(state, :start)
     state
   end
 
@@ -1722,6 +1842,8 @@ defmodule Afterlight.Activities.SessionServer do
 
     state = record_and_broadcast_event(state, "match_ended", outcome)
     broadcast_activity_state(state)
+    finished = Enum.count(standings, &(&1["status"] == "finished"))
+    snowboard_telemetry(state, :finish, %{finished: finished}, %{reason: reason})
 
     # Results display is retained without user action for a bounded window,
     # then remaining viewers are released and the session may reap (D4).
@@ -1752,6 +1874,7 @@ defmodule Afterlight.Activities.SessionServer do
 
     state = record_and_broadcast_event(state, "race_aborted", outcome)
     broadcast_activity_state(state)
+    snowboard_telemetry(state, :abort, %{}, %{reason: reason})
     maybe_start_idle_timer(state)
   end
 
@@ -1797,6 +1920,54 @@ defmodule Afterlight.Activities.SessionServer do
   defp snapshot_interval_for(_other), do: 50
 
   # D7: the load handshake must name the exact server course.
+  # D7 mutation fence (snowboard): ready/leave/input signed for an older
+  # matchId are rejected with :stale_match and never mutate the current
+  # race. A missing matchId is malformed for this type.
+  defp snowboard_match_fence(state, payload) do
+    cond do
+      not snowboard?(state) ->
+        :ok
+
+      not is_binary(Map.get(payload, "matchId")) ->
+        :missing
+
+      Map.get(payload, "matchId") != state.match_id ->
+        :stale
+
+      true ->
+        :ok
+    end
+  end
+
+  # D7 load handshake acceptance: mark the rider loaded, acknowledge with
+  # clock-correlated serverNow.
+  defp accept_snowboard_loaded(state, player, slot, seq, controls) do
+    if course_handshake_ok?(controls) do
+      if player[:watchdog_timer_ref] do
+        Process.cancel_timer(player.watchdog_timer_ref)
+      end
+
+      player =
+        player
+        |> Map.put(:last_seq, seq)
+        |> Map.put(:loaded, true)
+        |> Map.put(:watchdog_timer_ref, player[:watchdog_timer_ref])
+
+      {:reply,
+       {:ok,
+        %{
+          result: "loaded",
+          ackSeq: seq,
+          seq: seq,
+          revision: state.revision,
+          serverNow: System.system_time(:millisecond)
+        }},
+       %{state | players: Map.put(state.players, slot, player)}}
+    else
+      {:reply, {:error, :course_mismatch}, state}
+    end
+  end
+
   defp course_handshake_ok?(controls) do
     course = Snowboard.SessionPolicy.course()
 
@@ -2049,16 +2220,105 @@ defmodule Afterlight.Activities.SessionServer do
     end
   end
 
-  defp broadcast_activity_state(state) do
-    snapshot = build_full_snapshot(state)
+  # Operational telemetry (add-multiplayer-snowboard-arcade 9.6): bounded
+  # low-cardinality events through :telemetry — NEVER player/session ids,
+  # leases or tokens as labels or measurements.
+  defp snowboard_telemetry(state, event, extra \\ %{}, meta_extra \\ %{}) do
+    :telemetry.execute(
+      [:afterlight, :activity, :snowboard, event],
+      Map.merge(
+        %{
+          riders: map_size(Map.get(state, :sim_state, %{})["riders"] || %{}),
+          seated: map_size(state.players),
+          queue: length(state.queue),
+          spectators: map_size(state.spectators)
+        },
+        extra
+      ),
+      Map.merge(
+        %{activity_type: "snowboard-race", phase: Snowboard.Presentation.summary_phase(state)},
+        meta_extra
+      )
+    )
+  rescue
+    _ -> :ok
+  end
 
-    if state.room_pid && Process.alive?(state.room_pid) do
-      try do
-        RoomServer.broadcast_frame(state.room_pid, snapshot)
-      catch
-        :exit, _ -> :ok
+  defp broadcast_activity_state(state) do
+    if snowboard?(state) do
+      broadcast_snowboard_snapshots(state)
+    else
+      snapshot = build_full_snapshot(state)
+
+      if state.room_pid && Process.alive?(state.room_pid) do
+        try do
+          RoomServer.broadcast_frame(state.room_pid, snapshot)
+        catch
+          :exit, _ -> :ok
+        end
       end
     end
+  end
+
+  # Snowboard delivery (5.2/5.3): full participant snapshots are ADDRESSED
+  # to seated riders (with a private self attachment) and subscribed
+  # watchers; the room-wide frame is only the <=2Hz public summary plus
+  # immediate phase changes. Never a room-wide full-frame fanout.
+  # Snowboard delivery (5.2/5.3): full participant snapshots are ADDRESSED
+  # to seated riders (each with its private self attachment) and subscribed
+  # watchers; the room-wide frame is only the <=2Hz public summary plus
+  # immediate phase changes. Never a room-wide full-frame fanout. Snapshot
+  # presentation lives in Snowboard.Presentation.
+  defp broadcast_snowboard_snapshots(state) do
+    if state.room_pid && Process.alive?(state.room_pid) do
+      state = %{state | snapshot_seq: Map.get(state, :snapshot_seq, 0) + 1}
+      now = System.system_time(:millisecond)
+      full = Snowboard.Presentation.full_snapshot(state)
+
+      deliver_to(state.room_pid, state.players, fn p ->
+        Snowboard.Presentation.attach_self(full, state, p)
+      end)
+
+      deliver_frames(state.room_pid, connected_channels(state.spectators), full)
+
+      phase = Snowboard.Presentation.summary_phase(state)
+
+      if phase != state.last_summary_phase or now - (state.last_summary_at || 0) >= 500 do
+        try do
+          RoomServer.broadcast_frame(state.room_pid, Snowboard.Presentation.summary(state))
+          send(self(), {:snowboard_summary_paced, now, phase})
+        catch
+          :exit, _ -> :ok
+        end
+      end
+    end
+  end
+
+  defp connected_channels(participants) when is_map(participants) do
+    participants
+    |> Enum.map(fn {_id, p} -> p[:channel_pid] || Map.get(p, :channel_pid) end)
+    |> Enum.filter(fn pid -> is_pid(pid) && Process.alive?(pid) end)
+  end
+
+  # Seated riders each get their own frame (the private self attachment);
+  # watchers share one. Both audiences are bounded by the session roster.
+  defp deliver_to(room_pid, players, frame_builder) do
+    try do
+      Enum.each(players, fn {_slot, p} ->
+        if p.channel_pid && Process.alive?(p.channel_pid) do
+          RoomServer.send_to_member(room_pid, p.channel_pid, frame_builder.(p))
+        end
+      end)
+    catch
+      :exit, _ -> :ok
+    end
+  end
+
+  defp deliver_frames(_room_pid, [], _frame), do: :ok
+
+  defp deliver_frames(room_pid, [pid | rest], frame) do
+    if pid && Process.alive?(pid), do: RoomServer.send_to_member(room_pid, pid, frame)
+    deliver_frames(room_pid, rest, frame)
   end
 
   defp record_and_broadcast_event(state, event_name, data) do
@@ -2101,6 +2361,27 @@ defmodule Afterlight.Activities.SessionServer do
   # best-effort, never blocking or crashing the session. The recording
   # status is broadcast so clients can label local results honestly
   # (verified / pending / unrecorded — task 3.10).
+  # Snowboard (add-multiplayer-snowboard-arcade 4.5/D6): terminal race
+  # results are bounded and SESSION-LOCAL. The generic durable Results path
+  # does not express race standings and is never called for this type; the
+  # honest `result_recorded` status tells clients to label records as
+  # session-only.
+  defp maybe_record_result(
+         event_name,
+         %__MODULE__{activity_def: %{"type" => "snowboard-race"}} = state,
+         _outcome
+       )
+       when event_name in ["match_ended", "match_aborted"] do
+    broadcast_activity_event(state, "result_recorded", %{
+      "status" => "session_only",
+      "activityId" => state.activity_id,
+      "game" => "snowboard-race",
+      "rulesVersion" => Map.get(state.activity_def, "rulesVersion", 1),
+      "sessionId" => state.session_id,
+      "matchId" => state.match_id
+    })
+  end
+
   defp maybe_record_result(event_name, state, outcome)
        when event_name in ["match_ended", "match_aborted"] do
     status =

@@ -428,6 +428,28 @@ defmodule Afterlight.World.RoomServer do
     {:noreply, state}
   end
 
+  @doc """
+  Addressed delivery to ONE member channel (add-multiplayer-snowboard-arcade
+  5.3): high-rate race snapshots go only to accepted participants and
+  subscribed watchers instead of the room-wide broadcast fanout. The room
+  process relays only to current members; stale pids are skipped silently.
+  """
+  def send_to_member(room_pid, channel_pid, frame) when is_map(frame) do
+    GenServer.cast(room_pid, {:send_to_members, [channel_pid], frame})
+  end
+
+  def handle_cast({:send_to_members, channel_pids, frame}, state) do
+    known = MapSet.new(members_in_order(state), fn member -> member.channel_pid end)
+
+    Enum.each(Enum.take(channel_pids, 64), fn pid ->
+      # Only pids that are current members ever receive addressed frames:
+      # a stale or forged pid list can never widen the audience.
+      if MapSet.member?(known, pid), do: send_frame(state.room.wire_id, pid, frame)
+    end)
+
+    {:noreply, state}
+  end
+
   def handle_cast({:movement, player_id, conn_ref, payload}, state) do
     member = Map.get(state.members, player_id)
 

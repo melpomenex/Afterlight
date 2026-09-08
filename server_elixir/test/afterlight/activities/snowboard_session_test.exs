@@ -27,7 +27,12 @@ defmodule Afterlight.Activities.SnowboardSessionTest do
   }
 
   setup do
-    room_pid = spawn_link(fn -> fake_room_loop(%{}) end)
+    # The snowboard admission flag is disabled by default; lifecycle tests
+    # run with it enabled, and a dedicated test proves the closed door.
+    Application.put_env(:afterlight, :snowboard_enabled, true)
+    on_exit(fn -> Application.put_env(:afterlight, :snowboard_enabled, false) end)
+
+    room_pid = spawn_link(fn -> fake_room_loop(%{}, self(), []) end)
     room_key = "theater-test-#{System.unique_integer([:positive])}"
     room_epoch = 1
 
@@ -41,19 +46,19 @@ defmodule Afterlight.Activities.SnowboardSessionTest do
     }
   end
 
-  defp fake_room_loop(members) do
+  defp fake_room_loop(members, test_pid, broadcasts) do
     receive do
       {:set_member, player_id, conn_ref, pose} ->
-        fake_room_loop(Map.put(members, player_id, %{conn_ref: conn_ref, pose: pose}))
+        fake_room_loop(Map.put(members, player_id, %{conn_ref: conn_ref, pose: pose}), test_pid, broadcasts)
 
       {:remove_member, player_id} ->
-        fake_room_loop(Map.delete(members, player_id))
+        fake_room_loop(Map.delete(members, player_id), test_pid, broadcasts)
 
       {:"$gen_call", from, {:member?, player_id, conn_ref}} ->
         m = Map.get(members, player_id)
         res = if members == %{}, do: true, else: m != nil and m.conn_ref == conn_ref
         GenServer.reply(from, res)
-        fake_room_loop(members)
+        fake_room_loop(members, test_pid, broadcasts)
 
       {:"$gen_call", from, {:member_pose, _player_id}} ->
         if members == %{} do
@@ -62,20 +67,31 @@ defmodule Afterlight.Activities.SnowboardSessionTest do
           GenServer.reply(from, :not_found)
         end
 
-        fake_room_loop(members)
+        fake_room_loop(members, test_pid, broadcasts)
 
       {:"$gen_call", from, :lease_handle} ->
         GenServer.reply(from, {:ok, 1})
-        fake_room_loop(members)
+        fake_room_loop(members, test_pid, broadcasts)
 
-      {:"$gen_cast", {:broadcast_frame, _frame}} ->
-        fake_room_loop(members)
+      {:"$gen_cast", {:broadcast_frame, frame}} ->
+        send(test_pid, {:world_frame, "theater", frame})
+        fake_room_loop(members, test_pid, [frame | broadcasts])
+
+      {:"$gen_call", from, :broadcast_frames} ->
+        GenServer.reply(from, Enum.reverse(broadcasts))
+        fake_room_loop(members, test_pid, broadcasts)
+
+      {:"$gen_cast", {:send_to_members, pids, frame}} ->
+        # Mirror RoomServer.send_to_members: addressed frames go to their
+        # target channel pids tagged as world frames.
+        Enum.each(pids, fn pid -> send(pid, {:world_frame, "theater", frame}) end)
+        fake_room_loop(members, test_pid, broadcasts)
 
       :stop ->
         :ok
 
       _other ->
-        fake_room_loop(members)
+        fake_room_loop(members, test_pid, broadcasts)
     end
   end
 
@@ -121,6 +137,7 @@ defmodule Afterlight.Activities.SnowboardSessionTest do
       "sessionId" => Afterlight.Activities.session_id(session),
       "lease" => elem(slot_lease, 1),
       "seq" => System.unique_integer([:positive]),
+      "matchId" => Activities.session_info(session).match_id,
       "controls" => controls
     }
 
@@ -130,11 +147,45 @@ defmodule Afterlight.Activities.SnowboardSessionTest do
   defp ready(session, player, ready?) do
     GenServer.call(
       session,
-      {:command, "activity_ready", %{"ready" => ready?, "requestId" => "r#{System.unique_integer([:positive])}"}, player}
+      {:command, "activity_ready",
+       %{
+         "ready" => ready?,
+         "requestId" => "r#{System.unique_integer([:positive])}",
+         "matchId" => Activities.session_info(session).match_id
+       }, player}
     )
   end
 
   defp status(session), do: Activities.session_info(session).status
+
+  test "nonready seated riders are released after the bounded inactivity window", ctx do
+    session = start_session(ctx, nonready_inactivity_ms: 150)
+    player = make_player("idle")
+    {slot, _lease} = join(session, player)
+    assert slot == 0
+
+    # No user action follows: the rider is released without ever readying.
+    wait_until(2_000, fn -> Activities.session_info(session).player_to_slot == %{} end)
+    assert Activities.session_info(session).players == %{}
+  end
+
+  test "disabled flag fails admission closed with the typed error", ctx do
+    Application.put_env(:afterlight, :snowboard_enabled, false)
+
+    assert {:error, :race_unavailable} =
+             Activities.get_or_start_session(
+               ctx.room_pid,
+               ctx.room_key,
+               ctx.room_epoch,
+               "summit-run",
+               ctx.handle,
+               activity_def: @act_def,
+               check_proximity: false
+             )
+
+    # The closed door creates no session at all: lookup stays empty.
+    assert {:error, :not_found} = Activities.lookup_session(ctx.room_key, ctx.room_epoch, "summit-run")
+  end
 
   test "lone rider waits: ready with one seated rider never starts", ctx do
     session = start_session(ctx)
@@ -262,7 +313,8 @@ defmodule Afterlight.Activities.SnowboardSessionTest do
 
     wait_until(2_000, fn -> status(session) == :in_progress end)
 
-    assert {:ok, %{result: "left"}} = GenServer.call(session, {:command, "activity_leave", %{}, leaver})
+    assert {:ok, %{result: "left"}} =
+             GenServer.call(session, {:command, "activity_leave", %{"matchId" => Activities.session_info(session).match_id}, leaver})
 
     info = Activities.session_info(session)
     assert info.sim_state["riders"][slot1]["dnfReason"] == "leave"
@@ -321,6 +373,100 @@ defmodule Afterlight.Activities.SnowboardSessionTest do
            "race state fully resets for the new match"
   end
 
+  describe "race snapshot delivery (5.2/5.3)" do
+    test "seated riders receive addressed participant snapshots with a private self attachment", ctx do
+      session = start_session(ctx, countdown_ms: 120, race_deadline_ms: 6_000)
+
+      player = make_player("rider")
+      {slot, lease} = join(session, player)
+      assert {:ok, %{result: "loaded"}} = load(session, player, {slot, lease})
+      assert {:ok, _} = ready(session, player, true)
+
+      second = make_player("second")
+      {slot2, lease2} = join(session, second)
+      assert {:ok, %{result: "loaded"}} = load(session, second, {slot2, lease2})
+      assert {:ok, _} = ready(session, second, true)
+
+      wait_until(2_000, fn ->
+        st = status(session)
+        if st != :in_progress, do: IO.inspect({st, ctx.room_key}, label: "[dbg-delivery]")
+        st == :in_progress
+      end)
+
+      # The riders' channels are THIS test process: drain its mailbox for
+      # activity_state frames addressed to the room.
+      frames = drain_activity_states(200)
+      assert length(frames) > 0, "participant snapshots arrive"
+
+      # Countdown-phase frames are expected too; racing frames prove delivery.
+      racing = Enum.filter(frames, &(&1["status"] == "racing"))
+      assert length(racing) > 0, "racing-phase participant snapshots arrive"
+
+      for frame <- racing do
+        assert Map.get(frame, "audience") == "participants"
+        assert Map.get(frame, "roomId") == ctx.room_key
+        assert Map.get(frame, "snapshotSeq") > 0
+        assert Map.get(frame, "courseHash") == @course.hash
+        sim = get_in(frame, ["state", "sim"])
+        assert is_map(sim["riders"]) and map_size(sim["riders"]) == 2
+      end
+
+      # At least one racing frame carries THIS rider's private attachment...
+      assert Enum.any?(racing, fn frame -> is_map(Map.get(frame, "self")) end),
+             "private self attachment travels to its owner"
+
+      # ...and summaries reach the room-wide channel without sim/self data
+      # (queried directly from the fake room's broadcast log — the test
+      # mailbox also floods with 20Hz addressed frames).
+      wait_until(2_500, fn ->
+        broadcasts = GenServer.call(ctx.room_pid, :broadcast_frames)
+        broadcasts |> Enum.filter(&summary?(&1)) |> Enum.filter(&(&1["status"] == "racing")) |> length() >= 2
+      end)
+
+      racing_summaries =
+        GenServer.call(ctx.room_pid, :broadcast_frames)
+        |> Enum.filter(&summary?(&1))
+        |> Enum.filter(&(&1["status"] == "racing"))
+
+      assert length(racing_summaries) >= 2, "summaries re-fire (got #{length(racing_summaries)} of #{length(Enum.filter(GenServer.call(ctx.room_pid, :broadcast_frames), &(&1["audience"] == "summary")))})"
+
+      for summary <- racing_summaries do
+        assert Map.get(summary, "audience") == "summary"
+        assert is_map(Map.get(summary, "summary"))
+        assert Map.get(summary, "summary")["capacity"] == 8
+        assert length(Map.get(summary, "summary")["progress"]) == 2
+        refute Map.has_key?(summary, "state")
+        refute Map.has_key?(summary, "self")
+      end
+    end
+  end
+
+  defp summary?(frame) do
+    Map.get(frame, "audience") == "summary" and is_map(Map.get(frame, "summary")) and
+      not Map.has_key?(frame, "self") and not Map.has_key?(frame, "state")
+  end
+
+  defp drain_activity_states(max \\ 100) do
+    drain_activity_states(max, [])
+  end
+
+  defp drain_activity_states(0, acc), do: acc
+
+  defp drain_activity_states(max, acc) do
+    receive do
+      {:world_frame, _room_id, %{"type" => "activity_state"} = frame} ->
+        drain_activity_states(max - 1, [frame | acc])
+
+      {:world_frame, _room_id, _frame} ->
+        drain_activity_states(max - 1, acc)
+
+      _other ->
+        drain_activity_states(max - 1, acc)
+    after
+      50 -> acc
+    end
+  end
+
   defp wait_until(timeout_ms, fun) do
     deadline = System.monotonic_time(:millisecond) + timeout_ms
 
@@ -348,24 +494,102 @@ defmodule Afterlight.Activities.SnowboardSessionTest do
     end
   end
 
+  describe "stale match fence (D7)" do
+    test "a leave signed for an old match never DNFs the new race", ctx do
+      session = start_session(ctx, countdown_ms: 120, race_deadline_ms: 5_000, results_retention_ms: 60_000)
+
+      players =
+        for prefix <- ["s1", "s2"] do
+          player = make_player(prefix)
+          {slot, lease} = join(session, player)
+          assert {:ok, %{result: "loaded"}} = load(session, player, {slot, lease})
+          assert {:ok, _} = ready(session, player, true)
+          {player, slot}
+        end
+
+      wait_until(2_000, fn -> status(session) == :in_progress end)
+
+      # An old-match leave arrives: rejected.
+      assert {:error, :stale_match} =
+               GenServer.call(session, {:command, "activity_leave", %{"matchId" => "match_stale"}, elem(Enum.at(players, 0), 0)})
+
+      # The current race is untouched.
+      info = Activities.session_info(session)
+      assert map_size(info.players) == 2
+      assert Enum.all?(Map.values(info.sim_state["riders"]), &is_nil(&1["dnfReason"]))
+    end
+
+    test "a ready signed for an old match is rejected without altering readiness", ctx do
+      session = start_session(ctx, countdown_ms: 5_000)
+
+      player = make_player("fence")
+      {slot, lease} = join(session, player)
+      assert {:ok, %{result: "loaded"}} = load(session, player, {slot, lease})
+      assert {:ok, _} = ready(session, player, true)
+
+      assert {:error, :stale_match} =
+               GenServer.call(session, {:command, "activity_ready", %{"ready" => false, "matchId" => "match_old"}, player})
+
+      assert {:error, :invalid_request} =
+               GenServer.call(session, {:command, "activity_ready", %{"ready" => false}, player})
+
+      info = Activities.session_info(session)
+      rider_slot = info.player_to_slot[player.player_id]
+      assert info.players[rider_slot].ready == true, "the stale packets changed nothing"
+    end
+
+    test "input signed for an old match is rejected and the race continues", ctx do
+      session = start_session(ctx, countdown_ms: 120, race_deadline_ms: 4_000)
+
+      players =
+        for prefix <- ["i1", "i2"] do
+          player = make_player(prefix)
+          {slot, lease} = join(session, player)
+          assert {:ok, %{result: "loaded"}} = load(session, player, {slot, lease})
+          assert {:ok, _} = ready(session, player, true)
+          player
+        end
+
+      wait_until(2_000, fn -> status(session) == :in_progress end)
+
+      [first, _second] = players
+      info = Activities.session_info(session)
+      slot = info.player_to_slot[first.player_id]
+
+      assert {:error, :stale_match} =
+               GenServer.call(session, {:command, "activity_input",
+                 %{
+                   "sessionId" => info.session_id,
+                   "lease" => info.players[slot].lease_id,
+                   "seq" => 9_001,
+                   "matchId" => "match_stale",
+                   "controls" => %{"kind" => "ride", "steer" => 0.0, "tuck" => true, "brake" => false, "jumpHeld" => false}
+                 }, first})
+
+      info = Activities.session_info(session)
+      assert info.status == :in_progress
+      assert Enum.all?(Map.values(info.sim_state["riders"]), &is_nil(&1["dnfReason"]))
+    end
+  end
+
 describe "canonical instance identity (4.4)" do
   test "equal cabinet ids under distinct instance keys never share a session", ctx do
-    handle_a = %{ctx.handle | room_key: "default:theater-a:main"}
-    handle_b = %{ctx.handle | room_key: "default:theater-a:two"}
+    handle_a = %{ctx.handle | room_key: "default:theater-a-#{System.unique_integer([:positive])}:main"}
+    handle_b = %{ctx.handle | room_key: "default:theater-a-#{System.unique_integer([:positive])}:two"}
 
     {:ok, main} =
-      Activities.get_or_start_session(ctx.room_pid, "default:theater-a:main", 1, "summit-run", handle_a,
+      Activities.get_or_start_session(ctx.room_pid, handle_a.room_key, 1, "summit-run", handle_a,
         activity_def: @act_def, check_proximity: false, wire_room_id: "theater"
       )
 
     {:ok, two} =
-      Activities.get_or_start_session(ctx.room_pid, "default:theater-a:two", 1, "summit-run", handle_b,
+      Activities.get_or_start_session(ctx.room_pid, handle_b.room_key, 1, "summit-run", handle_b,
         activity_def: @act_def, check_proximity: false, wire_room_id: "theater"
       )
 
     refute main == two
-    assert Activities.lookup_session("default:theater-a:main", 1, "summit-run") == {:ok, main}
-    assert Activities.lookup_session("default:theater-a:two", 1, "summit-run") == {:ok, two}
+    assert Activities.lookup_session(handle_a.room_key, 1, "summit-run") == {:ok, main}
+    assert Activities.lookup_session(handle_b.room_key, 1, "summit-run") == {:ok, two}
 
     # A rider seated in the main instance does not appear in the other.
     {slot, _lease} = join(main, make_player("solo"))
@@ -374,15 +598,15 @@ describe "canonical instance identity (4.4)" do
   end
 
   test "epoch change yields a fresh session identity (owner failover)", ctx do
-    handle = %{ctx.handle | room_key: "default:theater-a:main"}
+    handle = %{ctx.handle | room_key: "default:theater-a-#{System.unique_integer([:positive])}:main"}
 
     {:ok, first} =
-      Activities.get_or_start_session(ctx.room_pid, "default:theater-a:main", 1, "summit-run", handle,
+      Activities.get_or_start_session(ctx.room_pid, handle.room_key, 1, "summit-run", handle,
         activity_def: @act_def, check_proximity: false, wire_room_id: "theater"
       )
 
     {:ok, successor} =
-      Activities.get_or_start_session(ctx.room_pid, "default:theater-a:main", 2, "summit-run", %{handle | epoch: 2},
+      Activities.get_or_start_session(ctx.room_pid, handle.room_key, 2, "summit-run", %{handle | epoch: 2},
         activity_def: @act_def, check_proximity: false, wire_room_id: "theater"
       )
 
@@ -391,15 +615,15 @@ describe "canonical instance identity (4.4)" do
   end
 
   test "envelopes keep the wire roomId while the session keys canonically", ctx do
-    handle = %{ctx.handle | room_key: "default:theater-a:main"}
+    handle = %{ctx.handle | room_key: "default:theater-a-#{System.unique_integer([:positive])}:main"}
 
     {:ok, session} =
-      Activities.get_or_start_session(ctx.room_pid, "default:theater-a:main", 1, "summit-run", handle,
+      Activities.get_or_start_session(ctx.room_pid, handle.room_key, 1, "summit-run", handle,
         activity_def: @act_def, check_proximity: false, wire_room_id: "theater"
       )
 
     info = Activities.session_info(session)
-    assert info.room_key == "default:theater-a:main"
+    assert info.room_key == handle.room_key
 
     snapshot = Activities.session_full_snapshot(session)
     assert Map.get(snapshot, "roomId") == "theater"

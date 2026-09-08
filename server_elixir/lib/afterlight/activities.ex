@@ -75,10 +75,18 @@ defmodule Afterlight.Activities do
         # In tests or custom definitions, opts can supply activity_def
         act_def = act_def || Keyword.get(opts, :activity_def)
 
-        if is_nil(act_def) do
-          {:error, :activity_not_found}
-        else
-          args =
+        cond do
+          is_nil(act_def) ->
+            {:error, :activity_not_found}
+
+          # Disabled-by-default admission gate (4.5): unsupported/disabled
+          # types fail closed with a typed error, never a partial session.
+          Map.get(act_def, "type") == Afterlight.Activities.Snowboard.SessionPolicy.activity_type() and
+              not Afterlight.Activities.Snowboard.enabled?() ->
+            {:error, :race_unavailable}
+
+          true ->
+            args =
             %{
               room_pid: room_pid,
               room_key: room_key,
@@ -100,13 +108,14 @@ defmodule Afterlight.Activities do
             |> maybe_put(:countdown_ms, Keyword.get(opts, :countdown_ms))
             |> maybe_put(:race_deadline_ms, Keyword.get(opts, :race_deadline_ms))
             |> maybe_put(:results_retention_ms, Keyword.get(opts, :results_retention_ms))
+            |> maybe_put(:nonready_inactivity_ms, Keyword.get(opts, :nonready_inactivity_ms))
 
-          case DynamicSupervisor.start_child(@supervisor, {SessionServer, args}) do
-            {:ok, pid} -> {:ok, pid}
-            {:error, {:already_started, pid}} -> {:ok, pid}
-            {:error, {:shutdown, reason}} -> {:error, reason}
-            {:error, reason} -> {:error, reason}
-          end
+            case DynamicSupervisor.start_child(@supervisor, {SessionServer, args}) do
+              {:ok, pid} -> {:ok, pid}
+              {:error, {:already_started, pid}} -> {:ok, pid}
+              {:error, {:shutdown, reason}} -> {:error, reason}
+              {:error, reason} -> {:error, reason}
+            end
         end
     end
   end
