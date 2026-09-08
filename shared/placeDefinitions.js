@@ -1,0 +1,271 @@
+import { SOCIAL_PLACE_OVERRIDES, DESERT_CAMP_DEFINITION } from './socialPlaceDefinitions.js';
+/**
+ * Pure place metadata for every Afterlight destination: display identity,
+ * stable ids, deterministic seeds, bounds, spawns, declared exits, minimap
+ * paths, atmosphere keys, capabilities and legacy classification.
+ *
+ * This module is the single editable manifest. It must stay free of Three.js
+ * and DOM imports so Node tests, the Elixir projection script and the browser
+ * all read identical plain data. Renderer references (builders, controllers)
+ * live in src/places/registry.js; this file never imports them.
+ */
+
+// Display metadata exactly as the legacy district table shipped it. Field
+// notes, objectives and order are preserved verbatim; framework fields are
+// layered on below.
+const LEGACY_DISPLAY = [
+  { id: 'court', name: 'The Rain Court', district: 'LOWER DISTRICT / 04', subtitle: 'AFTER THE RAIN', color: '#657264', sun: '#ffe0a5', description: 'Wet stone, warm windows. Where your journey began.' },
+  { id: 'canal', name: 'The Sluiceworks', district: 'WATER DISTRICT / 05', subtitle: 'BENEATH THE MIST', color: '#466b70', sun: '#c3e6e1', description: 'Cross the canal and wake the sleeping waterworks.', objective: 'Open the sluice valve', action: 'Turn the sluice valve', done: 'Waterworks flowing', message: 'Water moves through the old channels again. Somewhere below, a garden drinks.', landmark: [7, -5], note: [-7, 5], noteTitle: 'A waterkeeper’s promise', noteBody: '“Keep the water moving. The roots above us are still alive.”', spawn: [-9, 0] },
+  { id: 'garden', name: 'The Glass Garden', district: 'UPPER TERRACES / 06', subtitle: 'WHERE GREEN RETURNS', color: '#78846a', sun: '#ffe6ad', description: 'An overgrown greenhouse above the city. Something still grows.', objective: 'Wake the seed nursery', action: 'Tend the seed nursery', done: 'Nursery awakened', message: 'The nursery lights up, sheltering a new generation of green. Kiln watches the leaves unfold.', landmark: [4, -5], note: [-6, 5], noteTitle: 'The last gardener', noteBody: '“A city is not empty while something is growing. Leave a little room for the wild.”', spawn: [-9, 0] },
+  { id: 'station', name: 'The Last Platform', district: 'TRANSIT DISTRICT / 07', subtitle: 'THE BLUE HOUR', color: '#424d70', sun: '#b4c5fa', description: 'An abandoned tram stop, and a signal waiting to be heard.', objective: 'Light the signal beacon', action: 'Send the home signal', done: 'Signal broadcasting', message: 'A warm signal reaches across the rooftops. If someone is out there, they know the city is waking.', landmark: [7, 5], note: [-6, 5], noteTitle: 'An unsent timetable', noteBody: '“Last service: whenever you are ready. There will always be a way home.”', spawn: [-9, 0] },
+  { id: 'aqueduct', name: 'The Sunken Aqueduct', district: 'AQUEDUCT DISTRICT / 08', subtitle: 'DEEP RUNS THE WATER', color: '#384d52', sun: '#9ec4c0', description: 'Subterranean stone channels beneath the old city. Clear the silt sluice to let the cisterns breathe.', objective: 'Clear the silt sluice', action: 'Raise the silt gate', done: 'Cisterns breathing', message: 'Clear water rushes through the ancient conduit. The subterranean echoing returns to life.', landmark: [6, -4], note: [-6, 4], noteTitle: 'Cistern Overseer’s Log', noteBody: '“The masonry has held for three centuries. Give it clean water, and it will hold for three more.”', spawn: [-9, 0] },
+  { id: 'caldera', name: 'The Boiler Caldera', district: 'GEOTHERMAL DISTRICT / 09', subtitle: 'HEAT FROM THE DEEP', color: '#4d3b38', sun: '#f7aa74', description: 'Steam vents hiss through dark basalt crevices. Regulate the geothermal manifold.', objective: 'Regulate the geothermal manifold', action: 'Turn the pressure manifold', done: 'Manifold regulated', message: 'Steam settles into a steady, resonant rhythm. Warm air rises toward the cold terraces above.', landmark: [5, -4], note: [-6, 5], noteTitle: 'Thermal Watchman', noteBody: '“Listen to the pressure before you touch a valve. The rock speaks if you have patience.”', spawn: [-9, 0] },
+  { id: 'understory', name: 'The Spore Understory', district: 'FUNGAL DISTRICT / 10', subtitle: 'LIGHT IN THE DAMP', color: '#3b4737', sun: '#a5d9a0', description: 'A cavernous lower rotunda overtaken by luminous fungi. Awaken the bioluminescent mycelium.', objective: 'Awaken the mycelium lattice', action: 'Energize the mycelial node', done: 'Mycelium luminous', message: 'Soft green light pulses through the damp loam and ripples across the shelf fungi.', landmark: [6, -5], note: [-7, 5], noteTitle: 'Fungal Archivist', noteBody: '“Fungi remember where every tree once stood. They do not hurry, and they never forget.”', spawn: [-9, 0] },
+  { id: 'saltworks', name: 'The Bleached Saltworks', district: 'MINERAL DISTRICT / 11', subtitle: 'WHITE TERRACES OF BRINE', color: '#566668', sun: '#e3f3f7', description: 'Blinding white crystalline flats and evaporation pans. Free the stuck brine pump.', objective: 'Engage the brine pump', action: 'Prime the brine pump', done: 'Brine pump turning', message: 'Clear brine trickles into the shallow crystallizers. Salt crystals shimmer in the sunlight.', landmark: [7, -4], note: [-6, 4], noteTitle: 'Salt Harvester’s Tablet', noteBody: '“The tide gives, the wind takes, and the salt remains. A clean basin makes clean bread.”', spawn: [-9, 0] },
+  { id: 'rooftops', name: 'The High Awnings', district: 'SKYWARD DISTRICT / 12', subtitle: 'WHERE WINDS GATHER', color: '#546370', sun: '#e6d8b8', description: 'Wind-beaten scaffolding and catwalks overlooking the expanse. Free the anemometer array.', objective: 'Free the anemometer array', action: 'Align the wind vanes', done: 'Wind array spinning', message: 'The brass vanes catch the gusts and sing against the copper eaves. The city knows which way the wind blows.', landmark: [6, -5], note: [-5, 5], noteTitle: 'Roofkeeper’s Weather Log', noteBody: '“Up here, you feel the city breathing. The high wind is honest; it hides nothing.”', spawn: [-9, 0] },
+  { id: 'mangrove', name: 'The Brackish Basin', district: 'ESTUARY DISTRICT / 13', subtitle: 'ROOTS IN THE BRINE', color: '#44574c', sun: '#cde4cb', description: 'Submerged brickwork laced with tangle roots and stilt boardwalks. Restore the tidal weir.', objective: 'Clear the tidal weir', action: 'Lower the timber weir', done: 'Tidal weir secured', message: 'The water slows behind the timber barrier. Small fish dart among the submerged brick columns.', landmark: [6, -4], note: [-6, 5], noteTitle: 'Estuary Keeper’s Marker', noteBody: '“The tide doesn’t care about our masonry, but the roots hold both together.”', spawn: [-9, 0] },
+  { id: 'trestle', name: 'The Overgrown Trestle', district: 'CANOPY DISTRICT / 14', subtitle: 'IRON IN THE BOUGHS', color: '#4e5a42', sun: '#dce6b6', description: 'A massive iron railway viaduct gripped by ancient boughs. Restore the suspended maintenance crane.', objective: 'Anchor the canopy crane', action: 'Engage the hoist cable', done: 'Canopy crane anchored', message: 'Tension locks into the heavy iron cables. Kiln chirps as the suspension bridge stabilizes.', landmark: [7, -4], note: [-5, 5], noteTitle: 'Viaduct Inspector’s Plaque', noteBody: '“Steel will flex and timber will bend, but together they span the valley.”', spawn: [-9, 0] },
+  { id: 'foundry', name: 'The Rustfall Foundry', district: 'SMELTING DISTRICT / 15', subtitle: 'HEARTH OF SLAG AND ORE', color: '#4a3832', sun: '#f2a679', description: 'Red iron dust and towering crucible furnaces. Ignite the pilot hearth.', objective: 'Ignite the pilot hearth', action: 'Spark the furnace igniter', done: 'Pilot hearth glowing', message: 'A warm orange glow spreads through the blast flue. Warmth returns to the cold cast iron.', landmark: [6, -4], note: [-6, 5], noteTitle: 'Foundry Master’s Inscription', noteBody: '“Cold iron forgets its shape until fire reminds it. Never let the pilot flame die completely.”', spawn: [-9, 0] },
+  { id: 'frost-spire', name: 'The Glacial Glasshouse', district: 'ALPINE DISTRICT / 16', subtitle: 'ABOVE THE CLOUD LINE', color: '#45596e', sun: '#d6ecff', description: 'A fractured glass observatory battered by alpine frost. Clear the ice crystals from the solar collector.', objective: 'Clear the solar collector', action: 'Sweep the frost collector', done: 'Solar collector cleared', message: 'Sunlight catches the polished mirror facets. Warmth begins melting the frost along the rim.', landmark: [5, -5], note: [-6, 5], noteTitle: 'Alpine Observer’s Journal', noteBody: '“The cold is patient, but glass and copper remember the light. Keep looking upward.”', spawn: [-9, 0] },
+  { id: 'delta', name: 'The Reclaimed Marshes', district: 'DELTA DISTRICT / 17', subtitle: 'WHISPERS IN THE REEDS', color: '#525b45', sun: '#d9e0b2', description: 'Shallow sandbars and cattail marshes woven through stranded barges. Realign the channel beacon.', objective: 'Light the channel beacon', action: 'Strike the marsh beacon', done: 'Channel beacon lit', message: 'A warm beacon reflects across the delta shallows, cutting through the twilight mist.', landmark: [7, -4], note: [-6, 4], noteTitle: 'Delta Boatman’s Note', noteBody: '“Follow the reeds when the silt shifts. Where water moves slowly, green things thrive.”', spawn: [-9, 0] },
+  { id: 'archives', name: 'The Paper Catacombs', district: 'ARCHIVE DISTRICT / 18', subtitle: 'WHISPERING VAULTS', color: '#48444a', sun: '#f5e4bd', description: 'Stone shelves holding centuries of water-resistant parchment. Light the reading desk lamp.', objective: 'Illuminate the study rotunda', action: 'Turn the reading lamp switch', done: 'Study rotunda illuminated', message: 'A soft amber globe illuminates centuries of hand-bound volumes. The silence feels like peace.', landmark: [5, -4], note: [-6, 5], noteTitle: 'Chief Archivist’s Dedication', noteBody: '“Words outlive empires, provided someone keeps the rain from dripping on the ink.”', spawn: [-9, 0] },
+  { id: 'kiln-terrace', name: 'The Solar Kiln', district: 'TERRACOTTA DISTRICT / 19', subtitle: 'BAKED IN WARMTH', color: '#634b3e', sun: '#ffd09e', description: 'Baked clay tiles and parabolic sun collectors. Align the solar concentrator.', objective: 'Focus the solar concentrator', action: 'Calibrate the focal mirror', done: 'Concentrator focused', message: 'A brilliant point of concentrated sunlight gleams against the terracotta kiln. Warmth radiates.', landmark: [6, -4], note: [-5, 5], noteTitle: 'Potter’s Credo', noteBody: '“Earth, water, and sun. With these three, a broken city can remake itself cup by cup.”', spawn: [-9, 0] },
+  { id: 'theater', name: 'The Orpheum', district: 'CINEMA DISTRICT / 20', subtitle: 'PICTURES IN THE DARK', color: '#3a3345', sun: '#e8c9a0', description: 'A grand old cinema where the city gathers after dark. Queue a film, take a seat.', objective: 'Restore power to the projector', action: 'Restore the projector', done: 'Projector humming', message: 'The marquee blazes and the reel begins to turn. Take a seat — whatever plays here plays for everyone.', landmark: [0, 7.6], note: [-6, 7.2], noteTitle: 'The Orpheum’s house rules', noteBody: '“Anyone may change the picture. No one owns the screen. Leave the aisle lamps burning for whoever comes next.”', spawn: [-9, 0] },
+];
+
+export const PLACE_KINDS = ['environment', 'venue', 'view'];
+export const PLACE_SHELLS = ['legacy-urban', 'none'];
+export const PLACE_CAPABILITIES = ['seating', 'sharedMedia', 'conferencing'];
+export const PLACE_WEATHER_MODES = ['fixed', 'scheduled'];
+export const PLACE_TIME_MODES = ['fixed', 'scheduled'];
+
+// The universal urban shell every legacy district shares: floor, paving,
+// perimeter walls, skyline backdrop and street lamps. `legacy-urban`
+// reproduces the old construction; `none` lets a builder own them.
+export const LEGACY_URBAN_BOUNDS = Object.freeze({ minX: -11.3, maxX: 11.3, minZ: -9.5, maxZ: 10.3 });
+
+// Legacy gate topology. The original seventeen districts form a closed route
+// (west = previous entry, east = next entry, wrapping around) and every one
+// of them keeps a south gate to the Market Court. Distances are exact legacy
+// positions. Freezing the destinations here — instead of deriving them from
+// array order at build time — is what lets new places append without
+// silently rerouting existing gates.
+export const LEGACY_DISTRICT_IDS = Object.freeze(LEGACY_DISPLAY.map(d => d.id));
+const WEST_GATE = Object.freeze([-10.7, 0]);
+const EAST_GATE = Object.freeze([10.7, 0]);
+const MARKET_GATE = Object.freeze([0, 8.8]);
+
+// Minimap schematics for the legacy districts (moved from main.js so the
+// manifest stays the single source); market and personal garden keep their
+// bespoke entries where they are rendered.
+const LEGACY_MINIMAP_PATHS = {
+  court: 'M24 24H130V96H24Z M130 49H160V76H130 M65 24V13H87V24',
+  canal: 'M24 24H130V96H24Z M24 60H130 M70 24V96 M84 24V96',
+  station: 'M24 24H130V96H24Z M24 40H130 M24 75H130 M65 40V75',
+  aqueduct: 'M24 24H130V96H24Z M24 35H130 M45 24V96 M80 24V96 M105 24V96',
+  caldera: 'M24 24H130V96H24Z M50 35H100V80H50Z M75 35V80 M24 60H50 M100 60H130',
+  understory: 'M24 24H130V96H24Z M35 40H65V75H35Z M90 40H120V75H90Z M65 60H90',
+  saltworks: 'M24 24H130V96H24Z M35 30H115V55H35Z M35 65H115V90H35Z M75 24V96',
+  rooftops: 'M24 24H130V96H24Z M40 45H110 M75 24V96 M40 30L75 60L110 30 M40 90L75 60L110 90',
+  mangrove: 'M24 24H130V96H24Z M24 50Q75 20 130 50 M24 70Q75 100 130 70 M75 35V85',
+  trestle: 'M24 24H130V96H24Z M24 35H130 M24 85H130 M35 35L55 85 M55 35L75 85 M75 35L95 85 M95 35L115 85',
+  foundry: 'M24 24H130V96H24Z M40 35H70V65H40Z M85 35H115V65H85Z M24 75H130',
+  'frost-spire': 'M24 24H130V96H24Z M75 25L115 60L75 95L35 60Z M75 25V95 M35 60H115',
+  delta: 'M24 24H130V96H24Z M24 45C55 40 85 75 130 55 M24 75C60 70 90 90 130 85 M70 24V96',
+  archives: 'M24 24H130V96H24Z M35 35H115 M35 50H115 M35 65H115 M35 80H115 M75 24V96',
+  'kiln-terrace': 'M24 24H130V96H24Z M45 35H105V85H45Z M75 45A15 15 0 1 0 75 75A15 15 0 1 0 75 45 M24 60H45 M105 60H130',
+  theater: 'M24 24H130V96H24Z M42 34H112 M42 38H112 M34 52H62 M70 52H120 M34 68H62 M70 68H120 M34 84H120',
+  garden: 'M24 24H130V96H24Z M38 36H116V84H38Z M65 24V96',
+};
+
+// Exact legacy exits for one legacy district: closed west/east loop over
+// LEGACY_DISTRICT_IDS plus the south market gate. Declared once, frozen, and
+// consumed by the world factory — appending a place must never recompute
+// these.
+function legacyExits(id) {
+  const index = LEGACY_DISTRICT_IDS.indexOf(id);
+  const count = LEGACY_DISTRICT_IDS.length;
+  return [
+    Object.freeze({ id: 'west', kind: 'district', position: WEST_GATE, target: LEGACY_DISTRICT_IDS[(index - 1 + count) % count] }),
+    Object.freeze({ id: 'east', kind: 'district', position: EAST_GATE, target: LEGACY_DISTRICT_IDS[(index + 1) % count] }),
+    Object.freeze({ id: 'market', kind: 'market', position: MARKET_GATE, target: 'market' }),
+  ];
+}
+
+function deepFreeze(value) {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const key of Object.keys(value)) deepFreeze(value[key]);
+  }
+  return value;
+}
+
+// Layers the framework contract over one legacy display entry. Seeds are the
+// explicit historical values (old array index × 37, zero for court) so
+// procedural scenery never shifts when the public list grows.
+function defineLegacyPlace(display, index) {
+  const spawn = display.spawn ?? [-9, 0];
+  const theater = display.id === 'theater';
+  return deepFreeze({
+    ...display,
+    kind: theater ? 'venue' : 'environment',
+    seed: index * 37,
+    bounds: { ...LEGACY_URBAN_BOUNDS },
+    spawn,
+    companionSpawn: [spawn[0] + 0.8, spawn[1] + 1],
+    shell: 'legacy-urban',
+    builderKey: display.id,
+    minimapPath: LEGACY_MINIMAP_PATHS[display.id],
+    atmosphere: { preset: null, weatherMode: 'fixed', timeMode: 'fixed' },
+    capabilities: theater
+      ? { seating: true, sharedMedia: true, conferencing: false }
+      : { seating: false, sharedMedia: false, conferencing: false },
+    social: { featured: theater || display.id === 'court', legacy: true },
+    exits: legacyExits(display.id),
+    ...SOCIAL_PLACE_OVERRIDES[display.id],
+  });
+}
+
+export const PLACE_DEFINITIONS = deepFreeze([...LEGACY_DISPLAY.map(defineLegacyPlace), DESERT_CAMP_DEFINITION]);
+
+// Test-only tiny view: smaller bounds, no travel gates, no urban shell and no
+// objective. It is deliberately NOT part of PLACE_DEFINITIONS (and never
+// projected to the server); it exists so tests can prove the schema does not
+// force a district-sized level. Its builder is registered by the tests that
+// use it.
+export const PLACE_VIEW_FIXTURE = deepFreeze({
+  id: 'tiny-view',
+  name: 'The Pocket Stage',
+  kind: 'view',
+  seed: LEGACY_DISTRICT_IDS.length * 37,
+  bounds: Object.freeze({ minX: -3, maxX: 3, minZ: -2.5, maxZ: 2.5 }),
+  spawn: [0, 0],
+  companionSpawn: [0.8, 1],
+  exits: [],
+  minimapPath: 'M24 24H130V96H24Z',
+  shell: 'none',
+  builderKey: 'tinyView',
+  atmosphere: { preset: null, weatherMode: 'fixed', timeMode: 'fixed' },
+  capabilities: { seating: false, sharedMedia: false, conferencing: false },
+  social: { featured: false, legacy: false },
+  objective: null,
+  note: null,
+});
+
+export function getPlaceDefinition(id) {
+  return PLACE_DEFINITIONS.find(d => d.id === id);
+}
+
+const isCoord = value => Array.isArray(value) && value.length === 2 && value.every(Number.isFinite);
+const isHexColor = value => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
+const isPresetKey = value => typeof value === 'string' && /^[a-z0-9][a-z0-9-]*$/.test(value);
+
+// Validates one definition and returns a list of problems (empty = valid).
+// Pure metadata only: obstacle clearance and reachability are proven by
+// builder tests, not here. `knownIds` (when given) additionally checks exit
+// targets against known place ids plus the market.
+export function validatePlaceDefinition(def, { knownIds = null } = {}) {
+  const problems = [];
+  const at = (ok, message) => { if (!ok) problems.push(message); };
+  if (!def || typeof def !== 'object' || Array.isArray(def)) return ['definition is not an object'];
+
+  at(typeof def.id === 'string' && /^[a-z0-9-]+$/.test(def.id), `id must be a kebab-case string, got ${JSON.stringify(def.id)}`);
+  at(typeof def.name === 'string' && def.name.length > 0, 'name must be a non-empty string');
+  at(PLACE_KINDS.includes(def.kind), `kind must be one of ${PLACE_KINDS.join(', ')}`);
+  at(Number.isFinite(def.seed) && def.seed >= 0, 'seed must be a finite, non-negative number');
+
+  const b = def.bounds;
+  at(b && typeof b === 'object', 'bounds are required');
+  const finiteBounds = !!b && ['minX', 'maxX', 'minZ', 'maxZ'].every(k => Number.isFinite(b[k]));
+  at(finiteBounds, 'bounds must be finite numbers');
+  if (finiteBounds) at(b.minX < b.maxX && b.minZ < b.maxZ, 'bounds must not be inverted');
+  const insideBounds = c => finiteBounds && isCoord(c) && c[0] > b.minX && c[0] < b.maxX && c[1] > b.minZ && c[1] < b.maxZ;
+
+  at(insideBounds(def.spawn), 'spawn must be a finite [x, z] pair strictly inside bounds');
+  at(insideBounds(def.companionSpawn), 'companionSpawn must be a finite [x, z] pair strictly inside bounds');
+
+  if (def.exits != null) {
+    at(Array.isArray(def.exits), 'exits must be an array');
+    for (const [i, exit] of (def.exits ?? []).entries()) {
+      at(exit && typeof exit === 'object', `exits[${i}] must be an object`);
+      at(typeof exit?.id === 'string' && exit.id.length > 0, `exits[${i}].id must be a non-empty string`);
+      at(exit?.kind == null || ['district', 'market'].includes(exit.kind), `exits[${i}].kind must be 'district' or 'market'`);
+      at(isCoord(exit?.position), `exits[${i}].position must be a finite [x, z] pair`);
+      at(typeof exit?.target === 'string' && exit.target.length > 0, `exits[${i}].target must be a place id`);
+      if (knownIds && typeof exit?.target === 'string') {
+        at(exit.target === 'market' || knownIds.has(exit.target), `exits[${i}].target "${exit.target}" is not a known place`);
+      }
+    }
+  }
+
+  at(typeof def.minimapPath === 'string' && def.minimapPath.length > 0, 'minimapPath must be a non-empty SVG path string');
+  at(PLACE_SHELLS.includes(def.shell), `shell must be one of ${PLACE_SHELLS.join(', ')}`);
+  at(typeof def.builderKey === 'string' && def.builderKey.length > 0, 'builderKey must be a non-empty string (registry resolves it to a function)');
+
+  const atmosphere = def.atmosphere;
+  at(atmosphere && typeof atmosphere === 'object', 'atmosphere configuration is required');
+  if (atmosphere) {
+    at(atmosphere.preset === null || isPresetKey(atmosphere.preset), 'atmosphere.preset must be null or a preset key');
+    at(PLACE_WEATHER_MODES.includes(atmosphere.weatherMode), `atmosphere.weatherMode must be one of ${PLACE_WEATHER_MODES.join(', ')}`);
+    at(PLACE_TIME_MODES.includes(atmosphere.timeMode), `atmosphere.timeMode must be one of ${PLACE_TIME_MODES.join(', ')}`);
+  }
+
+  const capabilities = def.capabilities;
+  at(capabilities && typeof capabilities === 'object', 'capabilities are required');
+  if (capabilities) {
+    for (const [key, value] of Object.entries(capabilities)) {
+      at(PLACE_CAPABILITIES.includes(key), `unknown capability: ${key}`);
+      at(typeof value === 'boolean', `capability ${key} must be a boolean`);
+    }
+    for (const key of PLACE_CAPABILITIES) {
+      at(typeof capabilities[key] === 'boolean', `capability ${key} must be declared`);
+    }
+  }
+
+  const social = def.social;
+  at(social && typeof social === 'object' && typeof social.featured === 'boolean' && typeof social.legacy === 'boolean',
+    'social must declare boolean featured and legacy flags');
+
+  if (def.color != null) at(isHexColor(def.color), 'color must be a #rrggbb hex string');
+  if (def.sun != null) at(isHexColor(def.sun), 'sun must be a #rrggbb hex string');
+
+  // Restoration metadata is optional for social places, but a *present*
+  // tuple must be complete: objective, action, done, message and landmark
+  // travel together; so do note, noteTitle and noteBody.
+  const hasObjective = def.objective != null;
+  const objectiveParts = [def.action, def.done, def.message, def.landmark];
+  if (hasObjective) {
+    at(typeof def.objective === 'string' && def.objective.length > 0, 'objective must be a non-empty string when present');
+    at(objectiveParts.every(part => part != null), 'objective tuple is incomplete: action, done, message and landmark are required alongside objective');
+    if (def.landmark != null) at(isCoord(def.landmark), 'landmark must be a finite [x, z] pair');
+  } else {
+    at(!objectiveParts.some(part => part != null), 'restoration fields (action/done/message/landmark) require an objective; social places stay objective-free');
+  }
+  const noteParts = [def.noteTitle, def.noteBody];
+  if (def.note != null) {
+    at(isCoord(def.note), 'note must be a finite [x, z] pair');
+    at(noteParts.every(part => part != null), 'note tuple is incomplete: noteTitle and noteBody are required alongside note');
+  } else {
+    at(!noteParts.some(part => part != null), 'note fields (noteTitle/noteBody) require a note position; social places stay note-free');
+  }
+
+  return problems;
+}
+
+// Validates a whole list: per-definition problems plus duplicate ids, each
+// reported with the offending definition's id. Exit targets may reference any
+// registered public place, not just siblings in the same list.
+export function validatePlaceDefinitions(list) {
+  const knownIds = new Set(PLACE_DEFINITIONS.map(def => def.id));
+  for (const def of list) if (def && typeof def.id === 'string') knownIds.add(def.id);
+  const idCounts = new Map();
+  for (const def of list) if (def && typeof def.id === 'string') idCounts.set(def.id, (idCounts.get(def.id) ?? 0) + 1);
+
+  const reports = [];
+  for (const [index, def] of list.entries()) {
+    const problems = validatePlaceDefinition(def, { knownIds });
+    if (def && typeof def.id === 'string' && idCounts.get(def.id) > 1) problems.push('duplicate id');
+    if (problems.length > 0) reports.push({ id: def?.id ?? `index ${index}`, problems });
+  }
+  return reports;
+}

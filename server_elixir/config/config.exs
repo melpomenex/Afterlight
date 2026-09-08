@@ -62,6 +62,14 @@ config :afterlight, :gateway,
   # (5.1). Connect refusals are retryable; the HTTP 429 carries
   # Retry-After.
   connect_rate_limit: [limit: 60, window_ms: 60_000],
+  # Places directory snapshot requests (add-social-place-framework 3.3):
+  # at most one per signed session per five seconds, enforced with the
+  # same ETS bucket table (Afterlight.Gateway.RateLimit).
+  place_directory_rate_limit: [limit: 1, window_ms: 5_000],
+  # Room atmosphere resnapshots (add-atmosphere-weather-system 2.1, D2):
+  # membership-gated `atmosphere_get`, at most one per signed session per
+  # five seconds through the same ETS bucket table.
+  atmosphere_rate_limit: [limit: 1, window_ms: 5_000],
   # Gateway-side safety cap for buffered reverse-proxy request bodies in
   # bytes (64 MiB, mirroring Node's own EPG cap — Node still enforces
   # its caps and answers 413; the gateway rejects larger bodies itself).

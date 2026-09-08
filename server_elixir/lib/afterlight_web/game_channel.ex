@@ -73,6 +73,7 @@ defmodule AfterlightWeb.GameChannel do
   alias Afterlight.Catalog.Gateway, as: CatalogGateway
   alias Afterlight.EconomyGroup.Gateway, as: EconomyGateway
   alias Afterlight.Gateway.NodeProxy
+  alias Afterlight.Gateway.RateLimit
   alias Afterlight.Gateway.Router
   alias Afterlight.Gateway.Welcome
   alias Afterlight.LogCorrelation
@@ -83,6 +84,8 @@ defmodule AfterlightWeb.GameChannel do
   alias Afterlight.Theater.Gateway, as: TheaterGateway
   alias Afterlight.World
   alias Afterlight.World.{BinaryFlush, Movement, Rooms}
+  alias Afterlight.World.Atmosphere
+  alias Afterlight.World.PlaceDirectory
   alias Afterlight.Realtime.Negotiation
 
   @topic "game:v1"
@@ -187,21 +190,25 @@ defmodule AfterlightWeb.GameChannel do
 
   def handle_in(_type, _payload, socket), do: {:noreply, socket}
 
+  # Room output isolation (add-social-place-framework D3, task 3.2): the
+  # runtime tags every world message with its source room
+  # (`{:world_frame, room_id, frame}`). Before pushing or converting, the
+  # source room must equal this transport's CURRENT assigned room — world
+  # frames can sit queued in the channel mailbox across travel, and old
+  # room output must never reach the client. The additive `"roomId"` rides
+  # the public JSON frame and the outer `rt_binary` envelope (never the SoA
+  # bytes); untagged 2-tuple messages from pre-tagging room runtimes keep
+  # the legacy unconditional push.
   @impl true
-  def handle_info({:world_frame, frame}, socket) when is_map(frame) do
-    case {socket.assigns[:rt], frame} do
-      {%{protocol: _}, %{"type" => "presence_update", "players" => players}} when is_list(players) ->
-        members = json_players_to_members(players)
-        tick = Map.get(frame, "tick", 0)
-        seq = (socket.assigns[:rt_seq] || 0) + 1
-        bin = BinaryFlush.encode_flush(members, tick, seq)
-        push(socket, "rt_binary", %{"tick" => tick, "data" => Base.encode64(bin)})
-        {:noreply, assign(socket, :rt_seq, seq)}
-
-      _ ->
-        push(socket, frame["type"], Map.delete(frame, "type"))
-        {:noreply, socket}
+  def handle_info({:world_frame, room_id, frame}, socket) when is_binary(room_id) and is_map(frame) do
+    case socket.assigns[:world_room] do
+      %{wire_id: ^room_id} -> push_world_frame(frame, room_id, socket)
+      _stale_or_absent -> {:noreply, socket}
     end
+  end
+
+  def handle_info({:world_frame, frame}, socket) when is_map(frame) do
+    push_world_frame(frame, nil, socket)
   end
 
   def handle_info({:economy_frame, event, payload}, socket) do
@@ -308,6 +315,28 @@ defmodule AfterlightWeb.GameChannel do
     end
   end
 
+  # Places directory reply (task 3.3): the bounded read finished under the
+  # world TaskSupervisor. The in-flight slot opens again only when the
+  # reply matches the request still pending; a late reply for a superseded
+  # request is delivered (the client guards with its own generation)
+  # without reopening the slot.
+  def handle_info({:place_directory_snapshot, request_id, entries}, socket) do
+    socket =
+      if socket.assigns[:place_directory_pending] == request_id do
+        assign(socket, :place_directory_pending, nil)
+      else
+        socket
+      end
+
+    push(socket, "place_directory", %{
+      "requestId" => request_id,
+      "serverNow" => System.system_time(:millisecond),
+      "entries" => entries
+    })
+
+    {:noreply, socket}
+  end
+
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   @impl true
@@ -371,17 +400,19 @@ defmodule AfterlightWeb.GameChannel do
             })
 
             # 1. roster to the joiner (world presence_join already fanned
-            #    out to the room, joiner excluded).
-            push(socket, roster["type"], Map.delete(roster, "type"))
+            #    out to the room, joiner excluded). It is public room
+            #    output, so it carries the same additive "roomId" tag.
+            push(socket, roster["type"], roster |> Map.delete("type") |> Map.put("roomId", room.wire_id))
 
             # 2. forward for context: Node keeps gating domain actions on
             #    its shadow session's currentRoom.
             socket =
               socket
               |> assign(world_room: room, world_room_pid: room_pid)
-              |> assign(:world_monitor, Process.monitor(room_pid))
+              |> replace_world_monitor(room_pid)
               |> maybe_subscribe_theater_playlist_fetch(room)
               |> maybe_push_theater_join_snapshots(room)
+              |> maybe_push_atmosphere_join_snapshot(room)
 
             forward(%{"type" => "join_room", "roomId" => room.wire_id}, socket)
 
@@ -420,7 +451,108 @@ defmodule AfterlightWeb.GameChannel do
     {:noreply, socket}
   end
 
+  ## Places directory dispatch (add-social-place-framework D8, task 3.3)
+
+  # A bounded, read-only public snapshot. Signed game sessions only (the
+  # token-gated connect IS the auth — join already guarantees a verified
+  # identity), one request in flight, at most one per five seconds, and no
+  # room-membership gate: the selector may query before any join and a
+  # directory failure can never block travel or room joins.
+  defp handle_world("place_directory_get", payload, socket) do
+    request_id = payload["requestId"]
+
+    cond do
+      not valid_request_id?(request_id) ->
+        push(socket, "error", %{"message" => "directory_request_invalid"})
+        {:noreply, socket}
+
+      socket.assigns[:place_directory_pending] != nil ->
+        push(socket, "error", %{"message" => "rate_limited"})
+        {:noreply, socket}
+
+      true ->
+        case RateLimit.check(RateLimit.table(), {:place_directory, socket.assigns.guest_id}, place_directory_rate_limit()) do
+          :ok ->
+            socket = assign(socket, :place_directory_pending, request_id)
+
+            case PlaceDirectory.request(self(), request_id) do
+              :ok ->
+                {:noreply, socket}
+
+              # The read could not even start: answer with no entries
+              # rather than stranding the request (and the one-in-flight slot).
+              {:error, :read_unavailable} ->
+                push(socket, "place_directory", empty_directory(request_id))
+                {:noreply, assign(socket, :place_directory_pending, nil)}
+            end
+
+          {:limited, _retry_after_ms} ->
+            push(socket, "error", %{"message" => "rate_limited"})
+            {:noreply, socket}
+        end
+    end
+  end
+
+  ## Room atmosphere dispatch (add-atmosphere-weather-system task 2.1, D2)
+
+  # A membership-gated resnapshot: at most one per five seconds per session
+  # (requestId ≤64 chars, echoed on both replies). The snapshot comes from
+  # the room's live owner; unknown / registered non-atmospheric rooms answer
+  # `atmosphere_unavailable` — no room is started and nothing falls back to
+  # Node (the router never relays this type).
+  defp handle_world("atmosphere_get", payload, socket) do
+    request_id = payload["requestId"]
+    wire = room_wire(socket)
+
+    cond do
+      not valid_request_id?(request_id) ->
+        push(socket, "error", %{"message" => "atmosphere_request_invalid"})
+        {:noreply, socket}
+
+      not live_member?(socket) ->
+        reject_command("atmosphere_get", :room_unavailable, socket)
+        {:noreply, socket}
+
+      true ->
+        case RateLimit.check(RateLimit.table(), {:atmosphere_get, socket.assigns.guest_id}, atmosphere_rate_limit()) do
+          :ok ->
+            case Atmosphere.snapshot_for(wire) do
+              {:ok, frame} ->
+                push(socket, frame["type"], frame |> Map.delete("type") |> Map.put("requestId", request_id))
+                {:noreply, socket}
+
+              :unavailable ->
+                push(socket, "atmosphere_unavailable", %{"requestId" => request_id, "roomId" => wire})
+                {:noreply, socket}
+            end
+
+          {:limited, _retry_after_ms} ->
+            push(socket, "error", %{"message" => "rate_limited"})
+            {:noreply, socket}
+        end
+    end
+  end
+
   defp handle_world(_type, _payload, socket), do: {:noreply, socket}
+
+  defp valid_request_id?(id) when is_binary(id), do: byte_size(id) in 1..64
+  defp valid_request_id?(_other), do: false
+
+  defp atmosphere_rate_limit do
+    Afterlight.Gateway.config(:atmosphere_rate_limit, [limit: 1, window_ms: 5_000])
+  end
+
+  defp place_directory_rate_limit do
+    Afterlight.Gateway.config(:place_directory_rate_limit, [limit: 1, window_ms: 5_000])
+  end
+
+  defp empty_directory(request_id) do
+    %{
+      "requestId" => request_id,
+      "serverNow" => System.system_time(:millisecond),
+      "entries" => []
+    }
+  end
 
   ## Chat dispatch (design D1/D6)
 
@@ -626,6 +758,23 @@ defmodule AfterlightWeb.GameChannel do
     socket
   end
 
+  # Room atmosphere join snapshot (add-atmosphere-weather-system task 2.1,
+  # D2): follows the roster and the specialized Theater/catalog join
+  # snapshots — never replaces or reorders them. Supported rooms read their
+  # full-replacement `atmosphere_state` from the room owner; unknown or
+  # no-atmosphere rooms simply get nothing at join (an explicit
+  # `atmosphere_get` answers `atmosphere_unavailable`).
+  defp maybe_push_atmosphere_join_snapshot(socket, %{wire_id: wire}) do
+    case Atmosphere.snapshot_for(wire) do
+      {:ok, frame} ->
+        push(socket, frame["type"], Map.delete(frame, "type"))
+        socket
+
+      :unavailable ->
+        socket
+    end
+  end
+
   ## Theater dispatch (design D1/D2 — routed when disposition is :phoenix)
 
   defp handle_theater(type, payload, socket) do
@@ -773,11 +922,52 @@ defmodule AfterlightWeb.GameChannel do
     end)
   end
 
+  # The push/conversion shared by both world_frame envelopes (task 3.2):
+  # negotiated `rt` transports get the SoA flush in a room-tagged outer
+  # envelope; everyone else gets the flat JSON frame with the additive
+  # "roomId". The SoA bytes themselves are untouched.
+  defp push_world_frame(frame, room_id, socket) do
+    case {socket.assigns[:rt], frame} do
+      {%{protocol: _}, %{"type" => "presence_update", "players" => players}} when is_list(players) ->
+        members = json_players_to_members(players)
+        tick = Map.get(frame, "tick", 0)
+        seq = (socket.assigns[:rt_seq] || 0) + 1
+        bin = BinaryFlush.encode_flush(members, tick, seq)
+
+        envelope = %{"tick" => tick, "data" => Base.encode64(bin)}
+        envelope = if room_id, do: Map.put(envelope, "roomId", room_id), else: envelope
+
+        push(socket, "rt_binary", envelope)
+        {:noreply, assign(socket, :rt_seq, seq)}
+
+      _ ->
+        payload = Map.delete(frame, "type")
+        payload = if room_id, do: Map.put(payload, "roomId", room_id), else: payload
+        push(socket, frame["type"], payload)
+        {:noreply, socket}
+    end
+  end
+
   defp live_member?(socket) do
     case socket.assigns[:world_room] do
       %{wire_id: wire} -> World.member?(wire, socket.assigns.guest_id, socket.assigns.conn_ref)
       _ -> false
     end
+  end
+
+  # Stale monitor hygiene (task 3.2): only the CURRENT room's monitor is
+  # tracked. Travel drops the previous room's monitor eagerly (flushed), so
+  # a late DOWN from an old room cannot match the current-room crash clause
+  # and tear down a transport that now lives elsewhere. The DOWN handler
+  # additionally matches on the process pid, which keeps stale DOWNs inert
+  # even without this.
+  defp replace_world_monitor(socket, room_pid) do
+    case socket.assigns[:world_monitor] do
+      ref when is_reference(ref) -> Process.demonitor(ref, [:flush])
+      _other -> :ok
+    end
+
+    assign(socket, :world_monitor, Process.monitor(room_pid))
   end
 
   defp forward(frame, socket) do

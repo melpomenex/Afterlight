@@ -1,0 +1,246 @@
+defmodule Afterlight.World.PlaceDefinitionsTest do
+  @moduledoc """
+  Task 3.1: the boot-validated public place projection — roundtrip with the
+  committed file, drift-shaped named errors on malformed/oversized
+  configuration, garden privacy, and unchanged Rooms.resolve compatibility
+  for unknown legacy room strings.
+  """
+
+  use ExUnit.Case, async: false
+
+  alias Afterlight.World.PlaceDefinitions
+  alias Afterlight.World.Rooms
+
+  @committed Path.join(Application.app_dir(:afterlight), "priv/place_definitions.json")
+
+  describe "the committed projection" do
+    test "loads at boot and serves the exact public ids the JS manifest froze" do
+      assert {:ok, entries} = PlaceDefinitions.load(@committed)
+      assert length(entries) == 18
+      assert PlaceDefinitions.count() == 18
+
+      assert PlaceDefinitions.ids() == ~w(court canal garden station aqueduct caldera understory saltworks rooftops mangrove trestle foundry frost-spire delta archives kiln-terrace theater desert-camp)
+
+      # Both runtimes agree on the identical public ids/bounds for the venue.
+      theater = PlaceDefinitions.get("theater")
+      assert theater["public"] == true
+      assert theater["kind"] == "venue"
+      assert theater["bounds"] == %{"minX" => -11.3, "maxX" => 11.3, "minZ" => -9.5, "maxZ" => 10.3}
+      assert theater["atmosphere"] == %{"preset" => nil, "weatherMode" => "fixed", "timeMode" => "fixed"}
+    end
+
+    test "every entry is public and carries only the whitelisted fields" do
+      for entry <- PlaceDefinitions.all() do
+        assert MapSet.new(Map.keys(entry)) ==
+                 MapSet.new(["id", "public", "kind", "bounds", "atmosphere"])
+
+        assert entry["public"] == true
+        assert entry["kind"] in ~w(environment venue view)
+      end
+    end
+
+    test "known?/get answer feature lookups; unknown ids have no entry" do
+      assert PlaceDefinitions.known?("theater")
+      assert PlaceDefinitions.known?("frost-spire")
+      refute PlaceDefinitions.known?("the-orpheum")
+      refute PlaceDefinitions.known?(nil)
+      assert PlaceDefinitions.get("nope") == nil
+    end
+
+    test "no personal garden is ever projected" do
+      for entry <- PlaceDefinitions.all() do
+        refute String.starts_with?(entry["id"], "garden:")
+      end
+    end
+
+    test "unknown legacy room strings stay resolvable — they just get no feature entry" do
+      # Rooms.resolve compatibility is untouched (task 3.1 do-not-change).
+      assert {:ok, %{wire_id: "some-legacy-tool-room"}} = Rooms.resolve("some-legacy-tool-room")
+      refute PlaceDefinitions.known?("some-legacy-tool-room")
+
+      assert {:ok, %{kind: :garden}} = Rooms.resolve("garden:someone")
+      refute PlaceDefinitions.known?("garden:someone")
+    end
+  end
+
+  describe "validation fails closed with named errors" do
+    test "malformed JSON" do
+      path = tmp_path("not-json")
+      File.write!(path, "{definitely not json")
+
+      assert {:error, :not_json} = PlaceDefinitions.load(path)
+      assert_raise ArgumentError, ~r/invalid place projection/, fn -> PlaceDefinitions.load!(path) end
+    after
+      cleanup_tmp("not-json")
+    end
+
+    test "wrong schema version" do
+      path = tmp_path("schema")
+      File.write!(path, Jason.encode!(%{"schemaVersion" => 99, "entries" => []}))
+
+      assert {:error, {:invalid_schema_version, 99}} = PlaceDefinitions.load(path)
+    after
+      cleanup_tmp("schema")
+    end
+
+    test "missing entries" do
+      path = tmp_path("missing-entries")
+      File.write!(path, Jason.encode!(%{"schemaVersion" => 1}))
+
+      assert {:error, :missing_entries} = PlaceDefinitions.load(path)
+    after
+      cleanup_tmp("missing-entries")
+    end
+
+    test "oversized configuration is rejected, never silently hidden" do
+      entries =
+        for i <- 1..(PlaceDefinitions.max_entries() + 1), do: valid_entry("probe-#{i}")
+
+      path = tmp_path("oversized")
+      File.write!(path, Jason.encode!(%{"schemaVersion" => 1, "entries" => entries}))
+
+      assert {:error, {:too_many_entries, 65}} = PlaceDefinitions.load(path)
+    after
+      cleanup_tmp("oversized")
+    end
+
+    test "invalid entry reports the offending id" do
+      bad_bounds = valid_entry("bad-bounds") |> Map.put("bounds", %{"minX" => 0, "maxX" => "x", "minZ" => 0, "maxZ" => 1})
+      bad_kind = valid_entry("bad-kind") |> Map.put("kind", "castle")
+
+      path = tmp_path("invalid-entry")
+      File.write!(path, Jason.encode!(%{"schemaVersion" => 1, "entries" => [valid_entry("good-place"), bad_bounds]}))
+
+      assert {:error, {:invalid_entry, "bad-bounds", problems}} = PlaceDefinitions.load(path)
+      assert "bounds must be finite numbers" in problems
+
+      path2 = tmp_path("invalid-kind")
+      File.write!(path2, Jason.encode!(%{"schemaVersion" => 1, "entries" => [bad_kind]}))
+
+      assert {:error, {:invalid_entry, "bad-kind", problems}} = PlaceDefinitions.load(path2)
+      assert "kind must be one of environment, venue, view" in problems
+    after
+      cleanup_tmp("invalid-entry")
+      cleanup_tmp("invalid-kind")
+    end
+
+    test "duplicate ids" do
+      path = tmp_path("duplicate")
+      File.write!(path, Jason.encode!(%{"schemaVersion" => 1, "entries" => [valid_entry("twice"), valid_entry("twice")]}))
+
+      assert {:error, {:duplicate_id, "twice"}} = PlaceDefinitions.load(path)
+    after
+      cleanup_tmp("duplicate")
+    end
+
+    test "a private garden id is rejected by validation" do
+      garden = %{"id" => "garden:someone", "public" => true, "kind" => "environment"}
+      path = tmp_path("garden")
+      File.write!(path, Jason.encode!(%{"schemaVersion" => 1, "entries" => [garden]}))
+
+      assert {:error, {:private_garden_id, "garden:someone"}} = PlaceDefinitions.load(path)
+    after
+      cleanup_tmp("garden")
+    end
+
+    test "a non-public entry is rejected" do
+      hidden = valid_entry("hidden-place") |> Map.put("public", false)
+      path = tmp_path("hidden")
+      File.write!(path, Jason.encode!(%{"schemaVersion" => 1, "entries" => [hidden]}))
+
+      assert {:error, {:invalid_entry, "hidden-place", problems}} = PlaceDefinitions.load(path)
+      assert "only public places are projected" in problems
+    after
+      cleanup_tmp("hidden")
+    end
+  end
+
+  defp valid_entry(id) do
+    %{
+      "id" => id,
+      "public" => true,
+      "kind" => "environment",
+      "bounds" => %{"minX" => -11.3, "maxX" => 11.3, "minZ" => -9.5, "maxZ" => 10.3},
+      "atmosphere" => %{"preset" => nil, "weatherMode" => "fixed", "timeMode" => "fixed"}
+    }
+  end
+
+  ## Atmosphere preset table (add-atmosphere-weather-system B 1.2)
+
+  describe "the optional atmosphere preset table" do
+    test "the committed projection ships the semantic presets the JS registry froze" do
+      presets = PlaceDefinitions.presets()
+      assert MapSet.new(Map.keys(presets)) ==
+               MapSet.new(~w(clear rain storm dry-heat diurnal-rain rain-night desert-night rooftop-cycle))
+
+      rain = presets["rain"]
+      assert rain["weather"] == "fixed"
+      assert rain["wetness"] == 1
+      assert rain["intensity"] |> is_number()
+      assert length(rain["wind"]) == 2
+      assert rain["events"]["lightning"]["minMs"] >= 45_000
+      assert rain["events"]["meteor"] == nil
+
+      scheduled = presets["diurnal-rain"]
+      assert scheduled["weather"] == "scheduled"
+      assert length(scheduled["schedule"]["keyframes"]) >= 2
+
+      # Colors/audio never reach the server projection.
+      for {_id, preset} <- presets, key <- Map.keys(preset) do
+        assert key not in ~w(visuals audio), "renderer-only keys stay client-side"
+      end
+    end
+
+    test "a schema-1 projection without presets still loads (additive key)" do
+      path = tmp_path("no-presets")
+      File.write!(path, Jason.encode!(%{"schemaVersion" => 1, "entries" => []}))
+
+      assert {:ok, []} = PlaceDefinitions.load(path)
+    after
+      cleanup_tmp("no-presets")
+    end
+
+    test "malformed presets are rejected whole with named errors" do
+      valid = %{
+        "id" => "rain",
+        "weather" => "fixed",
+        "intensity" => 0.6,
+        "wind" => [0.2, 0.05],
+        "rain" => 0.7,
+        "wetness" => 1,
+        "events" => nil,
+        "schedule" => nil
+      }
+
+      path = tmp_path("bad-preset")
+      bad = valid |> Map.put("weather", "dynamic")
+      File.write!(path, Jason.encode!(%{"schemaVersion" => 1, "entries" => [], "presets" => [bad]}))
+
+      assert {:error, {:invalid_presets, "rain", problems}} = PlaceDefinitions.load(path)
+      assert is_list(problems)
+
+      path2 = tmp_path("bad-preset-spacing")
+      bad_spacing = valid |> Map.put("events", %{"lightning" => %{"minMs" => 10_000, "maxMs" => 20_000}, "meteor" => nil})
+      File.write!(path2, Jason.encode!(%{"schemaVersion" => 1, "entries" => [], "presets" => [bad_spacing]}))
+
+      assert {:error, {:invalid_presets, "rain", problems2}} = PlaceDefinitions.load(path2)
+      assert Enum.any?(problems2, &String.contains?(&1, "event spacing escapes the design bounds"))
+
+      path3 = tmp_path("bad-preset-dup")
+      File.write!(path3, Jason.encode!(%{"schemaVersion" => 1, "entries" => [], "presets" => [valid, valid]}))
+
+      assert {:error, {:invalid_presets, "rain", ["duplicate preset id"]}} = PlaceDefinitions.load(path3)
+    after
+      cleanup_tmp("bad-preset")
+      cleanup_tmp("bad-preset-spacing")
+      cleanup_tmp("bad-preset-dup")
+    end
+  end
+
+  defp tmp_path(name), do: Path.join(System.tmp_dir!(), "afterlight-place-projection-#{name}.json")
+
+  defp cleanup_tmp(name) do
+    _ = File.rm(tmp_path(name))
+    :ok
+  end
+end

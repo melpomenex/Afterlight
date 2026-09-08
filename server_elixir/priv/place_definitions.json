@@ -1,0 +1,550 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "id": "court",
+      "public": true,
+      "kind": "environment",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": "rain-night",
+        "weatherMode": "fixed",
+        "timeMode": "fixed"
+      }
+    },
+    {
+      "id": "canal",
+      "public": true,
+      "kind": "environment",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": null,
+        "weatherMode": "fixed",
+        "timeMode": "fixed"
+      }
+    },
+    {
+      "id": "garden",
+      "public": true,
+      "kind": "environment",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": null,
+        "weatherMode": "fixed",
+        "timeMode": "fixed"
+      }
+    },
+    {
+      "id": "station",
+      "public": true,
+      "kind": "environment",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": null,
+        "weatherMode": "fixed",
+        "timeMode": "fixed"
+      }
+    },
+    {
+      "id": "aqueduct",
+      "public": true,
+      "kind": "environment",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": null,
+        "weatherMode": "fixed",
+        "timeMode": "fixed"
+      }
+    },
+    {
+      "id": "caldera",
+      "public": true,
+      "kind": "environment",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": null,
+        "weatherMode": "fixed",
+        "timeMode": "fixed"
+      }
+    },
+    {
+      "id": "understory",
+      "public": true,
+      "kind": "environment",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": null,
+        "weatherMode": "fixed",
+        "timeMode": "fixed"
+      }
+    },
+    {
+      "id": "saltworks",
+      "public": true,
+      "kind": "environment",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": null,
+        "weatherMode": "fixed",
+        "timeMode": "fixed"
+      }
+    },
+    {
+      "id": "rooftops",
+      "public": true,
+      "kind": "environment",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": "rooftop-cycle",
+        "weatherMode": "scheduled",
+        "timeMode": "fixed"
+      }
+    },
+    {
+      "id": "mangrove",
+      "public": true,
+      "kind": "environment",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": null,
+        "weatherMode": "fixed",
+        "timeMode": "fixed"
+      }
+    },
+    {
+      "id": "trestle",
+      "public": true,
+      "kind": "environment",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": null,
+        "weatherMode": "fixed",
+        "timeMode": "fixed"
+      }
+    },
+    {
+      "id": "foundry",
+      "public": true,
+      "kind": "environment",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": null,
+        "weatherMode": "fixed",
+        "timeMode": "fixed"
+      }
+    },
+    {
+      "id": "frost-spire",
+      "public": true,
+      "kind": "environment",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": null,
+        "weatherMode": "fixed",
+        "timeMode": "fixed"
+      }
+    },
+    {
+      "id": "delta",
+      "public": true,
+      "kind": "environment",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": null,
+        "weatherMode": "fixed",
+        "timeMode": "fixed"
+      }
+    },
+    {
+      "id": "archives",
+      "public": true,
+      "kind": "environment",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": null,
+        "weatherMode": "fixed",
+        "timeMode": "fixed"
+      }
+    },
+    {
+      "id": "kiln-terrace",
+      "public": true,
+      "kind": "environment",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": null,
+        "weatherMode": "fixed",
+        "timeMode": "fixed"
+      }
+    },
+    {
+      "id": "theater",
+      "public": true,
+      "kind": "venue",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": null,
+        "weatherMode": "fixed",
+        "timeMode": "fixed"
+      }
+    },
+    {
+      "id": "desert-camp",
+      "public": true,
+      "kind": "environment",
+      "bounds": {
+        "minX": -11.3,
+        "maxX": 11.3,
+        "minZ": -9.5,
+        "maxZ": 10.3
+      },
+      "atmosphere": {
+        "preset": "desert-night",
+        "weatherMode": "fixed",
+        "timeMode": "fixed"
+      }
+    }
+  ],
+  "presets": [
+    {
+      "id": "rain-night",
+      "weather": "fixed",
+      "intensity": 0.8,
+      "wind": [
+        0.2,
+        0.05
+      ],
+      "rain": 0.8,
+      "wetness": 1,
+      "events": {
+        "lightning": {
+          "minMs": 45000,
+          "maxMs": 90000
+        },
+        "meteor": null
+      },
+      "schedule": null
+    },
+    {
+      "id": "desert-night",
+      "weather": "fixed",
+      "intensity": 0,
+      "wind": [
+        0.12,
+        0.04
+      ],
+      "rain": 0,
+      "wetness": 0,
+      "events": {
+        "lightning": null,
+        "meteor": {
+          "minMs": 35000,
+          "maxMs": 70000
+        }
+      },
+      "schedule": null
+    },
+    {
+      "id": "rooftop-cycle",
+      "weather": "scheduled",
+      "intensity": 0,
+      "wind": [
+        0.1,
+        0.03
+      ],
+      "rain": 0,
+      "wetness": 0,
+      "events": {
+        "lightning": null,
+        "meteor": null
+      },
+      "schedule": {
+        "cycleMs": 1200000,
+        "keyframes": [
+          {
+            "atMs": 0,
+            "intensity": 0,
+            "wind": [
+              0.12,
+              0.04
+            ],
+            "rain": 0,
+            "wetness": 0
+          },
+          {
+            "atMs": 60000,
+            "intensity": 0,
+            "wind": [
+              0.1,
+              0.03
+            ],
+            "rain": 0,
+            "wetness": 0
+          },
+          {
+            "atMs": 300000,
+            "intensity": 0,
+            "wind": [
+              0.1,
+              0.03
+            ],
+            "rain": 0,
+            "wetness": 0
+          },
+          {
+            "atMs": 360000,
+            "intensity": 0,
+            "wind": [
+              0.2,
+              0.06
+            ],
+            "rain": 0,
+            "wetness": 0.14
+          },
+          {
+            "atMs": 600000,
+            "intensity": 0,
+            "wind": [
+              0.2,
+              0.06
+            ],
+            "rain": 0,
+            "wetness": 0.7
+          },
+          {
+            "atMs": 660000,
+            "intensity": 0.35,
+            "wind": [
+              0.25,
+              0.08
+            ],
+            "rain": 0.35,
+            "wetness": 0.64
+          },
+          {
+            "atMs": 900000,
+            "intensity": 0.35,
+            "wind": [
+              0.25,
+              0.08
+            ],
+            "rain": 0.35,
+            "wetness": 0.4
+          },
+          {
+            "atMs": 960000,
+            "intensity": 0,
+            "wind": [
+              0.12,
+              0.04
+            ],
+            "rain": 0,
+            "wetness": 0.32
+          }
+        ]
+      }
+    },
+    {
+      "id": "clear",
+      "weather": "fixed",
+      "intensity": 0,
+      "wind": [
+        0.05,
+        0
+      ],
+      "rain": 0,
+      "wetness": 0,
+      "events": null,
+      "schedule": null
+    },
+    {
+      "id": "rain",
+      "weather": "fixed",
+      "intensity": 0.6,
+      "wind": [
+        0.2,
+        0.05
+      ],
+      "rain": 0.7,
+      "wetness": 1,
+      "events": {
+        "lightning": {
+          "minMs": 45000,
+          "maxMs": 90000
+        },
+        "meteor": null
+      },
+      "schedule": null
+    },
+    {
+      "id": "storm",
+      "weather": "fixed",
+      "intensity": 1,
+      "wind": [
+        -0.7,
+        0.35
+      ],
+      "rain": 1,
+      "wetness": 1,
+      "events": {
+        "lightning": {
+          "minMs": 45000,
+          "maxMs": 90000
+        },
+        "meteor": {
+          "minMs": 35000,
+          "maxMs": 70000
+        }
+      },
+      "schedule": null
+    },
+    {
+      "id": "dry-heat",
+      "weather": "fixed",
+      "intensity": 0.2,
+      "wind": [
+        0.3,
+        -0.1
+      ],
+      "rain": 0,
+      "wetness": 0,
+      "events": null,
+      "schedule": null
+    },
+    {
+      "id": "diurnal-rain",
+      "weather": "scheduled",
+      "intensity": 0.5,
+      "wind": [
+        0.15,
+        0.05
+      ],
+      "rain": 0.5,
+      "wetness": 0.5,
+      "events": {
+        "lightning": null,
+        "meteor": null
+      },
+      "schedule": {
+        "cycleMs": 1440000,
+        "keyframes": [
+          {
+            "atMs": 0,
+            "intensity": 0.15,
+            "wind": [
+              0.05,
+              0
+            ],
+            "rain": 0,
+            "wetness": 0
+          },
+          {
+            "atMs": 480000,
+            "intensity": 0.5,
+            "wind": [
+              0.2,
+              0.05
+            ],
+            "rain": 0.45,
+            "wetness": 0.4
+          },
+          {
+            "atMs": 960000,
+            "intensity": 0.85,
+            "wind": [
+              0.35,
+              0.1
+            ],
+            "rain": 0.9,
+            "wetness": 1
+          }
+        ]
+      }
+    }
+  ]
+}

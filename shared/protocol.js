@@ -63,6 +63,54 @@
  *   Queue/queue add payloads for torrents carry { fileIndex, filePath,
  *   fileBytes } additively (validated by the shared reducer).
  *
+ * Places directory payloads (additive, Phoenix world runtime — never a
+ * Node-owned message; unrouted when the world row is not flipped):
+ *   - place_directory_get (C→S): { requestId } — one bounded snapshot of
+ *     public place summaries. Signed game sessions only; at most one
+ *     request in flight and no more than one per five seconds per session;
+ *     requestId is a string ≤64 chars. Violations ride the bare `error`
+ *     message: { message: "rate_limited" } for spam/one-in-flight,
+ *     { message: "directory_request_invalid" } for a missing/oversized
+ *     requestId.
+ *   - place_directory (S→C): { requestId, serverNow, entries: [{ roomId,
+ *     occupancy, observedAt, atmosphereLabel? }] } — the reply, capped at
+ *     64 public entries and 16KiB. occupancy counts unique roster
+ *     identities in the authoritative room roster (the requester included;
+ *     a superseded duplicate connection never counts twice); it is 0 only
+ *     for a known public room with no live process, and null when the
+ *     owner could not be read within the deadline (or is remote) — never a
+ *     fabricated count. observedAt is the server wall-clock ms of the
+ *     observation (null when unknown). atmosphereLabel is optional static
+ *     manifest metadata (the atmosphere preset key); activity, capacity
+ *     and private gardens ("garden:<owner>") are never included.
+ *   Replies are snapshots, not a presence subscription: clients poll at
+ *   most every 10s while the selector is open and treat data older than
+ *   30s as unknown.
+ *
+ * Room atmosphere payloads (additive, Phoenix world runtime — task 2.1,
+ * room-atmosphere spec; never a Node-owned message, never relayed):
+ *   - atmosphere_get (C→S): { requestId } — membership-gated resnapshot of
+ *     the joined room's semantic atmosphere; at most one per five seconds
+ *     per session; requestId is a string ≤64 chars. Violations ride the
+ *     bare `error` message: { message: "rate_limited" } for spam,
+ *     { message: "atmosphere_request_invalid" } for a missing/oversized
+ *     requestId, { message: "room_unavailable" } without live membership.
+ *   - atmosphere_state (S→C): { roomId, requestId?, schemaVersion, epoch,
+ *     revision, serverNow, state } — a FULL-REPLACEMENT snapshot: epoch is
+ *     the room's held lease epoch (0 = un-owned, which never emits),
+ *     revision is atmosphere-only monotonic within the epoch (higher epoch
+ *     or higher revision replaces state whole; duplicates are clock
+ *     refreshes only; stale frames are discarded), and state carries
+ *     { seed, mode, preset, intensity, wind, startedAt, transition, time,
+ *     events: [{ id, kind, at, durationMs, intensity, origin }] } — ≤4
+ *     events, ≤8KiB. Semantic only: individual particle transforms never
+ *     travel. Shared/shapes are pinned by shared/atmosphereModel.js and
+ *     tests/fixtures/atmosphere/model-vectors.json.
+ *   - atmosphere_unavailable (S→C): { requestId, roomId } — the joined room
+ *     is unknown or has no supported projected atmosphere; nothing falls
+ *     back and no room is started. Sent as the join snapshot for nothing:
+ *     unsupported rooms simply get no atmosphere at join.
+ *
  * IPTV library + program guide payloads (additive, theater room):
  *   - iptv_state (S→C): { iptv: { lists: [{ id, name, addedBy, channelCount }],
  *     epg: { name, updatedAt, channels, programmes } | null } } — metadata
@@ -107,6 +155,7 @@ export const MSG_TYPES = {
   EMOTE: 'emote',
   CHAT_SEND: 'chat_send',
   PING: 'ping',
+  PLACE_DIRECTORY_GET: 'place_directory_get',
 
   // Server -> Client
   WELCOME: 'welcome',
@@ -135,6 +184,10 @@ export const MSG_TYPES = {
   CHAT_DM: 'chat_dm',
   CHAT_PRESENCE: 'chat_presence',
   CHAT_ERROR: 'chat_error',
+  PLACE_DIRECTORY: 'place_directory',
+  ATMOSPHERE_GET: 'atmosphere_get',
+  ATMOSPHERE_STATE: 'atmosphere_state',
+  ATMOSPHERE_UNAVAILABLE: 'atmosphere_unavailable',
   ERROR: 'error',
   PONG: 'pong',
 };

@@ -31,7 +31,7 @@ defmodule Afterlight.Gateway.Router do
 
   @specialty_types ~w(torrent_resolve)
 
-  @world_types ~w(join_room movement emote)
+  @world_types ~w(join_room movement emote place_directory_get atmosphere_get)
   @chat_types ~w(chat_send)
   @catalog_types ~w(iptv_list_get iptv_list_remove epg_lookup)
   @theater_types ~w(theater_queue theater_control theater_channel theater_playlist_resolve)
@@ -73,6 +73,16 @@ defmodule Afterlight.Gateway.Router do
 
   defp default_disposition("ping"), do: :terminate_pong
   defp default_disposition(type) when type in @specialty_types, do: :specialty
+
+  # Places directory (add-social-place-framework task 3.3) and room
+  # atmosphere (add-atmosphere-weather-system task 2.1): Phoenix-only
+  # world-domain reads that ride the world flip. Deliberately NOT in
+  # @node_relay_types — when the world row rolls back to Node, these are
+  # simply unrouted; no Node path ever owns these messages.
+  defp default_disposition("place_directory_get"), do: if(world_phx?(), do: :phoenix, else: :unrouted)
+
+  defp default_disposition("atmosphere_get"), do: if(world_phx?(), do: :phoenix, else: :unrouted)
+
   defp default_disposition(type) when type in @node_relay_types, do: :node
   defp default_disposition(_type), do: :unrouted
 

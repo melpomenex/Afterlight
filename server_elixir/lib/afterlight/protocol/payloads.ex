@@ -169,16 +169,16 @@ defmodule Afterlight.Protocol.Payloads do
 
   def trade_wire(t) do
     %{
-      id: t.public_id || t.id,
-      buyerId: t.buyer_id,
-      sellerId: t.seller_id,
-      cropId: t.crop_id,
-      quality: t.quality,
-      price: t.price,
-      quantity: t.quantity,
-      value: t.value,
-      fee: t.fee,
-      executedAt: t.executed_at
+      id: Map.get(t, :public_id) || Map.get(t, :id) || Map.get(t, "public_id") || Map.get(t, "id"),
+      buyerId: Map.get(t, :buyer_id) || Map.get(t, :buyerId) || Map.get(t, "buyer_id") || Map.get(t, "buyerId"),
+      sellerId: Map.get(t, :seller_id) || Map.get(t, :sellerId) || Map.get(t, "seller_id") || Map.get(t, "sellerId"),
+      cropId: Map.get(t, :crop_id) || Map.get(t, :cropId) || Map.get(t, "crop_id") || Map.get(t, "cropId"),
+      quality: Map.get(t, :quality) || Map.get(t, "quality"),
+      price: Map.get(t, :price) || Map.get(t, "price"),
+      quantity: Map.get(t, :quantity) || Map.get(t, "quantity"),
+      value: Map.get(t, :value) || Map.get(t, "value"),
+      fee: Map.get(t, :fee) || Map.get(t, "fee"),
+      executedAt: Map.get(t, :executed_at) || Map.get(t, :executedAt) || Map.get(t, "executed_at") || Map.get(t, "executedAt")
     }
   end
 

@@ -20,12 +20,35 @@ defmodule Afterlight.World.Frames do
   """
 
   @doc """
-  The 10 Hz dirty-room flush: FULL roster in join order, no delta encoding,
+  The internal world message envelope (add-social-place-framework D3, task
+  3.2): every RoomServer → channel message travels as
+  `{:world_frame, room_id, frame}` so the GameChannel can verify the source
+  room against its CURRENT assigned room before pushing or converting —
+  queued output from a room the transport already left is dropped, never
+  rendered.
+  """
+  @spec world_message(String.t(), %{String.t() => term}) ::
+          {:world_frame, String.t(), %{String.t() => term}}
+  def world_message(room_id, frame) when is_binary(room_id) and is_map(frame) do
+    {:world_frame, room_id, frame}
+  end
+
+  @doc """
+  The public room tag (task 3.2): the additive `"roomId"` field on outbound
+  JSON world frames (and the outer `rt_binary` envelope — never the SoA
+  bytes). Clients discard mismatched tagged frames before epoch bookkeeping
+  and binary consumption; untagged legacy frames stay compatible.
+  """
+  @spec put_room(%{String.t() => term}, String.t()) :: %{String.t() => term}
+  def put_room(frame, room_id) when is_binary(room_id) do
+    Map.put(frame, "roomId", room_id)
+  end
+
+  @doc "The 10 Hz dirty-room flush: FULL roster in join order, no delta encoding,
   entries in the flush shape `{id, x, z, rotY, walking, sitting, airborne}`
   (no nickname). The `tick` argument is accepted for call-site stability
   and deliberately NOT rendered — the catalog frame carries no internal
-  fields (the server-tick bookkeeping lives in telemetry, not on the wire).
-  """
+  fields (the server-tick bookkeeping lives in telemetry, not on the wire)."
   @spec flush([map], non_neg_integer, non_neg_integer) :: %{String.t() => term}
   def flush(members, _tick \\ 0, epoch \\ 0) do
     encoder().flush(Enum.map(members, &flush_entry/1)) |> with_epoch(epoch)
