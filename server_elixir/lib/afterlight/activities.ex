@@ -66,7 +66,10 @@ defmodule Afterlight.Activities do
         {:error, :lease_lost}
 
       true ->
-        declared_activities = PlaceDefinitions.activities(room_key)
+        # Canonical session keys (add-multiplayer-snowboard-arcade 4.4) are
+        # "region:district:instance"; the manifest resolves by DISTRICT id.
+        # Wire ids (no colon structure) resolve unchanged.
+        declared_activities = PlaceDefinitions.activities(manifest_room_id(room_key))
         act_def = Enum.find(declared_activities, fn a -> a["id"] == activity_id end)
 
         # In tests or custom definitions, opts can supply activity_def
@@ -93,6 +96,9 @@ defmodule Afterlight.Activities do
             |> maybe_put(:idle_reap_ms, Keyword.get(opts, :idle_reap_ms))
             |> maybe_put(:tick_interval_ms, Keyword.get(opts, :tick_interval_ms))
             |> maybe_put(:snapshot_interval_ms, Keyword.get(opts, :snapshot_interval_ms))
+            |> maybe_put(:countdown_ms, Keyword.get(opts, :countdown_ms))
+            |> maybe_put(:race_deadline_ms, Keyword.get(opts, :race_deadline_ms))
+            |> maybe_put(:results_retention_ms, Keyword.get(opts, :results_retention_ms))
 
           case DynamicSupervisor.start_child(@supervisor, {SessionServer, args}) do
             {:ok, pid} -> {:ok, pid}
@@ -103,6 +109,15 @@ defmodule Afterlight.Activities do
         end
     end
   end
+
+  defp manifest_room_id(room_key) when is_binary(room_key) do
+    case String.split(room_key, ":", parts: 3) do
+      [_region, district, _instance] -> district
+      _ -> room_key
+    end
+  end
+
+  defp manifest_room_id(room_key), do: room_key
 
   @doc "Returns session information map."
   def session_info(session_pid) do

@@ -194,8 +194,8 @@ export function buildTheaterScenery(ctx) {
   for (let i = 0; i < 5; i++) box(4.6 + i * .03, 1.41 + i * .025, 9.15, .52, .018, .3, '#dac9a1');
 
   // --- Arcade wall (east): the canonical cabinets (activity runtime) line
-  // this wall at x = 10.42, fronts facing west, z = -7.55 / -5.5 / -3.45 /
-  // -1.4. The inset runner carpet, brass borders and emissive floor studs
+  // this wall at x = 10.42, fronts facing west, z = -7.95 / -5.9 / -3.85 /
+  // -1.8 (north end clears the east gate arch at z -1.2..+1.2). The inset runner carpet, brass borders and emissive floor studs
   // frame that row; positions are clear of all 45 seat sightlines to the
   // movie screen, the east travel gate at (10.7, 0), and leave >= 1.2m
   // accessible routes on the stand side.
@@ -207,13 +207,34 @@ export function buildTheaterScenery(ctx) {
 
   const arcadeStuds = [];
   for (const x of [7.6, 9.7]) {
-    for (const z of [-7.55, -5.5, -3.45, -1.4]) {
+    for (const z of [-7.95, -5.9, -3.85, -1.8]) {
       arcadeStuds.push(glow(x, .18, z, .14, .06, .14, '#ffca7a', .6));
     }
   }
   animated.push((time, done) => {
     arcadeStuds.forEach((s, i) => {
       s.material.emissiveIntensity = done ? 1.5 + Math.sin(time * 2.5 + i) * .3 : .6;
+    });
+  });
+
+  // --- Summit Run bay (add-multiplayer-snowboard-arcade 2.3): the fifth
+  // machine stands alone at (10.42, 2.6), south of the east gate arch, where
+  // the four-machine row cannot reach. Same runner-carpet framing as the main
+  // row plus its own wall-side queue studs; the rider queue line (manifest
+  // anchors, x = 9.3, z 0.35..5.25) runs along the open promenade between the
+  // bay and the seat rows, with cross-aisle dismounts at z = 1.4 / 3.6.
+  box(9.1, .148, 2.6, 3.8, .025, 3.4, '#1e2430');
+  box(9.1, .165, .9, 3.8, .02, .045, colors.brass);
+  box(9.1, .165, 4.3, 3.8, .02, .045, colors.brass);
+  box(7.2, .165, 2.6, .045, .02, 3.4, colors.brass);
+  box(11.0, .165, 2.6, .045, .02, 3.4, colors.brass);
+  const summitStuds = [];
+  for (const z of [0.35, 1.05, 1.75, 2.45, 3.15, 3.85, 4.55, 5.25]) {
+    summitStuds.push(glow(9.7, .18, z, .12, .06, .12, '#7acbd4', .6));
+  }
+  animated.push((time, done) => {
+    summitStuds.forEach((s, i) => {
+      s.material.emissiveIntensity = done ? 1.4 + Math.sin(time * 2 + i * .8) * .3 : .6;
     });
   });
 

@@ -1,0 +1,95 @@
+{
+  "$comment": "D4 lifecycle scenarios: racing, finishing and deadlines.",
+  "scenarios": [
+    {
+      "id": "late-join-offer",
+      "title": "Play request during countdown/racing offers watch progress or queue, never a slot",
+      "initial": { "phase": "racing", "seated": [
+        { "playerId": "u1", "slot": 0, "status": "racing" },
+        { "playerId": "u2", "slot": 1, "status": "racing" }
+      ] },
+      "steps": [
+        { "actor": "u3", "command": "activity_join", "payload": { "role": "play" } }
+      ],
+      "expected": {
+        "seated": 2,
+        "error": "race_in_progress",
+        "choices": ["watch", "queue"],
+        "notes": ["full response carries current counts", "queue does not capture world input", "no mid-race playing slot exists"]
+      }
+    },
+    {
+      "id": "finish-grace",
+      "title": "First valid finish starts a 30s finish window capped by the 180s race deadline",
+      "initial": { "phase": "racing", "raceElapsedMs": 60000, "seated": [
+        { "playerId": "u1", "slot": 0, "status": "racing", "nextCheckpoint": 8 },
+        { "playerId": "u2", "slot": 1, "status": "racing", "nextCheckpoint": 7 }
+      ] },
+      "steps": [
+        { "actor": "u1", "event": "finish", "payload": { "elapsedMs": 61233 } }
+      ],
+      "expected": {
+        "phase": "racing",
+        "u1Status": "finished",
+        "finishGraceDeadlineSet": true,
+        "notes": ["finisher stops in the finish area and sees results-in-progress", "remaining riders keep racing", "window ends at min(first+30s, raceDeadline)"]
+      }
+    },
+    {
+      "id": "deadline-dnf",
+      "title": "Race deadline marks unfinished riders DNF with reason deadline",
+      "initial": { "phase": "racing", "raceElapsedMs": 179000, "seated": [
+        { "playerId": "u1", "slot": 0, "status": "finished", "timeMs": 61233 },
+        { "playerId": "u2", "slot": 1, "status": "racing", "nextCheckpoint": 5 }
+      ] },
+      "steps": [
+        { "clock": { "advanceMs": 1000 } }
+      ],
+      "expected": {
+        "phase": "results",
+        "resultReason": "deadline",
+        "standings": [
+          { "playerId": "u1", "status": "finished", "timeMs": 61233 },
+          { "playerId": "u2", "status": "dnf", "dnfReason": "deadline", "timeMs": null }
+        ]
+      }
+    },
+    {
+      "id": "all-opponents-leave",
+      "title": "Remaining rider continues to a valid finish; no automatic victory",
+      "initial": { "phase": "racing", "seated": [
+        { "playerId": "u1", "slot": 0, "status": "racing", "nextCheckpoint": 6 },
+        { "playerId": "u2", "slot": 1, "status": "racing" }
+      ] },
+      "steps": [
+        { "actor": "u2", "command": "activity_leave", "payload": { "reason": "exit" } },
+        { "actor": "u1", "event": "finish", "payload": { "elapsedMs": 90500 } }
+      ],
+      "expected": {
+        "phase": "results",
+        "standings": [
+          { "playerId": "u1", "status": "finished", "timeMs": 90500, "place": 1 },
+          { "playerId": "u2", "status": "dnf", "dnfReason": "leave", "timeMs": null, "place": 2 }
+        ],
+        "notes": ["'Others left' is shown to u1", "the lone rider must still cross valid gates to finish"]
+      }
+    },
+    {
+      "id": "everyone-quits-aborts",
+      "title": "No riders remaining aborts and reaps",
+      "initial": { "phase": "racing", "seated": [
+        { "playerId": "u1", "slot": 0, "status": "racing" },
+        { "playerId": "u2", "slot": 1, "status": "racing" }
+      ] },
+      "steps": [
+        { "actor": "u1", "command": "activity_leave", "payload": { "reason": "exit" } },
+        { "actor": "u2", "command": "activity_leave", "payload": { "reason": "exit" } }
+      ],
+      "expected": {
+        "phase": "aborted",
+        "result": null,
+        "notes": ["no completed result, no winner", "session may reap after its empty window"]
+      }
+    }
+  ]
+}

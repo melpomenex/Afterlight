@@ -1,0 +1,23 @@
+{
+  "$comment": "D7 activity_leave pending-cancel: cancels only the SAME connection's still-pending join attempt or its resulting unchanged lease, with a bounded tombstone. Delayed cancel cannot release a newer lease or another attempt. Local load-before-join cancellation sends nothing.",
+  "name": "leave-cancel-pending",
+  "direction": "client->server",
+  "msgType": "activity_leave",
+  "payload": {
+    "requestId": "req-3",
+    "activityId": "summit-run",
+    "cancelRequestId": "req-1"
+  },
+  "acceptance": {
+    "status": "cancelled",
+    "requestId": "req-3",
+    "cancelledRequestId": "req-1",
+    "serverNow": 1771000001000
+  },
+  "invariants": [
+    "cancel travels on the original channel connection; a reconnect cannot cancel a pending attempt from a dead connection",
+    "if the join already completed, cancel only succeeds when the resulting lease is unchanged; a rotated lease (reconnect, duplicate transfer, offer rotation) is never released",
+    "cancels are remembered for cancelTombstoneSeconds to make duplicate cancels idempotent",
+    "a cancelled pending join never seated a rider and produces no roster change beyond removal"
+  ]
+}

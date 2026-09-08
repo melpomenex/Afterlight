@@ -134,12 +134,17 @@ procedural. Textures are sRGB, clamp-wrapped, mipmapped, anisotropy 4, cached pe
 game+channel and shared by every cabinet of that game (refcounted; disposal of one
 machine never frees a texture a sibling still uses).
 
-**UV notes:** replacement textures must use `flipY = false` (the glTF convention the
-model's UVs are authored against). The right side panel's UVs run mirrored (Blender
-symmetric layout) — the factory flips the `right` channel's texture automatically, so
-author files use the **same orientation as the left panel**. Do not pre-mirror your
-artwork. Painted control decks must not fake control markings: the real sticks and
-buttons are 3D meshes sitting on the plate (keep printed art to pinstripes/labels).
+**UV notes (verified against the GLB's vertex data):**
+- Replacement textures must use `flipY = false` (the glTF convention the model's UVs
+  are authored against). The factory sets this for skin channels and the CRT.
+- The **left** side panel samples mirrored (Blender symmetric layout); the right panel
+  is correct. The factory flips the `left` channel's texture automatically — author
+  files for both sides use the **same orientation**. Do not pre-mirror artwork.
+- The **marquee channel is applied as the material's emissiveMap** (white emissive) so
+  the machine is backlit by its own artwork — the stock emissive art is cleared.
+  Author bright, high-contrast marquee art. All other channels render non-emissive.
+- Painted control decks must not fake control markings: the real sticks and buttons
+  are 3D meshes sitting on the plate (keep printed art to pinstripes/labels).
 
 ## Material isolation rules (why skins don't leak)
 

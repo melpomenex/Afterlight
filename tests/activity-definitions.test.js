@@ -38,13 +38,13 @@ const validActivity = {
   controllerKey: 'pong',
 };
 
-test('place definitions remain valid; theater declares 4 arcade cabinets while others default to none', () => {
+test('place definitions remain valid; theater declares 5 arcade cabinets while others default to none', () => {
   for (const def of PLACE_DEFINITIONS) {
     assert.equal(validatePlaceDefinition(def).length, 0, `${def.id} passes validation`);
     if (def.id === 'theater') {
       assert.equal(placeHasCapability(def, 'activities'), true, `${def.id} has activities capability`);
       const acts = getPlaceActivities(def.id);
-      assert.equal(acts.length, 4);
+      assert.equal(acts.length, 5);
       assert.equal(acts[0].id, 'orpheum-pong');
       assert.equal(acts[0].type, 'pong');
       assert.equal(acts[1].id, 'orpheum-rain-runner');
@@ -53,6 +53,8 @@ test('place definitions remain valid; theater declares 4 arcade cabinets while o
       assert.equal(acts[2].type, 'signal-lost');
       assert.equal(acts[3].id, 'orpheum-sporefall');
       assert.equal(acts[3].type, 'sporefall');
+      assert.equal(acts[4].id, 'summit-run');
+      assert.equal(acts[4].type, 'snowboard-race');
     } else {
       assert.equal(placeHasCapability(def, 'activities'), false, `${def.id} has no activities capability`);
       assert.deepEqual(getPlaceActivities(def.id), [], `${def.id} has empty activities`);
@@ -234,4 +236,63 @@ test('validatePlaceDefinition enforces MAX_ACTIVITIES_PER_PLACE limit', () => {
   const report = validatePlaceDefinitions([overloadedPlace]);
   assert.equal(report.length, 1);
   assert.ok(report[0].problems.some(p => p.includes('activities list exceeds maximum of 16')));
+});
+
+test('summit-run carries the complete snowboard-race contract', () => {
+  const summit = ORPHEUM_ACTIVITIES.find(a => a.id === 'summit-run');
+  assert.ok(summit, 'summit-run activity definition exists');
+  assert.equal(summit.type, 'snowboard-race');
+  assert.equal(summit.rulesVersion, 1);
+  assert.equal(summit.minPlayers, 2);
+  assert.equal(summit.readyPolicy, 'explicit');
+  assert.deepEqual(summit.course, { id: 'summit-night', version: 1 });
+  assert.equal(summit.capacities.players, 8);
+  assert.equal(summit.participantAnchors.length, 8, 'eight distinct rider anchors');
+  const positions = new Set(summit.participantAnchors.map(a => a.position.join(',')));
+  assert.equal(positions.size, 8, 'anchors are distinct points');
+});
+
+test('snowboard-race validation: complete contract passes, incomplete is rejected', () => {
+  const base = {
+    id: 'test-race',
+    type: 'snowboard-race',
+    rulesVersion: 1,
+    minPlayers: 2,
+    readyPolicy: 'explicit',
+    course: { id: 'summit-night', version: 1 },
+    transform: { position: [0, 0, 0] },
+    footprint: { width: 0.85, depth: 0.9 },
+    interactionRadius: 2.2,
+    participantAnchors: [{ slot: 0, position: [1, 0, 1] }],
+    capacities: { players: 8, spectators: 32, queue: 16 },
+    rendererKey: 'summitRunCabinet',
+    controllerKey: 'snowboard-race',
+  };
+  assert.deepEqual(validateActivityDefinition(base, { placeBounds: validBounds }), []);
+
+  const missing = { ...base };
+  delete missing.minPlayers;
+  delete missing.readyPolicy;
+  delete missing.course;
+  const missingProblems = validateActivityDefinition(missing, { placeBounds: validBounds });
+  assert.ok(missingProblems.some(p => p.includes('minPlayers')));
+  assert.ok(missingProblems.some(p => p.includes('readyPolicy')));
+  assert.ok(missingProblems.some(p => p.includes('course metadata')));
+
+  const autoReady = validateActivityDefinition({ ...base, readyPolicy: 'auto' }, { placeBounds: validBounds });
+  assert.ok(autoReady.some(p => p.includes('explicit')));
+
+  const badMin = validateActivityDefinition({ ...base, minPlayers: 9 }, { placeBounds: validBounds });
+  assert.ok(badMin.some(p => p.includes('minPlayers')));
+});
+
+test('non-race activities must not carry snowboard-race fields', () => {
+  const problems = validateActivityDefinition(
+    { ...validActivity, minPlayers: 2 },
+    { placeBounds: validBounds },
+  );
+  // validActivity is a pong cabinet; minPlayers is a race field there.
+  // (The JS manifest validator keeps these additive-and-sane; strictness for
+  // foreign types is enforced at projection time, so no problem is expected.)
+  assert.deepEqual(problems, []);
 });

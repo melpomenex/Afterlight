@@ -263,6 +263,103 @@ const MOTIFS = {
     },
   },
 
+  // Summit Run: night mountain, layered peaks, winding lit trail, pines and
+  // an amber lodge glow — original Afterlight re-theme of the race identity.
+  summit: {
+    bg: (ctx, w, h, s) => fillVerticalGradient(ctx, w, h, '#0b1420', s.skin.palette.base),
+    side: (ctx, w, h, s) => {
+      // Distant and near ridgelines under a starfield.
+      ctx.fillStyle = s.skin.palette.ink;
+      for (let i = 0; i < 46; i++) {
+        const x = (i * 397) % w, y = (i * 761) % (h * 0.4);
+        ctx.globalAlpha = 0.2 + ((i * 13) % 60) / 100;
+        ctx.fillRect(x, y, 2, 2);
+      }
+      ctx.globalAlpha = 1;
+      const ridge = (base, amp, fill) => {
+        ctx.fillStyle = fill;
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        for (let i = 0; i <= 8; i++) {
+          const x = (i / 8) * w;
+          const y = base - amp * Math.abs(Math.sin(i * 2.7 + base));
+          ctx.lineTo(x, y);
+        }
+        ctx.lineTo(w, h);
+        ctx.closePath(); ctx.fill();
+      };
+      ridge(h * 0.52, h * 0.16, '#16222e');
+      ridge(h * 0.66, h * 0.12, '#101a24');
+      // Winding floodlit trail with checkpoint dots.
+      ctx.strokeStyle = s.skin.palette.glow;
+      ctx.globalAlpha = 0.85;
+      ctx.lineWidth = w * 0.02;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.5, h * 0.06);
+      ctx.bezierCurveTo(w * 0.1, h * 0.3, w * 0.9, h * 0.5, w * 0.42, h * 0.8);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      for (let i = 0; i < 4; i++) {
+        const t = 0.18 + i * 0.2;
+        const x = w * (0.5 - 0.34 * t + 0.5 * Math.sin(t * 7.2));
+        const y = h * (0.1 + 0.7 * t);
+        ctx.fillStyle = i % 2 ? s.skin.palette.accent : s.skin.palette.glow;
+        ctx.beginPath(); ctx.arc(x, y, w * 0.014, 0, Math.PI * 2); ctx.fill();
+      }
+      // Pine line and the lodge's warm windows at the run's end.
+      for (let i = 0; i < 7; i++) {
+        const x = w * (0.06 + i * 0.15);
+        ctx.fillStyle = '#0a0f14';
+        ctx.beginPath();
+        ctx.moveTo(x, h * 0.86); ctx.lineTo(x + w * 0.035, h * 0.7); ctx.lineTo(x + w * 0.07, h * 0.86);
+        ctx.closePath(); ctx.fill();
+      }
+      ctx.fillStyle = s.skin.palette.glow;
+      ctx.globalAlpha = 0.9;
+      ctx.fillRect(w * 0.4, h * 0.88, w * 0.2, h * 0.03);
+      ctx.globalAlpha = 1;
+    },
+    marquee: (ctx, w, h, s) => {
+      const px = fitTitleFont(ctx, s.skin.title, w * 0.68, h * 0.52);
+      glowText(ctx, s.skin.title, w / 2, h * 0.56, `bold ${px}px monospace`, s.skin.palette.glow, s.skin.palette.glow, 16);
+      // Small peak mark over the title.
+      ctx.strokeStyle = s.skin.palette.ink;
+      ctx.lineWidth = w * 0.012;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.36, h * 0.2); ctx.lineTo(w * 0.5, h * 0.05); ctx.lineTo(w * 0.64, h * 0.2);
+      ctx.stroke();
+    },
+    front: (ctx, w, h, s) => {
+      // Mini trail map: three linked runs, this machine's run highlighted.
+      ctx.strokeStyle = '#2c3c4a';
+      ctx.lineWidth = w * 0.016;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.3, h * 0.14); ctx.bezierCurveTo(w * 0.5, h * 0.4, w * 0.2, h * 0.6, w * 0.42, h * 0.88);
+      ctx.stroke();
+      ctx.strokeStyle = s.skin.palette.glow;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.62, h * 0.12); ctx.bezierCurveTo(w * 0.42, h * 0.36, w * 0.8, h * 0.62, w * 0.55, h * 0.9);
+      ctx.stroke();
+      ctx.fillStyle = s.skin.palette.accent;
+      ctx.beginPath(); ctx.arc(w * 0.62, h * 0.12, w * 0.025, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(w * 0.55, h * 0.9, w * 0.025, 0, Math.PI * 2); ctx.fill();
+    },
+    controlPanel: (ctx, w, h, s) => {
+      // Slope pinstripes only — the deck carries the real controls.
+      ctx.save();
+      ctx.strokeStyle = s.skin.palette.accent;
+      ctx.globalAlpha = 0.4;
+      ctx.lineWidth = Math.max(2, w * 0.004);
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(w * (0.1 + i * 0.06), h * 0.85);
+        ctx.lineTo(w * (0.7 + i * 0.06), h * 0.2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    },
+  },
+
   // Default Afterlight treatment: warm amber over wet slate.
   afterlight: {
     bg: (ctx, w, h, s) => fillVerticalGradient(ctx, w, h, s.skin.palette.base, '#141518'),

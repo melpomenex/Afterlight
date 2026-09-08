@@ -34,6 +34,7 @@ import './activities/pong.js';
 import './activities/rainRunner.js';
 import './activities/signalLost.js';
 import './activities/sporefall.js';
+import './activities/snowboard.js';
 import { createAtmosphereStateClient, legacyWeatherDisplaySuppressed } from './atmosphere/stateClient.js';
 import { createAtmosphereController } from './atmosphere/controller.js';
 import { createAtmosphereEvents } from './atmosphere/events.js';
@@ -511,6 +512,19 @@ const activityRuntime = createActivityRuntime({
   toast: (title, body, tag) => toast(title, body, tag),
 });
 const participation = activityRuntime.participation;
+
+// Opt-in debug introspection (?debug=1): read-only accessors for automated
+// gate verification. Never enabled by default; exposes only local state.
+if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
+  window.__afterlight = {
+    player: () => [player.position.x, player.position.z],
+    facing: () => player.rotation.y,
+    room: () => currentRoomId,
+    participation: () => participation.state,
+    activity: () => participation.currentActivity?.id ?? null,
+    paused: () => paused,
+  };
+}
 
 // Seated pose ownership: normalization (legacy Theater offsets reproduced
 // exactly), safe dismount choice and the pose flags on the wire.

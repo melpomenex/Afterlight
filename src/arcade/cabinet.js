@@ -188,11 +188,11 @@ function acquireSkinTexture(gameId, channel, skin, onLate) {
     if (!canvas) return null;
     entry.texture = canvasTextureFrom(canvas);
   }
-  // The GLB's right side panel carries mirrored UVs (Blender symmetric
-  // layout), so its artwork samples backwards — flip the texture horizontally
-  // for both author files and procedural art. Author files therefore use the
-  // SAME orientation as the left panel (docs/arcade.md).
-  if (channel === 'right' && entry.texture) {
+  // UV ground truth (verified against the GLB's vertex data): the LEFT side
+  // panel samples mirrored; the right panel is correct. Flip `left`
+  // horizontally for both author files and procedural art, so authors always
+  // supply both sides in the same orientation (docs/arcade.md).
+  if (channel === 'left' && entry.texture) {
     entry.texture.wrapS = THREE.RepeatWrapping;
     entry.texture.repeat.x = -1;
     entry.texture.offset.x = 1;
@@ -307,6 +307,9 @@ export function createArcadeCabinet({
   const displayTexture = displayCanvas
     ? new THREE.CanvasTexture(displayCanvas)
     : new THREE.Texture();
+  // Geometry-verified: the CRT's art face samples v top-down, so flipY must
+  // be false — with the default true the game frame renders upside down.
+  displayTexture.flipY = false;
   displayTexture.colorSpace = THREE.SRGBColorSpace;
   displayTexture.minFilter = THREE.LinearFilter;
   displayTexture.magFilter = THREE.LinearFilter;
@@ -414,6 +417,18 @@ export function createArcadeCabinet({
           if (mat.map) mat.needsUpdate = true;
         });
         mat.color.set('#ffffff');
+        // The stock marquee is backlit through its emissiveMap — route OUR art
+        // through it so the machine glows with its own artwork, and clear the
+        // stock emissive art on every other channel so it cannot bleed
+        // through under the new map (the "AFTERLIGHT" ghost overlay).
+        if (channel === 'marquee') {
+          mat.emissiveMap = mat.map;
+          mat.emissive.set('#ffffff');
+          mat.emissiveIntensity = Math.min(mat.emissiveIntensity || 1, 1.4);
+        } else {
+          mat.emissiveMap = null;
+          mat.emissive.set('#000000');
+        }
         mat.needsUpdate = true;
       } catch (err) {
         // One failed channel keeps the stock texture; never blocks screens/LED.

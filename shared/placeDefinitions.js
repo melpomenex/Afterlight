@@ -45,6 +45,7 @@ export const ACTIVITY_TYPES = Object.freeze([
   'rain-runner',
   'signal-lost',
   'sporefall',
+  'snowboard-race',
   'pool',
   'billiards',
   'air-hockey',
@@ -140,7 +141,7 @@ export const PONG_ACTIVITY_DEFINITION = Object.freeze({
   sub: 'Press E to play · Spectate / Queue',
   rulesVersion: 1,
   cabinet: PONG_CABINET,
-  transform: Object.freeze({ position: Object.freeze([10.42, 0, -7.55]), rotationY: -Math.PI / 2 }),
+  transform: Object.freeze({ position: Object.freeze([10.42, 0, -7.95]), rotationY: -Math.PI / 2 }),
   footprint: Object.freeze({ width: 0.85, depth: 0.9 }),
   interactionRadius: 2.2,
   participantAnchors: Object.freeze([
@@ -161,11 +162,11 @@ export const RAIN_RUNNER_ACTIVITY_DEFINITION = Object.freeze({
   sub: 'Press E to drive · High score run',
   rulesVersion: 1,
   cabinet: RAIN_RUNNER_CABINET,
-  transform: Object.freeze({ position: Object.freeze([10.42, 0, -5.5]), rotationY: -Math.PI / 2 }),
+  transform: Object.freeze({ position: Object.freeze([10.42, 0, -5.9]), rotationY: -Math.PI / 2 }),
   footprint: Object.freeze({ width: 0.85, depth: 0.9 }),
   interactionRadius: 2.2,
   participantAnchors: Object.freeze([
-    Object.freeze({ slot: 0, position: Object.freeze([9.3, 0, -5.5]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -5.5 })]) }),
+    Object.freeze({ slot: 0, position: Object.freeze([9.3, 0, -5.9]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -5.9 })]) }),
   ]),
   capacities: Object.freeze({ players: 1, spectators: 16, queue: 8 }),
   environmentPolicy: 'none',
@@ -181,11 +182,11 @@ export const SIGNAL_LOST_ACTIVITY_DEFINITION = Object.freeze({
   sub: 'Press E to fly · Asteroid survival',
   rulesVersion: 1,
   cabinet: SIGNAL_LOST_CABINET,
-  transform: Object.freeze({ position: Object.freeze([10.42, 0, -3.45]), rotationY: -Math.PI / 2 }),
+  transform: Object.freeze({ position: Object.freeze([10.42, 0, -3.85]), rotationY: -Math.PI / 2 }),
   footprint: Object.freeze({ width: 0.85, depth: 0.9 }),
   interactionRadius: 2.2,
   participantAnchors: Object.freeze([
-    Object.freeze({ slot: 0, position: Object.freeze([9.3, 0, -3.45]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -3.45 })]) }),
+    Object.freeze({ slot: 0, position: Object.freeze([9.3, 0, -3.85]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -3.85 })]) }),
   ]),
   capacities: Object.freeze({ players: 1, spectators: 16, queue: 8 }),
   environmentPolicy: 'none',
@@ -201,11 +202,11 @@ export const SPOREFALL_ACTIVITY_DEFINITION = Object.freeze({
   sub: 'Press E to drop · Block clear puzzle',
   rulesVersion: 1,
   cabinet: SPOREFALL_CABINET,
-  transform: Object.freeze({ position: Object.freeze([10.42, 0, -1.4]), rotationY: -Math.PI / 2 }),
+  transform: Object.freeze({ position: Object.freeze([10.42, 0, -1.8]), rotationY: -Math.PI / 2 }),
   footprint: Object.freeze({ width: 0.85, depth: 0.9 }),
   interactionRadius: 2.2,
   participantAnchors: Object.freeze([
-    Object.freeze({ slot: 0, position: Object.freeze([9.3, 0, -1.4]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -1.4 })]) }),
+    Object.freeze({ slot: 0, position: Object.freeze([9.3, 0, -1.8]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -1.8 })]) }),
   ]),
   capacities: Object.freeze({ players: 1, spectators: 16, queue: 8 }),
   environmentPolicy: 'none',
@@ -214,11 +215,73 @@ export const SPOREFALL_ACTIVITY_DEFINITION = Object.freeze({
   controllerKey: 'sporefall',
 });
 
+// Summit Run (multiplayer snowboard arcade): fifth Orpheum machine, standing
+// on the east wall south of the travel gate — the four-machine row above
+// fills the north stretch and the gate arch at z -1.2..+1.2 keeps the row
+// from extending, so Summit Run gets its own bay beside the seat rows with a
+// wall-side queue line. Eight anchors put the rider queue along the open east
+// promenade (x = 9.3, clear of the seat collision band ending at x 8.91 and
+// the cabinet collision starting at x 9.615); dismounts step west into the
+// cross aisles at z = 1.4 / 3.6. Race rules live in shared/snowboard/
+// (course 'summit-night'); readiness is explicit, never auto-granted.
+const SUMMIT_RUN_CABINET = Object.freeze({
+  model: 'upright',
+  skin: Object.freeze({
+    title: 'SUMMIT RUN',
+    tagline: '2–8 RIDERS',
+    motif: 'summit',
+    palette: Object.freeze({ base: '#152730', ink: '#ecf2ec', accent: '#7acbd4', glow: '#edb66c' }),
+  }),
+  led: Object.freeze({ color: '#7acbd4', intensity: 1.5 }),
+  controls: Object.freeze({ player1: '#edb66c', player2: '#7acbd4' }),
+  screen: Object.freeze({ type: 'canvas' }),
+});
+
+const summitAnchor = (slot, z, dismountZ) => Object.freeze({
+  slot,
+  position: Object.freeze([9.3, 0, z]),
+  facing: Math.PI / 2,
+  dismount: Object.freeze([Object.freeze({ x: 8.55, z: dismountZ })]),
+});
+
+export const SUMMIT_RUN_ACTIVITY_DEFINITION = Object.freeze({
+  id: 'summit-run',
+  type: 'snowboard-race',
+  title: 'Summit Run',
+  sub: 'Press E to ride · 2–8 riders',
+  rulesVersion: 1,
+  minPlayers: 2,
+  readyPolicy: 'explicit',
+  course: Object.freeze({ id: 'summit-night', version: 1 }),
+  cabinet: SUMMIT_RUN_CABINET,
+  transform: Object.freeze({ position: Object.freeze([10.42, 0, 2.6]), rotationY: -Math.PI / 2 }),
+  footprint: Object.freeze({ width: 0.85, depth: 0.9 }),
+  // 3.0 covers every queue anchor (farthest is ~2.88 from the machine) so the
+  // server's seated proximity re-check can never eject an anchored rider.
+  interactionRadius: 3.0,
+  participantAnchors: Object.freeze([
+    summitAnchor(0, 0.35, 1.4),
+    summitAnchor(1, 1.05, 1.4),
+    summitAnchor(2, 1.75, 1.4),
+    summitAnchor(3, 2.45, 1.4),
+    summitAnchor(4, 3.15, 3.6),
+    summitAnchor(5, 3.85, 3.6),
+    summitAnchor(6, 4.55, 3.6),
+    summitAnchor(7, 5.25, 3.6),
+  ]),
+  capacities: Object.freeze({ players: 8, spectators: 32, queue: 16 }),
+  environmentPolicy: 'none',
+  spectatorPolicy: 'world',
+  rendererKey: 'summitRunCabinet',
+  controllerKey: 'snowboard-race',
+});
+
 export const ORPHEUM_ACTIVITIES = Object.freeze([
   PONG_ACTIVITY_DEFINITION,
   RAIN_RUNNER_ACTIVITY_DEFINITION,
   SIGNAL_LOST_ACTIVITY_DEFINITION,
   SPOREFALL_ACTIVITY_DEFINITION,
+  SUMMIT_RUN_ACTIVITY_DEFINITION,
 ]);
 
 // The universal urban shell every legacy district shares: floor, paving,
@@ -256,7 +319,7 @@ const LEGACY_MINIMAP_PATHS = {
   delta: 'M24 24H130V96H24Z M24 45C55 40 85 75 130 55 M24 75C60 70 90 90 130 85 M70 24V96',
   archives: 'M24 24H130V96H24Z M35 35H115 M35 50H115 M35 65H115 M35 80H115 M75 24V96',
   'kiln-terrace': 'M24 24H130V96H24Z M45 35H105V85H45Z M75 45A15 15 0 1 0 75 75A15 15 0 1 0 75 45 M24 60H45 M105 60H130',
-  theater: 'M24 24H130V96H24Z M42 34H112 M42 38H112 M34 52H62 M70 52H120 M34 68H62 M70 68H120 M34 84H120 M121 30H125V56H121Z',
+  theater: 'M24 24H130V96H24Z M42 34H112 M42 38H112 M34 52H62 M70 52H120 M34 68H62 M70 68H120 M34 84H120 M121 29H125V55H121Z M121 61H125V73H121Z',
   garden: 'M24 24H130V96H24Z M38 36H116V84H38Z M65 24V96',
 };
 
@@ -585,6 +648,32 @@ export function validateActivityDefinition(activity, { placeBounds = null } = {}
       'capacities.spectators must be an integer between 0 and 32');
     at(Number.isInteger(caps.queue) && caps.queue >= 0 && caps.queue <= 16,
       'capacities.queue must be an integer between 0 and 16');
+  }
+
+  // Race-style activity fields (add-multiplayer-snowboard-arcade): additive
+  // and optional for every type, but a present value must be sane, and the
+  // snowboard race must carry the complete admission/ready/course contract.
+  if (activity.minPlayers !== undefined) {
+    at(Number.isInteger(activity.minPlayers) && activity.minPlayers >= 1, 'minPlayers must be an integer >= 1');
+    if (caps && Number.isInteger(caps.players)) {
+      at(activity.minPlayers <= caps.players, 'minPlayers must not exceed capacities.players');
+    }
+  }
+  if (activity.readyPolicy !== undefined) {
+    at(['auto', 'explicit'].includes(activity.readyPolicy), 'readyPolicy must be "auto" or "explicit"');
+  }
+  if (activity.course !== undefined) {
+    const course = activity.course ?? {};
+    at(typeof course === 'object' && !Array.isArray(course), 'course must be an object');
+    if (course && typeof course === 'object' && !Array.isArray(course)) {
+      at(typeof course.id === 'string' && /^[a-z0-9-]+$/.test(course.id), 'course.id must be a kebab-case string');
+      at(Number.isInteger(course.version) && course.version >= 1, 'course.version must be an integer >= 1');
+    }
+  }
+  if (activity.type === 'snowboard-race') {
+    at(activity.minPlayers !== undefined, 'snowboard-race requires minPlayers');
+    at(activity.readyPolicy === 'explicit', 'snowboard-race uses explicit readiness (readyPolicy "explicit")');
+    at(activity.course !== undefined, 'snowboard-race requires course metadata');
   }
 
   const envPolicy = activity.environmentPolicy ?? 'none';

@@ -1,0 +1,26 @@
+{
+  "$comment": "Wire role normalization and lease alias rules (D7). The client speaks play/watch/queue; the server internally uses player/spectator/queue. Validators accept the wire aliases at the boundary and normalize before dispatch. lease/leaseId aliases: responses may carry both, values must be identical, only the canonical field is authoritative.",
+  "roles": {
+    "play": { "serverRole": "player", "seated": true, "inputLease": true },
+    "watch": { "serverRole": "spectator", "seated": false, "inputLease": false, "controlLease": "scoped for leave/offer actions only" },
+    "queue": { "serverRole": "queue", "seated": false, "inputLease": false, "controlLease": "scoped for leave/offer actions only" }
+  },
+  "leaseAliases": {
+    "canonical": "lease",
+    "legacyAlias": "leaseId",
+    "rule": "both may be returned; values identical; validators retain both (additive F fields are never silently stripped)"
+  },
+  "roleNormalizationCases": [
+    { "wire": "play", "server": "player" },
+    { "wire": "watch", "server": "spectator" },
+    { "wire": "queue", "server": "queue" },
+    { "wire": "player", "server": "rejected (client-facing roles only)", "note": "server internal role names are never accepted FROM clients" },
+    { "wire": "spectator", "server": "rejected" },
+    { "wire": "bogus", "server": "rejected invalid_request" }
+  ],
+  "neutralControls": {
+    "inputSeamEmptyObject": "{}",
+    "wireForm": { "kind": "neutral" },
+    "semantics": "steer=0, tuck=false, brake=true, jump charge cancelled"
+  }
+}

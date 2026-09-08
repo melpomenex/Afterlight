@@ -1,0 +1,27 @@
+{
+  "name": "leave",
+  "direction": "client->server",
+  "msgType": "activity_leave",
+  "payload": {
+    "requestId": "req-5",
+    "activityId": "summit-run",
+    "sessionId": "sb-session-01",
+    "roomEpoch": 7,
+    "matchId": "match-0001",
+    "lease": "lease-a1",
+    "reason": "exit"
+  },
+  "acceptance": {
+    "status": "left",
+    "requestId": "req-5",
+    "serverNow": 1771000003000
+  },
+  "reasons": ["exit", "travel", "load_failed"],
+  "invariants": [
+    "idempotent within the same lease; stale lease/match rejected",
+    "an active racer leaving marks DNF once with reason 'leave' and releases the lease immediately",
+    "a lobby/results leaving releases the seat; results remain for others",
+    "connection close independently releases/graces without requiring this command",
+    "reasons are the exact allowlist above; other values rejected invalid_request"
+  ]
+}

@@ -50,7 +50,7 @@ Adapt the prototype's course-local representation and readable arcade controls; 
 
 ### Rendering, audio and asset strategy
 
-WebGL is the release baseline. Instanced scenery, bounded particles and existing bloom provide snow/night atmosphere; no compute migration is required. Reuse the host AudioContext/mute controls. Create original procedural art, robot boards and synthesized effects. SSXTricky has no tracked license: direct code/assets require a recorded permission/license basis; independent implementation from behavior is the default. See the asset manifest in the design.
+WebGL is the release baseline. Instanced scenery, bounded particles and existing bloom provide snow/night atmosphere; no compute migration is required. Reuse the host AudioContext/mute controls. Create original procedural art, robot boards and synthesized effects. SSXTricky has no tracked license: preserve the user’s explicit source-reuse authorization and attribution; independently create anything with uncertain third-party provenance. See the asset manifest in the design.
 
 ### Performance, failure handling and security
 
@@ -63,3 +63,7 @@ Extend current telemetry and load tooling; measure rather than claim BEAM capaci
 ### Rollout and risks
 
 Land contracts first, then independent frontend/backend/art work, then integration and measured release gates. Gate advertisement and admission on a proposed disabled-by-default snowboard feature flag. Roll back by disabling new joins and cleanly draining/aborting races, without touching saved world files. Main risks are two-player assumptions, room-wide snapshot fanout, predictor parity, lazy-view cleanup, reference licensing and uncommitted upstream cabinet work. No implementation or deployment is part of this proposal.
+
+## Acceptance criteria
+
+The implementation is accepted only when the existing GLB has its distinct Summit Run skin; nearby E/button entry opens a shared lobby without reload; two through eight riders can ready and start together; displayed countdowns synchronize; predicted local and interpolated remote riders traverse the same course; the server validates all ordered gates and determines finish/ties/DNF; all racers receive results; rematch works without reload or resource reconstruction; exit restores safe Afterlight controls; disconnect/reload/first-player departure does not destroy others' race; different owner-instance/cabinet keys remain isolated; abandoned processes/resources clean up; mountain resources are lazy; existing cabinets, multiplayer, chat and theater regressions pass; no second renderer/socket/authentication or required SSX branding/assets is introduced; backend and actual two-browser tests pass; and repeated rematches and measured load meet the documented performance/resource gates. The full executable checklist and thresholds are in `tasks.md` and the three capability specs.

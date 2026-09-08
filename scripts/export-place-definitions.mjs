@@ -144,6 +144,26 @@ export function projectActivity(act, placeBounds) {
   const envPolicy = act.environmentPolicy ?? 'none';
   at(ACTIVITY_ENVIRONMENT_POLICIES.includes(envPolicy), 'environmentPolicy must be valid');
 
+  // Race-style admission/ready/course contract (add-multiplayer-snowboard-
+  // arcade): additive optional fields, required complete for snowboard-race
+  // so the authoritative server projection carries everything admission and
+  // the session policy need.
+  const minPlayers = act.minPlayers;
+  const readyPolicy = act.readyPolicy;
+  const course = act.course;
+  if (act.type === 'snowboard-race') {
+    at(Number.isInteger(minPlayers) && minPlayers >= 1 && minPlayers <= c.players, 'snowboard-race requires minPlayers in 1..capacities.players');
+    at(readyPolicy === 'explicit', 'snowboard-race requires readyPolicy "explicit"');
+    at(course && typeof course === 'object' && !Array.isArray(course), 'snowboard-race requires course metadata');
+    if (course && typeof course === 'object') {
+      at(typeof course.id === 'string' && /^[a-z0-9-]+$/.test(course.id), 'course.id must be a kebab-case string');
+      at(Number.isInteger(course.version) && course.version >= 1, 'course.version must be an integer >= 1');
+    }
+  } else {
+    at(minPlayers === undefined && readyPolicy === undefined && course === undefined,
+      'minPlayers/readyPolicy/course are snowboard-race fields; other types omit them');
+  }
+
   return {
     id: act.id,
     type: act.type,
@@ -157,6 +177,9 @@ export function projectActivity(act, placeBounds) {
     participantAnchors: anchors,
     capacities: { players: c.players, spectators: c.spectators, queue: c.queue },
     environmentPolicy: envPolicy,
+    ...(minPlayers !== undefined ? { minPlayers } : {}),
+    ...(readyPolicy !== undefined ? { readyPolicy } : {}),
+    ...(course !== undefined ? { course: { id: course.id, version: course.version } } : {}),
   };
 }
 

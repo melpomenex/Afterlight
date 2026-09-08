@@ -1,0 +1,39 @@
+{
+  "$comment": "D7 activity_ready: explicit only (no auto-ready for snowboard-race). Requires the seated player to have completed the load handshake with the exact server course hash. Allowed in lobby/results; ready=false during countdown cancels it. In results, ready=true is the rematch vote.",
+  "name": "ready",
+  "direction": "client->server",
+  "msgType": "activity_ready",
+  "payload": {
+    "requestId": "req-4",
+    "activityId": "summit-run",
+    "sessionId": "sb-session-01",
+    "roomEpoch": 7,
+    "matchId": "match-0001",
+    "lease": "lease-a1",
+    "ready": true
+  },
+  "acceptance": {
+    "direction": "server->client",
+    "msgType": "activity_ready_reply",
+    "payload": {
+      "status": "ready",
+      "requestId": "req-4",
+      "activityId": "summit-run",
+      "sessionId": "sb-session-01",
+      "roomEpoch": 7,
+      "matchId": "match-0001",
+      "revision": 3,
+      "ready": true,
+      "serverNow": 1771000002000,
+      "readyCount": 2,
+      "seatedCount": 4
+    }
+  },
+  "invariants": [
+    "ready without a matching loaded handshake is rejected not_loaded",
+    "ready during countdown (ready=false) cancels the countdown, clears ALL readiness, returns the lobby",
+    "all seated connected riders ready with count >= 2 locks the roster and schedules the 3s countdown",
+    "ready expires after readyExpirySeconds without a start",
+    "every correlated ready acknowledgment echoes requestId + serverNow + room/session identity for clock correlation"
+  ]
+}

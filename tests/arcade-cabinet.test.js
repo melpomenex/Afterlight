@@ -325,3 +325,78 @@ test('all exported interaction markers are documented in the factory contract', 
   assert.ok(CABINET_MARKERS.includes('INT_P1') && CABINET_MARKERS.includes('INT_P2'),
     'two-player anchor markers stay part of the contract');
 });
+
+// --- summit-run (add-multiplayer-snowboard-arcade 2.2) ---------------------------
+
+test('summit-run adds a unique summit skin on the shared upright geometry', () => {
+  const summit = ORPHEUM_ACTIVITIES.find(a => a.id === 'summit-run');
+  assert.ok(summit, 'summit-run present in the Orpheum row');
+  assert.equal(summit.cabinet.model, 'upright', 'summit run reuses the canonical GLB — no new geometry');
+
+  const motifs = ORPHEUM_ACTIVITIES.map(a => a.cabinet.skin.motif);
+  assert.equal(new Set(motifs).size, motifs.length, 'every machine keeps a distinct motif');
+  assert.equal(summit.cabinet.skin.motif, 'summit');
+  assert.equal(summit.cabinet.skin.title, 'SUMMIT RUN');
+
+  const problems = [];
+  const skin = normalizeCabinetSkin(summit.cabinet, problems);
+  assert.deepEqual(problems, []);
+  assert.ok(HEX.test(skin.skin.palette.accent));
+  assert.ok(HEX.test(skin.led.color));
+  // The five-machine row must keep globally distinct LED colors.
+  const leds = ORPHEUM_ACTIVITIES.map(a => normalizeCabinetSkin(a.cabinet, []).led.color);
+  assert.equal(new Set(leds).size, leds.length, 'LED colors differ between all five machines');
+});
+
+function makeStubCanvasFactory() {
+  const gradient = { addColorStop() {} };
+  const ctx = new Proxy({}, {
+    get(_target, prop) {
+      if (prop === 'measureText') return () => ({ width: 10 });
+      if (prop === 'createLinearGradient') return () => gradient;
+      return () => undefined;
+    },
+    set() { return true; },
+  });
+  return {
+    createElement() {
+      return { width: 0, height: 0, getContext: () => ctx };
+    },
+  };
+}
+
+test('summit motif paints every artwork channel without runtime errors', async () => {
+  const { paintSkinChannel } = await import('../src/arcade/artwork.js');
+  const summit = ORPHEUM_ACTIVITIES.find(a => a.id === 'summit-run');
+  const spec = normalizeCabinetSkin(summit.cabinet, []);
+
+  globalThis.document = makeStubCanvasFactory();
+  try {
+    for (const channel of Object.keys(SKIN_CHANNELS)) {
+      const canvas = paintSkinChannel(channel, spec);
+      assert.ok(canvas && canvas.width > 0, `${channel} channel paints a canvas`);
+    }
+  } finally {
+    delete globalThis.document;
+  }
+});
+
+test('a disposed summit-run cabinet leaves siblings and the shared template intact', () => {
+  injectArcadeCabinetTemplate(makeFakeTemplate());
+  const world = { group: new THREE.Group() };
+  const summit = createArcadeCabinet({ activityDef: ORPHEUM_ACTIVITIES[4], world });
+  const pong = createArcadeCabinet({ activityDef: ORPHEUM_ACTIVITIES[0], world });
+
+  assert.equal(summit.gameId, 'summit-run');
+  assert.equal(summit.usingModel, true);
+  assert.notEqual(materialOf(summit, 'Trim_ControlDeck'), materialOf(pong, 'Trim_ControlDeck'),
+    'fifth machine still clones its LED material');
+  assert.equal(materialOf(summit, 'Cabinet_Body'), materialOf(pong, 'Cabinet_Body'),
+    'fifth machine shares the immutable body material');
+
+  summit.dispose();
+  assert.equal(summit.group.parent, null);
+  assert.equal(pong.group.parent, world.group, 'sibling survives the summit disposal');
+  pong.dispose();
+  assert.equal(world.group.children.length, 0, 'world left clean');
+});

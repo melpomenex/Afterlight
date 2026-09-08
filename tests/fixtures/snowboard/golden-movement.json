@@ -1,0 +1,4656 @@
+{
+ "courseId": "summit-night",
+ "courseVersion": 1,
+ "courseHash": "494bc3dc655f26beb2ef46a7f12d2dde6bf0c90c73e4fa3b8588179daf135b7f",
+ "rulesVersion": 1,
+ "scenarios": [
+  {
+   "id": "neutral-glide-3s",
+   "dtMs": 33.333333333333336,
+   "ticks": 90,
+   "sampleEvery": 30,
+   "controls": [
+    [
+     90,
+     {
+      "kind": "neutral"
+     }
+    ]
+   ],
+   "samples": [
+    {
+     "tick": 30,
+     "state": {
+      "s": 4.240946,
+      "u": 0,
+      "v": 0.78705,
+      "vu": 0,
+      "y": 219.015669,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 60,
+     "state": {
+      "s": 4.272524,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": 219.004617,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 90,
+     "state": {
+      "s": 4.272524,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": 219.004617,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    }
+   ],
+   "events": [],
+   "final": {
+    "s": 4.272524,
+    "u": 0,
+    "v": 0,
+    "vu": 0,
+    "y": 219.004617,
+    "vy": 0,
+    "grounded": true,
+    "jumpCharge": 0,
+    "recoveryTicks": 0,
+    "nextCheckpoint": 1,
+    "finishTick": null,
+    "finishMs": null,
+    "finishKey": null,
+    "dnfReason": null,
+    "crossedRampIds": [],
+    "boundaryCooldownSeconds": 0,
+    "splitKeys": [],
+    "resetSeq": 0
+   }
+  },
+  {
+   "id": "tuck-6s",
+   "dtMs": 33.333333333333336,
+   "ticks": 180,
+   "sampleEvery": 30,
+   "controls": [
+    [
+     180,
+     {
+      "steer": 0,
+      "tuck": true,
+      "brake": false,
+      "jumpHeld": false
+     }
+    ]
+   ],
+   "samples": [
+    {
+     "tick": 30,
+     "state": {
+      "s": 11.508779,
+      "u": 0,
+      "v": 14.64292,
+      "vu": 0,
+      "y": 216.479471,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 60,
+     "state": {
+      "s": 29.11285,
+      "u": 0,
+      "v": 20.167274,
+      "vu": 0,
+      "y": 210.457195,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 90,
+     "state": {
+      "s": 51.545338,
+      "u": 0,
+      "v": 24.324709,
+      "vu": 0,
+      "y": 203.278672,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 120,
+     "state": {
+      "s": 77.424839,
+      "u": 0,
+      "v": 27.159085,
+      "vu": 0,
+      "y": 195.833921,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 150,
+     "state": {
+      "s": 105.707994,
+      "u": 0,
+      "v": 29.235851,
+      "vu": 0,
+      "y": 187.596142,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 180,
+     "state": {
+      "s": 135.750023,
+      "u": 0,
+      "v": 30.692962,
+      "vu": 0,
+      "y": 178.859994,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    }
+   ],
+   "events": [],
+   "final": {
+    "s": 135.750023,
+    "u": 0,
+    "v": 30.692962,
+    "vu": 0,
+    "y": 178.859994,
+    "vy": 0,
+    "grounded": true,
+    "jumpCharge": 0,
+    "recoveryTicks": 0,
+    "nextCheckpoint": 1,
+    "finishTick": null,
+    "finishMs": null,
+    "finishKey": null,
+    "dnfReason": null,
+    "crossedRampIds": [],
+    "boundaryCooldownSeconds": 0,
+    "splitKeys": [],
+    "resetSeq": 0
+   }
+  },
+  {
+   "id": "brake-to-stop",
+   "dtMs": 33.333333333333336,
+   "ticks": 240,
+   "sampleEvery": 30,
+   "controls": [
+    [
+     120,
+     {
+      "steer": 0,
+      "tuck": true,
+      "brake": false,
+      "jumpHeld": false
+     }
+    ],
+    [
+     120,
+     {
+      "kind": "neutral"
+     }
+    ]
+   ],
+   "samples": [
+    {
+     "tick": 30,
+     "state": {
+      "s": 11.508779,
+      "u": 0,
+      "v": 14.64292,
+      "vu": 0,
+      "y": 216.479471,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 60,
+     "state": {
+      "s": 29.11285,
+      "u": 0,
+      "v": 20.167274,
+      "vu": 0,
+      "y": 210.457195,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 90,
+     "state": {
+      "s": 51.545338,
+      "u": 0,
+      "v": 24.324709,
+      "vu": 0,
+      "y": 203.278672,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 120,
+     "state": {
+      "s": 77.424839,
+      "u": 0,
+      "v": 27.159085,
+      "vu": 0,
+      "y": 195.833921,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 150,
+     "state": {
+      "s": 98.888977,
+      "u": 0,
+      "v": 16.59995,
+      "vu": 0,
+      "y": 189.597752,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 180,
+     "state": {
+      "s": 110.95567,
+      "u": 0,
+      "v": 8.035405,
+      "vu": 0,
+      "y": 186.048077,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 210,
+     "state": {
+      "s": 114.950698,
+      "u": 0,
+      "v": 0.274323,
+      "vu": 0,
+      "y": 184.874298,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 240,
+     "state": {
+      "s": 114.951363,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": 184.874105,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    }
+   ],
+   "events": [],
+   "final": {
+    "s": 114.951363,
+    "u": 0,
+    "v": 0,
+    "vu": 0,
+    "y": 184.874105,
+    "vy": 0,
+    "grounded": true,
+    "jumpCharge": 0,
+    "recoveryTicks": 0,
+    "nextCheckpoint": 1,
+    "finishTick": null,
+    "finishMs": null,
+    "finishKey": null,
+    "dnfReason": null,
+    "crossedRampIds": [],
+    "boundaryCooldownSeconds": 0,
+    "splitKeys": [],
+    "resetSeq": 0
+   }
+  },
+  {
+   "id": "carve-left-3s",
+   "dtMs": 33.333333333333336,
+   "ticks": 90,
+   "sampleEvery": 30,
+   "controls": [
+    [
+     90,
+     {
+      "steer": -1,
+      "tuck": false,
+      "brake": false,
+      "jumpHeld": false
+     }
+    ]
+   ],
+   "samples": [
+    {
+     "tick": 30,
+     "state": {
+      "s": 9.573259,
+      "u": -9.083415,
+      "v": 10.893739,
+      "vu": -9.999089,
+      "y": 216.482264,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 60,
+     "state": {
+      "s": 21.805651,
+      "u": -19.083328,
+      "v": 12.798018,
+      "vu": -9.999999,
+      "y": 210.00619,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 90,
+     "state": {
+      "s": 31.774473,
+      "u": -24,
+      "v": 7.264777,
+      "vu": 0,
+      "y": 204.964424,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0.000005,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    }
+   ],
+   "events": [
+    {
+     "tick": 74,
+     "type": "boundary_hit",
+     "side": "left"
+    }
+   ],
+   "final": {
+    "s": 31.774473,
+    "u": -24,
+    "v": 7.264777,
+    "vu": 0,
+    "y": 204.964424,
+    "vy": 0,
+    "grounded": true,
+    "jumpCharge": 0,
+    "recoveryTicks": 0,
+    "nextCheckpoint": 1,
+    "finishTick": null,
+    "finishMs": null,
+    "finishKey": null,
+    "dnfReason": null,
+    "crossedRampIds": [],
+    "boundaryCooldownSeconds": 0.000005,
+    "splitKeys": [],
+    "resetSeq": 0
+   }
+  },
+  {
+   "id": "boundary-right",
+   "dtMs": 33.333333333333336,
+   "ticks": 200,
+   "sampleEvery": 40,
+   "controls": [
+    [
+     200,
+     {
+      "steer": 1,
+      "tuck": false,
+      "brake": false,
+      "jumpHeld": false
+     }
+    ]
+   ],
+   "samples": [
+    {
+     "tick": 40,
+     "state": {
+      "s": 13.38387,
+      "u": 12.416669,
+      "v": 11.775038,
+      "vu": 9.999959,
+      "y": 214.589587,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 80,
+     "state": {
+      "s": 29.181255,
+      "u": 24,
+      "v": 8.301271,
+      "vu": 0,
+      "y": 205.82428,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0.333335,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 120,
+     "state": {
+      "s": 35.837968,
+      "u": 24,
+      "v": 2.116123,
+      "vu": 0,
+      "y": 203.623471,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0.066671,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 160,
+     "state": {
+      "s": 36.422446,
+      "u": 24,
+      "v": 0,
+      "vu": 0,
+      "y": 203.432705,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0.333335,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 200,
+     "state": {
+      "s": 36.422446,
+      "u": 24,
+      "v": 0,
+      "vu": 0,
+      "y": 203.432705,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0.066671,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    }
+   ],
+   "events": [
+    {
+     "tick": 74,
+     "type": "boundary_hit",
+     "side": "right"
+    },
+    {
+     "tick": 90,
+     "type": "boundary_hit",
+     "side": "right"
+    },
+    {
+     "tick": 106,
+     "type": "boundary_hit",
+     "side": "right"
+    },
+    {
+     "tick": 122,
+     "type": "boundary_hit",
+     "side": "right"
+    },
+    {
+     "tick": 138,
+     "type": "boundary_hit",
+     "side": "right"
+    },
+    {
+     "tick": 154,
+     "type": "boundary_hit",
+     "side": "right"
+    },
+    {
+     "tick": 170,
+     "type": "boundary_hit",
+     "side": "right"
+    },
+    {
+     "tick": 186,
+     "type": "boundary_hit",
+     "side": "right"
+    }
+   ],
+   "final": {
+    "s": 36.422446,
+    "u": 24,
+    "v": 0,
+    "vu": 0,
+    "y": 203.432705,
+    "vy": 0,
+    "grounded": true,
+    "jumpCharge": 0,
+    "recoveryTicks": 0,
+    "nextCheckpoint": 1,
+    "finishTick": null,
+    "finishMs": null,
+    "finishKey": null,
+    "dnfReason": null,
+    "crossedRampIds": [],
+    "boundaryCooldownSeconds": 0.066671,
+    "splitKeys": [],
+    "resetSeq": 0
+   }
+  },
+  {
+   "id": "charge-release-jump",
+   "dtMs": 33.333333333333336,
+   "ticks": 90,
+   "sampleEvery": 15,
+   "controls": [
+    [
+     30,
+     {
+      "kind": "neutral"
+     }
+    ],
+    [
+     15,
+     {
+      "steer": 0,
+      "tuck": false,
+      "brake": false,
+      "jumpHeld": true
+     }
+    ],
+    [
+     45,
+     {
+      "steer": 0,
+      "tuck": false,
+      "brake": false,
+      "jumpHeld": false
+     }
+    ]
+   ],
+   "samples": [
+    {
+     "tick": 15,
+     "state": {
+      "s": 3.019607,
+      "u": 0,
+      "v": 4.344996,
+      "vu": 0,
+      "y": 219.443137,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 30,
+     "state": {
+      "s": 4.240946,
+      "u": 0,
+      "v": 0.78705,
+      "vu": 0,
+      "y": 219.015669,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 45,
+     "state": {
+      "s": 5.290058,
+      "u": 0,
+      "v": 3.241071,
+      "vu": 0,
+      "y": 218.64848,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0.66666,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 60,
+     "state": {
+      "s": 6.983708,
+      "u": 0,
+      "v": 3.371271,
+      "vu": 0,
+      "y": 221.481792,
+      "vy": 0.999955,
+      "grounded": false,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 75,
+     "state": {
+      "s": 8.660308,
+      "u": 0,
+      "v": 3.337491,
+      "vu": 0,
+      "y": 219.315102,
+      "vy": -9.00005,
+      "grounded": false,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 90,
+     "state": {
+      "s": 10.564907,
+      "u": 0,
+      "v": 4.769102,
+      "vu": 0,
+      "y": 216.805107,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    }
+   ],
+   "events": [
+    {
+     "tick": 45,
+     "type": "launch",
+     "cause": "release"
+    },
+    {
+     "tick": 80,
+     "type": "landing",
+     "impactSpeed": 13.000052,
+     "normalSpeed": 11.183037
+    }
+   ],
+   "final": {
+    "s": 10.564907,
+    "u": 0,
+    "v": 4.769102,
+    "vu": 0,
+    "y": 216.805107,
+    "vy": 0,
+    "grounded": true,
+    "jumpCharge": 0,
+    "recoveryTicks": 0,
+    "nextCheckpoint": 1,
+    "finishTick": null,
+    "finishMs": null,
+    "finishKey": null,
+    "dnfReason": null,
+    "crossedRampIds": [],
+    "boundaryCooldownSeconds": 0,
+    "splitKeys": [],
+    "resetSeq": 0
+   }
+  },
+  {
+   "id": "charge-cancel-brake",
+   "dtMs": 33.333333333333336,
+   "ticks": 90,
+   "sampleEvery": 15,
+   "controls": [
+    [
+     30,
+     {
+      "kind": "neutral"
+     }
+    ],
+    [
+     15,
+     {
+      "steer": 0,
+      "tuck": false,
+      "brake": false,
+      "jumpHeld": true
+     }
+    ],
+    [
+     45,
+     {
+      "kind": "neutral"
+     }
+    ]
+   ],
+   "samples": [
+    {
+     "tick": 15,
+     "state": {
+      "s": 3.019607,
+      "u": 0,
+      "v": 4.344996,
+      "vu": 0,
+      "y": 219.443137,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 30,
+     "state": {
+      "s": 4.240946,
+      "u": 0,
+      "v": 0.78705,
+      "vu": 0,
+      "y": 219.015669,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 45,
+     "state": {
+      "s": 5.290058,
+      "u": 0,
+      "v": 3.241071,
+      "vu": 0,
+      "y": 218.64848,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0.66666,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 60,
+     "state": {
+      "s": 5.976492,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": 218.408228,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 75,
+     "state": {
+      "s": 5.976492,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": 218.408228,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 90,
+     "state": {
+      "s": 5.976492,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": 218.408228,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    }
+   ],
+   "events": [
+    {
+     "tick": 45,
+     "type": "charge_cancelled"
+    }
+   ],
+   "final": {
+    "s": 5.976492,
+    "u": 0,
+    "v": 0,
+    "vu": 0,
+    "y": 218.408228,
+    "vy": 0,
+    "grounded": true,
+    "jumpCharge": 0,
+    "recoveryTicks": 0,
+    "nextCheckpoint": 1,
+    "finishTick": null,
+    "finishMs": null,
+    "finishKey": null,
+    "dnfReason": null,
+    "crossedRampIds": [],
+    "boundaryCooldownSeconds": 0,
+    "splitKeys": [],
+    "resetSeq": 0
+   }
+  },
+  {
+   "id": "shoulder-drift-4s",
+   "dtMs": 33.333333333333336,
+   "ticks": 120,
+   "sampleEvery": 30,
+   "controls": [
+    [
+     120,
+     {
+      "steer": 0.6,
+      "tuck": false,
+      "brake": false,
+      "jumpHeld": false
+     }
+    ]
+   ],
+   "samples": [
+    {
+     "tick": 30,
+     "state": {
+      "s": 9.851559,
+      "u": 5.450046,
+      "v": 11.456395,
+      "vu": 5.999454,
+      "y": 216.815209,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 60,
+     "state": {
+      "s": 22.920449,
+      "u": 11.449997,
+      "v": 14.432245,
+      "vu": 5.999999,
+      "y": 211.493298,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 90,
+     "state": {
+      "s": 38.671679,
+      "u": 17.449997,
+      "v": 16.826746,
+      "vu": 5.999999,
+      "y": 204.873564,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 120,
+     "state": {
+      "s": 54.109948,
+      "u": 23.449997,
+      "v": 13.628223,
+      "vu": 5.999999,
+      "y": 198.100517,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    }
+   ],
+   "events": [],
+   "final": {
+    "s": 54.109948,
+    "u": 23.449997,
+    "v": 13.628223,
+    "vu": 5.999999,
+    "y": 198.100517,
+    "vy": 0,
+    "grounded": true,
+    "jumpCharge": 0,
+    "recoveryTicks": 0,
+    "nextCheckpoint": 1,
+    "finishTick": null,
+    "finishMs": null,
+    "finishKey": null,
+    "dnfReason": null,
+    "crossedRampIds": [],
+    "boundaryCooldownSeconds": 0,
+    "splitKeys": [],
+    "resetSeq": 0
+   }
+  },
+  {
+   "id": "ramp-launch",
+   "dtMs": 33.333333333333336,
+   "ticks": 1200,
+   "sampleEvery": 30,
+   "controls": [
+    [
+     870,
+     {
+      "steer": 0,
+      "tuck": true,
+      "brake": false,
+      "jumpHeld": false
+     }
+    ],
+    [
+     330,
+     {
+      "kind": "neutral"
+     }
+    ]
+   ],
+   "samples": [
+    {
+     "tick": 30,
+     "state": {
+      "s": 11.508779,
+      "u": 0,
+      "v": 14.64292,
+      "vu": 0,
+      "y": 216.479471,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 60,
+     "state": {
+      "s": 29.11285,
+      "u": 0,
+      "v": 20.167274,
+      "vu": 0,
+      "y": 210.457195,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 90,
+     "state": {
+      "s": 51.545338,
+      "u": 0,
+      "v": 24.324709,
+      "vu": 0,
+      "y": 203.278672,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 120,
+     "state": {
+      "s": 77.424839,
+      "u": 0,
+      "v": 27.159085,
+      "vu": 0,
+      "y": 195.833921,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 150,
+     "state": {
+      "s": 105.707994,
+      "u": 0,
+      "v": 29.235851,
+      "vu": 0,
+      "y": 187.596142,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 180,
+     "state": {
+      "s": 135.750023,
+      "u": 0,
+      "v": 30.692962,
+      "vu": 0,
+      "y": 178.859994,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 210,
+     "state": {
+      "s": 166.914832,
+      "u": 0,
+      "v": 31.50125,
+      "vu": 0,
+      "y": 170.535866,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 240,
+     "state": {
+      "s": 198.561373,
+      "u": 0,
+      "v": 31.691394,
+      "vu": 0,
+      "y": 163.474919,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 270,
+     "state": {
+      "s": 230.247763,
+      "u": 0,
+      "v": 31.692577,
+      "vu": 0,
+      "y": 156.92797,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 2,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 300,
+     "state": {
+      "s": 261.92939,
+      "u": 0,
+      "v": 31.643208,
+      "vu": 0,
+      "y": 150.563416,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 2,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 330,
+     "state": {
+      "s": 293.439965,
+      "u": 0,
+      "v": 31.336547,
+      "vu": 0,
+      "y": 145.271205,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 2,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 360,
+     "state": {
+      "s": 324.493302,
+      "u": 0,
+      "v": 30.753122,
+      "vu": 0,
+      "y": 141.46067,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 2,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 390,
+     "state": {
+      "s": 354.975827,
+      "u": 0,
+      "v": 30.307262,
+      "vu": 0,
+      "y": 137.923142,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 2,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 420,
+     "state": {
+      "s": 385.219139,
+      "u": 0,
+      "v": 30.215255,
+      "vu": 0,
+      "y": 133.607129,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 2,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 450,
+     "state": {
+      "s": 415.427382,
+      "u": 0,
+      "v": 30.189976,
+      "vu": 0,
+      "y": 129.14303,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 480,
+     "state": {
+      "s": 445.542645,
+      "u": 0,
+      "v": 30.009631,
+      "vu": 0,
+      "y": 125.280309,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 510,
+     "state": {
+      "s": 475.390432,
+      "u": 0,
+      "v": 29.735345,
+      "vu": 0,
+      "y": 122.006196,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 540,
+     "state": {
+      "s": 505.121459,
+      "u": 0,
+      "v": 29.762521,
+      "vu": 0,
+      "y": 117.961781,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 570,
+     "state": {
+      "s": 534.950644,
+      "u": 0,
+      "v": 29.885432,
+      "vu": 0,
+      "y": 113.522157,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 600,
+     "state": {
+      "s": 564.84927,
+      "u": 0,
+      "v": 29.873412,
+      "vu": 0,
+      "y": 109.413841,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 630,
+     "state": {
+      "s": 594.61401,
+      "u": 0,
+      "v": 29.642101,
+      "vu": 0,
+      "y": 106.122459,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 660,
+     "state": {
+      "s": 624.218174,
+      "u": 0,
+      "v": 29.61654,
+      "vu": 0,
+      "y": 102.389456,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 4,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 690,
+     "state": {
+      "s": 653.909292,
+      "u": 0,
+      "v": 29.768726,
+      "vu": 0,
+      "y": 98.023606,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 4,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 720,
+     "state": {
+      "s": 683.735231,
+      "u": 0,
+      "v": 29.851467,
+      "vu": 0,
+      "y": 93.715744,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 4,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 750,
+     "state": {
+      "s": 713.532519,
+      "u": 0,
+      "v": 29.704631,
+      "vu": 0,
+      "y": 90.139085,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 4,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 780,
+     "state": {
+      "s": 743.135022,
+      "u": 0,
+      "v": 29.564094,
+      "vu": 0,
+      "y": 86.752447,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 4,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 810,
+     "state": {
+      "s": 772.751942,
+      "u": 0,
+      "v": 29.688423,
+      "vu": 0,
+      "y": 82.557209,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 4,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 840,
+     "state": {
+      "s": 802.641005,
+      "u": 0,
+      "v": 32.155987,
+      "vu": 0,
+      "y": 80.662671,
+      "vy": 4.999999,
+      "grounded": false,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 5,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 870,
+     "state": {
+      "s": 831.942013,
+      "u": 0,
+      "v": 26.92951,
+      "vu": 0,
+      "y": 75.329332,
+      "vy": -15.000011,
+      "grounded": false,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 5,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 900,
+     "state": {
+      "s": 853.159755,
+      "u": 0,
+      "v": 15.544253,
+      "vu": 0,
+      "y": 72.002427,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 5,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 930,
+     "state": {
+      "s": 863.37331,
+      "u": 0,
+      "v": 5.455539,
+      "vu": 0,
+      "y": 70.835203,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 5,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 960,
+     "state": {
+      "s": 864.864152,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": 70.656302,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 5,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 990,
+     "state": {
+      "s": 864.864152,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": 70.656302,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 5,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 1020,
+     "state": {
+      "s": 864.864152,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": 70.656302,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 5,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 1050,
+     "state": {
+      "s": 864.864152,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": 70.656302,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 5,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 1080,
+     "state": {
+      "s": 864.864152,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": 70.656302,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 5,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 1110,
+     "state": {
+      "s": 864.864152,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": 70.656302,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 5,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 1140,
+     "state": {
+      "s": 864.864152,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": 70.656302,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 5,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 1170,
+     "state": {
+      "s": 864.864152,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": 70.656302,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 5,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 1200,
+     "state": {
+      "s": 864.864152,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": 70.656302,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 5,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426
+      ],
+      "resetSeq": 0
+     }
+    }
+   ],
+   "events": [
+    {
+     "tick": 241,
+     "type": "checkpoint",
+     "index": 1,
+     "key": 8045.397258
+    },
+    {
+     "tick": 434,
+     "type": "checkpoint",
+     "index": 2,
+     "key": 14489.21518
+    },
+    {
+     "tick": 635,
+     "type": "checkpoint",
+     "index": 3,
+     "key": 21181.810284
+    },
+    {
+     "tick": 837,
+     "type": "launch",
+     "cause": "ramp:pine-cut-jump"
+    },
+    {
+     "tick": 837,
+     "type": "checkpoint",
+     "index": 4,
+     "key": 27916.757053
+    },
+    {
+     "tick": 872,
+     "type": "landing",
+     "impactSpeed": 17.000012,
+     "normalSpeed": 13.882403
+    }
+   ],
+   "final": {
+    "s": 864.864152,
+    "u": 0,
+    "v": 0,
+    "vu": 0,
+    "y": 70.656302,
+    "vy": 0,
+    "grounded": true,
+    "jumpCharge": 0,
+    "recoveryTicks": 0,
+    "nextCheckpoint": 5,
+    "finishTick": null,
+    "finishMs": null,
+    "finishKey": null,
+    "dnfReason": null,
+    "crossedRampIds": [
+     "pine-cut-jump"
+    ],
+    "boundaryCooldownSeconds": 0,
+    "splitKeys": [
+     8045.397258310646,
+     14489.215179750796,
+     21181.81028381714,
+     27916.757053228426
+    ],
+    "resetSeq": 0
+   }
+  },
+  {
+   "id": "crash-rock-recovery",
+   "dtMs": 33.333333333333336,
+   "ticks": 900,
+   "sampleEvery": 30,
+   "controls": [
+    [
+     520,
+     {
+      "steer": 0,
+      "tuck": false,
+      "brake": false,
+      "jumpHeld": false
+     }
+    ],
+    [
+     55,
+     {
+      "steer": 0.35,
+      "tuck": false,
+      "brake": false,
+      "jumpHeld": false
+     }
+    ],
+    [
+     325,
+     {
+      "steer": 0,
+      "tuck": false,
+      "brake": false,
+      "jumpHeld": false
+     }
+    ]
+   ],
+   "samples": [
+    {
+     "tick": 30,
+     "state": {
+      "s": 10.269743,
+      "u": 0,
+      "v": 12.306778,
+      "vu": 0,
+      "y": 216.906939,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 60,
+     "state": {
+      "s": 24.533204,
+      "u": 0,
+      "v": 15.980148,
+      "vu": 0,
+      "y": 211.998711,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 90,
+     "state": {
+      "s": 42.080643,
+      "u": 0,
+      "v": 18.883061,
+      "vu": 0,
+      "y": 206.224194,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 120,
+     "state": {
+      "s": 62.108549,
+      "u": 0,
+      "v": 20.967603,
+      "vu": 0,
+      "y": 200.159606,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 150,
+     "state": {
+      "s": 83.855916,
+      "u": 0,
+      "v": 22.426275,
+      "vu": 0,
+      "y": 193.991064,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 180,
+     "state": {
+      "s": 106.919116,
+      "u": 0,
+      "v": 23.614757,
+      "vu": 0,
+      "y": 187.238861,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 210,
+     "state": {
+      "s": 131.020573,
+      "u": 0,
+      "v": 24.502464,
+      "vu": 0,
+      "y": 180.204034,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 240,
+     "state": {
+      "s": 155.82543,
+      "u": 0,
+      "v": 25.023746,
+      "vu": 0,
+      "y": 173.366261,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 270,
+     "state": {
+      "s": 180.947064,
+      "u": 0,
+      "v": 25.150259,
+      "vu": 0,
+      "y": 167.206911,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 300,
+     "state": {
+      "s": 206.003239,
+      "u": 0,
+      "v": 24.939292,
+      "vu": 0,
+      "y": 161.959336,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 2,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 330,
+     "state": {
+      "s": 230.847268,
+      "u": 0,
+      "v": 24.769852,
+      "vu": 0,
+      "y": 156.802074,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 2,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 360,
+     "state": {
+      "s": 255.537865,
+      "u": 0,
+      "v": 24.604031,
+      "vu": 0,
+      "y": 151.790116,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 2,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 390,
+     "state": {
+      "s": 279.997325,
+      "u": 0,
+      "v": 24.29273,
+      "vu": 0,
+      "y": 147.360441,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 2,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 420,
+     "state": {
+      "s": 304.037975,
+      "u": 0,
+      "v": 23.771669,
+      "vu": 0,
+      "y": 143.815063,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 2,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 450,
+     "state": {
+      "s": 327.46533,
+      "u": 0,
+      "v": 23.088714,
+      "vu": 0,
+      "y": 141.15614,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 2,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 480,
+     "state": {
+      "s": 350.264238,
+      "u": 0,
+      "v": 22.590578,
+      "vu": 0,
+      "y": 138.535649,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 2,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 510,
+     "state": {
+      "s": 372.739346,
+      "u": 0,
+      "v": 22.404477,
+      "vu": 0,
+      "y": 135.442795,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 2,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 540,
+     "state": {
+      "s": 395.008229,
+      "u": 2.013151,
+      "v": 22.032354,
+      "vu": 3.492918,
+      "y": 132.108108,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 2,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 570,
+     "state": {
+      "s": 416.82731,
+      "u": 5.512504,
+      "v": 21.589985,
+      "vu": 3.499999,
+      "y": 128.693176,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429,
+       18227.00188678867
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 600,
+     "state": {
+      "s": 438.357614,
+      "u": 6.416536,
+      "v": 21.511947,
+      "vu": 0.001502,
+      "y": 125.781267,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429,
+       18227.00188678867
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 630,
+     "state": {
+      "s": 459.78747,
+      "u": 6.416673,
+      "v": 21.327471,
+      "vu": 0.000001,
+      "y": 123.44626,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429,
+       18227.00188678867
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 660,
+     "state": {
+      "s": 350,
+      "u": 0,
+      "v": 8,
+      "vu": 0,
+      "y": 138.57,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 20,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429,
+       18227.00188678867
+      ],
+      "resetSeq": 1
+     }
+    },
+    {
+     "tick": 690,
+     "state": {
+      "s": 352.810489,
+      "u": 0,
+      "v": 8.782047,
+      "vu": 0,
+      "y": 138.204636,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429,
+       18227.00188678867
+      ],
+      "resetSeq": 1
+     }
+    },
+    {
+     "tick": 720,
+     "state": {
+      "s": 362.757792,
+      "u": 0,
+      "v": 11.013146,
+      "vu": 0,
+      "y": 136.863909,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429,
+       18227.00188678867
+      ],
+      "resetSeq": 1
+     }
+    },
+    {
+     "tick": 750,
+     "state": {
+      "s": 374.839008,
+      "u": 0,
+      "v": 13.044492,
+      "vu": 0,
+      "y": 135.138344,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429,
+       18227.00188678867
+      ],
+      "resetSeq": 1
+     }
+    },
+    {
+     "tick": 780,
+     "state": {
+      "s": 388.827705,
+      "u": 0,
+      "v": 14.830865,
+      "vu": 0,
+      "y": 133.065844,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429,
+       18227.00188678867
+      ],
+      "resetSeq": 1
+     }
+    },
+    {
+     "tick": 810,
+     "state": {
+      "s": 404.463257,
+      "u": 0,
+      "v": 16.338989,
+      "vu": 0,
+      "y": 130.730511,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429,
+       18227.00188678867
+      ],
+      "resetSeq": 1
+     }
+    },
+    {
+     "tick": 840,
+     "state": {
+      "s": 421.44079,
+      "u": 0,
+      "v": 17.519746,
+      "vu": 0,
+      "y": 128.305493,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429,
+       18227.00188678867
+      ],
+      "resetSeq": 1
+     }
+    },
+    {
+     "tick": 870,
+     "state": {
+      "s": 439.419744,
+      "u": 0,
+      "v": 18.352223,
+      "vu": 0,
+      "y": 125.989631,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429,
+       18227.00188678867
+      ],
+      "resetSeq": 1
+     }
+    },
+    {
+     "tick": 900,
+     "state": {
+      "s": 458.052108,
+      "u": 0,
+      "v": 18.844186,
+      "vu": 0,
+      "y": 123.964529,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       9759.52107473429,
+       18227.00188678867
+      ],
+      "resetSeq": 1
+     }
+    }
+   ],
+   "events": [
+    {
+     "tick": 292,
+     "type": "checkpoint",
+     "index": 1,
+     "key": 9759.521075
+    },
+    {
+     "tick": 546,
+     "type": "checkpoint",
+     "index": 2,
+     "key": 18227.001887
+    },
+    {
+     "tick": 656,
+     "type": "crash",
+     "cause": "obstacle:ob-16",
+     "resetSeq": 1
+    },
+    {
+     "tick": 679,
+     "type": "recovery_complete"
+    }
+   ],
+   "final": {
+    "s": 458.052108,
+    "u": 0,
+    "v": 18.844186,
+    "vu": 0,
+    "y": 123.964529,
+    "vy": 0,
+    "grounded": true,
+    "jumpCharge": 0,
+    "recoveryTicks": 0,
+    "nextCheckpoint": 3,
+    "finishTick": null,
+    "finishMs": null,
+    "finishKey": null,
+    "dnfReason": null,
+    "crossedRampIds": [],
+    "boundaryCooldownSeconds": 0,
+    "splitKeys": [
+     9759.52107473429,
+     18227.00188678867
+    ],
+    "resetSeq": 1
+   }
+  },
+  {
+   "id": "full-parity-180s",
+   "dtMs": 33.333333333333336,
+   "ticks": 5400,
+   "sampleEvery": 150,
+   "controls": [
+    [
+     2400,
+     {
+      "steer": 0,
+      "tuck": true,
+      "brake": false,
+      "jumpHeld": false
+     }
+    ],
+    [
+     300,
+     {
+      "kind": "neutral"
+     }
+    ],
+    [
+     2400,
+     {
+      "steer": 0,
+      "tuck": true,
+      "brake": false,
+      "jumpHeld": false
+     }
+    ],
+    [
+     300,
+     {
+      "kind": "neutral"
+     }
+    ]
+   ],
+   "samples": [
+    {
+     "tick": 150,
+     "state": {
+      "s": 105.707994,
+      "u": 0,
+      "v": 29.235851,
+      "vu": 0,
+      "y": 187.596142,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 1,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 300,
+     "state": {
+      "s": 261.92939,
+      "u": 0,
+      "v": 31.643208,
+      "vu": 0,
+      "y": 150.563416,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 2,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 450,
+     "state": {
+      "s": 415.427382,
+      "u": 0,
+      "v": 30.189976,
+      "vu": 0,
+      "y": 129.14303,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 600,
+     "state": {
+      "s": 564.84927,
+      "u": 0,
+      "v": 29.873412,
+      "vu": 0,
+      "y": 109.413841,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 3,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 750,
+     "state": {
+      "s": 713.532519,
+      "u": 0,
+      "v": 29.704631,
+      "vu": 0,
+      "y": 90.139085,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 4,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 900,
+     "state": {
+      "s": 858.777038,
+      "u": 0,
+      "v": 27.157571,
+      "vu": 0,
+      "y": 71.380641,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 5,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 1050,
+     "state": {
+      "s": 1001.5393,
+      "u": 0,
+      "v": 29.138356,
+      "vu": 0,
+      "y": 52.679891,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 6,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 1200,
+     "state": {
+      "s": 1150.664729,
+      "u": 0,
+      "v": 30.422435,
+      "vu": 0,
+      "y": 28.430378,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 6,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 1350,
+     "state": {
+      "s": 1304.669697,
+      "u": 0,
+      "v": 31.011445,
+      "vu": 0,
+      "y": 0.036061,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 7,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 1500,
+     "state": {
+      "s": 1457.977097,
+      "u": 0,
+      "v": 30.236211,
+      "vu": 0,
+      "y": -23.207023,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 8,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 1650,
+     "state": {
+      "s": 1605.034228,
+      "u": 0,
+      "v": 28.875987,
+      "vu": 0,
+      "y": -37.017567,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 1800,
+     "state": {
+      "s": 1747.644435,
+      "u": 0,
+      "v": 28.420823,
+      "vu": 0,
+      "y": -48.508666,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": null,
+      "finishMs": null,
+      "finishKey": null,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 1950,
+     "state": {
+      "s": 1886.161557,
+      "u": 0,
+      "v": 26.730324,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 2100,
+     "state": {
+      "s": 2017.540185,
+      "u": 0,
+      "v": 26.009073,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 2250,
+     "state": {
+      "s": 2147.115887,
+      "u": 0,
+      "v": 25.85964,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 2400,
+     "state": {
+      "s": 2276.315514,
+      "u": 0,
+      "v": 25.828261,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 2550,
+     "state": {
+      "s": 2302.708265,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 2700,
+     "state": {
+      "s": 2302.708265,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 2850,
+     "state": {
+      "s": 2348.711474,
+      "u": 0,
+      "v": 16.793601,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 3000,
+     "state": {
+      "s": 2453.292396,
+      "u": 0,
+      "v": 23.610253,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 3150,
+     "state": {
+      "s": 2576.723108,
+      "u": 0,
+      "v": 25.33784,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 3300,
+     "state": {
+      "s": 2704.602673,
+      "u": 0,
+      "v": 25.717554,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 3450,
+     "state": {
+      "s": 2833.443911,
+      "u": 0,
+      "v": 25.798291,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 3600,
+     "state": {
+      "s": 2962.488889,
+      "u": 0,
+      "v": 25.815337,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 3750,
+     "state": {
+      "s": 3091.576854,
+      "u": 0,
+      "v": 25.818928,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 3900,
+     "state": {
+      "s": 3220.673874,
+      "u": 0,
+      "v": 25.819683,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 4050,
+     "state": {
+      "s": 3349.772787,
+      "u": 0,
+      "v": 25.819841,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 4200,
+     "state": {
+      "s": 3478.871937,
+      "u": 0,
+      "v": 25.819841,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 4350,
+     "state": {
+      "s": 3607.971087,
+      "u": 0,
+      "v": 25.819841,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 4500,
+     "state": {
+      "s": 3737.070237,
+      "u": 0,
+      "v": 25.819841,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 4650,
+     "state": {
+      "s": 3866.169387,
+      "u": 0,
+      "v": 25.819841,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 4800,
+     "state": {
+      "s": 3995.268537,
+      "u": 0,
+      "v": 25.819841,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 4950,
+     "state": {
+      "s": 4124.367687,
+      "u": 0,
+      "v": 25.819841,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 5100,
+     "state": {
+      "s": 4253.466837,
+      "u": 0,
+      "v": 25.819841,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 5250,
+     "state": {
+      "s": 4279.844898,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    },
+    {
+     "tick": 5400,
+     "state": {
+      "s": 4279.844898,
+      "u": 0,
+      "v": 0,
+      "vu": 0,
+      "y": -52.23,
+      "vy": 0,
+      "grounded": true,
+      "jumpCharge": 0,
+      "recoveryTicks": 0,
+      "nextCheckpoint": 9,
+      "finishTick": 1855,
+      "finishMs": 61853,
+      "finishKey": 61853.199248278695,
+      "dnfReason": null,
+      "crossedRampIds": [
+       "pine-cut-jump"
+      ],
+      "boundaryCooldownSeconds": 0,
+      "splitKeys": [
+       8045.397258310646,
+       14489.215179750796,
+       21181.81028381714,
+       27916.757053228426,
+       34947.169058709515,
+       41607.75368178134,
+       48088.760247965234,
+       54825.7724317604
+      ],
+      "resetSeq": 0
+     }
+    }
+   ],
+   "events": [
+    {
+     "tick": 241,
+     "type": "checkpoint",
+     "index": 1,
+     "key": 8045.397258
+    },
+    {
+     "tick": 434,
+     "type": "checkpoint",
+     "index": 2,
+     "key": 14489.21518
+    },
+    {
+     "tick": 635,
+     "type": "checkpoint",
+     "index": 3,
+     "key": 21181.810284
+    },
+    {
+     "tick": 837,
+     "type": "launch",
+     "cause": "ramp:pine-cut-jump"
+    },
+    {
+     "tick": 837,
+     "type": "checkpoint",
+     "index": 4,
+     "key": 27916.757053
+    },
+    {
+     "tick": 872,
+     "type": "landing",
+     "impactSpeed": 17.000012,
+     "normalSpeed": 13.882403
+    },
+    {
+     "tick": 1048,
+     "type": "checkpoint",
+     "index": 5,
+     "key": 34947.169059
+    },
+    {
+     "tick": 1248,
+     "type": "checkpoint",
+     "index": 6,
+     "key": 41607.753682
+    },
+    {
+     "tick": 1442,
+     "type": "checkpoint",
+     "index": 7,
+     "key": 48088.760248
+    },
+    {
+     "tick": 1644,
+     "type": "checkpoint",
+     "index": 8,
+     "key": 54825.772432
+    },
+    {
+     "tick": 1855,
+     "type": "finish",
+     "key": 61853.199248278695,
+     "finishMs": 61853
+    }
+   ],
+   "final": {
+    "s": 4279.844898,
+    "u": 0,
+    "v": 0,
+    "vu": 0,
+    "y": -52.23,
+    "vy": 0,
+    "grounded": true,
+    "jumpCharge": 0,
+    "recoveryTicks": 0,
+    "nextCheckpoint": 9,
+    "finishTick": 1855,
+    "finishMs": 61853,
+    "finishKey": 61853.199248278695,
+    "dnfReason": null,
+    "crossedRampIds": [
+     "pine-cut-jump"
+    ],
+    "boundaryCooldownSeconds": 0,
+    "splitKeys": [
+     8045.397258310646,
+     14489.215179750796,
+     21181.81028381714,
+     27916.757053228426,
+     34947.169058709515,
+     41607.75368178134,
+     48088.760247965234,
+     54825.7724317604
+    ],
+    "resetSeq": 0
+   }
+  }
+ ]
+}

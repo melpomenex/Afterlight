@@ -1,0 +1,104 @@
+{
+  "$comment": "D4 lifecycle scenarios: lobby and countdown. Steps name server-observable commands or simulated clocks; expected lists assertions over phase/roster/countdown. All later lanes (session policy, client HUD, browser gates) must reproduce these outcomes.",
+  "scenarios": [
+    {
+      "id": "lone-rider-waits",
+      "title": "One person loads and readies; lobby waits, no solo start, no AI",
+      "initial": { "phase": "lobby", "seated": [{ "playerId": "u1", "slot": 0, "loaded": true, "ready": false }] },
+      "steps": [
+        { "actor": "u1", "command": "activity_ready", "payload": { "ready": true } }
+      ],
+      "expected": {
+        "phase": "lobby",
+        "readyCount": 1,
+        "countdownScheduled": false,
+        "hud": "Waiting for another rider",
+        "notes": ["Ready may be set with count < minPlayers", "no AI rider is ever created"]
+      }
+    },
+    {
+      "id": "ready-expiry",
+      "title": "Ready expires after 60s without a start",
+      "initial": { "phase": "lobby", "seated": [
+        { "playerId": "u1", "slot": 0, "loaded": true, "ready": true },
+        { "playerId": "u2", "slot": 1, "loaded": true, "ready": false }
+      ] },
+      "steps": [
+        { "clock": { "advanceSeconds": 60 } }
+      ],
+      "expected": {
+        "phase": "lobby",
+        "readyCount": 0,
+        "notes": ["u1 returns to unready", "u1 may re-ready without reloading (course hash still loaded)"]
+      }
+    },
+    {
+      "id": "two-of-eight-locks-countdown",
+      "title": "All seated connected riders ready with >= 2 locks roster and schedules 3s countdown",
+      "initial": { "phase": "lobby", "capacity": 8, "seated": [
+        { "playerId": "u1", "slot": 0, "loaded": true, "ready": true },
+        { "playerId": "u2", "slot": 1, "loaded": true, "ready": true }
+      ] },
+      "steps": [],
+      "expected": {
+        "phase": "countdown",
+        "rosterLocked": true,
+        "countdownSeconds": 3,
+        "matchIdRotated": true,
+        "notes": ["countdown starts without waiting for eight slots", "empty slots are never filled mid-countdown"]
+      }
+    },
+    {
+      "id": "countdown-cancel-unready",
+      "title": "An intentional unready during countdown cancels it for everyone",
+      "initial": { "phase": "countdown", "seated": [
+        { "playerId": "u1", "slot": 0, "loaded": true, "ready": true },
+        { "playerId": "u2", "slot": 1, "loaded": true, "ready": true }
+      ] },
+      "steps": [
+        { "actor": "u2", "command": "activity_ready", "payload": { "ready": false } }
+      ],
+      "expected": {
+        "phase": "lobby",
+        "readyCount": 0,
+        "rosterLocked": false,
+        "notes": ["ALL readiness is cleared, not just the canceller's"]
+      }
+    },
+    {
+      "id": "countdown-cancel-leave-or-disconnect",
+      "title": "Locked rider leaving or disconnecting during countdown returns the lobby",
+      "initial": { "phase": "countdown", "seated": [
+        { "playerId": "u1", "slot": 0, "loaded": true, "ready": true },
+        { "playerId": "u2", "slot": 1, "loaded": true, "ready": true },
+        { "playerId": "u3", "slot": 2, "loaded": true, "ready": true }
+      ] },
+      "steps": [
+        { "actor": "u1", "event": "disconnect" }
+      ],
+      "expected": {
+        "phase": "lobby",
+        "readyCount": 0,
+        "notes": ["disconnecting locker's seat follows reconnect grace", "remaining riders see lobby with cleared readiness"]
+      }
+    },
+    {
+      "id": "start-resets-and-schedules",
+      "title": "Countdown completion resets kinematics and schedules monotonic start",
+      "initial": { "phase": "countdown", "matchId": "match-0009", "seated": [
+        { "playerId": "u1", "slot": 0, "loaded": true, "ready": true, "staleRiderState": { "s": 1700, "v": 40, "nextCheckpoint": 8 } },
+        { "playerId": "u2", "slot": 1, "loaded": true, "ready": true }
+      ] },
+      "steps": [
+        { "clock": { "advanceSeconds": 3 } },
+        { "actor": "u1", "command": "activity_input", "payload": { "seq": 1, "controls": { "kind": "ride", "steer": 0, "tuck": true, "brake": false, "jumpHeld": true } } }
+      ],
+      "expected": {
+        "phase": "racing",
+        "riderStateReset": { "s": 0, "v": 8, "u": "slot-lateral", "jumpCharge": 0, "nextCheckpoint": 1 },
+        "preStartInputsHeldStateOnly": true,
+        "notes": ["inputs before the scheduled start never produce motion or charged-jump advantage", "startAt is monotonic server time published as epoch-ms for display only"]
+      }
+    }
+  ]
+}

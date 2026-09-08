@@ -1,0 +1,56 @@
+{
+  "$comment": "D7 activity_join role='watch'|'queue'. Neither seats a rider; both may receive a scoped control lease for leave/offer actions, never a play input lease. Full responses carry current counts.",
+  "name": "join-watch-and-queue",
+  "direction": "client->server",
+  "msgType": "activity_join",
+  "cases": [
+    {
+      "name": "watch",
+      "payload": { "requestId": "req-w1", "activityId": "summit-run", "role": "watch" },
+      "acceptance": {
+        "status": "spectator",
+        "role": "spectator",
+        "requestId": "req-w1",
+        "roomId": "theater",
+        "roomEpoch": 7,
+        "activityId": "summit-run",
+        "sessionId": "sb-session-01",
+        "revision": 1,
+        "matchId": "match-0001",
+        "lease": "watch-lease-1",
+        "leaseId": "watch-lease-1",
+        "serverNow": 1771000000000,
+        "players": 3,
+        "queueLength": 0,
+        "spectatorCount": 1
+      }
+    },
+    {
+      "name": "queue",
+      "payload": { "requestId": "req-q1", "activityId": "summit-run", "role": "queue" },
+      "acceptance": {
+        "status": "queued",
+        "role": "queue",
+        "requestId": "req-q1",
+        "roomId": "theater",
+        "roomEpoch": 7,
+        "activityId": "summit-run",
+        "sessionId": "sb-session-01",
+        "revision": 1,
+        "matchId": "match-0001",
+        "lease": "queue-lease-1",
+        "leaseId": "queue-lease-1",
+        "serverNow": 1771000000000,
+        "players": 3,
+        "queueLength": 1,
+        "spectatorCount": 0
+      }
+    }
+  ],
+  "invariants": [
+    "queue position is FIFO by acceptance order",
+    "watch/queue leases cannot sign motion inputs",
+    "full join responses carry current players/queueLength/spectatorCount",
+    "late join during countdown/racing is refused with race_in_progress and the client is offered watch/queue"
+  ]
+}

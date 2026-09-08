@@ -1,0 +1,30 @@
+{
+  "$comment": "D7 activity_event catalog: header H plus {matchId,eventId,eventType,payload}. Clients dedupe by eventId; late snapshots do not replay event sounds.",
+  "name": "events",
+  "direction": "server->client",
+  "msgType": "activity_event",
+  "header": {
+    "type": "activity_event",
+    "version": 1,
+    "roomId": "theater",
+    "roomEpoch": 7,
+    "activityId": "summit-run",
+    "sessionId": "sb-session-01",
+    "revision": 9,
+    "serverNow": 1771000010000
+  },
+  "cases": [
+    { "eventType": "countdown", "eventId": "ev-1", "matchId": "match-0002", "payload": { "startAt": 1771000009000 } },
+    { "eventType": "checkpoint", "eventId": "ev-2", "matchId": "match-0002", "payload": { "playerId": "user-1111", "index": 1, "elapsedMs": 10233 } },
+    { "eventType": "rider_finished", "eventId": "ev-3", "matchId": "match-0002", "payload": { "playerId": "user-1111", "elapsedMs": 61233, "finishKey": 1837299 } },
+    { "eventType": "rider_dnf", "eventId": "ev-4", "matchId": "match-0002", "payload": { "playerId": "user-3333", "reason": "disconnect" } },
+    { "eventType": "race_aborted", "eventId": "ev-5", "matchId": "match-0002", "payload": { "reason": "server_overload" } },
+    { "eventType": "queue_offer", "eventId": "ev-6", "matchId": "match-0002", "payload": { "expiresAt": 1771000040000, "offerId": "offer-77" }, "audience": "private (offered client only)" }
+  ],
+  "invariants": [
+    "eventIds are unique per session; duplicates are dropped client-side",
+    "stale matchId events are dropped by clients and never affect a newer match",
+    "queue_offer is addressed to the offered client only",
+    "countdown startAt is epoch-ms derived from the monotonic server target, for display only"
+  ]
+}

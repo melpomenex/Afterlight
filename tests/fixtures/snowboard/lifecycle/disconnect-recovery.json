@@ -1,0 +1,86 @@
+{
+  "$comment": "D4 lifecycle scenarios: disconnect, freeze, grace, reload.",
+  "scenarios": [
+    {
+      "id": "disconnect-freeze",
+      "title": "Absent racer freezes at last valid state; race timer continues",
+      "initial": { "phase": "racing", "raceElapsedMs": 30000, "seated": [
+        { "playerId": "u1", "slot": 0, "status": "racing", "rider": { "s": 412.5, "u": 2, "v": 30, "grounded": true } },
+        { "playerId": "u2", "slot": 1, "status": "racing" }
+      ] },
+      "steps": [
+        { "actor": "u1", "event": "disconnect" }
+      ],
+      "expected": {
+        "u1Rider": { "s": 412.5, "u": 2, "v": 30, "grounded": true },
+        "u1Connected": false,
+        "graceDeadlineSet": true,
+        "notes": ["neutralize immediately when known; watchdog neutralizes after 250ms otherwise", "remaining riders continue; elapsed race time keeps running"]
+      }
+    },
+    {
+      "id": "reconnect-resume",
+      "title": "Reconnect within grace rotates the lease and restores frozen state with elapsed time",
+      "initial": { "phase": "racing", "raceElapsedMs": 40000, "seated": [
+        { "playerId": "u1", "slot": 0, "status": "racing", "connected": false, "rider": { "s": 412.5, "u": 2, "v": 30, "jumpCharge": 0.5, "grounded": true } }
+      ] },
+      "steps": [
+        { "actor": "u1", "event": "reconnect", "payload": { "acceptedRoomMembership": true } }
+      ],
+      "expected": {
+        "u1Connected": true,
+        "leaseRotated": true,
+        "firstAcceptedSeq": 1,
+        "riderRestored": { "s": 412.5, "u": 2, "v": 30, "jumpCharge": 0.5, "grounded": true },
+        "notes": ["reconnect revalidates identity/room but does not demand the pre-anchor pose", "airborne freeze resumes that state without an elapsed-time ballistic jump", "old inputs from before the drop are never replayed"]
+      }
+    },
+    {
+      "id": "grace-expiry-dnf",
+      "title": "Grace expiry marks DNF once with reason disconnect; admission may release",
+      "initial": { "phase": "racing", "seated": [
+        { "playerId": "u1", "slot": 0, "status": "racing", "connected": false, "nextCheckpoint": 6 },
+        { "playerId": "u2", "slot": 1, "status": "racing" }
+      ] },
+      "steps": [
+        { "clock": { "advanceSeconds": 30 } }
+      ],
+      "expected": {
+        "u1Status": "dnf",
+        "dnfReason": "disconnect",
+        "dnfRecordedOnce": true,
+        "notes": ["slot stays in immutable current standings", "cannot re-enter the current race; may queue for the next"]
+      }
+    },
+    {
+      "id": "reload-resume-hint",
+      "title": "Reload keeps server grace; client offers resume only if the slot is still valid",
+      "initial": { "phase": "racing", "seated": [
+        { "playerId": "u1", "slot": 0, "status": "racing", "connected": false },
+        { "playerId": "u2", "slot": 1, "status": "racing" }
+      ] },
+      "steps": [
+        { "actor": "u1", "event": "reload" },
+        { "actor": "u1", "event": "reconnect", "payload": { "withinGrace": true, "acceptedRoomMembership": true, "sessionStorageHint": { "activityId": "summit-run" } } }
+      ],
+      "expected": {
+        "resumeOffered": true,
+        "notes": ["sessionStorage hint carries ONLY the activity id, never credentials or lease", "after room acceptance the client asks to resume; a stale slot falls back to ordinary lobby/queue", "reload after grace/deadline cannot resume the completed race but can queue"]
+      }
+    },
+    {
+      "id": "watchdog-starvation",
+      "title": "Connected input starvation uses neutral braking; known disconnect freezes",
+      "initial": { "phase": "racing", "seated": [
+        { "playerId": "u1", "slot": 0, "status": "racing", "connected": true, "lastInputAgeMs": 251 },
+        { "playerId": "u2", "slot": 1, "status": "racing", "connected": false, "rider": { "v": 25 } }
+      ] },
+      "steps": [],
+      "expected": {
+        "u1Controls": { "kind": "neutral" },
+        "u2Controls": "frozen",
+        "notes": ["starvation is NOT a disconnect: motion continues under neutral braking", "frozen riders integrate no motion at all"]
+      }
+    }
+  ]
+}

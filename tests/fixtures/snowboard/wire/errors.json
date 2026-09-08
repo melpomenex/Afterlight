@@ -1,0 +1,36 @@
+{
+  "$comment": "D7 activity_error catalog: existing shared codes plus type-scoped additions. Always carries requestId when one existed. Errors never alter another match. Unsupported Node-only transport reports the activity unavailable client-side without a server round trip.",
+  "name": "errors",
+  "direction": "server->client",
+  "msgType": "activity_error",
+  "payloadShape": {
+    "type": "activity_error",
+    "version": 1,
+    "roomId": "theater",
+    "roomEpoch": 7,
+    "activityId": "summit-run",
+    "sessionId": "sb-session-01",
+    "requestId": "req-4",
+    "error": "not_loaded",
+    "message": "Load the correct course before readying."
+  },
+  "cases": [
+    { "error": "invalid_request", "when": "malformed payload, unknown controls field, bad role, bad reason, non-finite steer" },
+    { "error": "unauthorized", "when": "missing/forbidden lease action, forged admission (outside room, out of range)" },
+    { "error": "stale_session", "when": "sessionId no longer the live process" },
+    { "error": "stale_epoch", "when": "roomEpoch older than the current owner epoch" },
+    { "error": "stale_sequence", "when": "seq <= highest accepted for the lease (replay)" },
+    { "error": "rate_limited", "when": "input/resnapshot/ready beyond documented ceilings" },
+    { "error": "stale_match", "when": "ready/leave/input signed for a previous matchId during a newer match" },
+    { "error": "course_mismatch", "when": "load handshake courseId/version/hash differs from the server course" },
+    { "error": "not_loaded", "when": "ready before a successful load handshake" },
+    { "error": "race_in_progress", "when": "play requested during countdown/racing; client is offered watch/queue" },
+    { "error": "server_busy", "when": "session over capacity or admission temporarily refused" },
+    { "error": "race_unavailable", "when": "feature flag disabled, unsupported type, or no session possible" }
+  ],
+  "invariants": [
+    "errors include requestId + serverNow so clients can correlate and keep clock samples",
+    "an error must never mutate any race other than the addressed one",
+    "full responses to refused joins carry current counts (players/queueLength/spectatorCount)"
+  ]
+}

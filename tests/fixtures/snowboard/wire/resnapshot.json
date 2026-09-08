@@ -1,0 +1,23 @@
+{
+  "$comment": "D7 activity_resnapshot: existing rate limit (one per 5s). Response is matched to the current accepted room, echoes requestId and carries serverNow for clock correlation; it never mutates the race.",
+  "name": "resnapshot",
+  "direction": "client->server",
+  "msgType": "activity_resnapshot",
+  "payload": {
+    "requestId": "req-6",
+    "activityId": "summit-run",
+    "sessionId": "sb-session-01"
+  },
+  "acceptance": {
+    "direction": "server->client",
+    "msgType": "activity_state",
+    "echoes": ["requestId", "serverNow"],
+    "roomedTo": "current accepted room identity",
+    "note": "delivery, schema and audience follow snapshot-full.json / snapshot-private.json"
+  },
+  "invariants": [
+    "at most one per resnapshotMinIntervalMs per client",
+    "does not advance revision, snapshotSeq or the race in any way",
+    "requestId correlation gives a round-trip time sample for the client clock estimate"
+  ]
+}

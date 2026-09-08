@@ -1,0 +1,163 @@
+{
+ "courseId": "summit-night",
+ "courseVersion": 1,
+ "courseHash": "494bc3dc655f26beb2ef46a7f12d2dde6bf0c90c73e4fa3b8588179daf135b7f",
+ "points": [
+  {
+   "kind": "height_node_or_interp",
+   "s": 0,
+   "u": 0,
+   "expected": 220
+  },
+  {
+   "kind": "height_node_or_interp",
+   "s": 200,
+   "u": -24,
+   "expected": 158.08
+  },
+  {
+   "kind": "height_node_or_interp",
+   "s": 600,
+   "u": 12,
+   "expected": 103.86
+  },
+  {
+   "kind": "height_node_or_interp",
+   "s": 800,
+   "u": -3,
+   "expected": 79.625
+  },
+  {
+   "kind": "height_node_or_interp",
+   "s": 1200,
+   "u": 6,
+   "expected": 17.93
+  },
+  {
+   "kind": "height_node_or_interp",
+   "s": 1800,
+   "u": 24,
+   "expected": -57.34
+  },
+  {
+   "kind": "height_node_or_interp",
+   "s": 555,
+   "u": -17,
+   "expected": 107.865
+  },
+  {
+   "kind": "height_node_or_interp",
+   "s": 1234,
+   "u": 3,
+   "expected": 12.309999999999999
+  },
+  {
+   "kind": "center_x",
+   "s": 0,
+   "u": 0,
+   "expected": 0
+  },
+  {
+   "kind": "center_x",
+   "s": 100,
+   "u": 0,
+   "expected": 0
+  },
+  {
+   "kind": "center_x",
+   "s": 400,
+   "u": 0,
+   "expected": -3.35
+  },
+  {
+   "kind": "center_x",
+   "s": 800,
+   "u": 0,
+   "expected": -3.54
+  },
+  {
+   "kind": "center_x",
+   "s": 1234,
+   "u": 0,
+   "expected": -1.79
+  },
+  {
+   "kind": "center_x",
+   "s": 1700,
+   "u": 0,
+   "expected": 0
+  },
+  {
+   "kind": "center_x",
+   "s": 1800,
+   "u": 0,
+   "expected": 0
+  },
+  {
+   "kind": "grade",
+   "s": 50,
+   "u": 0,
+   "expected": 0.30750000000000455
+  },
+  {
+   "kind": "grade",
+   "s": 220,
+   "u": 0,
+   "expected": 0.20749999999999602
+  },
+  {
+   "kind": "grade",
+   "s": 600,
+   "u": 0,
+   "expected": 0.11499999999999844
+  },
+  {
+   "kind": "grade",
+   "s": 900,
+   "u": 0,
+   "expected": 0.14750000000000085
+  },
+  {
+   "kind": "grade",
+   "s": 1100,
+   "u": 0,
+   "expected": 0.15499999999999936
+  },
+  {
+   "kind": "grade",
+   "s": 1500,
+   "u": 0,
+   "expected": 0.07500000000000018
+  },
+  {
+   "kind": "grade",
+   "s": 1750,
+   "u": 0,
+   "expected": 0.05749999999999922
+  },
+  {
+   "kind": "clamp_low_s",
+   "s": -50,
+   "u": 0,
+   "expected": 220
+  },
+  {
+   "kind": "clamp_high_s",
+   "s": 9999,
+   "u": 0,
+   "expected": -52.73
+  },
+  {
+   "kind": "clamp_low_u",
+   "s": 0,
+   "u": -100,
+   "expected": 215.39
+  },
+  {
+   "kind": "clamp_high_u",
+   "s": 0,
+   "u": 100,
+   "expected": 215.39
+  }
+ ]
+}

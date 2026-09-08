@@ -1,0 +1,102 @@
+{
+  "$comment": "D4 lifecycle scenarios: results, rematch, queue promotion, bounded inactivity, empty reap, owner loss.",
+  "scenarios": [
+    {
+      "id": "results-retention",
+      "title": "Results display retained 120s without user action, then remaining viewers return to the world",
+      "initial": { "phase": "results", "seated": [
+        { "playerId": "u1", "slot": 0, "status": "finished" },
+        { "playerId": "u2", "slot": 1, "status": "finished" }
+      ] },
+      "steps": [
+        { "clock": { "advanceSeconds": 120 } }
+      ],
+      "expected": {
+        "releasedTo": "world",
+        "notes": ["no idle heartbeat counts as user action", "session may then reap if empty"]
+      }
+    },
+    {
+      "id": "rematch-rotates-match",
+      "title": "All remaining loaded seated riders ready with >= 2 starts a fresh match identity",
+      "initial": { "phase": "results", "matchId": "match-0002", "seated": [
+        { "playerId": "u1", "slot": 0, "status": "finished", "loaded": true },
+        { "playerId": "u2", "slot": 1, "status": "finished", "loaded": true },
+        { "playerId": "u3", "slot": 2, "status": "dnf", "connected": false }
+      ] },
+      "steps": [
+        { "actor": "u1", "command": "activity_ready", "payload": { "ready": true } },
+        { "actor": "u2", "command": "activity_ready", "payload": { "ready": true } }
+      ],
+      "expected": {
+        "phase": "countdown",
+        "matchIdRotated": true,
+        "riderStateReset": true,
+        "resultsCleared": true,
+        "notes": ["Rematch is readiness displayed within results, not another server phase", "no majority vote", "scene/resources/socket are kept", "disconnected u3 has no vote; reconnect during countdown cannot join the locked roster"]
+      }
+    },
+    {
+      "id": "queue-promotion-fifo",
+      "title": "Free slot at results/lobby is offered FIFO with a 30s accept window",
+      "initial": { "phase": "results", "seated": [
+        { "playerId": "u1", "slot": 0, "status": "finished" }
+      ], "queue": ["q1", "q2"] },
+      "steps": [
+        { "actor": "q1", "command": "activity_join", "payload": { "role": "play", "action": "accept_offer", "offerId": "offer-77" } }
+      ],
+      "expected": {
+        "seated": 2,
+        "q1Ready": false,
+        "notes": ["q1 promoted first; q2 waits", "fresh membership/proximity checks fail closed", "no automatic teleport or focus", "offer timeout returns q1 to queue head? no: expired offer falls through to the next rider"]
+      }
+    },
+    {
+      "id": "nonready-inactivity-release",
+      "title": "Nonready seated player is released after 120s without user action",
+      "initial": { "phase": "lobby", "seated": [
+        { "playerId": "u1", "slot": 0, "loaded": true, "ready": false, "lastActionAgeSeconds": 0 },
+        { "playerId": "u2", "slot": 1, "loaded": true, "ready": false }
+      ] },
+      "steps": [
+        { "clock": { "advanceSeconds": 120 } }
+      ],
+      "expected": {
+        "released": ["u1", "u2"],
+        "notes": ["released to world/watch", "disconnected users follow reconnect grace instead of this timer"]
+      }
+    },
+    {
+      "id": "empty-session-reap",
+      "title": "Session stops within 60s after the last reconnect grace expires; spectators alone never keep it alive",
+      "initial": { "phase": "racing", "seated": [
+        { "playerId": "u1", "slot": 0, "status": "racing", "connected": false }
+      ], "spectators": ["w1"] },
+      "steps": [
+        { "clock": { "advanceSeconds": 30 } },
+        { "clock": { "advanceSeconds": 60 } }
+      ],
+      "expected": {
+        "stopped": true,
+        "stopWithinSecondsAfterGrace": 60,
+        "notes": ["spectators receive an idle summary and are detached at reap"]
+      }
+    },
+    {
+      "id": "owner-loss-abort",
+      "title": "Owner shutdown/restart aborts transient races with no invented winner",
+      "initial": { "phase": "racing", "seated": [
+        { "playerId": "u1", "slot": 0, "status": "racing", "s": 800 },
+        { "playerId": "u2", "slot": 1, "status": "racing", "s": 750 }
+      ] },
+      "steps": [
+        { "event": "owner_lost" }
+      ],
+      "expected": {
+        "phase": "aborted",
+        "result": null,
+        "notes": ["work stops and session/leases are invalidated", "clients see an abort banner and release the activity view locally", "after room rejoin a fresh lobby is offered", "successor session uses a fresh identity with no restored in-flight physics"]
+      }
+    }
+  ]
+}

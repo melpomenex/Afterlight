@@ -9,22 +9,23 @@ import {
   LEGACY_URBAN_BOUNDS,
 } from '../shared/placeDefinitions.js';
 
-test('Orpheum arcade wing builds with all 4 cabinets and preserved theater items', () => {
+test('Orpheum arcade wing builds with all 5 cabinets and preserved theater items', () => {
   const theaterDef = getPlaceDefinition('theater');
   assert.ok(theaterDef, 'theater definition exists');
 
   const world = buildDistrict(theaterDef);
   assert.ok(world, 'theater world builds successfully');
 
-  // Verify all 4 activity items exist in items
+  // Verify all 5 activity items exist in items
   const activityItems = world.items.filter(it => it.type === 'activity');
-  assert.equal(activityItems.length, 4, '4 activity items registered');
+  assert.equal(activityItems.length, 5, '5 activity items registered');
   const activityIds = activityItems.map(it => it.id || it.activityId).sort();
   assert.deepEqual(activityIds, [
     'orpheum-pong',
     'orpheum-rain-runner',
     'orpheum-signal-lost',
     'orpheum-sporefall',
+    'summit-run',
   ]);
 
   // Verify all 48 seats are present (3 rows of 16 seats)
@@ -57,7 +58,7 @@ test('Orpheum arcade cabinets have collision blocks and do not overlap seats, ga
     assert.ok(obs.d >= act.footprint.depth / 2 - 0.01, `obstacle depth matches footprint for ${act.id}`);
     cabinetObs.push(obs);
   }
-  assert.equal(cabinetObs.length, 4);
+  assert.equal(cabinetObs.length, 5);
 
   // Cabinets do not overlap with each other physically
   for (let i = 0; i < cabinetObs.length; i++) {
@@ -290,8 +291,8 @@ test('Movie screen sightlines remain unobstructed from all theater seats', () =>
 
 test('Orpheum minimap schematic incorporates the northeast arcade wing', () => {
   const theaterDef = getPlaceDefinition('theater');
-  // The wing rect (M121 30H125V56H121Z) covers the cabinet line (x = 10.42,
-  // z from -7.55 to -1.4) under the minimap projection: seat rows and the
+  // The wing rect (M121 29H125V55H121Z) covers the cabinet line (x = 10.42,
+  // z from -7.95 to -1.8) under the minimap projection: seat rows and the
   // arcade wing are drawn as subpaths of the theater schematic.
-  assert.ok(theaterDef.minimapPath.includes('M121 30H125V56H121Z'), 'minimap path contains arcade wing rect');
+  assert.ok(theaterDef.minimapPath.includes('M121 29H125V55H121Z'), 'minimap path contains arcade wing rect');
 });

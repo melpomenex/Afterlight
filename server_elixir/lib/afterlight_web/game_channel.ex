@@ -803,6 +803,56 @@ defmodule AfterlightWeb.GameChannel do
     {:noreply, socket}
   end
 
+  # Snowboard sessions (add-multiplayer-snowboard-arcade 4.4, design D3)
+  # key by the OWNER'S canonical room identity — derived server-side from
+  # the resolved room map, never from a client string — so equal cabinet
+  # ids under distinct instances can never share a race. Every other game
+  # keeps the historical wire-id keying. The public wire roomId still
+  # travels in all envelopes either way.
+  defp session_room_key(room, wire_id, act_id) do
+    district = if is_map(room), do: Map.get(room, :district)
+    instance = if is_map(room), do: Map.get(room, :instance)
+
+    if is_binary(district) and is_binary(instance) and snowboard_activity?(wire_id, act_id) do
+      Afterlight.World.RoomKey.from_parts("default", district, instance).room_key
+    else
+      wire_id
+    end
+  end
+
+  defp snowboard_activity?(wire_id, act_id) do
+    Afterlight.World.PlaceDefinitions.activities(wire_id)
+    |> Enum.any?(&(&1["id"] == act_id and &1["type"] == "snowboard-race"))
+  end
+
+  # Activity frames are room-scoped on the client (roomEpoch filter +
+  # activity runtime): every push carries the room wire id.
+  defp room_key_of(socket) do
+    room = socket.assigns[:world_room]
+
+    if is_map(room) && Map.has_key?(room, :wire_id) do
+      room.wire_id
+    else
+      nil
+    end
+  end
+
+  defp push_activity_error(socket, room_key, error, message, request_id, activity_id) do
+    payload =
+      %{
+        "error" => error,
+        "message" => message,
+        "requestId" => request_id,
+        "activityId" => activity_id
+      }
+      |> maybe_tag_room(room_key)
+
+    push(socket, "activity_error", payload)
+  end
+
+  defp maybe_tag_room(map, nil) when is_map(map), do: map
+  defp maybe_tag_room(map, room_key) when is_map(map), do: Map.put(map, "roomId", room_key)
+
   defp handle_activity(type, payload, socket) do
     req_id = Map.get(payload, "requestId")
     act_id = Map.get(payload, "activityId")
@@ -815,51 +865,35 @@ defmodule AfterlightWeb.GameChannel do
 
     cond do
       payload_size > 2048 ->
-        push(socket, "activity_error", %{
-          "error" => "payload_too_large",
-          "message" => "Activity payload exceeds 2 KiB limit (#{payload_size} > 2048)",
-          "requestId" => req_id,
-          "activityId" => act_id
-        })
+        push_activity_error(socket, room_key_of(socket), "payload_too_large",
+          "Activity payload exceeds 2 KiB limit (#{payload_size} > 2048)", req_id, act_id)
 
         {:noreply, socket}
 
       is_nil(socket.assigns[:world_room_pid]) ->
-        push(socket, "activity_error", %{
-          "error" => "room_unavailable",
-          "message" => "Must join a room before participating in activities",
-          "requestId" => req_id,
-          "activityId" => act_id
-        })
+        push_activity_error(socket, nil, "room_unavailable",
+          "Must join a room before participating in activities", req_id, act_id)
 
         {:noreply, socket}
 
       is_nil(act_id) or not is_binary(act_id) ->
-        push(socket, "activity_error", %{
-          "error" => "invalid_input",
-          "message" => "activityId is required",
-          "requestId" => req_id,
-          "activityId" => act_id
-        })
+        push_activity_error(socket, room_key_of(socket), "invalid_input",
+          "activityId is required", req_id, act_id)
 
         {:noreply, socket}
 
       true ->
         case check_activity_rate_limit(type, socket) do
           {:error, :rate_limited, socket} ->
-            push(socket, "activity_error", %{
-              "error" => "rate_limited",
-              "message" => "Rate limit exceeded for #{type}",
-              "requestId" => req_id,
-              "activityId" => act_id
-            })
+            push_activity_error(socket, room_key_of(socket), "rate_limited",
+              "Rate limit exceeded for #{type}", req_id, act_id)
 
             {:noreply, socket}
 
           {:ok, socket} ->
             room = socket.assigns.world_room
             room_pid = socket.assigns.world_room_pid
-            room_key = if is_map(room) && Map.has_key?(room, :wire_id), do: room.wire_id, else: "unknown"
+            room_key = room_key_of(socket)
 
             {lease, epoch} =
               try do
@@ -870,34 +904,24 @@ defmodule AfterlightWeb.GameChannel do
 
             cond do
               not Fence.allows_command?(lease) ->
-                push(socket, "activity_error", %{
-                  "error" => "lease_lost",
-                  "message" => "Room lease lost or room unavailable",
-                  "requestId" => req_id,
-                  "activityId" => act_id
-                })
+                push_activity_error(socket, room_key, "lease_lost",
+                  "Room lease lost or room unavailable", req_id, act_id)
 
                 {:noreply, socket}
 
               true ->
-                case Activities.get_or_start_session(room_pid, room_key, epoch, act_id, lease) do
+                case Activities.get_or_start_session(room_pid, session_room_key(room, room_key, act_id), epoch, act_id, lease,
+                       wire_room_id: room_key
+                     ) do
                   {:error, :activity_not_found} ->
-                    push(socket, "activity_error", %{
-                      "error" => "activity_not_found",
-                      "message" => "Activity #{act_id} is not declared in #{room_key}",
-                      "requestId" => req_id,
-                      "activityId" => act_id
-                    })
+                    push_activity_error(socket, room_key, "activity_not_found",
+                      "Activity #{act_id} is not declared in #{room_key}", req_id, act_id)
 
                     {:noreply, socket}
 
                   {:error, :lease_lost} ->
-                    push(socket, "activity_error", %{
-                      "error" => "lease_lost",
-                      "message" => "Room lease lost",
-                      "requestId" => req_id,
-                      "activityId" => act_id
-                    })
+                    push_activity_error(socket, room_key, "lease_lost",
+                      "Room lease lost", req_id, act_id)
 
                     {:noreply, socket}
 
@@ -912,45 +936,37 @@ defmodule AfterlightWeb.GameChannel do
 
                     case Activities.command(session_pid, type, payload, ctx) do
                       {:ok, %{"type" => "activity_state"} = snapshot} ->
-                        push(socket, "activity_state", snapshot)
+                        push(socket, "activity_state", Map.put(snapshot, "roomId", room_key))
                         {:noreply, socket}
 
                       {:ok, reply} ->
                         if is_map(reply) and (Map.has_key?(reply, :result) or Map.has_key?(reply, "result")) do
-                          reply = if req_id, do: Map.put_new(reply, "requestId", req_id), else: reply
+                          reply =
+                            reply
+                            |> Map.put_new("requestId", req_id)
+                            |> Map.put("roomId", room_key)
+
                           push(socket, "activity_result", reply)
                         end
 
                         {:noreply, socket}
 
                       {:error, :lease_lost} ->
-                        push(socket, "activity_error", %{
-                          "error" => "lease_lost",
-                          "message" => "Activity lease lost",
-                          "requestId" => req_id,
-                          "activityId" => act_id
-                        })
+                        push_activity_error(socket, room_key, "lease_lost",
+                          "Activity lease lost", req_id, act_id)
 
                         {:noreply, socket}
 
                       {:error, reason} ->
-                        push(socket, "activity_error", %{
-                          "error" => to_string(reason),
-                          "message" => "Activity command failed: #{inspect(reason)}",
-                          "requestId" => req_id,
-                          "activityId" => act_id
-                        })
+                        push_activity_error(socket, room_key, to_string(reason),
+                          "Activity command failed: #{inspect(reason)}", req_id, act_id)
 
                         {:noreply, socket}
                     end
 
                   {:error, reason} ->
-                    push(socket, "activity_error", %{
-                      "error" => to_string(reason),
-                      "message" => "Could not start activity session: #{inspect(reason)}",
-                      "requestId" => req_id,
-                      "activityId" => act_id
-                    })
+                    push_activity_error(socket, room_key, to_string(reason),
+                      "Could not start activity session: #{inspect(reason)}", req_id, act_id)
 
                     {:noreply, socket}
                 end

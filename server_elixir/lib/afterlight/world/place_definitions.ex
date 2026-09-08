@@ -33,12 +33,14 @@ defmodule Afterlight.World.PlaceDefinitions do
 
   @max_activities 16
   @activity_types ~w(
-    pong rain-runner signal-lost sporefall pool billiards air-hockey foosball
-    drones paper-airplanes gutter-boats rc-boats chess checkers tile-puzzle
-    horseshoes telescope curling hammer-strike forge-challenge fishing
-    skipping-stones light-music-puzzle darts piano photo-booth
+    pong rain-runner signal-lost sporefall snowboard-race pool billiards
+    air-hockey foosball drones paper-airplanes gutter-boats rc-boats chess
+    checkers tile-puzzle horseshoes telescope curling hammer-strike
+    forge-challenge fishing skipping-stones light-music-puzzle darts piano
+    photo-booth
   )
   @activity_env_policies ~w(none frozen live)
+  @activity_ready_policies ~w(auto explicit)
 
   # The semantic subset the JS exporter projects per preset
   # (add-atmosphere-weather-system B 1.2). Visual colors and audio mixes
@@ -496,6 +498,7 @@ defmodule Afterlight.World.PlaceDefinitions do
     |> activity_anchors_problems(act, bounds)
     |> activity_capacities_problems(act)
     |> activity_env_policy_problems(act)
+    |> activity_race_problems(act)
   end
 
   defp validate_activity(_act, _bounds), do: ["activity must be a map"]
@@ -582,4 +585,87 @@ defmodule Afterlight.World.PlaceDefinitions do
   defp activity_env_policy_problems(problems, %{"id" => id, "environmentPolicy" => policy}),
     do: ["activity #{id}: unknown environmentPolicy #{inspect(policy)}" | problems]
   defp activity_env_policy_problems(problems, _act), do: problems
+
+  # Race-style admission/ready/course contract
+  # (add-multiplayer-snowboard-arcade): additive optional fields for every
+  # type, required complete for snowboard-race so the authoritative server
+  # projection carries everything admission and the session policy need.
+  defp activity_race_problems(problems, %{"id" => id, "type" => "snowboard-race"} = act) do
+    problems
+    |> activity_min_players_problems(act, required?: true)
+    |> activity_ready_policy_problems(act, required?: true)
+    |> activity_course_problems(act, required?: true)
+    |> then(fn probs ->
+      cond do
+        players = act["capacities"] && act["capacities"]["players"] ->
+          if is_integer(players) and is_integer(act["minPlayers"]) and act["minPlayers"] <= players do
+            probs
+          else
+            ["activity #{id}: minPlayers must not exceed capacities.players" | probs]
+          end
+
+        is_nil(act["minPlayers"]) ->
+          probs
+
+        true ->
+          probs
+      end
+    end)
+  end
+
+  defp activity_race_problems(problems, %{"id" => id} = act) do
+    extra =
+      [act["minPlayers"] && "minPlayers", act["readyPolicy"] && "readyPolicy", act["course"] && "course"]
+      |> Enum.reject(&is_falsey/1)
+
+    if extra == [] do
+      problems
+    else
+      ["activity #{id}: #{Enum.join(extra, "/")} are snowboard-race fields; other types omit them" | problems]
+    end
+  end
+
+  defp activity_min_players_problems(problems, %{"id" => _id, "minPlayers" => mp}, _kw)
+       when is_integer(mp) and mp >= 1,
+       do: problems
+
+  defp activity_min_players_problems(problems, %{"id" => id}, required?: true),
+    do: ["activity #{id}: snowboard-race requires minPlayers" | problems]
+
+  defp activity_min_players_problems(problems, %{"id" => id, "minPlayers" => mp}, _kw),
+    do: ["activity #{id}: minPlayers must be an integer >= 1, got #{inspect(mp)}" | problems]
+
+  defp activity_min_players_problems(problems, _act, _kw), do: problems
+
+  defp activity_ready_policy_problems(problems, %{"id" => _id, "readyPolicy" => policy}, _kw)
+       when policy in @activity_ready_policies,
+       do: problems
+
+  defp activity_ready_policy_problems(problems, %{"id" => id}, required?: true),
+    do: ["activity #{id}: snowboard-race requires readyPolicy" | problems]
+
+  defp activity_ready_policy_problems(problems, %{"id" => id, "readyPolicy" => policy}, _kw),
+    do: ["activity #{id}: unknown readyPolicy #{inspect(policy)}" | problems]
+
+  defp activity_ready_policy_problems(problems, _act, _kw), do: problems
+
+  defp activity_course_problems(
+         problems,
+         %{"id" => _id, "course" => %{"id" => cid, "version" => v}},
+         _kw
+       )
+       when is_binary(cid) and is_integer(v) and v >= 1,
+       do: problems
+
+  defp activity_course_problems(problems, %{"id" => id}, required?: true),
+    do: ["activity #{id}: snowboard-race requires course metadata" | problems]
+
+  defp activity_course_problems(problems, %{"id" => id, "course" => course}, _kw),
+    do: ["activity #{id}: course must specify id and a positive integer version, got #{inspect(course)}" | problems]
+
+  defp activity_course_problems(problems, _act, _kw), do: problems
+
+  defp is_falsey(nil), do: true
+  defp is_falsey(false), do: true
+  defp is_falsey(_), do: false
 end

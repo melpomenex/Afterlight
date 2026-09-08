@@ -1,0 +1,42 @@
+{
+  "$comment": "D7 activity_join offer acceptance: the queue control lease signs the acceptance, the server validates the still-current offer plus membership/proximity, then rotates to a play lease. No other action value is accepted on activity_join.",
+  "name": "join-accept-offer",
+  "direction": "client->server",
+  "msgType": "activity_join",
+  "payload": {
+    "requestId": "req-2",
+    "activityId": "summit-run",
+    "role": "play",
+    "action": "accept_offer",
+    "offerId": "offer-77",
+    "sessionId": "sb-session-01",
+    "roomEpoch": 7,
+    "matchId": "match-0002",
+    "lease": "queue-lease-1"
+  },
+  "acceptance": {
+    "status": "seated",
+    "result": "seated",
+    "requestId": "req-2",
+    "roomId": "theater",
+    "roomEpoch": 7,
+    "activityId": "summit-run",
+    "sessionId": "sb-session-01",
+    "revision": 12,
+    "matchId": "match-0002",
+    "slot": 1,
+    "role": "player",
+    "lease": "lease-b2",
+    "leaseId": "lease-b2",
+    "serverNow": 1771000005000,
+    "ready": false
+  },
+  "invariants": [
+    "acceptance uses the queue control lease, not a play input lease",
+    "offer must still exist and be unexpired (queueOfferWindowSeconds)",
+    "membership/proximity revalidated before seating (fail closed)",
+    "new seated rider begins unready",
+    "rotated play lease invalidates the queue lease for future commands",
+    "first accepted input seq after rotation is 1"
+  ]
+}

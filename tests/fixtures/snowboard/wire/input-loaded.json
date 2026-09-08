@@ -1,0 +1,30 @@
+{
+  "$comment": "D7 activity_input load handshake: accepted only in lobby/results or on reconnect, with the exact server course hash. Shares the seq stream with ride/neutral controls but is not a physics step.",
+  "name": "input-loaded",
+  "direction": "client->server",
+  "msgType": "activity_input",
+  "payload": {
+    "activityId": "summit-run",
+    "sessionId": "sb-session-01",
+    "roomEpoch": 7,
+    "matchId": "match-0001",
+    "lease": "lease-a1",
+    "seq": 1,
+    "controls": {
+      "kind": "loaded",
+      "courseId": "summit-night",
+      "courseVersion": 1,
+      "courseHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "acceptance": {
+    "status": "loaded",
+    "seq": 1,
+    "serverNow": 1771000001500
+  },
+  "invariants": [
+    "hash mismatch is rejected course_mismatch and never sets loaded=true",
+    "accepted only for the seated play lease",
+    "loaded riders may set ready; unready-expired riders must reload to re-ready"
+  ]
+}

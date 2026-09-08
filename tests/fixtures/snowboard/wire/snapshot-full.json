@@ -1,0 +1,66 @@
+{
+  "$comment": "D7 full participant snapshot: audience 'participants', ≤32KiB, ≤20Hz, addressed only to accepted players and subscribed watchers (never room-wide broadcast_frame). serverTick/snapshotSeq order motion independently of lifecycle revision. Private reconciliation (self) is a separate attachment only for the recipient.",
+  "name": "snapshot-full",
+  "direction": "server->client",
+  "msgType": "activity_state",
+  "payload": {
+    "type": "activity_state",
+    "version": 1,
+    "roomId": "theater",
+    "roomEpoch": 7,
+    "activityId": "summit-run",
+    "sessionId": "sb-session-01",
+    "revision": 9,
+    "serverNow": 1771000010000,
+    "audience": "participants",
+    "status": "racing",
+    "matchId": "match-0002",
+    "snapshotSeq": 412,
+    "serverTick": 600,
+    "startAt": 1771000009000,
+    "courseId": "summit-night",
+    "courseVersion": 1,
+    "courseHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "deadlineAt": 1771000189000,
+    "state": {
+      "players": [
+        { "playerId": "user-1111", "nickname": "Robo", "accent": "#edb66c", "slot": 3, "connected": true, "loaded": true, "ready": true, "status": "racing" },
+        { "playerId": "user-2222", "nickname": "Kiln", "accent": "#7acbd4", "slot": 4, "connected": true, "loaded": true, "ready": true, "status": "racing" }
+      ],
+      "sim": {
+        "riders": [
+          {
+            "playerId": "user-1111",
+            "s": 312.4, "u": -6.2, "v": 28.5, "vu": 3.1, "y": 51.25, "vy": 0,
+            "grounded": true, "jumpCharge": 0, "recoveryTicks": 0, "nextCheckpoint": 2,
+            "splitsMs": [10233], "finishMs": null, "finishKey": null, "dnfReason": null, "resetSeq": 0
+          },
+          {
+            "playerId": "user-2222",
+            "s": 298.9, "u": 4.8, "v": 27.1, "vu": -2.4, "y": 49.9, "vy": 2.2,
+            "grounded": false, "jumpCharge": 0.4, "recoveryTicks": 0, "nextCheckpoint": 2,
+            "splitsMs": [10566], "finishMs": null, "finishKey": null, "dnfReason": null, "resetSeq": 0
+          }
+        ],
+        "tick": 600
+      }
+    },
+    "lastAcceptedSeqs": { "user-1111": 210, "user-2222": 188 },
+    "queueLength": 1,
+    "spectatorCount": 2,
+    "result": null
+  },
+  "privateAttachment": {
+    "$comment": "Delivered only to user-1111's connection alongside/below the snapshot; never broadcast.",
+    "self": { "appliedSeq": 208, "heldControls": { "kind": "ride", "steer": -0.65, "tuck": false, "brake": false, "jumpHeld": true }, "serverTick": 600 }
+  },
+  "invariants": [
+    "appliedSeq/heldControls/self appear only in the private attachment, never in the shared payload or summary",
+    "lastAcceptedSeqs is diagnostic and must not acknowledge prediction replay",
+    "no raw input history, leases, tokens or requestId of others ever travels in this message",
+    "max 8 riders, 8 splits each, bounded names; whole payload must re-encode under 32KiB",
+    "equal revision with higher snapshotSeq is ACCEPTED motion (revision equality is not stale)",
+    "lower snapshotSeq or wrong epoch/session/match is dropped by clients",
+    "resetSeq increments on crash recovery teleport so clients clear interpolation buffers"
+  ]
+}

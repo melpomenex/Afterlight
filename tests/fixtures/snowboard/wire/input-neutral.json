@@ -1,0 +1,25 @@
+{
+  "$comment": "D7 activity_input neutral: the inputSeam empty {} neutralization maps to kind:'neutral'. Cancels charge, brakes; prioritized as the latest control.",
+  "name": "input-neutral",
+  "direction": "client->server",
+  "msgType": "activity_input",
+  "payload": {
+    "activityId": "summit-run",
+    "sessionId": "sb-session-01",
+    "roomEpoch": 7,
+    "matchId": "match-0001",
+    "lease": "lease-a1",
+    "seq": 3,
+    "controls": { "kind": "neutral" }
+  },
+  "acceptance": {
+    "status": "accepted",
+    "seq": 3,
+    "serverNow": 1771000002333
+  },
+  "invariants": [
+    "neutral cancels jump charge server-side exactly as crash/blur do",
+    "neutral is valid in every phase; before start it only updates held-state",
+    "neutral shares the monotonic seq stream with ride/loaded controls"
+  ]
+}

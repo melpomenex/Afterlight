@@ -1,0 +1,78 @@
+{
+  "$comment": "D7 activity_join role='play'. Identity/room come only from the authenticated channel; join initially carries no lease. Loaded scene precedes the play request. Acceptance extends the current private seated response with roomEpoch/matchId/serverNow and a full baseline snapshot; both lease and legacy leaseId aliases are returned with one canonical value.",
+  "name": "join-play",
+  "direction": "client->server",
+  "msgType": "activity_join",
+  "payload": {
+    "requestId": "req-1",
+    "activityId": "summit-run",
+    "role": "play"
+  },
+  "acceptance": {
+    "direction": "server->client",
+    "msgType": "activity_join_reply",
+    "payload": {
+      "status": "seated",
+      "result": "seated",
+      "requestId": "req-1",
+      "roomId": "theater",
+      "roomEpoch": 7,
+      "activityId": "summit-run",
+      "sessionId": "sb-session-01",
+      "revision": 1,
+      "matchId": "match-0001",
+      "slot": 3,
+      "role": "player",
+      "lease": "lease-a1",
+      "leaseId": "lease-a1",
+      "serverNow": 1771000000000,
+      "snapshot": {
+        "type": "activity_state",
+        "version": 1,
+        "roomId": "theater",
+        "roomEpoch": 7,
+        "activityId": "summit-run",
+        "sessionId": "sb-session-01",
+        "revision": 1,
+        "serverNow": 1771000000000,
+        "audience": "participants",
+        "status": "lobby",
+        "matchId": "match-0001",
+        "snapshotSeq": 1,
+        "serverTick": 0,
+        "startAt": null,
+        "courseId": "summit-night",
+        "courseVersion": 1,
+        "courseHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "state": {
+          "players": [
+            {
+              "playerId": "user-1111",
+              "nickname": "Robo",
+              "accent": "#edb66c",
+              "slot": 3,
+              "connected": true,
+              "loaded": false,
+              "ready": false,
+              "status": "unready"
+            }
+          ],
+          "sim": { "riders": [], "tick": 0 }
+        },
+        "lastAcceptedSeqs": {},
+        "queueLength": 0,
+        "spectatorCount": 0,
+        "result": null
+      },
+      "self": { "appliedSeq": 0, "heldControls": { "kind": "neutral" }, "serverTick": 0 }
+    }
+  },
+  "invariants": [
+    "wire role 'play' normalizes to server role 'player'",
+    "acceptance lease is a play input lease",
+    "initial lobby matchId is nonempty before any countdown",
+    "self.appliedSeq starts at 0 and never appears in public snapshots",
+    "lease values never appear in room/public snapshots",
+    "serverNow accompanies every correlated private acknowledgment for clock estimation"
+  ]
+}

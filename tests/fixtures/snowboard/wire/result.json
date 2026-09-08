@@ -1,0 +1,42 @@
+{
+  "$comment": "D7 activity_result: emitted once per completed match; abort is an event/state, not a completed result. Session-local by contract (recordingStatus 'session_only'); never routed to durable Results/score tables.",
+  "name": "result",
+  "direction": "server->client",
+  "msgType": "activity_result",
+  "payload": {
+    "type": "activity_result",
+    "version": 1,
+    "roomId": "theater",
+    "roomEpoch": 7,
+    "activityId": "summit-run",
+    "sessionId": "sb-session-01",
+    "revision": 21,
+    "serverNow": 1771000100000,
+    "matchId": "match-0002",
+    "result": {
+      "kind": "snowboard_race",
+      "recordingStatus": "session_only",
+      "reason": "complete",
+      "standings": [
+        { "playerId": "user-1111", "slot": 3, "place": 1, "timeMs": 61233, "status": "finished", "dnfReason": null },
+        { "playerId": "user-2222", "slot": 4, "place": 2, "timeMs": 62401, "status": "finished", "dnfReason": null },
+        { "playerId": "user-4444", "slot": 5, "place": 3, "timeMs": null, "status": "dnf", "dnfReason": "deadline" },
+        { "playerId": "user-3333", "slot": 6, "place": 4, "timeMs": null, "status": "dnf", "dnfReason": "disconnect" }
+      ]
+    }
+  },
+  "tieExample": {
+    "$comment": "Finish keys within tieWindowMs (1ms) share the displayed place; stable slot order is rendering only; no sole winner is invented.",
+    "standings": [
+      { "playerId": "a", "slot": 1, "place": 1, "timeMs": 61233, "status": "finished", "dnfReason": null },
+      { "playerId": "b", "slot": 2, "place": 1, "timeMs": 61233, "status": "finished", "dnfReason": null }
+    ]
+  },
+  "invariants": [
+    "DNF sorts after all finishes by last checkpoint then progress, labeled dnf without a fabricated time",
+    "duplicate terminal calculation is idempotent by matchId+playerId",
+    "abort produces NO completed result and NO standings winner",
+    "current snapshot retains the latest result so event loss is recoverable",
+    "clients must label records honestly as session-local"
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "$comment": "D7 public cabinet summary: audience 'summary', room-wide at <=2Hz plus immediate phase/result changes. Counters/progress/results only — never participation leases, seqs or reconciliation. Routed to the cabinet canvas display only; must never be consumed as participation state or trigger mountain imports.",
+  "name": "snapshot-summary",
+  "direction": "server->client",
+  "msgType": "activity_state",
+  "payload": {
+    "type": "activity_state",
+    "version": 1,
+    "roomId": "theater",
+    "roomEpoch": 7,
+    "activityId": "summit-run",
+    "sessionId": "sb-session-01",
+    "revision": 9,
+    "serverNow": 1771000010000,
+    "audience": "summary",
+    "status": "racing",
+    "matchId": "match-0002",
+    "summary": {
+      "riderCount": 3,
+      "readyCount": 3,
+      "capacity": 8,
+      "progress": [
+        { "playerId": "user-1111", "nickname": "Robo", "nextCheckpoint": 4, "normalizedProgress": 0.41, "status": "racing" },
+        { "playerId": "user-2222", "nickname": "Kiln", "nextCheckpoint": 4, "normalizedProgress": 0.38, "status": "racing" },
+        { "playerId": "user-3333", "nickname": "Flux", "nextCheckpoint": 2, "normalizedProgress": 0.19, "status": "dnf", "dnfReason": "disconnect" }
+      ],
+      "result": null
+    },
+    "queueLength": 1,
+    "spectatorCount": 2
+  },
+  "invariants": [
+    "progress is capped at max eight riders",
+    "no leases, seqs, positions, velocities, splits or self attachments in summaries",
+    "statuses/phase names match the shared lifecycle vocabulary (lobby/countdown/racing/results/aborted)",
+    "aborted summaries carry result:null and never invent a winner"
+  ]
+}

@@ -1,0 +1,229 @@
+{
+  "$comment": "Canonical course document format (task 1.2 contract freeze; realized by shared/snowboard/course.js in task 3.1). The SAME JSON document and its sha256 hash bind render and simulation on client and server. Linear centerline interpolation and bilinear height interpolation, clamped at edges, are identical in both runtimes. Cosmetic noise must live outside the legal corridor or be part of this sampler.",
+  "format": {
+    "id": "string, e.g. 'summit-night'",
+    "version": "integer >= 1",
+    "hash": "sha256 hex of the canonical JSON (sorted keys, no whitespace) of this document WITHOUT the hash field",
+    "rulesVersion": "integer, must equal contract.identity.rulesVersion at load time",
+    "lengthMeters": "number, course.progress samples span [0, lengthMeters]",
+    "gridStepMeters": "number, longitudinal sample spacing (contract.simulation.gridStepMeters)",
+    "lateralStepMeters": "number, lateral sample spacing",
+    "corridorHalfWidth": "number, legal corridor half width; lateral samples span [-corridorHalfWidth, +corridorHalfWidth]",
+    "groomedHalfWidth": "number, shoulder penalty begins outside this half width",
+    "centerline": [
+      {
+        "s": "number, meters downhill (increasing)",
+        "x": "number, world-space center x at s",
+        "width": "number, rideable full width at s (must be <= 2*corridorHalfWidth)"
+      }
+    ],
+    "grid": {
+      "sValues": "number[] ascending, uniform by gridStepMeters, first = 0, last = lengthMeters",
+      "uValues": "number[] ascending, uniform by lateralStepMeters, symmetric about 0",
+      "height": "number[][] indexed [sIndex][uIndex], surface height in meters (y), finite",
+      "surface": "number[][] indexed [sIndex][uIndex], integer tags: 0 = groomed, 1 = snowbank (2 = rock, 3 = ice reserved)"
+    },
+    "ramps": [
+      {
+        "id": "string, unique",
+        "s": "number, lip position (launch plane)",
+        "uMin": "number, lateral span start",
+        "uMax": "number, lateral span end",
+        "lipHeight": "number, added surface height on the lip"
+      }
+    ],
+    "obstacles": [
+      {
+        "id": "string, unique",
+        "s": "number, center s",
+        "u": "number, center u",
+        "halfS": "number, half extent along course",
+        "halfU": "number, half extent lateral",
+        "height": "number, collider height above surface",
+        "kind": "'pine' | 'rock' | 'lift-tower' | 'fence'"
+      }
+    ],
+    "gates": [
+      {
+        "index": "integer 1..checkpointCount, ordered",
+        "s": "number, gate plane position",
+        "uMin": "-corridorHalfWidth (full-width gates in v1)",
+        "uMax": "+corridorHalfWidth"
+      }
+    ],
+    "finish": {
+      "s": "number, finish plane position",
+      "uMin": "number",
+      "uMax": "number"
+    },
+    "recoveryPoints": [
+      {
+        "id": "string, unique",
+        "s": "number, safe reset position",
+        "u": "number, safe reset lateral",
+        "segment": "integer, checkpoint segment index this point belongs to (gates with index <= segment are considered earned)"
+      }
+    ]
+  },
+  "validation": [
+    "lengthMeters equals contract.course.lengthMeters and grid last s equals it exactly",
+    "sValues uniform with step gridStepMeters; uValues uniform, symmetric, spanning +/-corridorHalfWidth",
+    "centerline s ascending and total coverage equals [0, lengthMeters]",
+    "every gate index is present exactly once, ordered by index, s ascending",
+    "recovery point s is >= the obstacle it recovers from and its segment's earned gates are never skipped by the reset",
+    "obstacle count <= contract.simulation.maxColliders",
+    "all heights finite; surface tags are integers 0..1 (2..3 reserved); hash recomputation matches document.hash",
+    "gate acceptance altitude spans surface height to surface height + contract.simulation.gateAltitudeCeiling"
+  ],
+  "interpolation": {
+    "centerX": "linear between adjacent centerline samples, clamped at ends",
+    "height": "bilinear over (s, u) on the grid, clamped at edges; identical constants in JS and Elixir",
+    "slope": "gSlope = clamp(-(h(s+step)-h(s-step)) / (2*step), 0, gradeMax), sampled from the same grid"
+  },
+  "sample": {
+    "id": "summit-night",
+    "version": 1,
+    "rulesVersion": 1,
+    "lengthMeters": 12,
+    "gridStepMeters": 2,
+    "lateralStepMeters": 2,
+    "corridorHalfWidth": 24,
+    "groomedHalfWidth": 18,
+    "centerline": [
+      {
+        "s": 0,
+        "x": 0,
+        "width": 40
+      },
+      {
+        "s": 4,
+        "x": 1,
+        "width": 40
+      },
+      {
+        "s": 8,
+        "x": 0,
+        "width": 40
+      },
+      {
+        "s": 12,
+        "x": -1,
+        "width": 40
+      }
+    ],
+    "grid": {
+      "sValues": [
+        0,
+        2,
+        4,
+        6,
+        8,
+        10,
+        12
+      ],
+      "uValues": [
+        -2,
+        0,
+        2
+      ],
+      "height": [
+        [
+          10.0,
+          9.8,
+          10.0
+        ],
+        [
+          8.9,
+          8.7,
+          8.9
+        ],
+        [
+          7.8,
+          7.6,
+          7.8
+        ],
+        [
+          6.7,
+          6.5,
+          6.7
+        ],
+        [
+          5.6,
+          5.4,
+          5.6
+        ],
+        [
+          4.5,
+          4.3,
+          4.5
+        ],
+        [
+          3.4,
+          3.2,
+          3.4
+        ]
+      ],
+      "surface": [
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ]
+      ]
+    },
+    "ramps": [],
+    "obstacles": [],
+    "gates": [
+      {
+        "index": 1,
+        "s": 6,
+        "uMin": -24,
+        "uMax": 24
+      }
+    ],
+    "finish": {
+      "s": 12,
+      "uMin": -24,
+      "uMax": 24
+    },
+    "recoveryPoints": [
+      {
+        "id": "sample-safe",
+        "s": 4,
+        "u": 0,
+        "segment": 0
+      }
+    ]
+  },
+  "$comment-sample": "The sample is a minimal structurally-valid document for parser/loader tests; it is not the playable course and carries no hash (the real course export in 3.1 computes and pins it)."
+}
