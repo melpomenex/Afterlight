@@ -1,8 +1,12 @@
-# Afterlight — Multiplayer Market Garden
+# Afterlight
 
-A persistent, atmospheric multiplayer market-gardening game built with Three.js, Node.js WebSockets, and procedural environments. All scenery, crops, and gardener avatars are generated in code; no external 3D models or textures are required.
+Afterlight is a collection of beautiful shared places on the internet: a quiet, rain-soaked city where you wake up inside **The Orpheum** cinema, watch and play together with whoever is around, and wander from place to place — sit, chat, emote, run the projector. You are a small rust/gold maintenance robot, accompanied by **Kiln**; exploration, companionship, little discoveries and visible acts of restoration are the experience.
 
-Preserves Afterlight's signature rain-soaked aesthetic: high isometric camera, layered wet paving, brick masonry, copper pipes, warm amber lanterns, drifting mist, restrained bloom, and translucent dark HUD overlays.
+**Accepted destinations today:** The Orpheum (`theater`), The Rain Court (`court`), The Desert Camp (`desert-camp`) and The High Awnings (`rooftops`) — listed first in the **Places** selector (<kbd>T</kbd>). The seventeen legacy districts, the Market Court and your personal garden remain reachable under "Legacy areas" and through their deep links.
+
+The original market-garden life — planting, trading, restoration landmarks — is **retained legacy content**, fully playable and described below. It is no longer the game's identity, and nothing in it is a required objective.
+
+Preserves Afterlight's signature rain-soaked aesthetic: high isometric camera, layered wet paving, brick masonry, copper pipes, warm amber lanterns, drifting mist, restrained bloom, and translucent dark HUD overlays. All scenery, crops, and robot avatars are generated in code; no external 3D models or textures are required.
 
 ---
 
@@ -52,17 +56,27 @@ npm run verify:p11          # composed sweep + snapshot hash check
 npm run p11:snapshot-hashes # forensic hashes for data/*.json snapshots
 ```
 
-Open **http://localhost:5173** in one or more browser windows. You wake up inside **The Orpheum**, the city's cinema, in cinema view: the shared screen on stage with the town chat docked beside it. Press <kbd>Esc</kbd> (or a movement key) to step into the aisles, then walk out of the gates to explore — the Market Court, your garden, and 17 districts are all out there. When multiple players connect, they see each other with overhead nickname tags, custom procedural gardener avatars, and synchronized movement. (`?room=market`, `?room=garden`, or any district id in the URL overrides the spawn point.)
+Theater streaming verification (after any gateway/theater/sidecar change):
+
+```sh
+node scripts/theater-streaming-smoke.mjs   # WS-level pass over the live stack
+```
+
+…plus the real-browser checklist in `scripts/theater-streaming-pass.md` — a connected browser is the only proof that the screen actually plays.
+
+Open **http://localhost:5173** in one or more browser windows. You wake up inside **The Orpheum**, the city's cinema, in cinema view: the shared screen on stage with the town chat docked beside it. Press <kbd>Esc</kbd> (or a movement key) to step into the aisles, then travel — walk out of the gates, or press <kbd>T</kbd> and pick any place. The Market Court, your garden and the seventeen legacy districts are all still out there. When multiple players connect, they see each other with overhead nickname tags, custom procedural robot avatars, and synchronized movement. (`?room=market`, `?room=garden`, or any place id in the URL overrides the spawn point.)
 
 ### 3. Production Build & Tests
 
-- `npm test`: Runs the automated test suite (crop growth, quality grades, NPC pricing, double-auction order book, persistence, multi-client presence, gather nodes, machine restoration, milling, flour contracts, sprinkler simulation, and the embedded IRC relay/bridge over real sockets).
+- `npm test`: Runs the automated test suite (crop growth, quality grades, NPC pricing, double-auction order book, persistence, multi-client presence, gather nodes, machine restoration, milling, flour contracts, sprinkler simulation, the embedded IRC relay/bridge over real sockets, place definitions/travel, and the contextual HUD policy).
 - `npm run build`: Bundles the client for production into `dist/`.
 - `npm run preview`: Serves the production build.
 
 ---
 
-## Core Gameplay Loop
+## The legacy gardener's loop (retained content)
+
+The market garden, the economy and the restoration landmarks live on unchanged for those who want them. They define no social objective: visiting the shared places never requires any of this. (History note: this loop *was* the game's original identity; the product has since shifted to shared places, and the garden/economy migration to the Phoenix stack remains in progress — see *Architecture & Server Authority*.)
 
 **Prepare → Plant → Tend → Harvest → Gather → Craft → Pack → Sell / Trade → Reinvest → Expand**
 
@@ -112,15 +126,17 @@ Open **http://localhost:5173** in one or more browser windows. You wake up insid
 | <kbd>5</kbd> | Harvest Shears |
 | <kbd>6</kbd> | Sprinkler Kit (Place on a bed to auto-water it + neighbors) |
 | <kbd>E</kbd> | Contextual interact with nearest bed, stall, gather node, the Great Mill, gate, or theater seat |
-| <kbd>I</kbd> | Open Satchel / Inventory |
-| <kbd>M</kbd> | Open Market Exchange Board |
-| <kbd>T</kbd> / **Travel** | Open District Navigator (17 biomes & areas) |
+| <kbd>I</kbd> | Open Satchel / Inventory — everywhere; in social places it opens labeled "optional legacy" |
+| <kbd>M</kbd> | Open Market Exchange Board — everywhere; in social places it opens labeled "optional legacy" |
+| <kbd>T</kbd> / **Travel** | Open the **Places** selector — featured destinations first, every legacy area retained under "Legacy areas"; live occupancy counts where the server can answer ("—" means unknown) |
 | Hold <kbd>V</kbd> | Emote wheel: move the pointer outward, release V to perform. Center / Esc cancels. 1–6 or arrows select; Enter confirms. Click **Emotes** for touch / click selection. |
 | <kbd>G</kbd> | In The Orpheum: open the projection booth (screen controls, IPTV lists, channel guide) |
 | <kbd>Enter</kbd> / <kbd>/</kbd> | Open town chat (type & <kbd>Enter</kbd> to send, <kbd>Esc</kbd> to return to the game) |
 | <kbd>C</kbd> | Cycle camera views: three isometric angles, then first person |
 | Mouse Wheel | Zoom in / out (isometric views only) |
 | <kbd>Escape</kbd> | Journal & Settings (in cinema view: return to the game first) |
+
+**Contextual HUD.** Where you are decides what the HUD leads with. In the featured social places (The Orpheum, The Rain Court), the tool belt, the coins/reputation/XP pills, the Satchel/Market footer buttons and the Great Mill panel step back, and your avatar's hands empty — the garden remembers your last tool and hands it back when you return there. Nothing is deleted: <kbd>I</kbd> and <kbd>M</kbd> still work everywhere (labeled "optional legacy" in social places), coins and progression stay readable inside the Satchel and Gardener Pass dialogs, and cached balances keep updating out of sight. The farming tool keys <kbd>1</kbd>–<kbd>6</kbd> equip tools only in legacy contexts — the Market Court, your personal garden and the legacy districts — and the emote wheel always owns number keys while it is open. **Settings → Legacy gardener HUD** restores the classic full gardener presentation in every place: a presentation-only switch that changes no data.
 
 **Emotes.** Wave, Rust shuffle, Cheer, Much love, Bow, and Shrug animate your character for nearby players. Movement or jumping ends the pose. The wheel stops your walk target; it never pauses other players. Emotes also work seated, and leaving cinema view to choose keeps your seat.
 
@@ -132,7 +148,7 @@ Open **http://localhost:5173** in one or more browser windows. You wake up insid
 
 ### Town Chat & IRC
 
-The Market Court shares a live **town channel** (`#afterlight`) panel in the lower-right HUD:
+Afterlight shares one live **town channel** (`#afterlight`) panel in the lower-right HUD. The channel is global — everyone in every district and room shares it; it is not private room conversation:
 
 - Press <kbd>Enter</kbd> (or <kbd>/</kbd>) to speak; press <kbd>Esc</kbd> to hand the keyboard back to the gardener. Typing never moves your robot.
 - `/msg <name> <text>` whispers directly to another player or an IRC user/bot by nickname; `/me <action>` sends an action line; `/help` lists commands.
@@ -187,9 +203,9 @@ Notes:
 
 ---
 
-## Exploration Biomes & Restoration
+## Legacy districts & restoration
 
-Beyond the Market Court and Cultivation Garden, Afterlight features **16 distinct explorable atmospheric districts** representing diverse industrial, subterranean, aquatic, and alpine biomes. Players explore accompanied by **Kiln**, the cream-colored maintenance robot companion.
+Beyond the Market Court and Cultivation Garden, Afterlight retains **17 distinct explorable atmospheric districts** representing diverse industrial, subterranean, aquatic, and alpine biomes. They are the city's history — every one still walkable, listed under "Legacy areas" in the Places selector. Players explore accompanied by **Kiln**, the cream-colored maintenance robot companion.
 
 Each biome features:
 - **Procedural 3D Architecture**: Unique materials, masonry, props, and ambient color palettes batched with `THREE.InstancedMesh`.
@@ -218,7 +234,7 @@ Each biome features:
 16. **The Solar Kiln** (`kiln-terrace`): Terracotta tile courtyards and parabolic sun concentrators.
 17. **The Orpheum** (`theater`): A velvet-seated cinema where the city watches together — see below.
 
-Travel between districts seamlessly via physical east/west gateway conduits or by opening the **District Navigator** (<kbd>T</kbd> or **Travel** button in the footer).
+Travel between districts seamlessly via physical east/west gateway conduits, or open the **Places** selector (<kbd>T</kbd> or the **Travel** button in the footer) and pick any destination — featured social places are listed first, and all seventeen districts, the Market Court and your personal garden are retained under "Legacy areas". Cards show a live occupancy count where the server can answer; "—" means the count is unknown, never a guess.
 
 ---
 
@@ -250,7 +266,7 @@ Playlists and the program guide are **uploads that persist on the game server** 
 - **One player adds a playlist; the whole room gets it.** Anything added in the booth is parsed on the server and appears in everyone's guide — no import of your own needed to browse, tune, or flip. Server-side fetching also means playlist URLs work even when the host sends no CORS headers.
 - **The guide can show "now / next".** Upload an XMLTV program guide (`.epg` / `.xml`, plain or `.gz`) in the booth and channels matched by `tvg-id` (or name) show the current and next programme in your local time, kept current while the guide is open. Uploading a new guide replaces the old one and never interrupts the screen.
 - **Personal lists stay personal.** Lists saved in your browser remain a private fallback; select one and press **Add to theater** to share it with the room.
-- **Communal shelves.** Anyone in the auditorium may remove a shared list; removing one never interrupts what's playing. The library and guide survive server restarts (`data/iptv.json`, `data/epg.json`; delete those files to reset). Generous size caps apply (24 lists, 20,000 channels each, 64 MB guides).
+- **Communal shelves.** Anyone in the auditorium may remove a shared list; removing one never interrupts what's playing. The library and guide survive server restarts (`data/iptv.json`, `data/epg.json` — original snapshot files, never deleted or reset by the game; removing a list from the booth is the way to clean up). Generous size caps apply (24 lists, 20,000 channels each, 64 MB guides).
 - Try it with a big real-world playlist and guide — e.g. the files in `~/Code/iptv/out/` (`master.m3u8` ≈ 12k channels, `guide.epg.gz` ≈ 56k programmes).
 
 ### Playlist night (YouTube playlists)
@@ -267,7 +283,7 @@ Paste a magnet link in the booth and the projector resolves it for you: the game
 
 - While the swarm is reached you'll see live progress ("Reaching the swarm…", percent, peers) instead of a bare spinner; seeking works even in partially downloaded files, because the server streams your chosen file with byte-range support.
 - Files browsers usually can't decode (MKV, AVI) are listed with a *may not play* note; MP4/WebM and friends are offered first. There's no transcoding.
-- Torrent items on the bill survive reloads and server restarts — downloaded data is cached under `data/torrents/` (size-capped at ~4 GB, least-recently-used eviction; both tunable with `TORRENT_CACHE_DIR` and `TORRENT_CACHE_MAX_BYTES`), and the whole folder is safe to delete.
+- Torrent items on the bill survive reloads and server restarts — downloaded payloads are cached under `data/torrents/` (size-capped at ~4 GB, least-recently-used eviction; both tunable with `TORRENT_CACHE_DIR` and `TORRENT_CACHE_MAX_BYTES`). That downloaded-payload cache is regenerable and safe to clear; the snapshot files themselves (`data/game-state.json`, `data/iptv.json`, `data/epg.json`) are never deleted.
 - **You are responsible for what you stream.** Magnets play through the server operator's connection, so only point the projector at content you have the right to watch and share.
 
 Queue behavior: items added while something plays line up in the queue and auto-advance when a film ends (dead links are skipped with a notice). The now-playing state and queue live on the server — they survive reloads and restarts, and latecomers join mid-picture at the right moment. Playback is drift-corrected to a shared clock, so pausing or seeking moves everyone together.
@@ -281,20 +297,22 @@ Queue behavior: items added while something plays line up in the queue and auto-
 
 ---
 
-### Optional Phoenix gateway transport (migration opt-in)
+### Transport: Phoenix gateway + Node sidecar
 
-The default build connects straight to the Node server as always. An opt-in transport routes the same game through the Phoenix gateway (`server_elixir/`, port 4000 in dev), which relays every frame 1:1 to Node — same rooms, same chat, same theater, nothing moved.
+The supported stack is the **Phoenix gateway** (`server_elixir/`, port 4000 in dev) owning transport, world rooms and chat relay, plus the **Node specialty sidecar** (port 3001) retaining torrent/IRC HTTP, theater uploads and transitional relay for domains not yet ported (see `docs/architecture/elixir/ownership.md` §5). `npm run dev:stack` starts both; the client picks the transport at build time (`VITE_TRANSPORT=phoenix` in `.env.development`).
 
-- **Run both servers:** `npm run server` (Node, :3001) plus `cd server_elixir && mix phx.server` for the gateway after `mix deps.get` (see `server_elixir/README.md`).
-- **Opt in at build time:** `VITE_TRANSPORT=phoenix VITE_WS_URL=ws://localhost:4000/ws npm run dev`.
-- **Roll back anytime:** build with `VITE_TRANSPORT=node` (the default) or point `VITE_WS_URL` back at the Node socket. No durable state lives in the gateway, so rolling back is a pure transport switch — in-flight transient state (positions, chat history) resets exactly as it would after any server restart today.
+- The legacy Node-only transport (`npm run dev` + `npm run server`, `VITE_TRANSPORT=node`) is **deprecated** (removal 2026-12-01); selecting it emits startup warnings.
 - Environment knobs: `AFTERLIGHT_BOUNDARY_SECRET` (gateway→Node shared secret; unset = direct clients unaffected), `AFTERLIGHT_NODE_WS_URL` / `AFTERLIGHT_NODE_HTTP_URL` (loopback defaults), `AFTERLIGHT_TOKEN_SECRET` (set a real value outside dev).
 
 ---
 
 ## Architecture & Server Authority
 
-- **Server-Authoritative**: The Node.js server maintains authoritative state for coin balances, inventory quantities, gathered materials, gather-node depletion and respawn, the Great Mill's restoration state, sprinkler fixtures, crop maturation, moisture decay, order books, and contract fulfillment. The client only renders server state; items are never granted client-side.
-- **Client Interpolation**: Remote gardeners transmit movement at ~10 Hz and interpolate smoothly without jitter.
-- **Durable Persistence**: Server state is saved atomically to `data/game-state.json` and survives restarts.
+The single authority map for every domain is [`docs/architecture/elixir/ownership.md`](docs/architecture/elixir/ownership.md) (§5 records the current retirement status per domain). In short:
+
+- **Supported stack:** the **Phoenix gateway** (`server_elixir/`) owns transport, world rooms/presence (dev flip) and the chat relay; the **Node specialty sidecar** retains torrent/IRC HTTP, theater uploads and a transitional relay for domains not yet ported.
+- **Theater & catalog:** The Orpheum's bill/timeline, playlist imports, IPTV library and EPG have live Phoenix (Ash/PostgreSQL) handlers, flipped by routing in dev; when flipped, the Node theater/catalog writers stand down and `data/iptv.json` / `data/epg.json` become read-only forensic originals.
+- **Market-garden domains (migration in progress):** coin balances, inventory, gathered materials, gather-node depletion, the Great Mill, sprinklers, crop maturation, order books and contracts are **still written by the legacy Node engine, relayed through the gateway**, until the gardens/economy cutover (P6, `add-ash-gardens-economy-restoration`) lands. That migration continues as compatibility/correctness work — import validation, transaction/concurrency proof and operator cutover are still open — with reduced product scope: the migration's value no longer depends on farming's prominence. Never present it as finished. The client only renders server state; items are never granted client-side.
+- **Durable persistence:** the legacy engine saves its domains atomically to `data/game-state.json`; flipped domains live in PostgreSQL. Original snapshots (`data/game-state.json`, `data/iptv.json`, `data/epg.json`) are never deleted; only the regenerable torrent payload cache may be cleared.
+- **Client Interpolation**: Remote players transmit movement at ~10 Hz and interpolate smoothly without jitter.
 - **Guest Identity**: Players receive an automatic persistent guest UUID and atmospheric nickname (e.g. `MossyRadish42`, `AmberCarrot24`), which can be customized at any time.

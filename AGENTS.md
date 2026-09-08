@@ -4,7 +4,9 @@ This file applies to the entire repository. Read it before changing the game. It
 
 ## 1. What you are building
 
-Afterlight is a small, playable, atmospheric isometric exploration game made with Three.js. The player is a rust/gold maintenance robot accompanied by Kiln, a smaller cream-colored robot. The setting is an abandoned industrial city that is still worth repairing. Exploration, companionship, little discoveries, and visible acts of restoration are the experience.
+Afterlight is a collection of beautiful shared places on the internet, implemented as a small, playable, atmospheric isometric game made with Three.js. The player is a rust/gold maintenance robot accompanied by Kiln, a smaller cream-colored robot. The setting is an abandoned industrial city that is still worth repairing. Exploration, companionship, little discoveries, and visible acts of restoration are the experience.
+
+Product identity (since the social-places program): the featured shared places — The Orpheum, The Rain Court, and accepted destinations after them — are what the game is; the market garden, trading and restoration landmarks are **retained legacy content**, fully playable but no longer the default presentation. The contextual HUD policy (`src/ui/placeHudPolicy.js`) leads social places with place identity, people, chat, emotes and travel, while every legacy control stays reachable. Demoting the presentation never deletes data and never substitutes for the still-unfinished gardens/economy migration (P6), which continues as correctness work.
 
 The visual reference is a detailed industrial courtyard after rain: layered masonry, wet paving, copper pipes, ivy, warm window light, a high isometric camera, and restrained translucent HUD panels. The existing game is a procedural interpretation, not a copy of the original game's assets or unseen mechanics.
 
@@ -39,12 +41,17 @@ For documentation-only changes, inspect and validate the documentation; do not r
 
 | File | Responsibility |
 | --- | --- |
-| `index.html` | Canvas, base HUD, companion panel, interaction card, settings dialog, initial loading overlay. |
-| `src/style.css` | Full-window presentation, typography, translucent panels, responsive layouts, district selector styles. |
+| `index.html` | Canvas, base HUD, companion panel, interaction card, settings dialog, Places dialog, initial loading overlay. |
+| `src/style.css` | Full-window presentation, typography, translucent panels, responsive layouts, Places selector styles. |
 | `src/main.js` | Renderer, lighting, original courtyard geometry, actors, global state, input, collision, interaction dispatch, travel, HUD updates, audio, save/load, animation loop. |
 | `src/cameraControl.js` | Pure camera-mode math: four-view cycle, per-view movement basis (view-relative in first person), pitch clamps, pointer drag/click classification. No renderer dependencies; covered by `tests/camera.test.js`. |
 | `src/jump.js` | Pure jump/bunny-hop math: vertical arc, hold-to-rehop chains, momentum scalar with per-hop gain and cap, reset rules. No renderer or network dependencies; covered by `tests/jump.test.js`. |
-| `src/districts.js` | District definitions, exploration-save normalization, procedural builders for the three added districts. |
+| `src/districts.js` | Re-exports the shared place manifest, exploration-save normalization, and the per-district scenery builders, registered into `src/places/registry.js`. |
+| `shared/placeDefinitions.js` | The single editable place manifest: pure, deep-frozen definitions (identity, kind, seeds, bounds, spawns, frozen legacy gates, minimap paths, atmosphere keys, capabilities, featured/legacy flags) plus validation. No Three.js/DOM imports. |
+| `src/places/` | `registry.js` (builder/controller registry), `worldFactory.js` (build pipeline: validate → shell → builder → batch), `runtime.js` (the tested travel coordinator behind setRoom), `travelState.js` (pure resolution/reset/generation helpers), `theaterAdapter.js` (specialized Orpheum lifecycle). |
+| `src/social/` | `seating.js` (seat normalization, safe dismount, one seat controller) and `interactions.js` (bounded interaction registry for gates/seats/notes/screen). |
+| `src/ui/placeSelector.js` | The Places selector: native-dialog modal behind T/Travel; featured destinations first, legacy areas retained, live occupancy via the bounded place_directory protocol (unknown stays unknown). |
+| `src/ui/placeHudPolicy.js` | Pure place-context HUD policy (deemphasize-legacy-farming): social vs legacy classification from manifest metadata plus room id; per-context visible sections, shortcut scope, presentation-only tool clear/restore, contextual copy; the reversible `afterlight-legacy-ui-v1` preference behind Settings' "Legacy gardener HUD". Covered by `tests/place-hud-policy.test.js`; applied at context changes by `main.js` and `src/ui/marketModal.js`. |
 | `src/world/theaterWorld.js` | The Orpheum builder: auditorium, seats (obstacles + `seat` items), screen mesh + world-space `screenQuad`, marquee/projector restoration visuals. Registered in `DISTRICT_BUILDERS`. |
 | `src/ui/theaterScreen.js` | Theater screen UI: DOM overlay homography-anchored to the in-world screen (sized to the projected quad with the screen's world aspect so media stays crisp and unsquashed), playback engines (video/HLS/YouTube/Vimeo + torrent via the file engine), shared-clock sync, booth/guide/torrent-picker dialogs (country → category IPTV navigation), shared IPTV library + personal localStorage lists (HTTP uploads, lazy `iptv_list` pulls, now/next guide columns), torrent resolve→pick flow, YouTube playlist import (input recognition, mixed-link choice, preview→confirm), cinema view (`body.theater-watching`). |
 | `server/theater.js`, `shared/theaterModel.js` | Theater room state: thin server manager (passes `addMany` batch reports through) + pure reducer/URL-classifier (incl. magnet links and YouTube playlist/mixed links; `youtubePlaylist` kind is an import target, refused by playback ops)/M3U parser (captures `tvg-id` for guide matching)/timeline math (all rules live in the shared model). |
@@ -56,7 +63,7 @@ For documentation-only changes, inspect and validate the documentation; do not r
 | `package.json`, `package-lock.json` | ES modules, dependencies, scripts, reproducible dependency versions. |
 | `dist/` | Generated Vite output. Edit source, then build; do not implement features by editing generated bundles. |
 
-Stack: vanilla JavaScript ES modules, Three.js, Vite, DOM/CSS HUD, Web Audio. The supported multiplayer stack is **Phoenix gateway + Node specialty sidecar** (`npm run dev:stack`): Phoenix owns transport, world presence (dev flip), chat relay (dev flip), and signed identity; Node retains torrent/IRC HTTP, theater uploads, and transitional WS relay for domains not yet ported (see `docs/architecture/elixir/ownership.md` §5). Legacy Node-only transport (`npm run dev` + `npm run server`) is deprecated (removal 2026-12-01).
+Stack: vanilla JavaScript ES modules, Three.js, Vite, DOM/CSS HUD, Web Audio. The supported multiplayer stack is **Phoenix gateway + Node specialty sidecar** (`npm run dev:stack`): Phoenix owns transport, world presence (dev flip), chat relay (dev flip), and signed identity; Node retains torrent/IRC HTTP, theater uploads, and transitional WS relay for domains not yet ported (see `docs/architecture/elixir/ownership.md` §5). The transitional relay is real, unfinished migration surface: the gardens/economy cutover (P6, `add-ash-gardens-economy-restoration`) has not happened — checkbox completion in other changes never proves it — so documentation and reports must never claim all Node writers are retired or the P6 production import complete. Legacy Node-only transport (`npm run dev` + `npm run server`) is deprecated (removal 2026-12-01).
 
 **Data directory policy:** never delete original snapshot files (`data/game-state.json`, `data/iptv.json`, `data/epg.json` — SHA-256 recorded in P11 evidence). Only regenerable caches (torrent cache dir) may be cleared. Sidecar-owned files (`data/torrents/`) are written only by `server/torrents.js`.
 
@@ -64,10 +71,11 @@ Commands:
 
 ```sh
 npm install       # When dependencies are missing or intentionally changed
-npm run dev      # Normally http://localhost:5173
-npm test         # Node test runner
-npm run build    # Production output in dist/
-npm run preview  # Serve the production build for inspection
+npm run dev:stack # Supported stack: Node sidecar :3001 + Phoenix gateway :4000 + Vite :5173
+npm run dev       # Vite only (legacy Node transport; deprecated, removal 2026-12-01)
+npm test          # Node test runner
+npm run build     # Production output in dist/
+npm run preview   # Serve the production build for inspection
 ```
 
 Use the existing local server if it is running. Do not launch a second server and unknowingly test a stale port. Vite can choose another port when its preferred port is occupied; read its output. The current dev script binds to `0.0.0.0`; do not confuse a network-accessible development process with a deployment.
@@ -125,31 +133,28 @@ Do not accidentally parent global actors or global lights into a district. Do no
 
 ### What travel must do
 
-`enterDistrict()` currently:
+`setRoom(id)` is now a thin wrapper over the place runtime (`src/places/runtime.js`), which owns the transition order. A committed travel:
 
-1. Validates the requested ID and finds its definition.
-2. Builds and caches an unseen district, including its gates.
-3. Shows only the destination group.
-4. Replaces the active obstacles and interaction arrays.
-5. Moves the player and Kiln to safe entrance positions.
-6. Clears the old movement target, nearest item, click marker, and held keys.
-7. Updates fog, background, sunlight, title, location labels, objective label, minimap, and canvas accessible name.
-8. Saves the current/visited district and updates its objective display.
-9. Announces arrival, or gives a suitable welcome-back message after reload.
+1. Resolves the requested ID (valid deep link wins; absent link stays The Orpheum; unknown IDs visibly fall back to Theater — never market under a mismatched wire ID; personal gardens keep their adapter).
+2. Prepares the destination world hidden before leaving the current place; a build failure keeps the previous world, membership and HUD, with a retryable travel error.
+3. Deactivates the prior place's controller, stops an active call adapter locally, stands the actor up, and takes a new activation generation so stale async work is discarded.
+4. Swaps the visible group, active world, bounds and spawns; clears nearest, walk target, marker, held keys, pointer gesture, queued jump/momentum, emote wheel and seat.
+5. Applies the destination's presentation (fog/background/sun, title, location labels, minimap, canvas accessible name), saves visited/current, clears the remote roster, and binds the room through `net.joinRoom` (desiredRoom replay intact).
+6. Activates the place's controller with the current generation and announces local readiness; network status is separately `joining/online/offline` — joining is never claimed as accepted membership.
 
-Preserve these responsibilities. Forgetting to clear an old `nearest` item can make E affect a previous area's object. Forgetting to switch collision arrays creates invisible obstacles or walk-through scenery. Forgetting local lights causes the previous district to illuminate the next one.
+Preserve these responsibilities (they live in the runtime and its tests, `tests/place-travel.test.js`). Hidden areas remain in memory, but their geometry and local lights must not render, and only the active place receives animation updates.
 
 Travel currently resets position to an entrance, not the precise point of departure. Reload restores the last district at its entrance. Exact position saving is not implemented.
 
 ### Input and frame loop
 
 - WASD and arrow keys move relative to the selected camera angle (in first person: relative to the view yaw).
-- Shift runs. E interacts. C cycles four views (three isometric angles, then first person). M opens Districts.
+- Shift runs. E interacts. C cycles four views (three isometric angles, then first person). T opens Places. M opens the Market Exchange.
 - Space jumps. Holding Space bunny hops: each landing with Space held relaunches on the same frame, preserving horizontal momentum plus a small gain, capped at ~1.5× run speed. Jump/bhop rules live in `src/jump.js` (pure, covered by `tests/jump.test.js`); `main.js` feeds it grounded/input facts each frame and applies the returned y and speed scalar. Collision is unchanged: obstacles and bounds block mid-air.
 - Pressing on the ground starts a gesture: released below the drag threshold it walks exactly like the old click; a drag instead turns the view (first person only). Gesture rules live in `src/cameraControl.js`.
 - Mouse wheel changes orthographic zoom within bounds (no effect in first person).
 - Escape opens settings; in cinema view it returns to the game first. Native dialog cancellation closes dialogs through explicit handlers.
-- Settings and Districts pause gameplay and clear held movement keys.
+- Settings and the Places selector pause gameplay and clear held movement keys.
 - Losing window focus clears held keys.
 - The frame loop caps delta time and animates legs, companion movement, collectibles, particles, active district visuals, and the camera.
 
@@ -161,7 +166,7 @@ Jump momentum is session-local and resets at every path that clears held keys: `
 
 `main.js` holds two cameras — the original orthographic one for the three isometric modes and a perspective one for first person — and routes every consumer through a single `activeCamera` reference: the composer's `RenderPass.camera`, the click raycast, `resize()`, the follow logic, and the theater `screenQuad` projection. When touching any of those, use `activeCamera`, not a specific camera, or the view modes drift apart. First person is mode 3 in the `cameraMode` cycle: the frame loop places the perspective camera at the player's eye height (lowered while seated), `player.visible` is false for the owner's avatar only, movement rotates through `moveBasis()`, and entering the mode seeds the yaw from the avatar's facing (camera and avatar facing conventions differ by π). Camera mode, yaw, and pitch are session-local presentation state: never saved, never synced.
 
-Keep input methods equivalent where possible: interaction works through E and the on-screen button; travel works through gates and the Districts selector. Do not break keyboard play after the user clicks a button. Do not hijack typing in inputs/selects. Keep keyboard focus indicators visible.
+Keep input methods equivalent where possible: interaction works through E and the on-screen button; travel works through gates and the Places selector. Do not break keyboard play after the user clicks a button. Do not hijack typing in inputs/selects. Keep keyboard focus indicators visible.
 
 Do not introduce another requestAnimationFrame loop for each object or district. Register district animation in `update()` and run it from the existing active-world loop. Use elapsed time or delta time, not assumptions about 60 FPS.
 
@@ -211,54 +216,57 @@ Lay out floor, obstacles, entrances, and landmark first. Then add architectural 
 
 ### B. Add a stable definition
 
-Add a definition to `districts` in `src/districts.js` with the fields the current builder/UI expects:
+Add the definition to the shared manifest (`shared/placeDefinitions.js`), not to a renderer module. The full field reference, validation rules and the server projection step live in `docs/places.md`; the short form:
 
 ```js
 {
   id: 'observatory',                 // Unique and stable: becomes save data
   name: 'The Listening Roof',
-  district: 'ROOFTOP DISTRICT / 08',
+  district: 'ROOFTOP DISTRICT / 08', // HUD micro-label
   subtitle: 'ABOVE THE STATIC',
   color: '#596779',                  // Fog/background theme
   sun: '#d8d1b5',
   description: 'A quiet receiver above the city.',
-  objective: 'Tune the receiver',
-  action: 'Align the receiver',
-  done: 'Receiver listening',
-  message: 'A distant voice returns through the static.',
-  landmark: [6, -5],                 // x,z, not x,y
-  note: [-6, 5],
-  noteTitle: 'A patient listener',
-  noteBody: '“Give the silence a little time.”',
+  kind: 'environment',               // 'environment' | 'venue' | 'view'
+  seed: <explicit constant>,         // never derived from array order
+  bounds: { minX: -11.3, maxX: 11.3, minZ: -9.5, maxZ: 10.3 },
   spawn: [-9, 0],                    // x,z; verify both actors fit
+  companionSpawn: [-8.2, 1],
+  exits: [ /* declared gates; targets are validated */ ],
+  minimapPath: 'M24 24H130V96H24Z',  // radar schematic
+  shell: 'legacy-urban',             // or 'none' when the builder owns everything
+  builderKey: 'observatory',         // resolved via src/places/registry.js
+  atmosphere: { preset: null, weatherMode: 'fixed', timeMode: 'fixed' },
+  capabilities: { seating: false, sharedMedia: false, conferencing: false },
+  social: { featured: false, legacy: false },
+  // objective/note tuples optional; a present tuple must be complete
 }
 ```
 
-This example is a template, not an existing level or a complete implementation.
+Append after the legacy entries; never reorder, rename or reseed existing ones. Then regenerate the committed server projection: `node scripts/export-place-definitions.mjs` (`--check` catches drift). `objective`, `action`, `done`, `message`, `landmark`, `note`, `noteTitle`, `noteBody` are the legacy restoration tuple — optional for social places, complete-or-rejected when present.
 
 ### C. Implement geometry explicitly
 
-Add an explicit builder branch for the new ID. **Current gotcha:** `buildDistrict()` uses `if canal / else if garden / else station`. Merely appending a definition will silently build station scenery for the new ID. Replace that fallback with an explicit station branch and add your own branch; consider throwing for unknown IDs to prevent silent mistakes.
+Register the builder under the definition's `builderKey` (biome builders live in `DISTRICT_BUILDERS` in `src/districts.js`, which registers them into `src/places/registry.js`). An unknown builder key is a named error before any geometry is built — there is no silent fallback scenery anymore.
 
-Use the district-local helpers. Add visible large props to `obstacles` using `block()`. Keep decorative ground litter non-blocking. Ensure local lights, transparent surfaces, interactables, and animation objects remain attached to the world group.
+Use the district-local helpers (`box`, `block`, `glow`, `lamp`, `random`) provided by `src/places/worldFactory.js`. Add visible large props to `obstacles` using `block()`. Keep decorative ground litter non-blocking. Ensure local lights, transparent surfaces, interactables, and animation objects remain attached to the world group and out of the static instanced batch when they animate.
 
-The common builder already adds a field-note stand and a landmark indicator based on the definition. Do not accidentally duplicate these, or leave a generic indicator floating without a meaningful physical landmark beneath it.
+The world factory adds the field-note stand and landmark indicator from the definition, plus gate items from the declared exits. Do not duplicate them, or leave a generic indicator floating without a meaningful physical landmark beneath it. `docs/places.md` is the authoring reference; `AGENTS.md` §6/§7 still govern collision and rendering quality.
 
 ### D. Wire all integration points
 
 A new definition is not sufficient. Check each of these:
 
-- `buildDistrict()` has distinct geometry for the ID.
-- `main.js`'s `mapPaths` includes the ID, with an appropriate floor/route diagram.
-- Landmark/note map markers correspond to actual world coordinates.
-- Gate destinations form the intended route. New districts currently get west = previous array element and east = next element, wrapping to court. The courtyard's east gate is explicitly hard-coded to `canal`; it does not automatically follow arbitrary reorderings.
-- `districts[0]` remains the courtyard unless you deliberately update every index-based assumption.
-- The district menu creates a usable entry and reports visited/restored state correctly.
+- The builder produces distinct geometry for the ID and passes reachability/clearance tests.
+- `minimapPath` in the definition draws an appropriate floor/route diagram; landmark/note markers correspond to actual world coordinates.
+- Gate destinations are declared explicitly in `exits` (legacy west/east/market topology is frozen in `shared/placeDefinitions.js` and never recomputed).
+- The Places selector picks the place up automatically: `social.featured` lists it among the featured cards, otherwise it appears under "Legacy areas"; occupancy appears only if the place is in the server projection.
 - HUD labels, descriptions, and accessible names are accurate.
-- Save normalization accepts the stable new ID and does not damage existing progress.
+- Save normalization accepts the stable new ID and does not damage existing progress (`readExploration` filters unknown IDs).
+- The server projection is regenerated (`node scripts/export-place-definitions.mjs --check`).
 - Tests and README describe the new area and any new mechanics.
 
-District order also currently affects procedural seeds and displayed numeric map codes. Reordering can change existing scenery even when IDs remain unchanged. Prefer appending or use explicit per-district seeds/codes if reorganizing the route.
+Seeds are explicit manifest values, so appending a place cannot shift existing scenery — but reordering or reseeding can. `LEGACY_DISTRICT_IDS` and the legacy gate topology are frozen; new places declare their own exits.
 
 ### E. Implement a real completion effect
 
@@ -354,7 +362,9 @@ Never clear the user's save to make testing easier. Prefer an isolated test cont
 
 Use the existing visual language: translucent dark teal panels, muted borders, cream body text, small spaced monospace labels, restrained gold accents, and asymmetric corner rounding. DM Sans is the main UI font; Space Mono supports labels and keys, both with fallbacks.
 
-Keep the HUD informative but out of the playable center. The title sits top-left, local map/objective top-right, companion bottom-left, interaction near the bottom, controls/actions along the footer. District selection and settings use native dialogs.
+Keep the HUD informative but out of the playable center. The title sits top-left, local map/objective top-right, companion bottom-left, interaction near the bottom, controls/actions along the footer. Place selection (the Places selector) and settings use native dialogs.
+
+The HUD is contextual (deemphasize-legacy-farming). `src/ui/placeHudPolicy.js` classifies the active place from manifest metadata (`social.featured`, `kind: 'venue'`) plus room id — the Market Court, personal gardens (`garden:<owner>`) and the legacy biomes stay legacy; unknown metadata defaults to social — and `main.js` applies the policy only at context changes: `body[data-hud-context]` plus `data-hud-legacy` markers on `.player-stats-row`, `#hud-tool-hint`, `#tool-belt`, `#btn-inventory` and `#btn-market` drive the CSS, and the hidden sections also get `hidden` so they leave the tab order. Inventory/welcome messages re-assert visibility from the policy; they can never reveal a hidden panel. Entering a social place clears the held visual tool to hands and the personal garden restores it — presentation state only, never an inventory read or write. Settings' **Legacy gardener HUD** checkbox (preference key `afterlight-legacy-ui-v1`) flips every place back to the legacy presentation instantly, with no data changes; storage failures keep the choice session-local. Keep every HUD DOM id stable regardless of visibility: `marketModal` state consumers still write into them so cached balances are ready when a legacy context shows them.
 
 At approximately 930px viewport width, the companion panel and centered interaction panel previously overlapped. A 901–1100px rule now moves the interaction to the right. Existing breakpoints also include 900px and 560px. Check interactions between these rules when adding buttons or enlarging panels; appending a broad rule can override a carefully tuned narrower one.
 
@@ -383,7 +393,7 @@ After the implementation, Ripwire review is encouraged but optional: `ripwire . 
 
 Minimum useful gameplay smoke check for a new area:
 
-- Enter it using Districts and inspect title, map, objective, lighting, player, and Kiln.
+- Enter it using the Places selector (T) and inspect title, map, objective, lighting, player, and Kiln.
 - Walk a real route, including any bridge or tight passage.
 - Reach its field note and read it.
 - Reach its landmark, interact, and observe both visible world change and objective progress.

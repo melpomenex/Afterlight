@@ -34,8 +34,8 @@ Rules (non-negotiable):
 | 18 | Torrent engine | Node sidecar (`server/torrents.js`) behind **`Afterlight.Specialty`** resolve proxy + grant validation; torrent **bill rows** (picks) durable in **`theater_items`** (P5); cache/library files stay sidecar-owned | `data/torrents/library.json` + cache dir (sidecar); **`theater_items` torrent pick fields** (PG) | Node sidecar (retained); Phoenix issues scoped playback grants (`torrent_grant` targeted events) | sidecar files + `theater_items` picks | **P7 — grants + resolve proxy live; sidecar retained** | `theaterScreen.js` picker + `<video>` streaming | HTTP Range stream **requires `grant` query param** (P7) + WS `torrent_state` pass-through | `torrent_resolve` → `:specialty` (circuit breaker, cooldown, in-flight caps) | Sidecar failure → `engine_unavailable`; bill + exempt set survive in PG and re-sync on reconnect |
 | 19 | Conferencing signaling | does not exist yet | none | `Afterlight.Conferencing` (Channels) | `calls`, `call_memberships`, media grants (short-lived) | P8 (spike) | new UI, opt-in | `call:<id>` topic | `authorize_join`, `issue_media_grant` | Independent feature; failure must not affect game |
 | 20 | Conferencing media | does not exist yet | none | Media worker behind SFU adapter (Membrane/ExWebRTC experiment) | none (packets) | P8 | browser WebRTC | SRTP/ICE, never Channels/Ash | grants only | Adapter isolates SFU choice |
-| 21 | Recordings | does not exist yet | none | Membrane pipelines + object storage (only with explicit consent) | object storage + authorization metadata | P8 (later) | n/a | signed downloads | n/a | Deletable; never gates gameplay |
-| 22 | Weather | `server/index.js` interval | none | `Afterlight.World` room runtime | none (deterministic rotation) | P6 (with gardens/economy; relayed from Node until that flip — P3 keeps Node as the sole weather writer, relayed unsuppressed through the gateway) | HUD | broadcast | n/a | n/a |
+| 22 | Weather (agricultural) | `server/index.js` interval | none | `Afterlight.World` room runtime | none (deterministic rotation) | P6 (with gardens/economy; relayed from Node until that flip — P3 keeps Node as the sole weather writer, relayed unsuppressed through the gateway) | HUD | broadcast | n/a | n/a |
+| 23 | Place atmosphere | none (new system) | none (transient) | `Afterlight.World.Atmosphere` (held in `RoomServer`) | none (process memory, transient) | `add-atmosphere-weather-system` | `src/atmosphere/` (controller, events, sky, surfaces) | Channels (`game:v1` `atmosphere_state` / `atmosphere_get`) | transient | n/a — reconnect = fresh snapshot |
 
 ## 2. Migration phase map
 
@@ -93,4 +93,17 @@ Router default for unknown game types: `:unrouted` (loud `error {message: unrout
 Snapshot hashes (read-only forensic): `openspec/changes/remove-node-server-authority/evidence/snapshot-hashes.md`.
 
 **Data policy:** `data/game-state.json`, `data/iptv.json`, and `data/epg.json` are never deleted; only regenerable caches (`data/torrents/` cache dir) may be cleared. Sidecar-owned files are written only by their sidecar.
+
+## 6. Theater streaming verification posture (2026-09-07, fix-theater-streaming-after-elixir-cutover)
+
+A browser-level regression after the cutover showed that WS-green server checks do not prove streaming: the dominant failure was transport — a gateway booted without `check_origin` (or before `926a802`) rejects the dev client's WebSocket upgrade with 403, and every theater source kind silently dies behind an endless "reconnecting" loop while all server-side probes still pass.
+
+Standing contracts and tooling from that change:
+
+- **Origin contract.** The endpoint's origin list resolves only through `AfterlightWeb.OriginConfig` (`PHX_CHECK_ORIGIN=false` disables; a CSV overrides; defaults include the Vite dev origins + `*.vercel.app`). Unit-tested; never inline the case statement back into `runtime.exs`. Phoenix logs rejected origins with the offending value.
+- **Boot-time tripwire.** `scripts/dev-elixir-stack.sh` performs a real browser-origin WS handshake (token + `Origin` → must answer 101) after the listeners come up and aborts the stack otherwise.
+- **Acceptance gate.** Streaming claims require `node scripts/theater-streaming-smoke.mjs` (WS-level, self-cleaning probe items) PLUS the manual browser pass `scripts/theater-streaming-pass.md` (engines, iframes, HLS, granted streams are browser-only facts). Verified 2026-09-07 in a real browser: YouTube iframe, direct `.mp4`, HLS `.m3u8` all play on the in-world screen; invalid URLs are refused readably; a dead `.mp4` fails visibly and advances; a magnet resolve times out with a readable error in swarm-blocked environments.
+- **Relay key.** `Theater.OutboxRelay` publishes through the room key derived from `TorrentRules.theater_wire_id()` — one shared definition, pinned by test. Publishing emits `[:afterlight, :theater, :broadcast]` telemetry (room, revision); a room-absent no-op logs at debug.
+- **Proxy streams.** Torrent Range streams get a patient per-read idle timeout (`AFTERLIGHT_PROXY_TORRENT_TIMEOUT_MS`, default 300 s) via `AfterlightWeb.HTTPProxy.receive_timeout_ms/2`; other proxied paths keep 60 s. Range/206 semantics pass through the proxy untouched (unit-tested).
+- **Stale live items.** A join snapshot whose live item is past its duration heals by one `ended` report; duplicates/races collapse via the item `generation` guard (channel-level tests pin this). Stale fixture items from cutover testing drained this way on 2026-09-07.
 

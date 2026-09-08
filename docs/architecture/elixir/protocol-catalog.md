@@ -36,6 +36,7 @@ Related: `ownership.md` (who owns what), `parity-notes.md` (porting hazards).
 | `iptv_list_get` | `{listId}` | catalog | room theater | targeted `iptv_list` |
 | `iptv_list_remove` | `{listId}` | catalog | room theater; **no ownership check** | iptv.json; `iptv_state` broadcast |
 | `epg_lookup` | `{keys: []}` | catalog | ≤300 keys | targeted `epg_schedule` |
+| `atmosphere_get` | `{requestId}` | world | room membership checked; requestId ≤ 64; throttled 1 per 5s | none; targeted `atmosphere_state` or `atmosphere_unavailable` |
 | `ping` | `{t}` | meta | none | targeted `pong {t}` |
 
 ### Server → Client
@@ -60,7 +61,9 @@ Related: `ownership.md` (who owns what), `parity-notes.md` (porting hazards).
 | `epg_schedule` | `{entries:[{key, now, next}]}` | targeted |
 | `torrent_files` | `{requestId, infohash, name, files}` | targeted |
 | `torrent_state` | `{items:[{infohash, progress, peers, downloaded, ready}]}` | theater room, ~2 s while relevant |
-| `weather_update` | `{weather}` | broadcast ALL (3-min rotation clear→drizzle→rain) |
+| `atmosphere_state` | `{type, roomId, schemaVersion, epoch, revision, serverNow, state}` | room broadcast on state/event changes and ≤30s repair; targeted on room join |
+| `atmosphere_unavailable` | `{roomId, reason?}` | targeted, when room has no atmosphere preset |
+| `weather_update` | `{weather}` | broadcast ALL (3-min rotation clear→drizzle→rain; agricultural only) |
 | `action_result` | `{actionId?, success, title?, message}` | targeted |
 | `trade_filled` | `{trade:{quantity, cropId, price}}` | targeted to filler |
 | `emote_broadcast` | `{playerId, nickname, emote}` | room broadcast |
