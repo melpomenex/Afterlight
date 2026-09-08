@@ -15,3 +15,8 @@ server_elixir/erl_crash.dump
 # BEAM nodes crashing with cwd at the repo root
 /erl_crash.dump
 .env*
+
+# Local agent tooling caches (video2code / video-agent-kit plugin pointers)
+.v2c/
+.video_agent/
+server_elixir/.video_agent/
