@@ -293,6 +293,32 @@ export function buildPlaceWorld(def, { completed = false } = {}) {
       items.push({ type: 'landmark', x: lx, z: lz, title: def.action, sub: 'A small act of restoration' });
     }
 
+    // Activities declared for this place (place activities program)
+    if (Array.isArray(def.activities)) {
+      for (const act of def.activities) {
+        if (!act || !act.id) continue;
+        if (items.some(it => it.id === act.id || it.activityId === act.id)) continue;
+        const pos = act.transform?.position || [0, 0];
+        const ax = pos[0];
+        const az = pos.length === 3 ? pos[2] : pos[1];
+        if (act.footprint && !obstacles.some(o => Math.abs(o.x - ax) < 0.01 && Math.abs(o.z - az) < 0.01)) {
+          block(ax, az, act.footprint.width, act.footprint.depth);
+        }
+        items.push({
+          type: 'activity',
+          id: act.id,
+          activityId: act.id,
+          activityType: act.type,
+          x: ax,
+          z: az,
+          interactionRadius: act.interactionRadius || 2.4,
+          title: act.title || `Play ${act.type ? act.type.charAt(0).toUpperCase() + act.type.slice(1) : 'Activity'}`,
+          sub: act.sub || 'Press E to play · Spectate / Queue',
+          activityDef: act,
+        });
+      }
+    }
+
     // Gather nodes for this district (server state applied on district entry).
     // They live in a dynamic subgroup that the static batch below skips.
     const nodeBuild = buildMaterialNodes(def, { group, items, animated });

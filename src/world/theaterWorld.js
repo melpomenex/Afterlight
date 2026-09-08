@@ -193,6 +193,39 @@ export function buildTheaterScenery(ctx) {
   box(4.6, 1.34, 9.15, 1.2, .10, .8, colors.brass);
   for (let i = 0; i < 5; i++) box(4.6 + i * .03, 1.41 + i * .025, 9.15, .52, .018, .3, '#dac9a1');
 
+  // --- Arcade wing (northeast): inset runner carpet, brass border trim,
+  // emissive amber floor studs, and backlit wall marquee sign board.
+  // Physical cabinet positions are clear of all 45 seat sightlines to the
+  // movie screen and leave >= 1.2m accessible routes.
+  box(8.9, .148, -4.4, 3.6, .025, 4.8, '#1e2430');
+  box(7.1, .165, -4.4, .045, .02, 4.8, colors.brass);
+  box(10.7, .165, -4.4, .045, .02, 4.8, colors.brass);
+  box(8.9, .165, -2.0, 3.6, .02, .045, colors.brass);
+  box(8.9, .165, -6.8, 3.6, .02, .045, colors.brass);
+
+  const arcadeStuds = [];
+  for (const x of [7.2, 10.6]) {
+    for (const z of [-2.1, -4.65, -6.6]) {
+      arcadeStuds.push(glow(x, .18, z, .14, .06, .14, '#ffca7a', .6));
+    }
+  }
+  animated.push((time, done) => {
+    arcadeStuds.forEach((s, i) => {
+      s.material.emissiveIntensity = done ? 1.5 + Math.sin(time * 2.5 + i) * .3 : .6;
+    });
+  });
+
+  // Backlit arcade marquee / wall signage board along the east perimeter wall
+  box(11.15, 2.2, -4.65, .16, 1.2, 3.4, '#1b1e24');
+  box(11.12, 2.82, -4.65, .18, .06, 3.5, colors.brass);
+  box(11.12, 1.58, -4.65, .18, .06, 3.5, colors.brass);
+  box(11.12, 2.2, -2.93, .18, 1.25, .06, colors.brass);
+  box(11.12, 2.2, -6.37, .18, 1.25, .06, colors.brass);
+  const arcadeSign = glow(11.05, 2.2, -4.65, .06, .95, 3.0, '#ffd9a0', .75);
+  animated.push((time, done) => {
+    arcadeSign.material.emissiveIntensity = done ? 1.4 + Math.sin(time * 3) * .2 : .75;
+  });
+
   for (const [geo, materials] of parts) for (const [mat, instances] of materials) {
     const mesh = new THREE.InstancedMesh(geo, mat, instances.length);
     instances.forEach((p, i) => { mesh.setMatrixAt(i, p.matrix); mesh.setColorAt(i, p.color); });

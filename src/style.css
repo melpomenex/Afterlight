@@ -698,6 +698,170 @@ details.place-group > summary.place-group-label:focus-visible,
   background: #cdbc8e;
 }
 
+/* --- RECORDS & VERIFIED LEADERBOARDS (#leaderboard-dialog) --- */
+#leaderboard-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: 85vh;
+  overflow-y: auto;
+  background: #17292b;
+  color: #e2e4d6;
+  border: 1px solid #a99c6f75;
+  border-radius: 4px 4px 18px 4px;
+  padding: 22px 24px;
+  box-shadow: 0 20px 90px rgba(0, 0, 0, 0.7);
+}
+#leaderboard-dialog::backdrop {
+  background: rgba(7, 19, 16, 0.75);
+  backdrop-filter: blur(5px);
+}
+#leaderboard-dialog h2 {
+  font-size: 24px;
+  margin: 8px 0 4px;
+  color: #f0e6cf;
+}
+#leaderboard-dialog p.dialog-sub {
+  font-size: 12px;
+  color: #adc0b8;
+  margin-bottom: 14px;
+}
+#leaderboard-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.leaderboard-tab {
+  padding: 6px 12px;
+  background: #192d30;
+  color: #cfd8cb;
+  border: 1px solid #3d5a54;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.leaderboard-tab[aria-pressed="true"] {
+  background: #b8a87c;
+  color: #182827;
+  border-color: #b8a87c;
+  font-weight: 600;
+}
+.leaderboard-tab:focus-visible,
+#leaderboard-dialog button:focus-visible,
+#leaderboard-version:focus-visible {
+  outline: 2px solid #bbded5;
+  outline-offset: 2px;
+}
+.leaderboard-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 11px;
+  color: #adc0b8;
+}
+#leaderboard-version {
+  background: #192d30;
+  color: #e2e4d6;
+  border: 1px solid #3d5a54;
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+#leaderboard-status {
+  font-size: 11px;
+  color: #93b7a4;
+}
+#leaderboard-status[data-error="true"] {
+  color: #d9a06b;
+}
+#leaderboard-rows {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  max-height: 44vh;
+  overflow-y: auto;
+}
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 34px 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 10px;
+  border-bottom: 1px solid #22393b;
+  font-size: 13px;
+}
+.leaderboard-row.is-local {
+  background: #1d3534;
+  border-radius: 3px;
+}
+.leaderboard-rank {
+  font-family: 'Space Mono', monospace;
+  color: #c4b582;
+  text-align: right;
+}
+.leaderboard-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.leaderboard-score {
+  font-family: 'Space Mono', monospace;
+  color: #f0e6cf;
+  font-variant-numeric: tabular-nums;
+}
+.leaderboard-label {
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #93b7a4;
+  border: 1px solid #3d5a54;
+  border-radius: 3px;
+  padding: 2px 6px;
+}
+.leaderboard-empty,
+.leaderboard-note {
+  padding: 12px 10px;
+  font-size: 12px;
+  color: #adc0b8;
+}
+.leaderboard-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #adc0b8;
+}
+.leaderboard-pager button {
+  padding: 6px 12px;
+  background: #192d30;
+  color: #cfd8cb;
+  border: 1px solid #3d5a54;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.leaderboard-pager button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+#close-leaderboard {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  background: #b8a87c;
+  color: #182827;
+  font-weight: 600;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+#close-leaderboard:hover {
+  background: #cdbc8e;
+}
+
 /* --- THE GREAT MILL: HUD PANEL & MACHINE SHOP --- */
 .mill-panel {
   position: absolute;

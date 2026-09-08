@@ -18,6 +18,9 @@ import { CallClient } from './net/calls.js';
 import { CallPanel } from './ui/callPanel.js';
 import { TheaterScreenUI } from './ui/theaterScreen.js';
 import { createPlaceSelector } from './ui/placeSelector.js';
+import { createLeaderboardDialog } from './ui/leaderboard.js';
+import { recordRun as recordLocalBest, applyRecordingStatus } from './activities/localBests.js';
+import { ARCADE_GAMES } from '../shared/leaderboardModel.js';
 import { MSG_TYPES, ROOMS } from '../shared/protocol.js';
 import { CROPS, CROP_LIST, GROWTH_STAGES } from '../shared/crops.js';
 import { MILL_REQUIREMENT } from '../shared/materials.js';
@@ -26,6 +29,11 @@ import { createJumpState, resetJump, stepJump, moveSpeedFor, HOP_CAP_RATIO } fro
 import { createPlaceRuntime } from './places/runtime.js';
 import { resolveRoomRequest, worldUpdateInput } from './places/travelState.js';
 import { createTheaterAdapter, registerTheaterAdapter } from './places/theaterAdapter.js';
+import { createActivityRuntime } from './activities/runtime.js';
+import './activities/pong.js';
+import './activities/rainRunner.js';
+import './activities/signalLost.js';
+import './activities/sporefall.js';
 import { createAtmosphereStateClient, legacyWeatherDisplaySuppressed } from './atmosphere/stateClient.js';
 import { createAtmosphereController } from './atmosphere/controller.js';
 import { createAtmosphereEvents } from './atmosphere/events.js';
@@ -48,6 +56,8 @@ import {
   readLegacyUiPreference,
   writeLegacyUiPreference,
 } from './ui/placeHudPolicy.js';
+import { createCameraSeam } from './activities/cameraSeam.js';
+import { resolveEscapeAction, isTypingTarget, ESCAPE_TARGETS } from './activities/inputSeam.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -73,6 +83,7 @@ const SEATED_EYE_HEIGHT = 1.05;
 const LOOK_SENS_YAW = 0.005;
 const LOOK_SENS_PITCH = 0.004;
 const fpCamera = new THREE.PerspectiveCamera(58, 1, 0.1, 150);
+const cameraSeam = createCameraSeam({ initialMode: 0 });
 let activeCamera = camera;
 let cameraMode = 0;
 let fpYaw = 0;
@@ -454,6 +465,53 @@ let machineState = {
 const theaterAdapter = createTheaterAdapter({ ui: theaterUI });
 registerTheaterAdapter(theaterAdapter);
 
+// Place activities runtime (Phase 1, place activities program):
+// Coordinates activity lifecycles in the active place without adding a second rAF.
+const activityRuntime = createActivityRuntime({
+  net,
+  getActiveCamera: () => activeCamera,
+  getPlayer: () => player,
+  setActivityCamera: (cam) => setActivityCamera(cam),
+  clearActivityCamera: () => clearActivityCamera(),
+  worldFacts: () => ({
+    bounds: currentBounds,
+    obstacles: currentWorld?.obstacles ?? [],
+    isWalkable: (b, o, x, z) => isWalkable(b, o, x, z),
+    spawn: activeSpawns.spawn,
+  }),
+  applyAnchor: (anchor, slot) => {
+    if (isTypingTarget(document.activeElement)) document.activeElement.blur();
+    const pos = anchor.position;
+    const ax = pos[0];
+    const az = pos.length === 3 ? pos[2] : pos[1];
+    player.position.set(ax, 0, az);
+    if (typeof anchor.facing === 'number') {
+      player.rotation.y = anchor.facing;
+    }
+    player.userData?.legs?.forEach(leg => { leg.rotation.x = 0; });
+    target = null;
+    marker.visible = false;
+    clearJumpMomentum();
+  },
+  applyDismount: (point) => {
+    clearActivityCamera();
+    player.position.set(point.x, 0, point.z);
+    player.userData?.legs?.forEach(leg => { leg.rotation.x = 0; });
+    target = null;
+    marker.visible = false;
+    clearJumpMomentum();
+  },
+  sendMovement: (sitting) => net.sendMovement(player.position.x, player.position.z, player.rotation.y, false, sitting),
+  clearMovement: () => {
+    keys.clear();
+    target = null;
+    marker.visible = false;
+    clearJumpMomentum();
+  },
+  toast: (title, body, tag) => toast(title, body, tag),
+});
+const participation = activityRuntime.participation;
+
 // Seated pose ownership: normalization (legacy Theater offsets reproduced
 // exactly), safe dismount choice and the pose flags on the wire.
 const seats = createSeatController({
@@ -631,9 +689,11 @@ const placeRuntime = createPlaceRuntime({
         cacheZoneAudio(seam);
         environmentAudio.start();
         applyShadowTier(shadowSizeForCurrentTier());
+        activityRuntime.activate(seam);
         controller?.activate?.(seam);
       },
       deactivate: () => {
+        activityRuntime.deactivate();
         atmosphereController.deactivate();
         atmosphereStateClient.deactivate();
         // Place exit: loops stop/disconnect synchronously (well inside the
@@ -645,6 +705,7 @@ const placeRuntime = createPlaceRuntime({
         controller?.deactivate?.();
       },
       onSeatChanged: (detail) => controller?.onSeatChanged?.(detail),
+      openScreen: () => controller?.openScreen?.(),
     };
   },
   // Every consumer (movement, seats, frame loop) reads the same active
@@ -707,6 +768,7 @@ registerCoreInteractions(interactions, {
   seatControl: seats,
   readFieldNote: (item) => toast(item.sub, item.body, 'FIELD NOTE'),
   openScreen: () => theaterAdapter.openScreen(),
+  activityControl: participation,
 });
 
 function setRoom(roomId) {
@@ -810,6 +872,12 @@ net.on(MSG_TYPES.NODE_STATE, (msg) => {
 net.on(MSG_TYPES.THEATER_STATE, (msg) => {
   if (msg.theater) theaterUI.applyState(msg.theater, msg.serverNow || Date.now());
 });
+
+// Activity frames: forwarded to active-place activity runtime
+net.on(MSG_TYPES.ACTIVITY_STATE, (msg) => activityRuntime.acceptSnapshot(msg));
+net.on(MSG_TYPES.ACTIVITY_EVENT, (msg) => activityRuntime.acceptEvent(msg));
+net.on(MSG_TYPES.ACTIVITY_RESULT, (msg) => activityRuntime.acceptResult(msg));
+net.on(MSG_TYPES.ACTIVITY_ERROR, (msg) => activityRuntime.acceptError(msg));
 
 net.on(MSG_TYPES.MACHINE_UPDATE, (msg) => {
   if (!msg.machines?.mill) return;
@@ -1125,6 +1193,12 @@ function interact() {
     return;
   }
 
+  // E while participating or joining an activity leaves with safe dismount
+  if (participation.isOccupied) {
+    participation.leave();
+    return;
+  }
+
   if (!nearest) {
     toast("No Target Nearby", activeHudPolicy?.copy.noTargetHint
       ?? "Approach a garden bed, market stall, or gateway to interact.");
@@ -1321,6 +1395,43 @@ function openDistricts() {
 }
 
 $('btn-travel').onclick = openDistricts;
+
+// Records & verified leaderboards (P2): local bests are machine-local and
+// honestly labeled; verified records come only from the server's referee.
+const leaderboardDialog = createLeaderboardDialog({
+  dialog: $('leaderboard-dialog'),
+  net,
+    getPlayerId: () => net.guestId ?? null,
+  onOpen: () => {
+    paused = true;
+    keys.clear();
+    clearJumpMomentum();
+  },
+  onClose: () => {
+    paused = false;
+    keys.clear();
+    clearJumpMomentum();
+  },
+});
+$('btn-records').onclick = () => leaderboardDialog.open();
+
+// Terminal run results (P2): a finished arcade run updates the local best
+// (marked pending), and the server's recording status relabels it verified
+// or unrecorded. Never raised from the frame path.
+net.on(MSG_TYPES.ACTIVITY_EVENT, (msg) => {
+  const type = msg?.eventType || msg?.event || msg?.type;
+  const data = msg?.data || msg?.payload || {};
+  const game = data?.game;
+  if (!game) return;
+
+  if (type === 'result_recorded') {
+    const version = data.rulesVersion;
+    if (ARCADE_GAMES.includes(game) && Number.isInteger(data.score) && data.score >= 0) {
+      recordLocalBest(game, version, data.score);
+    }
+    applyRecordingStatus({ game, rulesVersion: version, status: data.status });
+  }
+});
 emoteWheel = createEmoteWheel({
   canOpen: () => !paused && !document.querySelector('dialog[open]'),
   onOpen: () => {
@@ -1355,21 +1466,33 @@ $('settings').onclick = toggleSettings;
 $('resume').onclick = toggleSettings;
 $('settings-dialog').addEventListener('cancel', (e) => { e.preventDefault(); toggleSettings(); });
 function setCameraMode(mode) {
-  cameraMode = mode;
-  activeCamera = mode === FP_MODE ? fpCamera : camera;
+  cameraMode = cameraSeam.setWorldMode(mode);
+  activeCamera = cameraSeam.resolveActiveCamera({ isoCamera: camera, fpCamera });
   renderPass.camera = activeCamera;
   // First person opens facing where the avatar faces. The avatar faces +Z at
   // rotation.y = 0 while the camera looks down -Z, so the yaw needs a PI flip.
-  if (mode === FP_MODE) {
+  if (cameraMode === FP_MODE) {
     fpYaw = player.rotation.y + Math.PI;
     fpPitch = 0;
   }
   // The player's own avatar stays out of view in first person; everything
   // else (Kiln, remote players, scenery) renders normally.
-  player.visible = mode !== FP_MODE;
-  renderer.domElement.style.cursor = mode === FP_MODE ? 'grab' : '';
+  player.visible = cameraMode !== FP_MODE;
+  renderer.domElement.style.cursor = cameraMode === FP_MODE ? 'grab' : '';
 }
-$('camera').onclick = () => setCameraMode(nextCameraMode(cameraMode));
+
+function setActivityCamera(customCamera) {
+  cameraSeam.acquireActivityCamera(customCamera);
+  activeCamera = cameraSeam.resolveActiveCamera({ isoCamera: camera, fpCamera });
+  renderPass.camera = activeCamera;
+}
+
+function clearActivityCamera() {
+  const { restoredMode } = cameraSeam.releaseActivityCamera();
+  setCameraMode(restoredMode);
+}
+
+$('camera').onclick = () => setCameraMode(cameraSeam.cycleWorldMode());
 $('quality').onchange = () => {
   renderer.setPixelRatio(Math.min(devicePixelRatio, Number($('quality').value)));
   resize();
@@ -1378,7 +1501,7 @@ $('atmosphere').onchange = () => { particles.visible = $('atmosphere').checked; 
 
 // --- KEYBOARD CONTROLS ---
 window.addEventListener('keydown', (e) => {
-  if ((e.target.closest('input,select,textarea,[contenteditable="true"]') || e.target.closest('#call-panel')) && e.code !== 'Escape') return;
+  if ((isTypingTarget(e.target) || e.target.closest('#call-panel')) && e.code !== 'Escape') return;
 
   // A seated player can always free themselves with E or any movement key —
   // this runs even while some panel has paused the world, so sitting can
@@ -1400,6 +1523,7 @@ window.addEventListener('keydown', (e) => {
   // Enter (or /) opens the town chat input — unless a dialog is up.
   if ((e.code === 'Enter' || e.code === 'Slash') && !document.querySelector('dialog[open]')) {
     e.preventDefault();
+    activityRuntime.neutralizeInput?.();
     chatPanel.focusInput(e.code === 'Slash' ? '/' : '');
     return;
   }
@@ -1421,7 +1545,7 @@ window.addEventListener('keydown', (e) => {
   keys.add(e.code);
 
   if (e.repeat) return;
-  if (e.code === 'Space' && !paused && !seats.current) jumpQueued = true; // consumed by the frame loop
+  if (e.code === 'Space' && !paused && !seats.current && !participation.isParticipating) jumpQueued = true; // consumed by the frame loop
   if (e.code === 'KeyE') interact();
   if (e.code === 'KeyI') ui.openInventory();
   if (e.code === 'KeyM') ui.openMarket();
@@ -1433,12 +1557,38 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.code === 'KeyC') $('camera').click();
   if (e.code === 'Escape') {
-    // Esc always frees a seated player completely (cinema view + chair).
-    if (seats.current) standUp();
-    else if (!paused) {
-      // In cinema view, Escape returns to the game first; settings needs a second press.
-      if (theaterUI.isWatching()) theaterUI.setWatchMode(false);
-      else toggleSettings();
+    const hasInputFocused = isTypingTarget(document.activeElement);
+    const hasOpenDialog = !!document.querySelector('dialog[open]');
+    const isActivityOccupied = participation.isOccupied;
+    const isSeated = !!seats.current;
+    const isCinemaWatching = theaterUI.isWatching();
+    const action = resolveEscapeAction({
+      hasInputFocused,
+      hasOpenDialog,
+      isActivityOccupied,
+      isSeated,
+      isCinemaWatching,
+      isPaused: paused,
+    });
+
+    switch (action) {
+      case ESCAPE_TARGETS.FOCUSED_INPUT:
+        document.activeElement.blur();
+        break;
+      case ESCAPE_TARGETS.OPEN_DIALOG:
+        break;
+      case ESCAPE_TARGETS.ACTIVITY:
+        participation.leave();
+        break;
+      case ESCAPE_TARGETS.SEAT:
+        standUp();
+        break;
+      case ESCAPE_TARGETS.CINEMA:
+        theaterUI.setWatchMode(false);
+        break;
+      case ESCAPE_TARGETS.SETTINGS:
+        toggleSettings();
+        break;
     }
   }
 });
@@ -1455,6 +1605,7 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('blur', () => {
   keys.clear();
   clearJumpMomentum();
+  activityRuntime.neutralizeInput?.();
 });
 
 // --- POINTER / CLICK TO WALK + DRAG TO LOOK ---
@@ -1567,10 +1718,16 @@ function frame(now) {
     t += dt;
 
     let moveX = 0, moveZ = 0;
-    if (keys.has('KeyW') || keys.has('ArrowUp')) moveZ--;
-    if (keys.has('KeyS') || keys.has('ArrowDown')) moveZ++;
-    if (keys.has('KeyA') || keys.has('ArrowLeft')) moveX--;
-    if (keys.has('KeyD') || keys.has('ArrowRight')) moveX++;
+    if (participation.isParticipating) {
+      moveX = 0;
+      moveZ = 0;
+      target = null;
+    } else {
+      if (keys.has('KeyW') || keys.has('ArrowUp')) moveZ--;
+      if (keys.has('KeyS') || keys.has('ArrowDown')) moveZ++;
+      if (keys.has('KeyA') || keys.has('ArrowLeft')) moveX--;
+      if (keys.has('KeyD') || keys.has('ArrowRight')) moveX++;
+    }
 
     // Any movement key stands a seated player up — or, when watching without
     // sitting, steps out of cinema view so the walk begins immediately.
@@ -1605,7 +1762,7 @@ function frame(now) {
     const baseSpeed = running ? RUN_SPEED : WALK_SPEED;
     // Vertical physics first: a landing frame with Space held relaunches the
     // hop before this frame's horizontal step, so chains never touch ground.
-    if (!seats.current) {
+    if (!seats.current && !participation.isParticipating) {
       stepJump(jumpState, {
         jumpPressed: jumpQueued,
         jumpHeld: keys.has('Space'),
@@ -1616,7 +1773,7 @@ function frame(now) {
       jumpQueued = false;
     }
     dir.normalize().multiplyScalar(dt * moveSpeedFor(jumpState, baseSpeed));
-    const moved = seats.current ? false : move(player, dir.x, dir.z, dt);
+    const moved = (seats.current || participation.isParticipating) ? false : move(player, dir.x, dir.z, dt);
     if (target && !moved) {
       target = null;
       marker.visible = false;
@@ -1624,7 +1781,7 @@ function frame(now) {
 
     // While airborne the jump owns the avatar's y and the legs tuck; the
     // grounded walk bob that move() just applied stays untouched.
-    if (!seats.current && jumpState.airborne) {
+    if (!seats.current && !participation.isParticipating && jumpState.airborne) {
       player.position.y = jumpState.y;
       player.userData.legs.forEach(leg => { leg.rotation.x = -0.8; });
     }
@@ -1690,6 +1847,10 @@ function frame(now) {
     // costs nothing while inactive or while the world is hidden.
     atmosphereController.update(dt * 1000);
 
+    // Active activities update on the same frame loop: costs zero when
+    // inactive or when the place declares no activities.
+    activityRuntime.update(t, dt);
+
     // Shared lightning envelopes + environmental audio (tasks 4.2/4.1), on
     // the same loop. The flash applies ADDITIVELY on top of the controller's
     // just-written presentation (≤0.2 exposure / ≤20% sun at full peak) and
@@ -1705,16 +1866,33 @@ function frame(now) {
 
     // Find nearest interactable
     nearest = null;
-    let minDist = 2.4;
+    let minDist = Infinity;
     for (const item of (currentWorld.items || [])) {
+      const radius = item.interactionRadius || 2.4;
       const dist = Math.hypot(player.position.x - item.x, player.position.z - item.z);
-      if (dist < minDist) {
+      if (dist < radius && dist < minDist) {
         nearest = item;
         minDist = dist;
       }
     }
 
-    if (nearest) {
+    if (participation.isParticipating) {
+      $('action-title').textContent = participation.currentActivity?.title || 'Playing Activity';
+      $('action-sub').textContent = 'Press E or Esc to stop playing · Safe dismount';
+      $('interact').style.borderColor = '#c6b47a99';
+    } else if (participation.isJoining) {
+      $('action-title').textContent = 'Joining Activity...';
+      $('action-sub').textContent = 'Waiting for server · Press E or Esc to cancel';
+      $('interact').style.borderColor = '#c6b47a99';
+    } else if (participation.isQueued) {
+      $('action-title').textContent = participation.currentActivity?.title || 'Queued';
+      $('action-sub').textContent = 'Waiting in queue · Press E to leave queue';
+      $('interact').style.borderColor = '#c6b47a99';
+    } else if (participation.isWatching) {
+      $('action-title').textContent = participation.currentActivity?.title || 'Spectating';
+      $('action-sub').textContent = 'Watching activity · Press E to stop';
+      $('interact').style.borderColor = '#c6b47a99';
+    } else if (nearest) {
       $('action-title').textContent = nearest.title;
       $('action-sub').textContent = nearest.sub;
       $('interact').style.borderColor = '#c6b47a99';

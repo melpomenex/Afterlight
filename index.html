@@ -139,6 +139,7 @@
       <button id="btn-inventory" data-hud-legacy>🎒 Satchel <kbd>I</kbd></button>
       <button id="btn-market" data-hud-legacy>⚖ Market <kbd>M</kbd></button>
       <button id="btn-travel">◇ Places</button>
+      <button id="btn-records">✧ Records</button>
       <button id="btn-emote">✦ Emotes <kbd>V</kbd></button>
       <button id="call-toggle">☎ Call</button>
       <button id="camera">▧ Camera <kbd>C</kbd></button>
@@ -210,6 +211,28 @@
     <p class="dialog-sub">Every destination, featured first. Counts show who is around right now — “—” means the count is unknown.</p>
     <div id="district-list"></div>
     <button id="close-districts">Return to exploring →</button>
+  </dialog>
+
+  <dialog id="leaderboard-dialog">
+    <div class="micro">THE ORPHEUM ARCADE</div>
+    <h2>Records</h2>
+    <p class="dialog-sub">
+      Verified records come from the arcade's own referee. Personal bests stay
+      on your machine until the referee confirms them.
+    </p>
+    <div id="leaderboard-tabs" role="tablist" aria-label="Arcade game"></div>
+    <div class="leaderboard-toolbar">
+      <label for="leaderboard-version">Rules version</label>
+      <select id="leaderboard-version" aria-label="Rules version"></select>
+      <span id="leaderboard-status" role="status"></span>
+    </div>
+    <ol id="leaderboard-rows"></ol>
+    <div class="leaderboard-pager">
+      <button id="leaderboard-prev" type="button">← Previous</button>
+      <span id="leaderboard-page" aria-live="polite"></span>
+      <button id="leaderboard-next" type="button">Next →</button>
+    </div>
+    <button id="close-leaderboard">Back to the arcade →</button>
   </dialog>
 
   <div id="loading">✧<span>INITIALIZING EXPEDITION...</span></div>

@@ -2,6 +2,16 @@ import { MSG_TYPES, serialize, parse } from '../../shared/protocol.js';
 import { generateDefaultNickname, sanitizeNickname } from '../../shared/identity.js';
 import { createPhoenixTransport } from './phoenixClient.js';
 import { jitteredRejoinDelay, shouldApplyRoomFrame } from './roomEpoch.js';
+import {
+  ACTIVITY_PROTOCOL_VERSION,
+  ACTIVITY_ERRORS,
+  generateActivityRequestId,
+  validateActivityJoin,
+  validateActivityLeave,
+  validateActivityReady,
+  validateActivityInput,
+  validateActivityResnapshot,
+} from '../../shared/activityProtocol.js';
 
 const GUEST_KEY = 'afterlight-gardener-guest-id';
 const NICK_KEY = 'afterlight-gardener-nickname';
@@ -413,5 +423,171 @@ export class NetworkClient {
     // automatically after any reconnect.
     this.desiredRoom = roomId;
     this.send(MSG_TYPES.JOIN_ROOM, { roomId });
+  }
+
+  // -- activities (Phase 1, place activities program) -----------------------
+
+  /**
+   * True when the active transport supports place activities (Phoenix gateway).
+   * Unsupported Node transport retains world play and labels activities unavailable.
+   */
+  get supportsActivities() {
+    return this.transportMode === 'phoenix';
+  }
+
+  /**
+   * Dispatches an activity error frame locally without sending it over the wire.
+   * Useful when an unsupported transport or local validation fails closed.
+   */
+  dispatchLocalActivityError(payload) {
+    const frame = {
+      type: MSG_TYPES.ACTIVITY_ERROR,
+      version: ACTIVITY_PROTOCOL_VERSION,
+      ...(this.desiredRoom ? { roomId: this.desiredRoom } : {}),
+      ...payload,
+    };
+    const handlers = this.handlers.get(MSG_TYPES.ACTIVITY_ERROR);
+    if (handlers) {
+      handlers.forEach(fn => fn(frame));
+    }
+    return frame;
+  }
+
+  /**
+   * Send an activity_join command.
+   * On unsupported Node transport, fails closed locally and dispatches activity_error.
+   */
+  sendActivityJoin({ activityId, role = 'play', requestId = null } = {}) {
+    const reqId = requestId || generateActivityRequestId('act_join');
+    if (!this.supportsActivities) {
+      this.dispatchLocalActivityError({
+        requestId: reqId,
+        activityId,
+        error: ACTIVITY_ERRORS.ACTIVITIES_UNAVAILABLE,
+        message: 'Activities are not supported on this transport',
+      });
+      return { ok: false, error: ACTIVITY_ERRORS.ACTIVITIES_UNAVAILABLE, requestId: reqId };
+    }
+    const validation = validateActivityJoin({ requestId: reqId, activityId, role });
+    if (!validation.valid) {
+      this.dispatchLocalActivityError({
+        requestId: reqId,
+        activityId,
+        error: ACTIVITY_ERRORS.INVALID_REQUEST,
+        message: validation.error,
+      });
+      return { ok: false, error: ACTIVITY_ERRORS.INVALID_REQUEST, details: validation.error, requestId: reqId };
+    }
+    this.send(MSG_TYPES.ACTIVITY_JOIN, validation.sanitized);
+    return { ok: true, requestId: reqId };
+  }
+
+  /**
+   * Send an activity_leave command.
+   */
+  sendActivityLeave({ activityId, reason = null, requestId = null } = {}) {
+    const reqId = requestId || generateActivityRequestId('act_leave');
+    if (!this.supportsActivities) {
+      this.dispatchLocalActivityError({
+        requestId: reqId,
+        activityId,
+        error: ACTIVITY_ERRORS.ACTIVITIES_UNAVAILABLE,
+        message: 'Activities are not supported on this transport',
+      });
+      return { ok: false, error: ACTIVITY_ERRORS.ACTIVITIES_UNAVAILABLE, requestId: reqId };
+    }
+    const validation = validateActivityLeave({ requestId: reqId, activityId, ...(reason ? { reason } : {}) });
+    if (!validation.valid) {
+      this.dispatchLocalActivityError({
+        requestId: reqId,
+        activityId,
+        error: ACTIVITY_ERRORS.INVALID_REQUEST,
+        message: validation.error,
+      });
+      return { ok: false, error: ACTIVITY_ERRORS.INVALID_REQUEST, details: validation.error, requestId: reqId };
+    }
+    this.send(MSG_TYPES.ACTIVITY_LEAVE, validation.sanitized);
+    return { ok: true, requestId: reqId };
+  }
+
+  /**
+   * Send an activity_ready command.
+   */
+  sendActivityReady({ activityId, ready, requestId = null } = {}) {
+    const reqId = requestId || generateActivityRequestId('act_ready');
+    if (!this.supportsActivities) {
+      this.dispatchLocalActivityError({
+        requestId: reqId,
+        activityId,
+        error: ACTIVITY_ERRORS.ACTIVITIES_UNAVAILABLE,
+        message: 'Activities are not supported on this transport',
+      });
+      return { ok: false, error: ACTIVITY_ERRORS.ACTIVITIES_UNAVAILABLE, requestId: reqId };
+    }
+    const validation = validateActivityReady({ requestId: reqId, activityId, ready });
+    if (!validation.valid) {
+      this.dispatchLocalActivityError({
+        requestId: reqId,
+        activityId,
+        error: ACTIVITY_ERRORS.INVALID_REQUEST,
+        message: validation.error,
+      });
+      return { ok: false, error: ACTIVITY_ERRORS.INVALID_REQUEST, details: validation.error, requestId: reqId };
+    }
+    this.send(MSG_TYPES.ACTIVITY_READY, validation.sanitized);
+    return { ok: true, requestId: reqId };
+  }
+
+  /**
+   * Send an activity_input command.
+   */
+  sendActivityInput({ activityId, sessionId, lease, seq, controls } = {}) {
+    if (!this.supportsActivities) {
+      this.dispatchLocalActivityError({
+        activityId,
+        error: ACTIVITY_ERRORS.ACTIVITIES_UNAVAILABLE,
+        message: 'Activities are not supported on this transport',
+      });
+      return { ok: false, error: ACTIVITY_ERRORS.ACTIVITIES_UNAVAILABLE };
+    }
+    const validation = validateActivityInput({ activityId, sessionId, lease, seq, controls });
+    if (!validation.valid) {
+      this.dispatchLocalActivityError({
+        activityId,
+        error: ACTIVITY_ERRORS.INVALID_REQUEST,
+        message: validation.error,
+      });
+      return { ok: false, error: ACTIVITY_ERRORS.INVALID_REQUEST, details: validation.error };
+    }
+    this.send(MSG_TYPES.ACTIVITY_INPUT, validation.sanitized);
+    return { ok: true, seq: validation.sanitized.seq };
+  }
+
+  /**
+   * Send an activity_resnapshot command.
+   */
+  sendActivityResnapshot({ activityId, sessionId = null, requestId = null } = {}) {
+    const reqId = requestId || generateActivityRequestId('act_resnap');
+    if (!this.supportsActivities) {
+      this.dispatchLocalActivityError({
+        requestId: reqId,
+        activityId,
+        error: ACTIVITY_ERRORS.ACTIVITIES_UNAVAILABLE,
+        message: 'Activities are not supported on this transport',
+      });
+      return { ok: false, error: ACTIVITY_ERRORS.ACTIVITIES_UNAVAILABLE, requestId: reqId };
+    }
+    const validation = validateActivityResnapshot({ requestId: reqId, activityId, ...(sessionId ? { sessionId } : {}) });
+    if (!validation.valid) {
+      this.dispatchLocalActivityError({
+        requestId: reqId,
+        activityId,
+        error: ACTIVITY_ERRORS.INVALID_REQUEST,
+        message: validation.error,
+      });
+      return { ok: false, error: ACTIVITY_ERRORS.INVALID_REQUEST, details: validation.error, requestId: reqId };
+    }
+    this.send(MSG_TYPES.ACTIVITY_RESNAPSHOT, validation.sanitized);
+    return { ok: true, requestId: reqId };
   }
 }

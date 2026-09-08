@@ -54,5 +54,13 @@ export function registerCoreInteractions(registry, context) {
   registry.register('seat', (item) => context.seatControl.sit(item));
   registry.register('field-note', (item) => context.readFieldNote(item));
   registry.register('theater_screen', (item) => context.openScreen(item));
+  if (context.activityControl) {
+    registry.register('activity', (item) => context.activityControl.interact(item));
+  }
+  return registry;
+}
+
+export function registerActivityInteraction(registry, activityControl) {
+  registry.register('activity', (item) => activityControl.interact(item));
   return registry;
 }
