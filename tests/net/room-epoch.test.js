@@ -75,6 +75,26 @@ test('untagged frames keep the legacy behavior (old servers never tagged)', () =
   assert.equal(fresh.get('theater'), undefined);
 });
 
+test('theater_state without epoch applies after newer presence epoch', () => {
+  const epochs = new Map([['theater', 3]]);
+
+  assert.equal(
+    shouldApplyRoomFrame(epochs, 'theater', { type: 'theater_state', roomId: 'theater' }),
+    true,
+    'bill snapshots omit epoch and must not be discarded after presence',
+  );
+  assert.equal(epochs.get('theater'), 3);
+});
+
+test('explicit stale epoch on a presence frame is still discarded', () => {
+  const epochs = new Map([['theater', 3]]);
+
+  assert.equal(
+    shouldApplyRoomFrame(epochs, 'theater', { type: 'presence_update', roomId: 'theater', epoch: 2 }),
+    false,
+  );
+});
+
 test('binary envelopes match by room before consumption; untagged envelopes stay legacy', () => {
   assert.equal(envelopeMatchesRoom('theater', 'theater'), true);
   assert.equal(envelopeMatchesRoom('theater', 'market'), false);

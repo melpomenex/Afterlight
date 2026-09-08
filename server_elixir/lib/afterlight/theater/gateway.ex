@@ -7,10 +7,10 @@ defmodule Afterlight.Theater.Gateway do
   """
 
   alias Afterlight.Theater
-  alias Afterlight.Theater.{PlaylistResolve, SessionTracker}
+  alias Afterlight.Theater.{OutboxRelay, PlaylistResolve, SessionTracker}
 
   @theater_room "theater"
-  @queue_ops ~w(add addMany remove playNow skip clear)
+  @queue_ops ~w(add addMany remove playNow skip clear channel)
   @control_ops ~w(pause resume seek ended failed)
 
   @doc """
@@ -62,6 +62,7 @@ defmodule Afterlight.Theater.Gateway do
         Afterlight.Specialty.BillSync.sync_now()
         maybe_prepare_items(commit)
         stamp_session(player_id, conn_ref, commit)
+        _ = OutboxRelay.publish_pending()
         replies = commit_replies(commit, player_id)
         {:noreply, replies}
 
@@ -122,7 +123,18 @@ defmodule Afterlight.Theater.Gateway do
           []
       end
 
-    import
+    state =
+      case commit[:theater] || commit["theater"] do
+        %{} = theater ->
+          server_now = commit[:server_now] || commit["serverNow"] || System.system_time(:millisecond)
+
+          [{"theater_state", %{"theater" => theater, "serverNow" => server_now}}]
+
+        _ ->
+          []
+      end
+
+    import ++ state
   end
 
   defp stamp_session(player_id, conn_ref, commit) do

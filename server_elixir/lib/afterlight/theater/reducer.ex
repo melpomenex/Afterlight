@@ -890,7 +890,9 @@ defmodule Afterlight.Theater.Reducer do
         base
       end
 
-    Map.merge(base, copy_prepare_fields(item), %{
+    base = Map.merge(base, copy_prepare_fields(item))
+
+    Map.merge(base, %{
       "playing" => true,
       "positionSec" => 0,
       "updatedAt" => now_ms,

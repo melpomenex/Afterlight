@@ -55,19 +55,18 @@ defmodule Afterlight.Theater.OutboxRelay do
       |> Ash.Query.limit(limit)
       |> Ash.read!(actor: Actor.system(), authorize?: false)
 
-    Enum.each(events, fn event ->
-      broadcast_theater_state(event.payload, now)
-      telemetry(event)
+    Enum.reduce(events, 0, fn event, count ->
+      case broadcast_theater_state(event.payload, now) do
+        :delivered ->
+          telemetry(event, :delivered)
+          mark_published!(event, now)
+          count + 1
 
-      event
-      |> Ash.Changeset.for_update(:mark_published, %{published_at: now},
-        actor: Actor.system(),
-        authorize?: false
-      )
-      |> Ash.update!()
+        :no_room ->
+          telemetry(event, :no_room)
+          count
+      end
     end)
-
-    length(events)
   end
 
   defp broadcast_theater_state(payload, server_now) when is_map(payload) do
@@ -80,30 +79,36 @@ defmodule Afterlight.Theater.OutboxRelay do
     case Registry.lookup(Afterlight.World.Registry, theater_registry_key()) do
       [{pid, _}] ->
         RoomServer.broadcast_frame(pid, frame)
+        :delivered
 
       [] ->
-        # An absent room process is normal while nobody is in the theater,
-        # but a room-key drift would look identical from here: the commit
-        # succeeded while no client ever sees the frame (the silent no-op
-        # D3 guards against). Debug keeps quiet rooms quiet yet greppable.
         Logger.debug(
-          "theater_state not broadcast: no room process under #{inspect(theater_registry_key())}"
+          "theater_state deferred: no room process under #{inspect(theater_registry_key())}"
         )
 
-        :ok
+        :no_room
     end
   end
 
-  defp broadcast_theater_state(_payload, _server_now), do: :ok
+  defp broadcast_theater_state(_payload, _server_now), do: :no_room
+
+  defp mark_published!(event, now) do
+    event
+    |> Ash.Changeset.for_update(:mark_published, %{published_at: now},
+      actor: Actor.system(),
+      authorize?: false
+    )
+    |> Ash.update!()
+  end
 
   # One event per committed bill change, carrying the revision the frame
   # was built from — the observable counterpart to the outbox row, so a
   # stopped relay or a drifted room key is measurable rather than silent.
-  defp telemetry(event) do
+  defp telemetry(event, outcome) do
     :telemetry.execute(
       [:afterlight, :theater, :broadcast],
       %{count: 1},
-      %{room: event.aggregate_id, revision: event.revision}
+      %{room: event.aggregate_id, revision: event.revision, outcome: outcome}
     )
   end
 

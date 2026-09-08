@@ -6,6 +6,7 @@ defmodule Afterlight.Theater.DomainTest do
   alias Afterlight.Accounts.{Actor, CommandReceipt, Player}
   alias Afterlight.Theater
   alias Afterlight.Theater.{OutboxRelay, SessionTracker, TheaterRoom}
+  alias Afterlight.World
 
   @room "theater"
   @youtube "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
@@ -194,7 +195,10 @@ defmodule Afterlight.Theater.DomainTest do
     assert Afterlight.Specialty.TorrentRules.theater_wire_id() == @room
   end
 
-  test "publish_pending emits a telemetry event per broadcast frame" do
+  test "publish_pending emits a telemetry event per delivered broadcast frame" do
+    channel = WorldTestHelper.recorder!(self(), :relay)
+    assert {:ok, _room_pid, _} = Afterlight.World.join(@room, "guest_relay", :c1, channel, "Relay")
+
     :ok =
       :telemetry.attach(
         "outbox-relay-test",
@@ -208,14 +212,29 @@ defmodule Afterlight.Theater.DomainTest do
 
     assert OutboxRelay.publish_pending() == 1
 
-    assert_receive {:relay_broadcast, %{count: 1}, %{room: @room, revision: revision}}, 1_000
+    assert_receive {:relay_broadcast, %{count: 1},
+                    %{room: @room, revision: revision, outcome: :delivered}}, 1_000
     assert revision == commit.revision
+    assert_receive {:recorded, :relay, %{"type" => "theater_state"}}, 1_000
 
-    # A second drain publishes nothing and therefore emits nothing.
     refute OutboxRelay.publish_pending() > 0
     refute_receive {:relay_broadcast, _, _}
   after
     :telemetry.detach("outbox-relay-test")
+  end
+
+  test "publish_pending defers mark_published when the room process is absent" do
+    case Registry.lookup(Afterlight.World.Registry, OutboxRelay.theater_registry_key()) do
+      [] ->
+        assert {:ok, _} =
+                 Theater.apply_action(@room, %{"op" => "add", "url" => @youtube}, "PlayerOne")
+
+        assert OutboxRelay.publish_pending() == 0
+        assert OutboxRelay.unpublished_count() >= 1
+
+      [{_pid, _}] ->
+        :ok
+    end
   end
 
   # Module-level handler: telemetry warns on anonymous function handlers.

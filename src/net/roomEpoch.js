@@ -21,6 +21,11 @@ const ROOM_SCOPED_TYPES = new Set([
   // room-scoped, so a queued old-room frame — even carrying a higher
   // epoch — is rejected by room identity before any epoch bookkeeping.
   'atmosphere_state',
+  // Place activities program (P1): activity envelopes are room-scoped.
+  'activity_state',
+  'activity_event',
+  'activity_result',
+  'activity_error',
 ]);
 
 /**
@@ -45,7 +50,7 @@ export function envelopeMatchesRoom(desiredRoom, taggedRoomId) {
 /**
  * @param {Map<string, number>} epochs
  * @param {string | null | undefined} roomId the desired room (desiredRoom)
- * @param {{ type?: string, epoch?: number, roomId?: string }} frame
+ * @param {{ type?: string, epoch?: number, roomEpoch?: number, roomId?: string }} frame
  * @returns {boolean} true when the frame should be applied
  */
 export function shouldApplyRoomFrame(epochs, roomId, frame) {
@@ -54,7 +59,11 @@ export function shouldApplyRoomFrame(epochs, roomId, frame) {
   // old-room frame (even carrying a higher epoch) must neither update the
   // old room's entry nor leak into the new room's epoch key.
   if (!envelopeMatchesRoom(roomId, frame.roomId)) return false;
-  const epoch = typeof frame.epoch === 'number' ? frame.epoch : 0;
+  // Bill snapshots (theater_state, etc.) and other authoritative frames
+  // often omit epoch; only compare when the server stamped one explicitly.
+  const rawEpoch = typeof frame.roomEpoch === 'number' ? frame.roomEpoch : frame.epoch;
+  if (typeof rawEpoch !== 'number') return true;
+  const epoch = rawEpoch;
   // Tagged frames key by their explicit room when the desired room is not
   // known yet; untagged legacy frames keep keying by desiredRoom.
   const key = roomId || frame.roomId || '_default';
