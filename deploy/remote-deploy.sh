@@ -1,23 +1,49 @@
 #!/usr/bin/env bash
 # Remote deploy for Afterlight (Phoenix + Node sidecar + Postgres) on remote VM.
+#
 # Usage (from repo root):
-#   DEPLOY_PASS='…' bash deploy/remote-deploy.sh
+#   bash deploy/remote-deploy.sh
+#
+# Optional overrides:
+#   DEPLOY_HOST=<DEPLOY_USER>@<DEPLOY_HOST>   # default
+#   DEPLOY_PASS='…'                      # password auth via sshpass (omit when SSH key works)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 HOST="${DEPLOY_HOST:-<DEPLOY_USER>@<DEPLOY_HOST>}"
-PASS="${DEPLOY_PASS:?Set DEPLOY_PASS}"
 REMOTE_DIR=/opt/afterlight/game
 
 run_ssh() {
-  sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no "$HOST" "$@"
+  if [[ -n "${DEPLOY_PASS:-}" ]]; then
+    sshpass -p "$DEPLOY_PASS" ssh -o StrictHostKeyChecking=no "$HOST" "$@"
+  else
+    ssh -o BatchMode=yes "$HOST" "$@"
+  fi
+}
+
+run_rsync() {
+  local -a rsync_args=(-az --delete
+    --exclude node_modules --exclude server_elixir/deps --exclude server_elixir/_build
+    --exclude .git --exclude dist --exclude benchmarks --exclude serviceradar
+    "$ROOT/" "$HOST:$REMOTE_DIR/")
+  if [[ -n "${DEPLOY_PASS:-}" ]]; then
+    sshpass -p "$DEPLOY_PASS" rsync "${rsync_args[@]}"
+  else
+    rsync "${rsync_args[@]}"
+  fi
+}
+
+sudo_remote() {
+  if [[ -n "${DEPLOY_PASS:-}" ]]; then
+    run_ssh "echo '$DEPLOY_PASS' | sudo -S $*"
+  else
+    run_ssh "sudo $*"
+  fi
 }
 
 echo "→ Syncing repo to $HOST:$REMOTE_DIR"
-run_ssh "echo '$PASS' | sudo -S mkdir -p $REMOTE_DIR && sudo chown -R <DEPLOY_USER>:<DEPLOY_USER> /opt/afterlight"
-sshpass -p "$PASS" rsync -az --delete \
-  --exclude node_modules --exclude server_elixir/deps --exclude server_elixir/_build \
-  --exclude .git --exclude dist --exclude benchmarks --exclude serviceradar \
-  "$ROOT/" "$HOST:$REMOTE_DIR/"
+run_ssh "mkdir -p $REMOTE_DIR"
+sudo_remote "mkdir -p /opt/afterlight && chown -R <DEPLOY_USER>:<DEPLOY_USER> /opt/afterlight"
+run_rsync
 
 echo "→ Writing production env (if missing)"
 run_ssh bash <<'REMOTE'
@@ -54,14 +80,17 @@ docker compose --env-file .env ps
 REMOTE
 
 echo "→ Tailscale funnel (public HTTPS/WSS)"
-FUNNEL_URL=$(run_ssh bash <<REMOTE
+FUNNEL_URL=$(run_ssh bash <<'REMOTE'
 set -euo pipefail
-echo '$PASS' | sudo -S tailscale funnel reset 2>/dev/null || true
-echo '$PASS' | sudo -S tailscale funnel --bg --https=443 http://127.0.0.1:4000 2>/dev/null || echo '$PASS' | sudo -S tailscale funnel --bg 4000
-DNS=\$(tailscale status --json | python3 -c "import sys,json; print(json.load(sys.stdin).get('Self',{}).get('DNSName','').rstrip('.'))")
-echo "https://\$DNS"
+sudo tailscale funnel reset 2>/dev/null || true
+sudo tailscale funnel --bg --https=443 http://127.0.0.1:4000 >/dev/null 2>&1 || sudo tailscale funnel --bg 4000 >/dev/null 2>&1 || true
+DNS=$(tailscale status --json | python3 -c "import sys,json; print(json.load(sys.stdin).get('Self',{}).get('DNSName','').rstrip('.'))")
+echo "https://$DNS"
 REMOTE
 )
 
+echo ""
 echo "Backend URL: $FUNNEL_URL"
-echo "Set VITE_WS_URL=${FUNNEL_URL/https:\/\//wss:}/ws for Vercel production."
+echo "VITE_WS_URL=${FUNNEL_URL/https:\/\//wss:\/\/}/ws"
+echo ""
+echo "Deploy frontend: bash deploy/vercel-deploy.sh"

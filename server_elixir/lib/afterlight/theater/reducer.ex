@@ -25,7 +25,7 @@ defmodule Afterlight.Theater.Reducer do
 
   @vimeo_hosts MapSet.new(["vimeo.com", "www.vimeo.com", "player.vimeo.com"])
 
-  @video_ext_re ~r/\.(mp4|webm|m4v|mov|ogv|ogg)$/i
+  @video_ext_re ~r/\.(mp4|webm|m4v|mov|ogv|ogg|mkv|avi|wmv|flv|ts|m2ts)$/i
   @http_url_re ~r{\Ahttps?://}i
   # JS \s = [\f\n\r\t\v\u0020\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]
   @ws_re ~r/[\s\x{00A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}]+/u
@@ -143,6 +143,9 @@ defmodule Afterlight.Theater.Reducer do
       %{kind: "vimeo", url: url, video_id: video_id} ->
         %{"kind" => "vimeo", "url" => url, "videoId" => video_id}
 
+      %{kind: "file", url: url, needs_prepare: needs} ->
+        %{"kind" => "file", "url" => url, "needsPrepare" => needs}
+
       %{kind: other, url: url} ->
         %{"kind" => other, "url" => url}
     end
@@ -174,7 +177,8 @@ defmodule Afterlight.Theater.Reducer do
             MapSet.member?(@youtube_hosts, host) -> classify_youtube(url, host, path, params)
             MapSet.member?(@vimeo_hosts, host) -> classify_vimeo(url, path)
             String.ends_with?(String.downcase(path), ".m3u8") -> %{kind: "hls", url: url}
-            Regex.match?(@video_ext_re, path) -> %{kind: "file", url: url}
+            Regex.match?(@video_ext_re, path) ->
+              %{kind: "file", url: url, needs_prepare: extension_needs_prepare?(url)}
             true -> nil
           end
         else
@@ -424,7 +428,7 @@ defmodule Afterlight.Theater.Reducer do
       if is_binary(item_id) and item_id != "" and item_id != Map.get(now, "id") do
         error("item_mismatch")
       else
-        if Map.get(now, "kind") == "hls" do
+        if Map.get(now, "kind") == "hls" and is_nil(Map.get(now, "playbackUrl")) do
           error("seek_unsupported")
         else
           pos = js_to_number(Map.get(action, "positionSec", :absent))
@@ -828,8 +832,41 @@ defmodule Afterlight.Theater.Reducer do
         "fileBytes" => Map.get(p, "fileBytes")
       })
     else
-      base
+      Map.merge(base, initial_prepare_fields(classified))
     end
+  end
+
+  defp extension_needs_prepare?(url) do
+    case Regex.run(~r/\.([a-z0-9]+)(?:\?|#|$)/i, url) do
+      [_, ext] -> ext in ["mkv", "avi", "wmv", "flv", "ts", "m2ts"]
+      _ -> false
+    end
+  end
+
+  defp initial_prepare_fields(%{kind: "file", needs_prepare: true, url: url}) do
+    %{
+      "sourceUrl" => url,
+      "prepareStatus" => "pending",
+      "playbackUrl" => nil,
+      "prepareId" => nil,
+      "prepareError" => nil
+    }
+  end
+
+  defp initial_prepare_fields(%{kind: "file"}), do: %{}
+  defp initial_prepare_fields(_), do: %{}
+
+  defp copy_prepare_fields(item) when is_map(item) do
+    Enum.reduce(
+      ["sourceUrl", "playbackUrl", "prepareStatus", "prepareId", "prepareError"],
+      %{},
+      fn key, acc ->
+        case Map.get(item, key) do
+          nil -> acc
+          val -> Map.put(acc, key, val)
+        end
+      end
+    )
   end
 
   defp start_now(item, actor, now_ms) do
@@ -853,7 +890,7 @@ defmodule Afterlight.Theater.Reducer do
         base
       end
 
-    Map.merge(base, %{
+    Map.merge(base, copy_prepare_fields(item), %{
       "playing" => true,
       "positionSec" => 0,
       "updatedAt" => now_ms,
@@ -880,7 +917,7 @@ defmodule Afterlight.Theater.Reducer do
         "fileBytes" => Map.get(current, "fileBytes")
       })
     else
-      base
+      Map.merge(base, copy_prepare_fields(current))
     end
   end
 

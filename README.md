@@ -72,6 +72,16 @@ Open **http://localhost:5173** in one or more browser windows. You wake up insid
 - `npm run build`: Bundles the client for production into `dist/`.
 - `npm run preview`: Serves the production build.
 
+### Production deploy
+
+```sh
+npm run deploy           # backend (remote VM) + frontend (Vercel)
+npm run deploy:backend   # VM only
+npm run deploy:frontend  # Vercel only
+```
+
+Live URLs: **https://game-beige-pi.vercel.app** (client) → **<PRODUCTION_WS_URL>** (Phoenix gateway). Agent runbook: `AGENTS.md` § Production deployment.
+
 ---
 
 ## The legacy gardener's loop (retained content)
@@ -282,7 +292,8 @@ Paste a playlist link in the booth and the projector reads it for you: the game 
 Paste a magnet link in the booth and the projector resolves it for you: the game server reaches the swarm, lists the torrent's video files, and **you pick which one plays** — only then does it start (or queue) for the whole room. Torrents often carry several films or episodes, so nothing goes on the screen until a file is chosen; closing the picker leaves the bill untouched.
 
 - While the swarm is reached you'll see live progress ("Reaching the swarm…", percent, peers) instead of a bare spinner; seeking works even in partially downloaded files, because the server streams your chosen file with byte-range support.
-- Files browsers usually can't decode (MKV, AVI) are listed with a *may not play* note; MP4/WebM and friends are offered first. There's no transcoding.
+- Remote **MKV/AVI** URLs pasted in the booth are accepted and, when the Phoenix server has **ffmpeg/ffprobe** installed, prepared server-side into a shared **HLS** stream (`/api/theater/media/...`) so every occupant watches the same converted output. The overlay shows *Inspecting media…* / *Preparing video…* while that runs; MP4/WebM direct links still play without conversion.
+- Torrent files browsers usually can't decode (MKV, AVI) are listed with a *may not play* note; MP4/WebM and friends are offered first. Torrent bytes are not transcoded — use a direct URL for server-side MKV preparation.
 - Torrent items on the bill survive reloads and server restarts — downloaded payloads are cached under `data/torrents/` (size-capped at ~4 GB, least-recently-used eviction; both tunable with `TORRENT_CACHE_DIR` and `TORRENT_CACHE_MAX_BYTES`). That downloaded-payload cache is regenerable and safe to clear; the snapshot files themselves (`data/game-state.json`, `data/iptv.json`, `data/epg.json`) are never deleted.
 - **You are responsible for what you stream.** Magnets play through the server operator's connection, so only point the projector at content you have the right to watch and share.
 

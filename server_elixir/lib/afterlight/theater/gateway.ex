@@ -57,9 +57,10 @@ defmodule Afterlight.Theater.Gateway do
         receipt_actor: player_id
       )
 
-    case result do
+      case result do
       {:ok, commit} ->
         Afterlight.Specialty.BillSync.sync_now()
+        maybe_prepare_items(commit)
         stamp_session(player_id, conn_ref, commit)
         replies = commit_replies(commit, player_id)
         {:noreply, replies}
@@ -139,4 +140,24 @@ defmodule Afterlight.Theater.Gateway do
   end
 
   defp error(message), do: {"error", %{"message" => message}}
+
+  defp maybe_prepare_items(commit) do
+    theater = commit[:theater] || commit["theater"] || %{}
+    room = @theater_room
+
+    for item <- items_needing_prepare(theater) do
+      Afterlight.TheaterMedia.Coordinator.ensure(room, item["id"], item["sourceUrl"] || item["url"])
+    end
+
+    :ok
+  end
+
+  defp items_needing_prepare(%{"now" => now}) when is_map(now) do
+    case Map.get(now, "prepareStatus") do
+      "pending" -> [now]
+      _ -> []
+    end
+  end
+
+  defp items_needing_prepare(_), do: []
 end

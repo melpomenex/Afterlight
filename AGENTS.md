@@ -76,6 +76,9 @@ npm run dev       # Vite only (legacy Node transport; deprecated, removal 2026-1
 npm test          # Node test runner
 npm run build     # Production output in dist/
 npm run preview   # Serve the production build for inspection
+npm run deploy           # Backend (remote VM) + frontend (Vercel)
+npm run deploy:backend   # Phoenix + Node + Postgres on remote VM only
+npm run deploy:frontend  # Vercel production build only
 ```
 
 Use the existing local server if it is running. Do not launch a second server and unknowingly test a stale port. Vite can choose another port when its preferred port is occupied; read its output. The current dev script binds to `0.0.0.0`; do not confuse a network-accessible development process with a deployment.
@@ -85,6 +88,60 @@ If the environment blocks package downloads or binding a server socket, use the 
 The build currently emits a non-fatal warning about a JavaScript chunk exceeding 500 kB. It is not a failed build. Do not silence it by arbitrarily raising thresholds. Address actual loading/performance needs when in scope.
 
 The CSS requests Google Fonts with local font fallbacks. Game geometry and synthesized sound do not depend on external game assets. Do not claim the font styling is entirely offline without changing this dependency.
+
+## Production deployment
+
+When the user says **"deploy it"** (or deploy backend/frontend/production), run the scripts below. Do not ask for hostnames, passwords, or Vercel project names unless something fails.
+
+**Prerequisites (usually already satisfied on the operator machine):**
+
+- SSH key access to `<DEPLOY_USER>@<DEPLOY_HOST>` (no password; `DEPLOY_PASS` is optional fallback for `sshpass`)
+- `npx vercel` authenticated (`vercel whoami` should succeed)
+- Remote host has Docker Compose and Tailscale funnel
+
+**One command (backend then frontend):**
+
+```sh
+bash deploy/deploy.sh
+# or: npm run deploy
+```
+
+**Split deploys:**
+
+```sh
+bash deploy/remote-deploy.sh   # sync repo → VM, docker compose build/up, Tailscale funnel
+bash deploy/vercel-deploy.sh   # Vercel prod with VITE_WS_URL + VITE_TRANSPORT=phoenix
+```
+
+| Target | Where | Public URL |
+| --- | --- | --- |
+| Backend (Phoenix gateway + Node sidecar + Postgres) | `<DEPLOY_USER>@<DEPLOY_HOST>` → `/opt/afterlight/game/deploy` | `<PRODUCTION_BACKEND_URL>` (Tailscale funnel → Phoenix `:4000`) |
+| Frontend (static Vite build) | Vercel project `afterlight`, scope `<VERCEL_SCOPE>` | `https://game-beige-pi.vercel.app` |
+
+**What the scripts do:**
+
+1. `deploy/remote-deploy.sh` — `rsync` the repo (excludes `node_modules`, `_build`, `dist`, `.git`), preserve existing `deploy/.env` secrets on first boot only, `docker compose build && up -d`, reset Tailscale funnel to proxy `127.0.0.1:4000`.
+2. `deploy/vercel-deploy.sh` — reads the VM's Tailscale DNS name, sets `VITE_WS_URL=wss://<dns>/ws` and `VITE_TRANSPORT=phoenix` as build env, runs `npx vercel deploy --prod`.
+
+**Post-deploy smoke checks:**
+
+```sh
+curl -sf <PRODUCTION_BACKEND_URL>/api/health
+curl -sfI https://game-beige-pi.vercel.app
+```
+
+**Do not:**
+
+- Delete or overwrite `deploy/.env` on the VM (Postgres password drift breaks Phoenix).
+- Delete `data/game-state.json`, `data/iptv.json`, or `data/epg.json` on the VM's node volume.
+- Commit `.vercel/` (gitignored).
+
+**Override env vars when needed:**
+
+```sh
+DEPLOY_HOST=user@other-host bash deploy/remote-deploy.sh
+BACKEND_URL=https://custom.example.com bash deploy/vercel-deploy.sh
+```
 
 ## 3a. Ripwire — repository intelligence
 
@@ -188,6 +245,13 @@ Theater room rules for magnets (`src/ui/theaterScreen.js`, `shared/theaterModel.
 - **The magnet stays canonical.** Bill items keep `{url: <magnet>, infohash, fileIndex, filePath, fileBytes}` so the bill survives restarts; clients build the playback URL locally (`net.apiBase` + `/api/theater/torrent/:infohash/:fileIndex`) and play it through the ordinary file engine — the browser only ever loads the game server's http(s) stream. `normalizeTheaterState()` keeps torrent items only when the pick survives sanitization (including `infohash`); losing it drops the item rather than stranding an unplayable entry.
 - **Serving and cache live in `TorrentManager`.** `server/torrents.js` wraps webtorrent: per-file read streams with Range (206) support, video-extension allow-list, 404/416/503 responses; infohash→magnet library persisted at `data/torrents/library.json` so the stream endpoint can re-add after restart. On the shared 1 Hz tick: ~2 s `torrent_state` broadcast (progress/peers/ready) while a torrent item is live or a resolve is in flight, idle reaps (~10 min, bill-referenced infohashes exempt, `destroyStore: false` keeps data), and LRU disk-cap enforcement (`TORRENT_CACHE_MAX_BYTES`, default 4 GB; dir override `TORRENT_CACHE_DIR`). The cache directory is disposable by contract.
 - **Status is additive and ignorable.** Clients fold `torrent_state` into the loading caption and booth now-panel and silently fall back to the generic loading state when it is stale or absent — old servers keep working with new clients and vice versa (old servers simply drop torrent items through the existing classifier).
+
+### Media compatibility (remote MKV / non-browser containers): Phoenix pipeline (`shared/mediaModel.js`, `server_elixir/lib/afterlight/theater_media/`, `src/ui/theaterScreen.js`)
+
+- **Problem:** browsers cannot reliably play Matroska through `<video src>` even when codecs inside are decodable; `classifySource()` now accepts `.mkv`/`.avi` but marks them `needsPrepare`.
+- **Server prepares once per room:** after `add`/`channel`, `Theater.Gateway` calls `TheaterMedia.Coordinator.ensure/3` which SSRF-validates the URL (`SecureUrl`), probes with bounded `ffprobe`, plans direct → remux → partial/full transcode (`Compatibility`, mirroring `shared/mediaModel.js`), and runs supervised `ffmpeg` to progressive **HLS fMP4** under `data/theater-media/`. Cache key dedupes concurrent requests; stale completions cannot patch a replaced bill item (`Theater.patch_prepare_fields/3`).
+- **Bill fields:** additive `sourceUrl`, `playbackUrl`, `prepareStatus`, `prepareId`, `prepareError` on theater items (Postgres columns when Phoenix owns the bill). Clients play `playbackUrl` via `resolvedPlayback()`; shared-clock seek/pause unchanged. Prepared HLS allows seek; live IPTV `.m3u8` without `playbackUrl` still rejects seek.
+- **HTTP:** `GET /api/theater/media/:prepareId/index.m3u8` (+ segments) served from Phoenix (not proxied to Node). Requires `ffmpeg` in the Phoenix image (`deploy/Dockerfile.phoenix`); without it, prepare items fail with `engine_unavailable` while direct MP4/WebM still works.
 
 ### Shared IPTV library & program guide: server-persisted uploads (`server/iptv.js`, `shared/iptvModel.js`, `shared/xmltv.js`, `server/index.js`)
 

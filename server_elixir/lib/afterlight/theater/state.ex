@@ -106,7 +106,12 @@ defmodule Afterlight.Theater.State do
       infohash: item["infohash"],
       file_index: item["fileIndex"],
       file_path: item["filePath"],
-      file_bytes: item["fileBytes"]
+      file_bytes: item["fileBytes"],
+      source_url: item["sourceUrl"],
+      playback_url: item["playbackUrl"],
+      prepare_status: item["prepareStatus"],
+      prepare_id: item["prepareId"],
+      prepare_error: item["prepareError"]
     }
 
     base
@@ -126,7 +131,8 @@ defmodule Afterlight.Theater.State do
       "queuedBy" => row.queued_by
     }
 
-    torrent_fields(row, base)
+    base = torrent_fields(row, base)
+    prepare_fields(row, base)
   end
 
   defp row_to_queue(row) do
@@ -139,7 +145,25 @@ defmodule Afterlight.Theater.State do
       "queuedBy" => row.queued_by
     }
 
-    torrent_fields(row, base)
+    base = torrent_fields(row, base)
+    prepare_fields(row, base)
+  end
+
+  defp prepare_fields(row, base) do
+    Enum.reduce(
+      [
+        {"sourceUrl", row.source_url},
+        {"playbackUrl", row.playback_url},
+        {"prepareStatus", row.prepare_status},
+        {"prepareId", row.prepare_id},
+        {"prepareError", row.prepare_error}
+      ],
+      base,
+      fn
+        {key, val}, acc when not is_nil(val) -> Map.put(acc, key, val)
+        {_key, _nil}, acc -> acc
+      end
+    )
   end
 
   defp torrent_fields(%{kind: "torrent"} = row, base) do

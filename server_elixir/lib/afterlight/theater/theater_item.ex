@@ -113,6 +113,31 @@ defmodule Afterlight.Theater.TheaterItem do
       allow_nil? true
       public? true
     end
+
+    attribute :source_url, :string do
+      allow_nil? true
+      public? true
+    end
+
+    attribute :playback_url, :string do
+      allow_nil? true
+      public? true
+    end
+
+    attribute :prepare_status, :string do
+      allow_nil? true
+      public? true
+    end
+
+    attribute :prepare_id, :string do
+      allow_nil? true
+      public? true
+    end
+
+    attribute :prepare_error, :string do
+      allow_nil? true
+      public? true
+    end
   end
 
   relationships do
@@ -144,7 +169,12 @@ defmodule Afterlight.Theater.TheaterItem do
         :infohash,
         :file_index,
         :file_path,
-        :file_bytes
+        :file_bytes,
+        :source_url,
+        :playback_url,
+        :prepare_status,
+        :prepare_id,
+        :prepare_error
       ]
     end
 
@@ -165,7 +195,12 @@ defmodule Afterlight.Theater.TheaterItem do
         :infohash,
         :file_index,
         :file_path,
-        :file_bytes
+        :file_bytes,
+        :source_url,
+        :playback_url,
+        :prepare_status,
+        :prepare_id,
+        :prepare_error
       ]
 
       require_atomic? false

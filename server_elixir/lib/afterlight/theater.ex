@@ -90,6 +90,69 @@ defmodule Afterlight.Theater do
 
   def error_text(reason), do: Errors.text(reason)
 
+  @doc """
+  Patch prepare-related fields on one bill item and broadcast a fresh snapshot.
+  Used by the async media compatibility pipeline.
+  """
+  def patch_prepare_fields(room_key, item_id, fields) when is_map(fields) do
+    actor = Actor.system()
+
+    Repo.transaction(fn ->
+      with {:ok, room} <- lock_room(room_key),
+           :ok <- item_present?(room_key, item_id),
+           :ok <- apply_prepare_patch(item_id, fields),
+           items <- load_items(room_key, actor),
+           {new_state, _} <- State.from_rows(items),
+           now_ms <- now_ms(),
+           room <- bump_room(room, new_state, now_ms, actor),
+           payload <- build_outbox_payload(new_state, now_ms),
+           {:ok, _} <- enqueue_outbox(room_key, room.revision, payload, actor) do
+        :ok
+      else
+        :stale -> :ok
+        {:error, reason} -> Repo.rollback(reason)
+        other -> Repo.rollback(other)
+      end
+    end)
+  end
+
+  defp item_present?(room_key, item_id) do
+    case Ash.get(TheaterItem, item_id, actor: Actor.system(), authorize?: false) do
+      {:ok, %TheaterItem{room_key: ^room_key}} -> :ok
+      {:ok, _} -> :stale
+      _ -> :stale
+    end
+  end
+
+  defp apply_prepare_patch(item_id, fields) do
+    item = Ash.get!(TheaterItem, item_id, actor: Actor.system(), authorize?: false)
+    attrs = prepare_attrs(fields)
+
+    item
+    |> Ash.Changeset.for_update(:patch, attrs, actor: Actor.system())
+    |> Ash.update!(authorize?: false)
+
+    :ok
+  rescue
+    Ash.Error.Invalid -> :stale
+  end
+
+  defp prepare_attrs(fields) do
+    mapping = %{
+      "prepareStatus" => :prepare_status,
+      "prepareId" => :prepare_id,
+      "playbackUrl" => :playback_url,
+      "sourceUrl" => :source_url,
+      "prepareError" => :prepare_error,
+      "kind" => :kind
+    }
+
+    Enum.reduce(fields, %{}, fn {k, v}, acc ->
+      key = if is_atom(k), do: Atom.to_string(k), else: k
+      if field = mapping[key], do: Map.put(acc, field, v), else: acc
+    end)
+  end
+
   @doc "Wire `{now, queue}` snapshot for welcome and join_room replay."
   def snapshot(room_key \\ @default_room) do
     items =

@@ -21,15 +21,22 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.node
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       PORT: 3001
       HOST: 0.0.0.0
       AFTERLIGHT_NODE_DURABLE_READ_ONLY: "1"
       TORRENT_CACHE_DIR: /data/torrents
+      CHAT_RELAY_DISABLED: "1"
+      AFTERLIGHT_IRC_CALLBACK_URL: http://host.docker.internal:4000/internal/irc/adapter/event
+      AFTERLIGHT_BOUNDARY_SECRET: ${AFTERLIGHT_BOUNDARY_SECRET}
     volumes:
       - nodedata:/app/data
     ports:
       - "127.0.0.1:3001:3001"
+      - "127.0.0.1:6667:6667"
+      - "127.0.0.1:6667:6667"
     depends_on:
       postgres:
         condition: service_healthy

@@ -49,6 +49,7 @@ defmodule Afterlight.Application do
         Afterlight.Accounts.Supervisor,
         Afterlight.EconomyGroup.Supervisor,
         Afterlight.Theater.Supervisor,
+        Afterlight.TheaterMedia.Supervisor,
         Afterlight.World.Supervisor,
         Afterlight.Social.Supervisor,
         Afterlight.Specialty.Supervisor

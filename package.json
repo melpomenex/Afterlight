@@ -13,6 +13,7 @@
     "verify:chat": "node scripts/verify-social-chat.mjs",
     "verify:p11": "node scripts/verify-p11-e2e-sweep.mjs",
     "verify:theater": "node scripts/verify-theater-cutover.mjs",
+    "verify:media": "node scripts/theater-media-smoke.mjs",
     "p11:snapshot-hashes": "node scripts/p11-snapshot-hashes.mjs",
     "p11:audit": "node scripts/audit-node-write-paths.mjs",
     "load:smoke": "node tools/load_client/cli.js smoke",
@@ -20,6 +21,9 @@
     "build:wasm": "cargo build --manifest-path wasm/afterlight-realtime/Cargo.toml --target wasm32-unknown-unknown --release && mkdir -p public/wasm && cp wasm/afterlight-realtime/target/wasm32-unknown-unknown/release/afterlight_realtime.wasm public/wasm/afterlight_realtime.wasm",
     "build": "npm run build:wasm && vite build",
     "preview": "vite preview --host 0.0.0.0",
+    "deploy": "bash deploy/deploy.sh",
+    "deploy:backend": "bash deploy/remote-deploy.sh",
+    "deploy:frontend": "bash deploy/vercel-deploy.sh",
     "test": "node --test tests/*.test.js tests/**/*.test.js"
   },
   "dependencies": {

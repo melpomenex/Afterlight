@@ -22,6 +22,13 @@
  *   }
  */
 
+import {
+  extensionNeedsPrepare,
+  initialPrepareFields,
+  copyPrepareFields,
+  sanitizePrepareFields,
+  PREPARE_STATUS,
+} from './mediaModel.js';
 import { isVideoFile, parseMagnet, sanitizeTorrentPick, torrentTitle } from './torrentModel.js';
 
 export const THEATER_LIMITS = {
@@ -55,7 +62,7 @@ const YOUTUBE_HOSTS = new Set([
   'youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com',
   'youtube-nocookie.com', 'www.youtube-nocookie.com', 'youtu.be', 'www.youtu.be',
 ]);
-const VIDEO_EXT = /\.(mp4|webm|m4v|mov|ogv|ogg)$/i;
+const VIDEO_EXT = /\.(mp4|webm|m4v|mov|ogv|ogg|mkv|avi|wmv|flv|ts|m2ts)$/i;
 
 /**
  * Classify a user-supplied URL. Returns null for anything the screen must
@@ -119,7 +126,10 @@ export function classifySource(rawUrl) {
   }
 
   if (path.toLowerCase().endsWith('.m3u8')) return { kind: 'hls', url };
-  if (VIDEO_EXT.test(path)) return { kind: 'file', url };
+  if (VIDEO_EXT.test(path)) {
+    const needsPrepare = extensionNeedsPrepare(url);
+    return { kind: 'file', url, needsPrepare };
+  }
   return null;
 }
 
@@ -159,6 +169,7 @@ function makeItem(classified, title, queuedBy, nowMs, pick = null) {
     ...(classified.kind === 'torrent'
       ? { infohash: classified.infohash, fileIndex: pick.fileIndex, filePath: pick.filePath, fileBytes: pick.fileBytes }
       : {}),
+    ...initialPrepareFields(classified),
   };
 }
 
@@ -172,6 +183,7 @@ function startNow(item, actor, nowMs) {
     ...(item.kind === 'torrent'
       ? { infohash: item.infohash, fileIndex: item.fileIndex, filePath: item.filePath, fileBytes: item.fileBytes }
       : {}),
+    ...copyPrepareFields(item),
     playing: true,
     positionSec: 0,
     updatedAt: nowMs,
@@ -292,6 +304,7 @@ export function applyTheaterAction(prevState, action, actor, nowMs = Date.now())
         ...(current.kind === 'torrent'
           ? { infohash: current.infohash, fileIndex: current.fileIndex, filePath: current.filePath, fileBytes: current.fileBytes }
           : {}),
+        ...copyPrepareFields(current),
       });
     }
     state.now = startNow(item, actor, nowMs);
@@ -334,7 +347,8 @@ export function applyTheaterAction(prevState, action, actor, nowMs = Date.now())
   if (op === 'seek') {
     if (!state.now) return ack('nothing_playing');
     if (action.itemId && action.itemId !== state.now.id) return ack('item_mismatch');
-    if (state.now.kind === 'hls') return ack('seek_unsupported');
+    // Live HLS channel flips cannot seek; prepared compatibility HLS can.
+    if (state.now.kind === 'hls' && !state.now.playbackUrl) return ack('seek_unsupported');
     const pos = Number(action.positionSec);
     if (!Number.isFinite(pos)) return ack('invalid_position');
     state.now.positionSec = Math.max(0, pos);
@@ -395,6 +409,8 @@ export function theaterErrorText(reason) {
     case 'playlist_unreadable': return 'The projector could not read that playlist just now. Give it a moment and try again.';
     case 'resolve_in_flight': return 'Hold on \u2014 one playlist is still being read.';
     case 'resolve_cooldown': return 'Give the projector a breath \u2014 try that playlist again in a moment.';
+    case 'prepare_unavailable': return 'This server cannot prepare that video format right now.';
+    case 'prepare_failed': return 'The projector could not prepare that video.';
     default: return 'The projector ignores that.';
   }
 }
@@ -506,6 +522,7 @@ export function normalizeTheaterState(raw, nowMs = Date.now()) {
         videoId: classified.videoId || null,
         title: cleanText(raw.now.title) || defaultTitle(classified.kind),
         ...pick,
+        ...sanitizePrepareFields(raw.now, classified),
         playing: raw.now.playing !== false,
         positionSec: Number.isFinite(Number(raw.now.positionSec)) && Number(raw.now.positionSec) >= 0
           ? Number(raw.now.positionSec) : 0,
@@ -531,6 +548,7 @@ export function normalizeTheaterState(raw, nowMs = Date.now()) {
         videoId: classified.videoId || null,
         title: cleanText(entry.title) || defaultTitle(classified.kind),
         ...pick,
+        ...sanitizePrepareFields(entry, classified),
         queuedBy: cleanText(entry.queuedBy, 40) || 'Someone',
       });
     }

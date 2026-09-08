@@ -40,6 +40,11 @@ import {
   theaterErrorText,
 } from '../../shared/theaterModel.js';
 import {
+  PREPARE_STATUS,
+  mediaErrorText,
+  resolvedPlayback,
+} from '../../shared/mediaModel.js';
+import {
   TORRENT_LIMITS,
   normalizeTorrentStatus,
   torrentErrorText,
@@ -365,6 +370,7 @@ export class TheaterScreenUI {
     this.quad = null; // [{x,y}x4] in CSS px, order bl, br, tr, tl
     this.engine = null; // active playback engine adapter
     this.loadedItemId = null; // item id the engine was loaded for
+    this.loadedPlayKey = null;
     this.reportedForId = null; // ended/failed already sent for this item id
     this.overlayState = 'idle'; // idle | loading | playing | error
     this.errorTitle = null;
@@ -537,8 +543,32 @@ export class TheaterScreenUI {
     }
 
     this.rememberChannelFor(now.url);
-    if (now.id !== this.loadedItemId) {
-      this.reportedForId = null; // fresh item -> fresh ended/failed guard
+    const playKey = `${now.id}:${now.prepareStatus || ''}:${now.playbackUrl || ''}:${now.kind}`;
+    const resolved = resolvedPlayback(now);
+
+    if (resolved.waiting) {
+      if (this.engine) this.teardownEngine();
+      this.loadedItemId = now.id;
+      this.loadedPlayKey = playKey;
+      this.setOverlayState('loading');
+      this.syncOverlay();
+      return;
+    }
+
+    if (resolved.error) {
+      this.errorTitle = mediaErrorText(resolved.error);
+      if (this.engine || this.loadedItemId !== now.id) {
+        this.loadedItemId = now.id;
+        this.loadedPlayKey = playKey;
+        this.teardownEngine();
+      }
+      this.setOverlayState('error');
+      this.syncOverlay();
+      return;
+    }
+
+    if (playKey !== this.loadedPlayKey) {
+      this.reportedForId = null;
       this.loadCurrent();
     } else {
       this.enforceSync();
@@ -748,7 +778,7 @@ export class TheaterScreenUI {
     if (
       Number.isFinite(t) && Number.isFinite(target)
       && Math.abs(t - target) > SYNC_SEEK_THRESHOLD_SEC
-      && now.kind !== 'hls' // live streams chase their own edge; don't yank them
+      && !(now.kind === 'hls' && !now.playbackUrl) // live IPTV only; prepared HLS seeks
     ) {
       this.engine.seek(Math.max(0, target));
     }
@@ -778,22 +808,35 @@ export class TheaterScreenUI {
   loadCurrent() {
     const now = this.state?.now;
     if (!now || !this.dom) return;
+    const resolved = resolvedPlayback(now);
+    if (resolved.waiting) {
+      this.loadedItemId = now.id;
+      this.loadedPlayKey = `${now.id}:${now.prepareStatus || ''}:${now.playbackUrl || ''}:${now.kind}`;
+      this.setOverlayState('loading');
+      return;
+    }
+    if (resolved.error) {
+      this.errorTitle = mediaErrorText(resolved.error);
+      this.setOverlayState('error');
+      return;
+    }
     const token = ++this.loadToken;
     this.teardownEngine();
     this.loadedItemId = now.id;
+    this.loadedPlayKey = `${now.id}:${now.prepareStatus || ''}:${now.playbackUrl || ''}:${now.kind}`;
     this.errorTitle = null;
     this.setOverlayState('loading');
-    switch (now.kind) {
-      case 'file':
-        this.startFileEngine(now, token, false);
+    const playItem = {
+      ...now,
+      url: this.mediaStreamUrl(resolved.url),
+    };
+    switch (resolved.engine) {
+      case 'direct':
+        if (now.kind === 'torrent') this.startFileEngine(playItem, token, false);
+        else this.startFileEngine(playItem, token, false);
         break;
       case 'hls':
-        this.startFileEngine(now, token, true);
-        break;
-      case 'torrent':
-        // Same <video> engine, but the bytes come from the game server's
-        // Range-capable torrent endpoint; the shared clock is unchanged.
-        this.startFileEngine(now, token, false);
+        this.startFileEngine(playItem, token, true);
         break;
       case 'youtube':
         this.startYouTubeEngine(now, token);
@@ -802,7 +845,25 @@ export class TheaterScreenUI {
         this.startVimeoEngine(now, token);
         break;
       default:
-        this.failItem();
+        switch (now.kind) {
+          case 'file':
+            this.startFileEngine(playItem, token, false);
+            break;
+          case 'hls':
+            this.startFileEngine(playItem, token, true);
+            break;
+          case 'torrent':
+            this.startFileEngine(playItem, token, false);
+            break;
+          case 'youtube':
+            this.startYouTubeEngine(now, token);
+            break;
+          case 'vimeo':
+            this.startVimeoEngine(now, token);
+            break;
+          default:
+            this.failItem();
+        }
     }
   }
 
@@ -873,7 +934,7 @@ export class TheaterScreenUI {
       if (this.engine !== engine || token !== this.loadToken) return;
       engine.ready = true;
       const target = this.targetPosition();
-      if (target > 0.5 && item.kind !== 'hls') engine.seek(target);
+      if (target > 0.5 && !(item.kind === 'hls' && !item.playbackUrl)) engine.seek(target);
       if (this.state?.now?.playing !== false) this.playVideoElement(video);
       else engine.pause();
     };
@@ -1163,11 +1224,14 @@ export class TheaterScreenUI {
     let text = '';
     if (this.overlayState === 'idle') {
       text = ''; // the centered .ts-idle invitation carries the sleeping state
-    } else if (this.overlayState === 'loading') {
+    }     else if (this.overlayState === 'loading') {
+      const prep = now?.prepareStatus;
+      let prepLine = '';
+      if (prep === PREPARE_STATUS.PROBING) prepLine = 'Inspecting media…';
+      else if (prep === PREPARE_STATUS.PREPARING || prep === PREPARE_STATUS.PENDING) prepLine = 'Preparing video…';
       const waiting = now?.kind === 'torrent' ? this.torrentStatusText(now.infohash) : '';
-      text = waiting
-        ? `${waiting} — ${now.title}`
-        : now ? `Warming up the projector… ${now.title}` : 'Warming up the projector…';
+      const base = prepLine || (waiting ? waiting : 'Warming up the projector…');
+      text = now ? `${base} ${now.title}` : base;
     } else if (this.overlayState === 'error') {
       text = `Couldn't play: ${this.errorTitle || now?.title || 'unknown item'}`;
     } else {
@@ -1872,6 +1936,14 @@ export class TheaterScreenUI {
     }
     const base = typeof this.net?.apiBase === 'string' ? this.net.apiBase.replace(/\/+$/, '') : '';
     return `${base}/api/theater/torrent/${item.infohash}/${item.fileIndex}`;
+  }
+
+  /** Resolve relative prepared-media paths against the game-server HTTP origin. */
+  mediaStreamUrl(url) {
+    if (!url || typeof url !== 'string') return url;
+    if (/^https?:\/\//i.test(url)) return url;
+    const base = typeof this.net?.apiBase === 'string' ? this.net.apiBase.replace(/\/+$/, '') : '';
+    return `${base}${url.startsWith('/') ? url : `/${url}`}`;
   }
 
   beginTorrentResolve(magnet, playNow) {

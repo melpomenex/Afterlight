@@ -173,7 +173,8 @@
       ],
       "expected": {
         "kind": "file",
-        "url": "https://example.com/media/clip.mp4"
+        "url": "https://example.com/media/clip.mp4",
+        "needsPrepare": false
       }
     },
     {
@@ -184,7 +185,8 @@
       ],
       "expected": {
         "kind": "file",
-        "url": "https://example.com/media/clip.MP4?token=x"
+        "url": "https://example.com/media/clip.MP4?token=x",
+        "needsPrepare": false
       }
     },
     {
@@ -195,7 +197,8 @@
       ],
       "expected": {
         "kind": "file",
-        "url": "https://example.com/media/clip.webm"
+        "url": "https://example.com/media/clip.webm",
+        "needsPrepare": false
       }
     },
     {
@@ -206,7 +209,8 @@
       ],
       "expected": {
         "kind": "file",
-        "url": "https://example.com/media/clip.ogv"
+        "url": "https://example.com/media/clip.ogv",
+        "needsPrepare": false
       }
     },
     {
@@ -396,7 +400,8 @@
       ],
       "expected": {
         "kind": "file",
-        "url": "https://例え.jp/clip.mp4"
+        "url": "https://例え.jp/clip.mp4",
+        "needsPrepare": false
       }
     },
     {

@@ -10,12 +10,17 @@ defmodule AfterlightWeb.Plugs.TheaterCatalog do
   @behaviour Plug
 
   alias AfterlightWeb.TheaterEpgController
+  alias AfterlightWeb.TheaterMediaController
   alias AfterlightWeb.TheaterPlaylistController
 
   @impl true
   def init(opts), do: opts
 
   @impl true
+  def call(%Plug.Conn{path_info: ["api", "theater", "media", prepare_id | rest]} = conn, _opts) do
+    TheaterMediaController.serve(conn, prepare_id, rest)
+  end
+
   def call(%Plug.Conn{path_info: ["api", "theater", segment]} = conn, _opts) do
     conn = Plug.Conn.fetch_query_params(conn)
 

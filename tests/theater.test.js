@@ -39,6 +39,12 @@ test('classifySource accepts youtube, vimeo, direct files, and HLS', () => {
   assert.equal(classifySource('https://example.com/live/stream.m3u8').kind, 'hls');
 });
 
+test('classifySource accepts mkv as a file needing preparation', () => {
+  const mkv = classifySource('https://example.com/movie.mkv');
+  assert.equal(mkv.kind, 'file');
+  assert.equal(mkv.needsPrepare, true);
+});
+
 test('classifySource rejects non-playable inputs', () => {
   assert.equal(classifySource('javascript:alert(1)'), null);
   assert.equal(classifySource('ftp://example.com/movie.mp4'), null);
