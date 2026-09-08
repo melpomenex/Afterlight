@@ -20,3 +20,6 @@ server_elixir/erl_crash.dump
 .v2c/
 .video_agent/
 server_elixir/.video_agent/
+
+# Vendored external repository (own git repo; Alpine Rush prototype)
+SSXTricky/
