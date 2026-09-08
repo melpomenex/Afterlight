@@ -14,16 +14,15 @@
  *   - openspec/changes/add-place-activities-program/specs/place-activities/spec.md
  */
 
-import * as THREE from 'three';
 import { registerActivityModule } from './registry.js';
 import { createActivityInputManager, isTypingTarget } from './inputSeam.js';
 import {
-  createCabinetMesh,
   createScreenPipeline,
   createVisibilityThrottler,
   createCabinetAudio,
   drawAttractBanner,
 } from './cabinetRenderer.js';
+import { createArcadeCabinet } from '../arcade/cabinet.js';
 
 const CANVAS_WIDTH = 512;
 const CANVAS_HEIGHT = 384;
@@ -57,19 +56,14 @@ export function createSignalLostInstance({
     focusedWidth: 1024,
     focusedHeight: 768,
   });
-  const { canvas, ctx, texture } = screenPipeline;
+  const { canvas, ctx } = screenPipeline;
 
-  // 2. 3D Cabinet mesh hierarchy
-  const cabinet = createCabinetMesh({
-    width: activityDef.footprint?.width || 1.3,
-    height: 2.1,
-    depth: activityDef.footprint?.depth || 0.95,
-    controlStyle: 'joystick',
-    marqueeTitle: 'SIGNAL LOST',
-    marqueeColor: '#a855f7',
-    bodyColor: '#1a1829',
-    trimColor: '#9333ea',
-    canvasTexture: texture,
+  // 2. Canonical arcade cabinet (shared GLB, this game's skin; falls back to
+  // the primitive cabinet until the model arrives, then hot-swaps).
+  const cabinet = createArcadeCabinet({
+    activityDef,
+    world,
+    screenSource: canvas,
   });
 
   const group = cabinet.group;
@@ -77,7 +71,7 @@ export function createSignalLostInstance({
   group.position.set(posX, posY, posZ);
   group.rotation.y = rotY;
 
-  if (world?.group) {
+  if (world?.group && group.parent !== world.group) {
     world.group.add(group);
   }
 
@@ -522,6 +516,7 @@ export function createSignalLostInstance({
       }
 
       screenPipeline.update();
+      cabinet.update(time);
     },
 
     dispose() {

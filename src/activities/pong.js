@@ -16,9 +16,9 @@
  *   - openspec/changes/add-place-activities-program/specs/activity-sessions/spec.md
  */
 
-import * as THREE from 'three';
 import { registerActivityModule } from './registry.js';
 import { createActivityInputManager } from './inputSeam.js';
+import { createArcadeCabinet } from '../arcade/cabinet.js';
 
 const TABLE_WIDTH = 800;
 const TABLE_HEIGHT = 500;
@@ -39,9 +39,6 @@ export function createPongInstance({
   getParticipation = null,
   audioMixer = null,
 } = {}) {
-  const group = new THREE.Group();
-  group.name = `activity-${activityDef.id}`;
-
   const transform = activityDef.transform || { position: [0, 0, 0], rotationY: 0 };
   const pos = transform.position || [0, 0, 0];
   const posX = pos[0];
@@ -49,107 +46,8 @@ export function createPongInstance({
   const posZ = pos.length === 3 ? pos[2] : pos[1];
   const rotY = transform.rotationY || 0;
 
-  group.position.set(posX, posY, posZ);
-  group.rotation.y = rotY;
-
-  // Track owned resources for clean disposal
-  const ownedGeometries = [];
-  const ownedMaterials = [];
-
-  function trackGeo(geo) {
-    ownedGeometries.push(geo);
-    return geo;
-  }
-
-  function trackMat(mat) {
-    ownedMaterials.push(mat);
-    return mat;
-  }
-
-  // --- 1. 3D Cabinet Geometry ---
-  const cabinetWidth = 1.3;
-  const cabinetHeight = 2.1;
-  const cabinetDepth = 0.95;
-
-  // Cabinet body (dark graphite/walnut)
-  const bodyGeo = trackGeo(new THREE.BoxGeometry(cabinetWidth, cabinetHeight, cabinetDepth));
-  const bodyMat = trackMat(new THREE.MeshStandardMaterial({
-    color: '#22252a',
-    roughness: 0.65,
-    metalness: 0.25,
-  }));
-  const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-  bodyMesh.position.set(0, cabinetHeight / 2, 0);
-  bodyMesh.castShadow = true;
-  bodyMesh.receiveShadow = true;
-  group.add(bodyMesh);
-
-  // Side trims (brass/warm copper)
-  const trimGeo = trackGeo(new THREE.BoxGeometry(0.04, cabinetHeight, cabinetDepth + 0.04));
-  const trimMat = trackMat(new THREE.MeshStandardMaterial({
-    color: '#b89358',
-    roughness: 0.35,
-    metalness: 0.8,
-  }));
-  for (const s of [-1, 1]) {
-    const trim = new THREE.Mesh(trimGeo, trimMat);
-    trim.position.set(s * (cabinetWidth / 2 + 0.015), cabinetHeight / 2, 0);
-    group.add(trim);
-  }
-
-  // Marquee header (glowing "PONG" sign)
-  const marqueeGeo = trackGeo(new THREE.BoxGeometry(cabinetWidth - 0.08, 0.28, 0.22));
-  const marqueeMat = trackMat(new THREE.MeshStandardMaterial({
-    color: '#342618',
-    emissive: '#ffb24d',
-    emissiveIntensity: 0.85,
-    roughness: 0.4,
-  }));
-  const marqueeMesh = new THREE.Mesh(marqueeGeo, marqueeMat);
-  marqueeMesh.position.set(0, 1.9, 0.38);
-  group.add(marqueeMesh);
-
-  // Marquee light
-  const marqueeLight = new THREE.PointLight('#ffc06a', 1.5, 4);
-  marqueeLight.position.set(0, 1.9, 0.6);
-  group.add(marqueeLight);
-
-  // Slanted control panel
-  const panelGeo = trackGeo(new THREE.BoxGeometry(cabinetWidth - 0.08, 0.12, 0.45));
-  const panelMat = trackMat(new THREE.MeshStandardMaterial({
-    color: '#1a1d21',
-    roughness: 0.5,
-    metalness: 0.4,
-  }));
-  const panelMesh = new THREE.Mesh(panelGeo, panelMat);
-  panelMesh.position.set(0, 0.98, 0.36);
-  panelMesh.rotation.x = 0.2;
-  group.add(panelMesh);
-
-  // Control knobs / spinners for 2 players
-  const knobGeo = trackGeo(new THREE.CylinderGeometry(0.04, 0.045, 0.05, 16));
-  const p0KnobMat = trackMat(new THREE.MeshStandardMaterial({ color: '#52a8ec', roughness: 0.3, metalness: 0.6 }));
-  const p1KnobMat = trackMat(new THREE.MeshStandardMaterial({ color: '#ec6252', roughness: 0.3, metalness: 0.6 }));
-
-  const knob0 = new THREE.Mesh(knobGeo, p0KnobMat);
-  knob0.position.set(-0.35, 1.05, 0.4);
-  group.add(knob0);
-
-  const knob1 = new THREE.Mesh(knobGeo, p1KnobMat);
-  knob1.position.set(0.35, 1.05, 0.4);
-  group.add(knob1);
-
-  // Coin door / coin slots
-  const coinDoorGeo = trackGeo(new THREE.BoxGeometry(0.46, 0.6, 0.04));
-  const coinDoorMat = trackMat(new THREE.MeshStandardMaterial({ color: '#16181b', roughness: 0.7, metalness: 0.5 }));
-  const coinDoor = new THREE.Mesh(coinDoorGeo, coinDoorMat);
-  coinDoor.position.set(0, 0.45, cabinetDepth / 2 + 0.01);
-  group.add(coinDoor);
-
-  // --- 2. Live CRT Screen (CanvasTexture) ---
-  const screenWidth = 0.96;
-  const screenHeight = 0.62;
-
+  // --- 1. Live screen canvas: the game renders here; the canonical cabinet
+  // composites it onto its CRT surface (13:9, letterboxed, never stretched).
   const canvas = (typeof document !== 'undefined' && typeof document.createElement === 'function')
     ? document.createElement('canvas')
     : null;
@@ -159,31 +57,15 @@ export function createPongInstance({
   }
   const ctx = canvas?.getContext ? canvas.getContext('2d') : null;
 
-  const canvasTexture = canvas
-    ? new THREE.CanvasTexture(canvas)
-    : new THREE.Texture();
-  if (canvasTexture) {
-    canvasTexture.minFilter = THREE.LinearFilter;
-    canvasTexture.magFilter = THREE.LinearFilter;
-  }
+  // --- 2. Canonical arcade cabinet (shared GLB, this game's skin; falls back
+  // to the primitive cabinet until the model arrives, then hot-swaps).
+  const cabinet = createArcadeCabinet({ activityDef, world, screenSource: canvas });
+  const group = cabinet.group;
+  group.name = `activity-${activityDef.id}`;
+  group.position.set(posX, posY, posZ);
+  group.rotation.y = rotY;
 
-  const screenGeo = trackGeo(new THREE.PlaneGeometry(screenWidth, screenHeight));
-  const screenMat = trackMat(new THREE.MeshBasicMaterial({
-    map: canvasTexture,
-  }));
-  const screenMesh = new THREE.Mesh(screenGeo, screenMat);
-  screenMesh.position.set(0, 1.44, 0.32);
-  screenMesh.rotation.x = -0.15; // tilted back slightly for arcade view
-  group.add(screenMesh);
-
-  // Focused Activity Camera (for seated player or focused spectator)
-  const activityCamera = new THREE.PerspectiveCamera(48, 1.6, 0.1, 50);
-  activityCamera.position.set(0, 1.48, 1.7);
-  activityCamera.lookAt(0, 1.38, 0.28);
-  group.add(activityCamera);
-
-  // Add cabinet to district world
-  if (world?.group) {
+  if (world?.group && group.parent !== world.group) {
     world.group.add(group);
   }
 
@@ -213,8 +95,8 @@ export function createPongInstance({
       gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
       osc.connect(gain);
-      if (mixer.buses?.effects) {
-        gain.connect(mixer.buses.effects);
+      if (audioMixer?.buses?.effects) {
+        gain.connect(audioMixer.buses.effects);
       } else {
         gain.connect(ac.destination);
       }
@@ -289,7 +171,6 @@ export function createPongInstance({
     ctx.lineWidth = 6;
     ctx.strokeRect(3, 3, TABLE_WIDTH - 6, TABLE_HEIGHT - 6);
 
-    canvasTexture.needsUpdate = true;
   }
 
   function renderAttractMode(time, delta) {
@@ -531,9 +412,9 @@ export function createPongInstance({
   return {
     get id() { return activityDef.id; },
     get group() { return group; },
-    get cabinetMesh() { return bodyMesh; },
-    get screenMesh() { return screenMesh; },
-    get activityCamera() { return activityCamera; },
+    get cabinetMesh() { return cabinet.bodyMesh; },
+    get screenMesh() { return cabinet.screenMesh; },
+    get activityCamera() { return cabinet.activityCamera; },
     get latestSnapshot() { return latestSnapshot; },
     get inputManager() { return inputManager; },
 
@@ -556,6 +437,7 @@ export function createPongInstance({
 
       // Render screen
       renderScreen(time, delta);
+      cabinet.update(time);
     },
 
     acceptSnapshot(envelope) {
@@ -596,7 +478,7 @@ export function createPongInstance({
           localSlot = participation.currentSlot;
           if (!isFocusedInActivity) {
             isFocusedInActivity = true;
-            setActivityCamera?.(activityCamera);
+            setActivityCamera?.(cabinet.activityCamera);
           }
         } else {
           if (isFocusedInActivity) {
@@ -637,7 +519,7 @@ export function createPongInstance({
     focusActivity(slot = 0) {
       localSlot = slot;
       isFocusedInActivity = true;
-      setActivityCamera?.(activityCamera);
+      setActivityCamera?.(cabinet.activityCamera);
     },
 
     unfocusActivity() {
@@ -671,9 +553,7 @@ export function createPongInstance({
         group.parent.remove(group);
       }
 
-      for (const geo of ownedGeometries) geo.dispose();
-      for (const mat of ownedMaterials) mat.dispose();
-      canvasTexture.dispose();
+      cabinet.dispose();
     },
   };
 }

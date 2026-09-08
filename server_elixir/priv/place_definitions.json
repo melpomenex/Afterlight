@@ -295,33 +295,33 @@
           "rulesVersion": 1,
           "transform": {
             "position": [
-              8,
+              10.42,
               0,
-              -3.5
+              -7.55
             ],
-            "rotationY": 0
+            "rotationY": -1.5707963267948966
           },
           "footprint": {
-            "width": 1.4,
-            "depth": 1
+            "width": 0.85,
+            "depth": 0.9
           },
           "interactionRadius": 2.2,
           "participantAnchors": [
             {
-              "facing": 3.141592653589793,
+              "facing": 1.5707963267948966,
               "position": [
-                7.5,
+                9.3,
                 0,
-                -2.6
+                -7.9
               ],
               "slot": 0
             },
             {
-              "facing": 3.141592653589793,
+              "facing": 1.5707963267948966,
               "position": [
-                8.5,
+                9.3,
                 0,
-                -2.6
+                -7.2
               ],
               "slot": 1
             }
@@ -339,24 +339,24 @@
           "rulesVersion": 1,
           "transform": {
             "position": [
-              8,
+              10.42,
               0,
-              -5.8
+              -5.5
             ],
-            "rotationY": 0
+            "rotationY": -1.5707963267948966
           },
           "footprint": {
-            "width": 1.4,
-            "depth": 1
+            "width": 0.85,
+            "depth": 0.9
           },
           "interactionRadius": 2.2,
           "participantAnchors": [
             {
-              "facing": 3.141592653589793,
+              "facing": 1.5707963267948966,
               "position": [
-                8,
+                9.3,
                 0,
-                -4.9
+                -5.5
               ],
               "slot": 0
             }
@@ -374,24 +374,24 @@
           "rulesVersion": 1,
           "transform": {
             "position": [
-              9.8,
+              10.42,
               0,
-              -5.8
+              -3.45
             ],
-            "rotationY": 0
+            "rotationY": -1.5707963267948966
           },
           "footprint": {
-            "width": 1.4,
-            "depth": 1
+            "width": 0.85,
+            "depth": 0.9
           },
           "interactionRadius": 2.2,
           "participantAnchors": [
             {
-              "facing": 3.141592653589793,
+              "facing": 1.5707963267948966,
               "position": [
-                9.8,
+                9.3,
                 0,
-                -4.9
+                -3.45
               ],
               "slot": 0
             }
@@ -409,24 +409,24 @@
           "rulesVersion": 1,
           "transform": {
             "position": [
-              9.8,
+              10.42,
               0,
-              -3.5
+              -1.4
             ],
-            "rotationY": 0
+            "rotationY": -1.5707963267948966
           },
           "footprint": {
-            "width": 1.4,
-            "depth": 1
+            "width": 0.85,
+            "depth": 0.9
           },
           "interactionRadius": 2.2,
           "participantAnchors": [
             {
-              "facing": 3.141592653589793,
+              "facing": 1.5707963267948966,
               "position": [
-                9.8,
+                9.3,
                 0,
-                -2.6
+                -1.4
               ],
               "slot": 0
             }

@@ -19,7 +19,8 @@ export const THROTTLE_BUDGETS = Object.freeze({
   SPECTATOR_INTERVAL_MS: 50,    // Max 20 Hz
   ATTRACT_INTERVAL_MS: 100,     // Max 10 Hz
   MAX_AUDIBLE_DISTANCE: 12,     // Positional falloff cutoff
-  MAX_RENDER_DISTANCE: 20,      // Screen culling cutoff
+  MAX_RENDER_DISTANCE: 24,      // Screen culling cutoff (covers the east-wall
+                                // arcade row from the Orpheum spawn, ~21 units)
   MAX_CONCURRENT_VOICES: 4,     // Voice cap for synth
 });
 

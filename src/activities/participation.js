@@ -324,6 +324,14 @@ export function createParticipationController({
         sessionId = frame?.sessionId ?? null;
         currentAnchor = findAnchorForSlot(currentActivity, currentSlot);
 
+        // Accepting the seat readies the player: the server starts the match
+        // only when every seated player is ready (design D2/D4), and AFK
+        // readiness still expires server-side after 60 seconds. Rematches
+        // stay explicit (R on the cabinet screen).
+        try {
+          net?.sendActivityReady?.({ activityId: currentActivity.id, ready: true });
+        } catch {}
+
         if (currentAnchor) {
           try {
             applyAnchor?.(currentAnchor, currentSlot);

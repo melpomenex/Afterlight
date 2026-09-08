@@ -193,19 +193,21 @@ export function buildTheaterScenery(ctx) {
   box(4.6, 1.34, 9.15, 1.2, .10, .8, colors.brass);
   for (let i = 0; i < 5; i++) box(4.6 + i * .03, 1.41 + i * .025, 9.15, .52, .018, .3, '#dac9a1');
 
-  // --- Arcade wing (northeast): inset runner carpet, brass border trim,
-  // emissive amber floor studs, and backlit wall marquee sign board.
-  // Physical cabinet positions are clear of all 45 seat sightlines to the
-  // movie screen and leave >= 1.2m accessible routes.
-  box(8.9, .148, -4.4, 3.6, .025, 4.8, '#1e2430');
-  box(7.1, .165, -4.4, .045, .02, 4.8, colors.brass);
-  box(10.7, .165, -4.4, .045, .02, 4.8, colors.brass);
-  box(8.9, .165, -2.0, 3.6, .02, .045, colors.brass);
-  box(8.9, .165, -6.8, 3.6, .02, .045, colors.brass);
+  // --- Arcade wall (east): the canonical cabinets (activity runtime) line
+  // this wall at x = 10.42, fronts facing west, z = -7.55 / -5.5 / -3.45 /
+  // -1.4. The inset runner carpet, brass borders and emissive floor studs
+  // frame that row; positions are clear of all 45 seat sightlines to the
+  // movie screen, the east travel gate at (10.7, 0), and leave >= 1.2m
+  // accessible routes on the stand side.
+  box(9.1, .148, -4.5, 3.8, .025, 7.8, '#1e2430');
+  box(7.2, .165, -4.5, .045, .02, 7.8, colors.brass);
+  box(11.0, .165, -4.5, .045, .02, 7.8, colors.brass);
+  box(9.1, .165, -.6, 3.8, .02, .045, colors.brass);
+  box(9.1, .165, -8.4, 3.8, .02, .045, colors.brass);
 
   const arcadeStuds = [];
-  for (const x of [7.2, 10.6]) {
-    for (const z of [-2.1, -4.65, -6.6]) {
+  for (const x of [7.6, 9.7]) {
+    for (const z of [-7.55, -5.5, -3.45, -1.4]) {
       arcadeStuds.push(glow(x, .18, z, .14, .06, .14, '#ffca7a', .6));
     }
   }
@@ -215,7 +217,9 @@ export function buildTheaterScenery(ctx) {
     });
   });
 
-  // Backlit arcade marquee / wall signage board along the east perimeter wall
+  // Backlit arcade marquee / wall signage board along the east perimeter wall,
+  // centered over the cabinet row (cabinet tops sit at ~1.73m; the board
+  // starts at 1.58m on the wall plane itself, clear of the machines).
   box(11.15, 2.2, -4.65, .16, 1.2, 3.4, '#1b1e24');
   box(11.12, 2.82, -4.65, .18, .06, 3.5, colors.brass);
   box(11.12, 1.58, -4.65, .18, .06, 3.5, colors.brass);

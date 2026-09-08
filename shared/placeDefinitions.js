@@ -72,18 +72,80 @@ export const ACTIVITY_ENVIRONMENT_POLICIES = Object.freeze(['none', 'frozen', 'l
 export const ACTIVITY_SPECTATOR_POLICIES = Object.freeze(['world', 'focused']);
 export const DEFAULT_ACTIVITY_CAPACITIES = Object.freeze({ players: 2, spectators: 32, queue: 16 });
 
+// Cabinet presentation blocks (canonical arcade system, src/arcade/): one
+// shared GLB model per machine, differentiated entirely through this data —
+// artwork motif/palette, LED trim color, control plastics, screen source.
+// `model: 'upright'` names the canonical cabinet; future hardware (cockpit,
+// lightgun) adds new model keys instead of new geometry forks.
+const PONG_CABINET = Object.freeze({
+  model: 'upright',
+  skin: Object.freeze({
+    title: 'PONG',
+    tagline: '2P · FREE PLAY',
+    motif: 'pong',
+    palette: Object.freeze({ base: '#17181c', ink: '#f2efe6', accent: '#e8563f', glow: '#f5f2e8' }),
+  }),
+  led: Object.freeze({ color: '#f5f2e8', intensity: 1.5 }),
+  controls: Object.freeze({ player1: '#f2efe6', player2: '#e8563f' }),
+  screen: Object.freeze({ type: 'canvas' }),
+});
+
+const RAIN_RUNNER_CABINET = Object.freeze({
+  model: 'upright',
+  skin: Object.freeze({
+    title: 'RAIN RUNNER',
+    tagline: 'HIGH SCORE RUN',
+    motif: 'rain',
+    palette: Object.freeze({ base: '#10222f', ink: '#e6f4fa', accent: '#0e7490', glow: '#38bdf8' }),
+  }),
+  led: Object.freeze({ color: '#38bdf8', intensity: 1.8 }),
+  controls: Object.freeze({ player1: '#38bdf8', player2: '#0ea5e9' }),
+  screen: Object.freeze({ type: 'canvas' }),
+});
+
+const SIGNAL_LOST_CABINET = Object.freeze({
+  model: 'upright',
+  skin: Object.freeze({
+    title: 'SIGNAL LOST',
+    tagline: 'ASTEROID SURVIVAL',
+    motif: 'signal',
+    palette: Object.freeze({ base: '#14102a', ink: '#e9e6f7', accent: '#7c5cd6', glow: '#a78bfa' }),
+  }),
+  led: Object.freeze({ color: '#a78bfa', intensity: 1.8 }),
+  controls: Object.freeze({ player1: '#a78bfa', player2: '#31d2c8' }),
+  screen: Object.freeze({ type: 'canvas' }),
+});
+
+const SPOREFALL_CABINET = Object.freeze({
+  model: 'upright',
+  skin: Object.freeze({
+    title: 'SPOREFALL',
+    tagline: 'BLOCK CLEAR PUZZLE',
+    motif: 'spore',
+    palette: Object.freeze({ base: '#1a231a', ink: '#efe9d6', accent: '#7da05a', glow: '#ffb24d' }),
+  }),
+  led: Object.freeze({ color: '#ffb24d', intensity: 1.7 }),
+  controls: Object.freeze({ player1: '#7fb069', player2: '#ffb24d' }),
+  screen: Object.freeze({ type: 'canvas' }),
+});
+
+// The Orpheum arcade row: machines line the east wall of the auditorium,
+// fronts facing west onto the runner carpet (rotationY -PI/2). Footprints are
+// axis-aligned world extents of the rotated canonical cabinet (~0.74m deep ×
+// ~0.78m wide plus clearance); anchors put players at the stand markers.
 export const PONG_ACTIVITY_DEFINITION = Object.freeze({
   id: 'orpheum-pong',
   type: 'pong',
   title: 'Pong Cabinet',
   sub: 'Press E to play · Spectate / Queue',
   rulesVersion: 1,
-  transform: Object.freeze({ position: Object.freeze([8.0, 0, -3.5]), rotationY: 0 }),
-  footprint: Object.freeze({ width: 1.4, depth: 1.0 }),
+  cabinet: PONG_CABINET,
+  transform: Object.freeze({ position: Object.freeze([10.42, 0, -7.55]), rotationY: -Math.PI / 2 }),
+  footprint: Object.freeze({ width: 0.85, depth: 0.9 }),
   interactionRadius: 2.2,
   participantAnchors: Object.freeze([
-    Object.freeze({ slot: 0, position: Object.freeze([7.5, 0, -2.6]), facing: Math.PI, dismount: Object.freeze([Object.freeze({ x: 7.5, z: -1.8 })]) }),
-    Object.freeze({ slot: 1, position: Object.freeze([8.5, 0, -2.6]), facing: Math.PI, dismount: Object.freeze([Object.freeze({ x: 8.5, z: -1.8 })]) }),
+    Object.freeze({ slot: 0, position: Object.freeze([9.3, 0, -7.9]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -7.9 })]) }),
+    Object.freeze({ slot: 1, position: Object.freeze([9.3, 0, -7.2]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -7.2 })]) }),
   ]),
   capacities: Object.freeze({ players: 2, spectators: 32, queue: 16 }),
   environmentPolicy: 'none',
@@ -98,11 +160,12 @@ export const RAIN_RUNNER_ACTIVITY_DEFINITION = Object.freeze({
   title: 'Rain Runner',
   sub: 'Press E to drive · High score run',
   rulesVersion: 1,
-  transform: Object.freeze({ position: Object.freeze([8.0, 0, -5.8]), rotationY: 0 }),
-  footprint: Object.freeze({ width: 1.4, depth: 1.0 }),
+  cabinet: RAIN_RUNNER_CABINET,
+  transform: Object.freeze({ position: Object.freeze([10.42, 0, -5.5]), rotationY: -Math.PI / 2 }),
+  footprint: Object.freeze({ width: 0.85, depth: 0.9 }),
   interactionRadius: 2.2,
   participantAnchors: Object.freeze([
-    Object.freeze({ slot: 0, position: Object.freeze([8.0, 0, -4.9]), facing: Math.PI, dismount: Object.freeze([Object.freeze({ x: 8.0, z: -4.65 })]) }),
+    Object.freeze({ slot: 0, position: Object.freeze([9.3, 0, -5.5]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -5.5 })]) }),
   ]),
   capacities: Object.freeze({ players: 1, spectators: 16, queue: 8 }),
   environmentPolicy: 'none',
@@ -117,11 +180,12 @@ export const SIGNAL_LOST_ACTIVITY_DEFINITION = Object.freeze({
   title: 'Signal Lost',
   sub: 'Press E to fly · Asteroid survival',
   rulesVersion: 1,
-  transform: Object.freeze({ position: Object.freeze([9.8, 0, -5.8]), rotationY: 0 }),
-  footprint: Object.freeze({ width: 1.4, depth: 1.0 }),
+  cabinet: SIGNAL_LOST_CABINET,
+  transform: Object.freeze({ position: Object.freeze([10.42, 0, -3.45]), rotationY: -Math.PI / 2 }),
+  footprint: Object.freeze({ width: 0.85, depth: 0.9 }),
   interactionRadius: 2.2,
   participantAnchors: Object.freeze([
-    Object.freeze({ slot: 0, position: Object.freeze([9.8, 0, -4.9]), facing: Math.PI, dismount: Object.freeze([Object.freeze({ x: 9.8, z: -4.65 })]) }),
+    Object.freeze({ slot: 0, position: Object.freeze([9.3, 0, -3.45]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -3.45 })]) }),
   ]),
   capacities: Object.freeze({ players: 1, spectators: 16, queue: 8 }),
   environmentPolicy: 'none',
@@ -136,11 +200,12 @@ export const SPOREFALL_ACTIVITY_DEFINITION = Object.freeze({
   title: 'Sporefall',
   sub: 'Press E to drop · Block clear puzzle',
   rulesVersion: 1,
-  transform: Object.freeze({ position: Object.freeze([9.8, 0, -3.5]), rotationY: 0 }),
-  footprint: Object.freeze({ width: 1.4, depth: 1.0 }),
+  cabinet: SPOREFALL_CABINET,
+  transform: Object.freeze({ position: Object.freeze([10.42, 0, -1.4]), rotationY: -Math.PI / 2 }),
+  footprint: Object.freeze({ width: 0.85, depth: 0.9 }),
   interactionRadius: 2.2,
   participantAnchors: Object.freeze([
-    Object.freeze({ slot: 0, position: Object.freeze([9.8, 0, -2.6]), facing: Math.PI, dismount: Object.freeze([Object.freeze({ x: 9.8, z: -1.8 })]) }),
+    Object.freeze({ slot: 0, position: Object.freeze([9.3, 0, -1.4]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -1.4 })]) }),
   ]),
   capacities: Object.freeze({ players: 1, spectators: 16, queue: 8 }),
   environmentPolicy: 'none',
@@ -191,7 +256,7 @@ const LEGACY_MINIMAP_PATHS = {
   delta: 'M24 24H130V96H24Z M24 45C55 40 85 75 130 55 M24 75C60 70 90 90 130 85 M70 24V96',
   archives: 'M24 24H130V96H24Z M35 35H115 M35 50H115 M35 65H115 M35 80H115 M75 24V96',
   'kiln-terrace': 'M24 24H130V96H24Z M45 35H105V85H45Z M75 45A15 15 0 1 0 75 75A15 15 0 1 0 75 45 M24 60H45 M105 60H130',
-  theater: 'M24 24H130V96H24Z M42 34H112 M42 38H112 M34 52H62 M70 52H120 M34 68H62 M70 68H120 M34 84H120 M114 36H126V48H114Z',
+  theater: 'M24 24H130V96H24Z M42 34H112 M42 38H112 M34 52H62 M70 52H120 M34 68H62 M70 68H120 M34 84H120 M121 30H125V56H121Z',
   garden: 'M24 24H130V96H24Z M38 36H116V84H38Z M65 24V96',
 };
 
@@ -408,6 +473,57 @@ export function validateActivityDefinition(activity, { placeBounds = null } = {}
   at(ACTIVITY_TYPES.includes(activity.type), `unknown activity type: "${activity.type}"`);
 
   at(Number.isInteger(activity.rulesVersion) && activity.rulesVersion >= 1, 'rulesVersion must be an integer >= 1');
+
+  // Cabinet presentation block (canonical arcade system): validated here so a
+  // malformed skin fails loudly at projection/test time, never as a broken
+  // machine in the world. Client-only — the server projection drops it.
+  if (activity.cabinet !== undefined) {
+    const cab = activity.cabinet;
+    at(cab && typeof cab === 'object' && !Array.isArray(cab), 'cabinet must be an object');
+    if (cab && typeof cab === 'object' && !Array.isArray(cab)) {
+      const CABINET_MODELS = ['upright'];
+      at(CABINET_MODELS.includes(cab.model), `cabinet.model must be one of ${CABINET_MODELS.join(', ')}`);
+      const hex = (value) => typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value);
+      const skin = cab.skin ?? {};
+      at(typeof skin === 'object' && !Array.isArray(skin), 'cabinet.skin must be an object');
+      if (skin && typeof skin === 'object' && !Array.isArray(skin)) {
+        if (skin.title !== undefined) at(typeof skin.title === 'string' && skin.title.length <= 24, 'cabinet.skin.title must be a string of at most 24 characters');
+        if (skin.motif !== undefined) at(typeof skin.motif === 'string' && skin.motif.length > 0, 'cabinet.skin.motif must be a non-empty string');
+        const palette = skin.palette ?? {};
+        for (const key of Object.keys(palette)) {
+          at(hex(palette[key]), `cabinet.skin.palette.${key} must be a #rrggbb hex color`);
+        }
+        const files = skin.files ?? {};
+        for (const key of Object.keys(files)) {
+          at(typeof files[key] === 'string' && files[key].length > 0, `cabinet.skin.files.${key} must be a non-empty file name`);
+        }
+      }
+      if (cab.led !== undefined) {
+        const led = cab.led ?? {};
+        at(typeof led === 'object' && !Array.isArray(led), 'cabinet.led must be an object');
+        if (led && typeof led === 'object' && !Array.isArray(led)) {
+          if (led.color !== undefined) at(hex(led.color), 'cabinet.led.color must be a #rrggbb hex color');
+          if (led.intensity !== undefined) at(Number.isFinite(led.intensity) && led.intensity >= 0, 'cabinet.led.intensity must be a finite number >= 0');
+        }
+      }
+      if (cab.controls !== undefined) {
+        const controls = cab.controls ?? {};
+        at(typeof controls === 'object' && !Array.isArray(controls), 'cabinet.controls must be an object');
+        if (controls && typeof controls === 'object' && !Array.isArray(controls)) {
+          for (const key of Object.keys(controls)) {
+            at(hex(controls[key]), `cabinet.controls.${key} must be a #rrggbb hex color`);
+          }
+        }
+      }
+      if (cab.screen !== undefined) {
+        const screen = cab.screen ?? {};
+        at(typeof screen === 'object' && !Array.isArray(screen), 'cabinet.screen must be an object');
+        if (screen && typeof screen === 'object' && !Array.isArray(screen)) {
+          at(['canvas', 'image', 'video'].includes(screen.type), 'cabinet.screen.type must be "canvas", "image" or "video"');
+        }
+      }
+    }
+  }
 
   const transform = activity.transform;
   at(transform && typeof transform === 'object', 'transform must be an object');
