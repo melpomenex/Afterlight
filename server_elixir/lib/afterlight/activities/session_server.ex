@@ -13,7 +13,7 @@ defmodule Afterlight.Activities.SessionServer do
 
   alias Afterlight.Activities
   alias Afterlight.Activities.Admission
-  alias Afterlight.Activities.AirHockey
+  alias Afterlight.Activities.{AirHockey, Foosball}
   alias Afterlight.Activities.Pong
   alias Afterlight.Activities.RainRunner
   alias Afterlight.Activities.SignalLost
@@ -1925,6 +1925,7 @@ defmodule Afterlight.Activities.SessionServer do
   defp init_simulation(act_type, opts \\ [])
   defp init_simulation("pong", _opts), do: Pong.init_sim_state()
   defp init_simulation("air-hockey", opts), do: AirHockey.init_sim_state(opts)
+  defp init_simulation("foosball", opts), do: Foosball.init_sim_state(opts)
   defp init_simulation("rain-runner", _opts), do: RainRunner.init_sim_state()
   defp init_simulation("signal-lost", _opts), do: SignalLost.init_sim_state()
   defp init_simulation("sporefall", _opts), do: Sporefall.init_sim_state()
@@ -2020,6 +2021,10 @@ defmodule Afterlight.Activities.SessionServer do
 
   defp step_simulation("air-hockey", sim_state, players, steps) do
     AirHockey.step(sim_state, players, steps)
+  end
+
+  defp step_simulation("foosball", sim_state, players, steps) do
+    Foosball.step(sim_state, players, steps)
   end
 
   defp step_simulation("rain-runner", sim_state, players, steps) do

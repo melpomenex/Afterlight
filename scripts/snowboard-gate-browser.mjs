@@ -207,13 +207,19 @@ async function phaseEntry() {
     if (!/summit/i.test(action)) throw new Error('Summit Run prompt not reachable');
 
     // Physical E: cancellable lazy load (SwiftShader compiles slowly), then
-    // play admission once the mountain is ready.
+    // play admission once the mountain is ready. Poll every 2s with toasts
+    // so a rejection reason is visible in the log.
     await tap(a, 'KeyE', 90);
-    await sleep(15_000);
-    for (let i = 0; i < 8; i++) {
+    let last = '';
+    for (let i = 0; i < 10; i++) {
       const st = await participationState(a);
-      if (st === 'participating') break;
-      await sleep(3000);
+      const toast = await js(a, `return (document.getElementById('toast-title')?.textContent || '') + ' :: ' + (document.getElementById('toast-body')?.textContent || '');`).catch(() => '');
+      if (st + toast !== last) {
+        last = st + toast;
+        log(`t+${i * 2}s state=${st} toast="${toast}"`);
+      }
+      if (st !== 'idle') break;
+      await sleep(2000);
     }
     const state = await participationState(a);
     log('rider-a participation after E:', state);

@@ -322,6 +322,26 @@ export const AIR_HOCKEY_ACTIVITY_DEFINITION = Object.freeze({
   controllerKey: 'air-hockey',
 });
 
+export const FOOSBALL_ACTIVITY_DEFINITION = Object.freeze({
+  id: 'orpheum-foosball',
+  type: 'foosball',
+  title: 'Classic Foosball',
+  sub: 'Press E to play · Table football',
+  rulesVersion: 1,
+  transform: Object.freeze({ position: Object.freeze([-5.8, 0, 7.0]), rotationY: 0 }),
+  footprint: Object.freeze({ width: 2.0, depth: 1.2 }),
+  interactionRadius: 2.5,
+  participantAnchors: Object.freeze([
+    Object.freeze({ slot: 0, position: Object.freeze([-7.1, 0, 7.0]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: -7.1, z: 5.8 })]) }),
+    Object.freeze({ slot: 1, position: Object.freeze([-4.5, 0, 7.0]), facing: -Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: -4.5, z: 5.8 })]) }),
+  ]),
+  capacities: Object.freeze({ players: 2, spectators: 32, queue: 16 }),
+  environmentPolicy: 'none',
+  spectatorPolicy: 'world',
+  rendererKey: 'foosballRenderer',
+  controllerKey: 'foosball',
+});
+
 export const ORPHEUM_ACTIVITIES = Object.freeze([
   PONG_ACTIVITY_DEFINITION,
   RAIN_RUNNER_ACTIVITY_DEFINITION,
@@ -334,6 +354,7 @@ export const ORPHEUM_ALL_ACTIVITIES = Object.freeze([
   ...ORPHEUM_ACTIVITIES,
   POOL_ACTIVITY_DEFINITION,
   AIR_HOCKEY_ACTIVITY_DEFINITION,
+  FOOSBALL_ACTIVITY_DEFINITION,
 ]);
 
 // The universal urban shell every legacy district shares: floor, paving,

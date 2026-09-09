@@ -2185,3 +2185,17 @@ body[data-hud-context='social'] [data-hud-legacy] { display: none !important; }
   line-height: 1.4;
 }
 
+/* Foosball HUD (Phase 4, Task 6.4) */
+.foosball-hud {
+  user-select: none;
+}
+.foosball-mode-btn:hover {
+  filter: brightness(1.2);
+}
+.fb-ready-btn:hover {
+  filter: brightness(1.15);
+}
+.series-btn:hover {
+  filter: brightness(1.2);
+}
+

@@ -292,6 +292,17 @@ export function buildTheaterScenery(ctx) {
   box(7.4, .165, 7.0, .045, .02, 2.4, colors.brass);
   block(5.8, 7.0, 2.2, 1.2);
 
+  // --- Foosball Table Bay (Phase 4, Task 6.4) ---
+  // Located in the rear west promenade at x = -5.8, z = 7.0.
+  // Symmetrical counterpart to the air hockey bay; framed with dark emerald
+  // runner carpet and brass borders, clear of Row 3 seats (z = 4.7).
+  box(-5.8, .148, 7.0, 3.2, .025, 2.4, '#1c2826');
+  box(-5.8, .165, 5.8, 3.2, .02, .045, colors.brass);
+  box(-5.8, .165, 8.2, 3.2, .02, .045, colors.brass);
+  box(-7.4, .165, 7.0, .045, .02, 2.4, colors.brass);
+  box(-4.2, .165, 7.0, .045, .02, 2.4, colors.brass);
+  block(-5.8, 7.0, 2.0, 1.2);
+
   for (const [geo, materials] of parts) for (const [mat, instances] of materials) {
     const mesh = new THREE.InstancedMesh(geo, mat, instances.length);
     instances.forEach((p, i) => { mesh.setMatrixAt(i, p.matrix); mesh.setColorAt(i, p.color); });
