@@ -42,49 +42,66 @@ const validActivity = {
   controllerKey: 'pong',
 };
 
-test('place definitions remain valid; theater declares 5 arcade cabinets and 1 pool table while others default to none', () => {
+test('place definitions remain valid; P5 places declare remaining activities while others stay empty', () => {
+  const expected = {
+    theater: [
+      ['orpheum-pong', 'pong'],
+      ['orpheum-rain-runner', 'rain-runner'],
+      ['orpheum-signal-lost', 'signal-lost'],
+      ['orpheum-sporefall', 'sporefall'],
+      ['summit-run', 'snowboard-race'],
+      ['orpheum-pool', 'pool'],
+      ['orpheum-air-hockey', 'air-hockey'],
+      ['orpheum-foosball', 'foosball'],
+      ['orpheum-darts', 'darts'],
+      ['orpheum-piano', 'piano'],
+      ['orpheum-photo-booth', 'photo-booth'],
+    ],
+    rooftops: [
+      ['rooftops-drones', 'drones'],
+      ['rooftops-paper-airplanes', 'paper-airplanes'],
+    ],
+    court: [
+      ['court-gutter-boats', 'gutter-boats'],
+      ['court-chess', 'chess'],
+      ['court-checkers', 'checkers'],
+    ],
+    canal: [['canal-rc-boats', 'rc-boats']],
+    archives: [
+      ['archives-chess', 'chess'],
+      ['archives-tile-puzzle', 'tile-puzzle'],
+    ],
+    foundry: [
+      ['foundry-hammer', 'hammer-strike'],
+      ['foundry-forge', 'forge-challenge'],
+    ],
+    'frost-spire': [['frost-curling', 'curling']],
+    mangrove: [
+      ['mangrove-fishing', 'fishing'],
+      ['mangrove-skipping', 'skipping-stones'],
+    ],
+    delta: [
+      ['delta-fishing', 'fishing'],
+      ['delta-skipping', 'skipping-stones'],
+    ],
+    understory: [['understory-light-music', 'light-music-puzzle']],
+    'desert-camp': [
+      ['camp-horseshoes', 'horseshoes'],
+      ['camp-telescope', 'telescope'],
+    ],
+  };
+
   for (const def of PLACE_DEFINITIONS) {
     assert.equal(validatePlaceDefinition(def).length, 0, `${def.id} passes validation`);
-    if (def.id === 'theater') {
+    const listed = expected[def.id];
+    if (listed) {
       assert.equal(placeHasCapability(def, 'activities'), true, `${def.id} has activities capability`);
       const acts = getPlaceActivities(def.id);
-      assert.equal(acts.length, 8);
-      assert.equal(acts[0].id, 'orpheum-pong');
-      assert.equal(acts[0].type, 'pong');
-      assert.equal(acts[1].id, 'orpheum-rain-runner');
-      assert.equal(acts[1].type, 'rain-runner');
-      assert.equal(acts[2].id, 'orpheum-signal-lost');
-      assert.equal(acts[2].type, 'signal-lost');
-      assert.equal(acts[3].id, 'orpheum-sporefall');
-      assert.equal(acts[3].type, 'sporefall');
-      assert.equal(acts[4].id, 'summit-run');
-      assert.equal(acts[4].type, 'snowboard-race');
-      assert.equal(acts[5].id, 'orpheum-pool');
-      assert.equal(acts[5].type, 'pool');
-      assert.equal(acts[6].id, 'orpheum-air-hockey');
-      assert.equal(acts[6].type, 'air-hockey');
-      assert.equal(acts[7].id, 'orpheum-foosball');
-      assert.equal(acts[7].type, 'foosball');
-    } else if (def.id === 'rooftops') {
-      assert.equal(placeHasCapability(def, 'activities'), true, `${def.id} has activities capability`);
-      const acts = getPlaceActivities(def.id);
-      assert.equal(acts.length, 2);
-      assert.equal(acts[0].id, 'rooftops-drones');
-      assert.equal(acts[0].type, 'drones');
-      assert.equal(acts[1].id, 'rooftops-paper-airplanes');
-      assert.equal(acts[1].type, 'paper-airplanes');
-    } else if (def.id === 'court') {
-      assert.equal(placeHasCapability(def, 'activities'), true, `${def.id} has activities capability`);
-      const acts = getPlaceActivities(def.id);
-      assert.equal(acts.length, 1);
-      assert.equal(acts[0].id, 'court-gutter-boats');
-      assert.equal(acts[0].type, 'gutter-boats');
-    } else if (def.id === 'canal') {
-      assert.equal(placeHasCapability(def, 'activities'), true, `${def.id} has activities capability`);
-      const acts = getPlaceActivities(def.id);
-      assert.equal(acts.length, 1);
-      assert.equal(acts[0].id, 'canal-rc-boats');
-      assert.equal(acts[0].type, 'rc-boats');
+      assert.equal(acts.length, listed.length, `${def.id} activity count`);
+      listed.forEach(([id, type], i) => {
+        assert.equal(acts[i].id, id);
+        assert.equal(acts[i].type, type);
+      });
     } else {
       assert.equal(placeHasCapability(def, 'activities'), false, `${def.id} has no activities capability`);
       assert.deepEqual(getPlaceActivities(def.id), [], `${def.id} has empty activities`);

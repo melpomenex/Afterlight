@@ -220,10 +220,10 @@ test('4. P4 Gate: Orpheum coexistence, 8 total activities, and 100% seat sightli
   const theaterDef = getPlaceDefinition('theater');
   const world = buildDistrict(theaterDef);
 
-  // 1. Verify all 8 activities defined and instantiated in world
-  assert.equal(ORPHEUM_ALL_ACTIVITIES.length, 8);
+  // 1. Verify declared Orpheum activities instantiate in the world
+  assert.equal(ORPHEUM_ALL_ACTIVITIES.length, 11);
   const actItems = world.items.filter(it => it.type === 'activity');
-  assert.equal(actItems.length, 8);
+  assert.equal(actItems.length, 11);
 
   // Verify Air Hockey & Foosball definitions
   const ahAct = ORPHEUM_ALL_ACTIVITIES.find(a => a.id === 'orpheum-air-hockey');

@@ -84,6 +84,94 @@
             "id": "rain-court-gutter",
             "version": 1
           }
+        },
+        {
+          "id": "court-chess",
+          "type": "chess",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              6.4,
+              0,
+              1.2
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 1.4,
+            "depth": 1.4
+          },
+          "interactionRadius": 2.4,
+          "participantAnchors": [
+            {
+              "facing": 0,
+              "position": [
+                6.4,
+                0,
+                0.35
+              ],
+              "slot": 0
+            },
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                6.4,
+                0,
+                2.05
+              ],
+              "slot": 1
+            }
+          ],
+          "capacities": {
+            "players": 2,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "none"
+        },
+        {
+          "id": "court-checkers",
+          "type": "checkers",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              6.4,
+              0,
+              5.5
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 1.4,
+            "depth": 1.4
+          },
+          "interactionRadius": 2.4,
+          "participantAnchors": [
+            {
+              "facing": 0,
+              "position": [
+                6.4,
+                0,
+                4.65
+              ],
+              "slot": 0
+            },
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                6.4,
+                0,
+                6.35
+              ],
+              "slot": 1
+            }
+          ],
+          "capacities": {
+            "players": 2,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "none"
         }
       ]
     },
@@ -256,7 +344,70 @@
         "weatherMode": "fixed",
         "timeMode": "fixed"
       },
-      "activities": []
+      "activities": [
+        {
+          "id": "understory-light-music",
+          "type": "light-music-puzzle",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              0,
+              0,
+              2
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 2.4,
+            "depth": 2.4
+          },
+          "interactionRadius": 2.8,
+          "participantAnchors": [
+            {
+              "facing": 1.5707963267948966,
+              "position": [
+                -1.1,
+                0,
+                2
+              ],
+              "slot": 0
+            },
+            {
+              "facing": -1.5707963267948966,
+              "position": [
+                1.1,
+                0,
+                2
+              ],
+              "slot": 1
+            },
+            {
+              "facing": 0,
+              "position": [
+                0,
+                0,
+                0.9
+              ],
+              "slot": 2
+            },
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                0,
+                0,
+                3.1
+              ],
+              "slot": 3
+            }
+          ],
+          "capacities": {
+            "players": 4,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "none"
+        }
+      ]
     },
     {
       "id": "saltworks",
@@ -420,7 +571,132 @@
         "weatherMode": "fixed",
         "timeMode": "fixed"
       },
-      "activities": []
+      "activities": [
+        {
+          "id": "mangrove-fishing",
+          "type": "fishing",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              6,
+              0,
+              3
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 2,
+            "depth": 2
+          },
+          "interactionRadius": 2.8,
+          "participantAnchors": [
+            {
+              "facing": 1.5707963267948966,
+              "position": [
+                5.1,
+                0,
+                3
+              ],
+              "slot": 0
+            },
+            {
+              "facing": -1.5707963267948966,
+              "position": [
+                6.9,
+                0,
+                3
+              ],
+              "slot": 1
+            },
+            {
+              "facing": 0,
+              "position": [
+                6,
+                0,
+                2.1
+              ],
+              "slot": 2
+            },
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                6,
+                0,
+                3.9
+              ],
+              "slot": 3
+            }
+          ],
+          "capacities": {
+            "players": 4,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "live"
+        },
+        {
+          "id": "mangrove-skipping",
+          "type": "skipping-stones",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              -5.5,
+              0,
+              4
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 1.8,
+            "depth": 2.4
+          },
+          "interactionRadius": 2.8,
+          "participantAnchors": [
+            {
+              "facing": 1.5707963267948966,
+              "position": [
+                -6.4,
+                0,
+                4
+              ],
+              "slot": 0
+            },
+            {
+              "facing": -1.5707963267948966,
+              "position": [
+                -4.6,
+                0,
+                4
+              ],
+              "slot": 1
+            },
+            {
+              "facing": 0,
+              "position": [
+                -5.5,
+                0,
+                3.1
+              ],
+              "slot": 2
+            },
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                -5.5,
+                0,
+                4.9
+              ],
+              "slot": 3
+            }
+          ],
+          "capacities": {
+            "players": 4,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "frozen"
+        }
+      ]
     },
     {
       "id": "trestle",
@@ -454,7 +730,78 @@
         "weatherMode": "fixed",
         "timeMode": "fixed"
       },
-      "activities": []
+      "activities": [
+        {
+          "id": "foundry-hammer",
+          "type": "hammer-strike",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              -5.5,
+              0,
+              2.5
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 1.4,
+            "depth": 1.4
+          },
+          "interactionRadius": 2.4,
+          "participantAnchors": [
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                -5.5,
+                0,
+                3.6
+              ],
+              "slot": 0
+            }
+          ],
+          "capacities": {
+            "players": 1,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "none"
+        },
+        {
+          "id": "foundry-forge",
+          "type": "forge-challenge",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              5.5,
+              0,
+              2.5
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 1.6,
+            "depth": 1.6
+          },
+          "interactionRadius": 2.4,
+          "participantAnchors": [
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                5.5,
+                0,
+                3.6
+              ],
+              "slot": 0
+            }
+          ],
+          "capacities": {
+            "players": 1,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "none"
+        }
+      ]
     },
     {
       "id": "frost-spire",
@@ -471,7 +818,70 @@
         "weatherMode": "fixed",
         "timeMode": "fixed"
       },
-      "activities": []
+      "activities": [
+        {
+          "id": "frost-curling",
+          "type": "curling",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              0,
+              0,
+              1.5
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 4.2,
+            "depth": 10
+          },
+          "interactionRadius": 3.2,
+          "participantAnchors": [
+            {
+              "facing": 0,
+              "position": [
+                -2.2,
+                0,
+                -3.2
+              ],
+              "slot": 0
+            },
+            {
+              "facing": 0,
+              "position": [
+                -1.2,
+                0,
+                -3.2
+              ],
+              "slot": 1
+            },
+            {
+              "facing": 0,
+              "position": [
+                1.2,
+                0,
+                -3.2
+              ],
+              "slot": 2
+            },
+            {
+              "facing": 0,
+              "position": [
+                2.2,
+                0,
+                -3.2
+              ],
+              "slot": 3
+            }
+          ],
+          "capacities": {
+            "players": 4,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "frozen"
+        }
+      ]
     },
     {
       "id": "delta",
@@ -488,7 +898,132 @@
         "weatherMode": "fixed",
         "timeMode": "fixed"
       },
-      "activities": []
+      "activities": [
+        {
+          "id": "delta-fishing",
+          "type": "fishing",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              5.5,
+              0,
+              3
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 2,
+            "depth": 2
+          },
+          "interactionRadius": 2.8,
+          "participantAnchors": [
+            {
+              "facing": 1.5707963267948966,
+              "position": [
+                4.6,
+                0,
+                3
+              ],
+              "slot": 0
+            },
+            {
+              "facing": -1.5707963267948966,
+              "position": [
+                6.4,
+                0,
+                3
+              ],
+              "slot": 1
+            },
+            {
+              "facing": 0,
+              "position": [
+                5.5,
+                0,
+                2.1
+              ],
+              "slot": 2
+            },
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                5.5,
+                0,
+                3.9
+              ],
+              "slot": 3
+            }
+          ],
+          "capacities": {
+            "players": 4,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "live"
+        },
+        {
+          "id": "delta-skipping",
+          "type": "skipping-stones",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              -5.5,
+              0,
+              4
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 1.8,
+            "depth": 2.4
+          },
+          "interactionRadius": 2.8,
+          "participantAnchors": [
+            {
+              "facing": 1.5707963267948966,
+              "position": [
+                -6.4,
+                0,
+                4
+              ],
+              "slot": 0
+            },
+            {
+              "facing": -1.5707963267948966,
+              "position": [
+                -4.6,
+                0,
+                4
+              ],
+              "slot": 1
+            },
+            {
+              "facing": 0,
+              "position": [
+                -5.5,
+                0,
+                3.1
+              ],
+              "slot": 2
+            },
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                -5.5,
+                0,
+                4.9
+              ],
+              "slot": 3
+            }
+          ],
+          "capacities": {
+            "players": 4,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "frozen"
+        }
+      ]
     },
     {
       "id": "archives",
@@ -505,7 +1040,114 @@
         "weatherMode": "fixed",
         "timeMode": "fixed"
       },
-      "activities": []
+      "activities": [
+        {
+          "id": "archives-chess",
+          "type": "chess",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              -5.2,
+              0,
+              1
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 1.4,
+            "depth": 1.4
+          },
+          "interactionRadius": 2.4,
+          "participantAnchors": [
+            {
+              "facing": 0,
+              "position": [
+                -5.2,
+                0,
+                0.15
+              ],
+              "slot": 0
+            },
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                -5.2,
+                0,
+                1.85
+              ],
+              "slot": 1
+            }
+          ],
+          "capacities": {
+            "players": 2,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "none"
+        },
+        {
+          "id": "archives-tile-puzzle",
+          "type": "tile-puzzle",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              5.2,
+              0,
+              1
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 1.6,
+            "depth": 1.6
+          },
+          "interactionRadius": 2.4,
+          "participantAnchors": [
+            {
+              "facing": 1.5707963267948966,
+              "position": [
+                4.3,
+                0,
+                1
+              ],
+              "slot": 0
+            },
+            {
+              "facing": -1.5707963267948966,
+              "position": [
+                6.1,
+                0,
+                1
+              ],
+              "slot": 1
+            },
+            {
+              "facing": 0,
+              "position": [
+                5.2,
+                0,
+                0.1
+              ],
+              "slot": 2
+            },
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                5.2,
+                0,
+                1.9
+              ],
+              "slot": 3
+            }
+          ],
+          "capacities": {
+            "players": 4,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "none"
+        }
+      ]
     },
     {
       "id": "kiln-terrace",
@@ -924,6 +1566,138 @@
             "queue": 16
           },
           "environmentPolicy": "none"
+        },
+        {
+          "id": "orpheum-darts",
+          "type": "darts",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              8.4,
+              0,
+              3.6
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 1.4,
+            "depth": 2.2
+          },
+          "interactionRadius": 2.6,
+          "participantAnchors": [
+            {
+              "facing": 1.5707963267948966,
+              "position": [
+                7.3,
+                0,
+                3.2
+              ],
+              "slot": 0
+            },
+            {
+              "facing": 1.5707963267948966,
+              "position": [
+                7.3,
+                0,
+                4
+              ],
+              "slot": 1
+            }
+          ],
+          "capacities": {
+            "players": 2,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "none"
+        },
+        {
+          "id": "orpheum-piano",
+          "type": "piano",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              -2.2,
+              0,
+              5.8
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 1.8,
+            "depth": 0.9
+          },
+          "interactionRadius": 2.4,
+          "participantAnchors": [
+            {
+              "facing": 0,
+              "position": [
+                -2.2,
+                0,
+                4.8
+              ],
+              "slot": 0
+            }
+          ],
+          "capacities": {
+            "players": 1,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "none"
+        },
+        {
+          "id": "orpheum-photo-booth",
+          "type": "photo-booth",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              2.4,
+              0,
+              8.2
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 1.8,
+            "depth": 1.4
+          },
+          "interactionRadius": 2.4,
+          "participantAnchors": [
+            {
+              "facing": 1.5707963267948966,
+              "position": [
+                1.6,
+                0,
+                8.2
+              ],
+              "slot": 0
+            },
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                2.4,
+                0,
+                8.2
+              ],
+              "slot": 1
+            },
+            {
+              "facing": -1.5707963267948966,
+              "position": [
+                3.2,
+                0,
+                8.2
+              ],
+              "slot": 2
+            }
+          ],
+          "capacities": {
+            "players": 3,
+            "spectators": 8,
+            "queue": 8
+          },
+          "environmentPolicy": "none"
         }
       ]
     },
@@ -942,7 +1716,114 @@
         "weatherMode": "fixed",
         "timeMode": "fixed"
       },
-      "activities": []
+      "activities": [
+        {
+          "id": "camp-horseshoes",
+          "type": "horseshoes",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              4.5,
+              0,
+              2
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 2.2,
+            "depth": 6
+          },
+          "interactionRadius": 2.8,
+          "participantAnchors": [
+            {
+              "facing": 0,
+              "position": [
+                4.5,
+                0,
+                -0.6
+              ],
+              "slot": 0
+            },
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                4.5,
+                0,
+                4.6
+              ],
+              "slot": 1
+            }
+          ],
+          "capacities": {
+            "players": 2,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "frozen"
+        },
+        {
+          "id": "camp-telescope",
+          "type": "telescope",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              -6.5,
+              0,
+              -5.5
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 1.2,
+            "depth": 1.2
+          },
+          "interactionRadius": 2.6,
+          "participantAnchors": [
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                -6.5,
+                0,
+                -4.5
+              ],
+              "slot": 0
+            },
+            {
+              "facing": -1.5707963267948966,
+              "position": [
+                -5.5,
+                0,
+                -5.5
+              ],
+              "slot": 1
+            },
+            {
+              "facing": 1.5707963267948966,
+              "position": [
+                -7.5,
+                0,
+                -5.5
+              ],
+              "slot": 2
+            },
+            {
+              "facing": 0,
+              "position": [
+                -6.5,
+                0,
+                -6.5
+              ],
+              "slot": 3
+            }
+          ],
+          "capacities": {
+            "players": 4,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "live"
+        }
+      ]
     }
   ],
   "presets": [

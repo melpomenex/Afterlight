@@ -412,8 +412,337 @@ export const GUTTER_BOATS_ACTIVITY_DEFINITION = Object.freeze({
   controllerKey: 'gutter-boats',
 });
 
+function seatedAnchor(slot, x, z, facing, dx, dz) {
+  return Object.freeze({
+    slot,
+    position: Object.freeze([x, 0, z]),
+    facing,
+    dismount: Object.freeze([Object.freeze({ x: x + dx, z: z + dz })]),
+  });
+}
+
+function defineWorldActivity({
+  id,
+  type,
+  title,
+  sub,
+  players = 2,
+  spectators = 32,
+  queue = 16,
+  position,
+  rotationY = 0,
+  width = 1.8,
+  depth = 1.8,
+  radius = 2.4,
+  anchors,
+  environmentPolicy = 'none',
+  spectatorPolicy = 'world',
+  rendererKey,
+  controllerKey,
+}) {
+  return Object.freeze({
+    id,
+    type,
+    title,
+    sub,
+    rulesVersion: 1,
+    transform: Object.freeze({ position: Object.freeze(position), rotationY }),
+    footprint: Object.freeze({ width, depth }),
+    interactionRadius: radius,
+    participantAnchors: Object.freeze(anchors),
+    capacities: Object.freeze({ players, spectators, queue }),
+    environmentPolicy,
+    spectatorPolicy,
+    rendererKey: rendererKey || `${type}Renderer`,
+    controllerKey: controllerKey || type,
+  });
+}
+
+export const COURT_CHESS_ACTIVITY_DEFINITION = defineWorldActivity({
+  id: 'court-chess',
+  type: 'chess',
+  title: 'Chess Table',
+  sub: 'Press E to sit · Quiet board',
+  position: [6.4, 0, 1.2],
+  width: 1.4,
+  depth: 1.4,
+  anchors: [
+    seatedAnchor(0, 6.4, 0.35, 0, -1.1, 0),
+    seatedAnchor(1, 6.4, 2.05, Math.PI, -1.1, 0),
+  ],
+});
+
+export const COURT_CHECKERS_ACTIVITY_DEFINITION = defineWorldActivity({
+  id: 'court-checkers',
+  type: 'checkers',
+  title: 'Draughts Table',
+  sub: 'Press E to sit · English draughts',
+  position: [6.4, 0, 5.5],
+  width: 1.4,
+  depth: 1.4,
+  anchors: [
+    seatedAnchor(0, 6.4, 4.65, 0, -1.1, 0),
+    seatedAnchor(1, 6.4, 6.35, Math.PI, -1.1, 0),
+  ],
+});
+
+export const ARCHIVES_CHESS_ACTIVITY_DEFINITION = defineWorldActivity({
+  id: 'archives-chess',
+  type: 'chess',
+  title: 'Archive Chess',
+  sub: 'Press E to sit · Quiet board',
+  position: [-5.2, 0, 1.0],
+  width: 1.4,
+  depth: 1.4,
+  anchors: [
+    seatedAnchor(0, -5.2, 0.15, 0, 1.1, 0),
+    seatedAnchor(1, -5.2, 1.85, Math.PI, 1.1, 0),
+  ],
+});
+
+export const ARCHIVES_TILE_PUZZLE_ACTIVITY_DEFINITION = defineWorldActivity({
+  id: 'archives-tile-puzzle',
+  type: 'tile-puzzle',
+  title: 'Tile Puzzle',
+  sub: 'Press E to arrange · Shared tiles',
+  players: 4,
+  position: [5.2, 0, 1.0],
+  width: 1.6,
+  depth: 1.6,
+  anchors: [
+    seatedAnchor(0, 4.3, 1.0, Math.PI / 2, 0, 1.1),
+    seatedAnchor(1, 6.1, 1.0, -Math.PI / 2, 0, 1.1),
+    seatedAnchor(2, 5.2, 0.1, 0, 1.1, 0),
+    seatedAnchor(3, 5.2, 1.9, Math.PI, 1.1, 0),
+  ],
+});
+
+export const CAMP_HORSESHOES_ACTIVITY_DEFINITION = defineWorldActivity({
+  id: 'camp-horseshoes',
+  type: 'horseshoes',
+  title: 'Horseshoes',
+  sub: 'Press E to throw · First to 21',
+  position: [4.5, 0, 2.0],
+  width: 2.2,
+  depth: 6.0,
+  radius: 2.8,
+  anchors: [
+    seatedAnchor(0, 4.5, -0.6, 0, -1.2, 0),
+    seatedAnchor(1, 4.5, 4.6, Math.PI, -1.2, 0),
+  ],
+  environmentPolicy: 'frozen',
+});
+
+export const CAMP_TELESCOPE_ACTIVITY_DEFINITION = defineWorldActivity({
+  id: 'camp-telescope',
+  type: 'telescope',
+  title: 'Night Telescope',
+  sub: 'Press E to look · Shared sky',
+  players: 4,
+  position: [-6.5, 0, -5.5],
+  width: 1.2,
+  depth: 1.2,
+  radius: 2.6,
+  anchors: [
+    seatedAnchor(0, -6.5, -4.5, Math.PI, 1.1, 0),
+    seatedAnchor(1, -5.5, -5.5, -Math.PI / 2, 0, 1.1),
+    seatedAnchor(2, -7.5, -5.5, Math.PI / 2, 0, 1.1),
+    seatedAnchor(3, -6.5, -6.5, 0, 1.1, 0),
+  ],
+  environmentPolicy: 'live',
+  spectatorPolicy: 'focused',
+});
+
+export const CURLING_ACTIVITY_DEFINITION = defineWorldActivity({
+  id: 'frost-curling',
+  type: 'curling',
+  title: 'Sheet Curling',
+  sub: 'Press E to throw · Four ends',
+  players: 4,
+  position: [0, 0, 1.5],
+  width: 4.2,
+  depth: 10.0,
+  radius: 3.2,
+  anchors: [
+    seatedAnchor(0, -2.2, -3.2, 0, -1.0, 0),
+    seatedAnchor(1, -1.2, -3.2, 0, -1.0, 0),
+    seatedAnchor(2, 1.2, -3.2, 0, 1.0, 0),
+    seatedAnchor(3, 2.2, -3.2, 0, 1.0, 0),
+  ],
+  environmentPolicy: 'frozen',
+});
+
+export const HAMMER_STRIKE_ACTIVITY_DEFINITION = defineWorldActivity({
+  id: 'foundry-hammer',
+  type: 'hammer-strike',
+  title: 'Hammer Strike',
+  sub: 'Press E to strike · Timing bell',
+  players: 1,
+  position: [-5.5, 0, 2.5],
+  width: 1.4,
+  depth: 1.4,
+  anchors: [seatedAnchor(0, -5.5, 3.6, Math.PI, 0, 1.1)],
+});
+
+export const FORGE_CHALLENGE_ACTIVITY_DEFINITION = defineWorldActivity({
+  id: 'foundry-forge',
+  type: 'forge-challenge',
+  title: 'Forge Profile',
+  sub: 'Press E to strike · Hot metal',
+  players: 1,
+  position: [5.5, 0, 2.5],
+  width: 1.6,
+  depth: 1.6,
+  anchors: [seatedAnchor(0, 5.5, 3.6, Math.PI, 0, 1.1)],
+});
+
+export const MANGROVE_FISHING_ACTIVITY_DEFINITION = defineWorldActivity({
+  id: 'mangrove-fishing',
+  type: 'fishing',
+  title: 'Basin Fishing',
+  sub: 'Press E to cast · No catch kept',
+  players: 4,
+  position: [6.0, 0, 3.0],
+  width: 2.0,
+  depth: 2.0,
+  radius: 2.8,
+  anchors: [
+    seatedAnchor(0, 5.1, 3.0, Math.PI / 2, 0, 1.1),
+    seatedAnchor(1, 6.9, 3.0, -Math.PI / 2, 0, 1.1),
+    seatedAnchor(2, 6.0, 2.1, 0, 1.1, 0),
+    seatedAnchor(3, 6.0, 3.9, Math.PI, 1.1, 0),
+  ],
+  environmentPolicy: 'live',
+});
+
+export const MANGROVE_SKIPPING_ACTIVITY_DEFINITION = defineWorldActivity({
+  id: 'mangrove-skipping',
+  type: 'skipping-stones',
+  title: 'Skipping Stones',
+  sub: 'Press E to skip · Shared throws',
+  players: 4,
+  position: [-5.5, 0, 4.0],
+  width: 1.8,
+  depth: 2.4,
+  radius: 2.8,
+  anchors: [
+    seatedAnchor(0, -6.4, 4.0, Math.PI / 2, 0, 1.1),
+    seatedAnchor(1, -4.6, 4.0, -Math.PI / 2, 0, 1.1),
+    seatedAnchor(2, -5.5, 3.1, 0, 1.1, 0),
+    seatedAnchor(3, -5.5, 4.9, Math.PI, 1.1, 0),
+  ],
+  environmentPolicy: 'frozen',
+});
+
+export const DELTA_FISHING_ACTIVITY_DEFINITION = defineWorldActivity({
+  id: 'delta-fishing',
+  type: 'fishing',
+  title: 'Marsh Fishing',
+  sub: 'Press E to cast · No catch kept',
+  players: 4,
+  position: [5.5, 0, 3.0],
+  width: 2.0,
+  depth: 2.0,
+  radius: 2.8,
+  anchors: [
+    seatedAnchor(0, 4.6, 3.0, Math.PI / 2, 0, 1.1),
+    seatedAnchor(1, 6.4, 3.0, -Math.PI / 2, 0, 1.1),
+    seatedAnchor(2, 5.5, 2.1, 0, 1.1, 0),
+    seatedAnchor(3, 5.5, 3.9, Math.PI, 1.1, 0),
+  ],
+  environmentPolicy: 'live',
+});
+
+export const DELTA_SKIPPING_ACTIVITY_DEFINITION = defineWorldActivity({
+  id: 'delta-skipping',
+  type: 'skipping-stones',
+  title: 'Marsh Skips',
+  sub: 'Press E to skip · Shared throws',
+  players: 4,
+  position: [-5.5, 0, 4.0],
+  width: 1.8,
+  depth: 2.4,
+  radius: 2.8,
+  anchors: [
+    seatedAnchor(0, -6.4, 4.0, Math.PI / 2, 0, 1.1),
+    seatedAnchor(1, -4.6, 4.0, -Math.PI / 2, 0, 1.1),
+    seatedAnchor(2, -5.5, 3.1, 0, 1.1, 0),
+    seatedAnchor(3, -5.5, 4.9, Math.PI, 1.1, 0),
+  ],
+  environmentPolicy: 'frozen',
+});
+
+export const UNDERSTORY_LIGHT_MUSIC_ACTIVITY_DEFINITION = defineWorldActivity({
+  id: 'understory-light-music',
+  type: 'light-music-puzzle',
+  title: 'Mycelial Choir',
+  sub: 'Press E to play · Shared sequence',
+  players: 4,
+  position: [0, 0, 2.0],
+  width: 2.4,
+  depth: 2.4,
+  radius: 2.8,
+  anchors: [
+    seatedAnchor(0, -1.1, 2.0, Math.PI / 2, 0, 1.1),
+    seatedAnchor(1, 1.1, 2.0, -Math.PI / 2, 0, 1.1),
+    seatedAnchor(2, 0, 0.9, 0, 1.1, 0),
+    seatedAnchor(3, 0, 3.1, Math.PI, 1.1, 0),
+  ],
+});
+
+export const ORPHEUM_DARTS_ACTIVITY_DEFINITION = defineWorldActivity({
+  id: 'orpheum-darts',
+  type: 'darts',
+  title: 'Lobby Darts',
+  sub: 'Press E to throw · 301 double-out',
+  position: [8.4, 0, 3.6],
+  width: 1.4,
+  depth: 2.2,
+  radius: 2.6,
+  anchors: [
+    seatedAnchor(0, 7.3, 3.2, Math.PI / 2, 0, 1.1),
+    seatedAnchor(1, 7.3, 4.0, Math.PI / 2, 0, 1.1),
+  ],
+});
+
+export const ORPHEUM_PIANO_ACTIVITY_DEFINITION = defineWorldActivity({
+  id: 'orpheum-piano',
+  type: 'piano',
+  title: 'Lobby Piano',
+  sub: 'Press E to play · Spatial notes',
+  players: 1,
+  spectators: 32,
+  position: [-2.2, 0, 5.8],
+  width: 1.8,
+  depth: 0.9,
+  radius: 2.4,
+  anchors: [seatedAnchor(0, -2.2, 4.8, 0, 0, 1.1)],
+});
+
+export const ORPHEUM_PHOTO_BOOTH_ACTIVITY_DEFINITION = defineWorldActivity({
+  id: 'orpheum-photo-booth',
+  type: 'photo-booth',
+  title: 'Photo Booth',
+  sub: 'Press E to pose · Opt-in strip',
+  players: 3,
+  spectators: 8,
+  queue: 8,
+  position: [2.4, 0, 8.2],
+  width: 1.8,
+  depth: 1.4,
+  radius: 2.4,
+  anchors: [
+    seatedAnchor(0, 1.6, 8.2, Math.PI / 2, 0, -1.1),
+    seatedAnchor(1, 2.4, 8.2, Math.PI, 0, -1.1),
+    seatedAnchor(2, 3.2, 8.2, -Math.PI / 2, 0, -1.1),
+  ],
+  spectatorPolicy: 'focused',
+});
+
 export const RAIN_COURT_ACTIVITIES = Object.freeze([
   GUTTER_BOATS_ACTIVITY_DEFINITION,
+  COURT_CHESS_ACTIVITY_DEFINITION,
+  COURT_CHECKERS_ACTIVITY_DEFINITION,
 ]);
 
 export const RC_BOATS_ACTIVITY_DEFINITION = Object.freeze({
@@ -463,6 +792,42 @@ export const ORPHEUM_ALL_ACTIVITIES = Object.freeze([
   POOL_ACTIVITY_DEFINITION,
   AIR_HOCKEY_ACTIVITY_DEFINITION,
   FOOSBALL_ACTIVITY_DEFINITION,
+  ORPHEUM_DARTS_ACTIVITY_DEFINITION,
+  ORPHEUM_PIANO_ACTIVITY_DEFINITION,
+  ORPHEUM_PHOTO_BOOTH_ACTIVITY_DEFINITION,
+]);
+
+export const ARCHIVES_ACTIVITIES = Object.freeze([
+  ARCHIVES_CHESS_ACTIVITY_DEFINITION,
+  ARCHIVES_TILE_PUZZLE_ACTIVITY_DEFINITION,
+]);
+
+export const DESERT_CAMP_ACTIVITIES = Object.freeze([
+  CAMP_HORSESHOES_ACTIVITY_DEFINITION,
+  CAMP_TELESCOPE_ACTIVITY_DEFINITION,
+]);
+
+export const FROST_SPIRE_ACTIVITIES = Object.freeze([
+  CURLING_ACTIVITY_DEFINITION,
+]);
+
+export const FOUNDRY_ACTIVITIES = Object.freeze([
+  HAMMER_STRIKE_ACTIVITY_DEFINITION,
+  FORGE_CHALLENGE_ACTIVITY_DEFINITION,
+]);
+
+export const MANGROVE_ACTIVITIES = Object.freeze([
+  MANGROVE_FISHING_ACTIVITY_DEFINITION,
+  MANGROVE_SKIPPING_ACTIVITY_DEFINITION,
+]);
+
+export const DELTA_ACTIVITIES = Object.freeze([
+  DELTA_FISHING_ACTIVITY_DEFINITION,
+  DELTA_SKIPPING_ACTIVITY_DEFINITION,
+]);
+
+export const UNDERSTORY_ACTIVITIES = Object.freeze([
+  UNDERSTORY_LIGHT_MUSIC_ACTIVITY_DEFINITION,
 ]);
 
 // The universal urban shell every legacy district shares: floor, paving,
@@ -552,11 +917,20 @@ function defineLegacyPlace(display, index) {
     ...(display.id === 'rooftops' ? { activities: ROOFTOPS_ACTIVITIES } : {}),
     ...(display.id === 'court' ? { activities: RAIN_COURT_ACTIVITIES } : {}),
     ...(display.id === 'canal' ? { activities: CANAL_ACTIVITIES } : {}),
+    ...(display.id === 'archives' ? { activities: ARCHIVES_ACTIVITIES } : {}),
+    ...(display.id === 'foundry' ? { activities: FOUNDRY_ACTIVITIES } : {}),
+    ...(display.id === 'frost-spire' ? { activities: FROST_SPIRE_ACTIVITIES } : {}),
+    ...(display.id === 'mangrove' ? { activities: MANGROVE_ACTIVITIES } : {}),
+    ...(display.id === 'delta' ? { activities: DELTA_ACTIVITIES } : {}),
+    ...(display.id === 'understory' ? { activities: UNDERSTORY_ACTIVITIES } : {}),
     ...SOCIAL_PLACE_OVERRIDES[display.id],
   });
 }
 
-export const PLACE_DEFINITIONS = deepFreeze([...LEGACY_DISPLAY.map(defineLegacyPlace), DESERT_CAMP_DEFINITION]);
+export const PLACE_DEFINITIONS = deepFreeze([
+  ...LEGACY_DISPLAY.map(defineLegacyPlace),
+  { ...DESERT_CAMP_DEFINITION, activities: DESERT_CAMP_ACTIVITIES },
+]);
 
 // Test-only tiny view: smaller bounds, no travel gates, no urban shell and no
 // objective. It is deliberately NOT part of PLACE_DEFINITIONS (and never
