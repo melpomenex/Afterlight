@@ -21,7 +21,10 @@ Superseded product decisions, replaced by the frozen source baseline
 
 Retained explicitly: no SSX branding (cabinet stays Summit Run), no
 soundtrack, no persistent rewards, no peer collisions, no AI in the shared
-race, session-local results only. The old change's remaining unchecked tasks
+race, session-local results only. Field size amended by user decision
+(2026-09-09): ONE through EIGHT human riders — a lone ready rider starts a
+solo run on the same shared authority (manifest `minPlayers: 1`); the prior
+change's "never a solo start" rule is superseded. The old change's remaining unchecked tasks
 (8.3, 9.4, 9.5, 9.7, 10.3) are verification gates that remain in force
 against the new baseline; this change's phase 5 executes them.
 
@@ -31,88 +34,89 @@ Every item must be verifiable in the integrated cabinet (phase 2–5 evidence).
 Source references are `SSXTricky/lib/game/engine.js` (L##) / `rules.mjs`.
 
 **Scene & course (2.1, 2.2, 3.2)**
-- [ ] Daylight sky `#a4cede`, fog `#b6d5e0` (125–510), NOT night palette
-- [ ] Terrain: 440 m wide × 2200 m grid, `courseCenter`/`groundHeight`
+- [x] Daylight sky `#a4cede`, fog `#b6d5e0` (125–510), NOT night palette
+- [x] Terrain: 440 m wide × 2200 m grid, `courseCenter`/`groundHeight`
       composition, vertex-colored snow (groomed .94–1.0 tone, banks .72–.97),
       DoubleSide, receiveShadow
-- [ ] Bank noise beyond |x−center|>29 (sin composition, ≤18 amplitude) —
+- [x] Bank noise beyond |x−center|>29 (sin composition, ≤18 amplitude) —
       cosmetic outside corridor, none inside (render/contact agreement)
-- [ ] 70 layered jagged peaks (cones + snow caps, alternating sides, seeded)
-- [ ] 420 instanced pines (trunk + pine cone + snow cap) flanking ≥30 m out
-- [ ] 4 label banner gates: ALPINE RUSH (−12), GO BIG. (600), FULL SEND.
+- [x] 70 layered jagged peaks (cones + snow caps, alternating sides, seeded)
+- [x] 420 instanced pines (trunk + pine cone + snow cap) flanking ≥30 m out
+- [x] 4 label banner gates: ALPINE RUSH (−12), GO BIG. (600), FULL SEND.
       (1200), FINISH (1800, lime) with posts/feet
-- [ ] Orange slalom gate poles every 22 m at ±23 m, flags every 3rd
-- [ ] 13 ramps `createRamps()` (center 95+i·124, x offsets (i%3−1)·11, width
+- [x] Orange slalom gate poles every 22 m at ±23 m, flags every 3rd
+- [x] 13 ramps `createRamps()` (center 95+i·124, x offsets (i%3−1)·11, width
       12, height 5) with lime lips + side rails; contact = `surfaceHeight`
-- [ ] Cyan speed zones (start−41 … start−19, width 10) with arrow chevrons
+- [x] Cyan speed zones (start−41 … start−19, width 10) with arrow chevrons
       and BOOST signs, `#139ab5`/`#b2ffff`
 - [ ] Chairlift down left shoulder: masts every 125 m (20–1700), crossbars,
       cables, hanging orange chairs
-- [ ] 22 pickups (octahedra, `#e6ff6e` emissive, +1.5 m) at 70+i·76, sin
+- [x] 22 pickups (octahedra, `#e6ff6e` emissive, +1.5 m) at 70+i·76, sin
       lane offsets
-- [ ] Snow-spray particles (160 pooled points) + soft contact shadow disc
-- [ ] Hemisphere (0xe6f8ff/0x7890a6, 2.5) + directional sun (0xfff4dc, 3.2,
+- [x] Snow-spray particles (160 pooled points) + soft contact shadow disc
+- [x] Hemisphere (0xe6f8ff/0x7890a6, 2.5) + directional sun (0xfff4dc, 3.2,
       2048 shadows) following the rider; ACES exposure 1.25 preserved by host
 
 **Riders & animation (2.2)**
-- [ ] Source rider rig: board + lime tip, boots, legs, torso (accent color),
+- [x] Source rider rig: board + lime tip, boots, legs, torso (accent color),
       vest, goggled head, arms/hands; pivot/stance/body hierarchy
-- [ ] Trick poses: y-axis spin (Q), grab dip (E: z-rot + y-dip), x-axis flip
+- [x] Trick poses: y-axis spin (Q), grab dip (E: z-rot + y-dip), x-axis flip
       (X), bail tilt (z 1.3 + drop), carve roll `−lateral·0.014`, crouch
       (tuck/charge lerp), lean (z −0.32)
-- [ ] Rider yaw `−atan2(lateral, max(8,speed))`; ramp pitch; ground pitch −0.18
-- [ ] Player accent `#ff7043`; remotes use source rival palette (adapted to
+- [x] Rider yaw `−atan2(lateral, max(8,speed))`; ramp pitch; ground pitch −0.18
+- [x] Player accent `#ff7043`; remotes use source rival palette (adapted to
       profile accents where available)
 
 **Camera (2.2)**
-- [ ] Ready framing: (x+10, base+7.5, 17) look (x, base+2, −20)
-- [ ] Chase: x·0.8+center·0.2, max(base+6.5, y+5), −distance+13(+2 boosting),
+- [x] Ready framing: (x+10, base+7.5, 17) look (x, base+2, −20)
+- [x] Chase: x·0.8+center·0.2, max(base+6.5, y+5), −distance+13(+2 boosting),
       look (x+lateral·0.15, y+1.2, −distance−13); lerp `1−e^(−dt·5)`
-- [ ] FOV 64 → 76 while boosting (lerp dt·3); sun follows rider
+- [x] FOV 64 → 76 while boosting (lerp dt·3); sun follows rider
 
 **Mechanics (3.1, 3.3, 3.4 — source-equivalent, fixed-step 30 Hz)**
-- [ ] `stepMotion` port: tuck/lean/aero targets (29/35/33/42), brake 10, pad
+- [x] `stepMotion` port: tuck/lean/aero targets (29/35/33/42), brake 10, pad
       56, manual 48, boost −23/s spent / +1.8/s regen, clamp 0–100
-- [ ] Carve: |steer|>0.5, grounded, speed>20, |u|<20 → charge 0.5/s → +12
+- [x] Carve: |steer|>0.5, grounded, speed>20, |u|<20 → charge 0.5/s → +12
       boost; lateral approach (20/13 air/14 tuck)·dt·5
-- [ ] Edge: |x−center|>23 → 0.65^dt bleed; clamp ±35
-- [ ] Charge jump `popVelocity` 7+6·charge (+4 super pop tuck+≥0.8), charge
+- [x] Edge: |x−center|>23 → 0.65^dt bleed; clamp ±35
+- [x] Charge jump `popVelocity` 7+6·charge (+4 super pop tuck+≥0.8), charge
       rate 1.2/s; ramp-edge crossing launch `10+0.17·v+4·charge`
-- [ ] Gravity 20, airTime accumulation, `remainingAirTime` with slope term
-- [ ] TRICKS: Q 360 SPIN 800/0.72 s, E INDY GRAB 500/0.58 s, X BACKFLIP
+- [x] Gravity 20, airTime accumulation, `remainingAirTime` with slope term
+- [x] TRICKS: Q 360 SPIN 800/0.72 s, E INDY GRAB 500/0.58 s, X BACKFLIP
       1200/0.92 s; buffer 0.8 s; hold-to-repeat semantics
-- [ ] `land`: bail at <82% trick progress (speed·0.3, bail 1.2 s), combo
+- [x] `land`: bail at <82% trick progress (speed·0.3, bail 1.2 s), combo
       `sum·(1+0.5·min(n−1,4)) + airTime·100`, boost +points/75, landings++
-- [ ] Speed zone entry (grounded, no bail, in zone, |x−zone.x|≤5): zoneBoost
+- [x] Speed zone entry (grounded, no bail, in zone, |x−zone.x|≤5): zoneBoost
       2.4 s, speed ≥46
-- [ ] Pickups: |Δd|<2.2, |Δx|<2.1, y−ground<3 → +250 score, +10 boost; per
+- [x] Pickups: |Δd|<2.2, |Δx|<2.1, y−ground<3 → +250 score, +10 boost; per
       rider per race in shared mode
-- [ ] Multiplayer adaptations (documented differences, not silent): AI rivals
-      and rival-bump collisions replaced by human riders; RACE/FREE RIDE
-      switch replaced by Ready/Rematch lifecycle; pause neutralizes input but
-      never pauses the shared clock
+- [x] Multiplayer adaptations (documented differences, not silent): AI rivals
+      and rival-bump collisions replaced by human riders (1–8, solo allowed
+      per user decision 2026-09-09); RACE/FREE RIDE switch replaced by
+      Ready/Rematch lifecycle; pause neutralizes input but never pauses the
+      shared clock
 
 **HUD (2.4 — scoped DOM/CSS port of page.tsx/globals.css)**
-- [ ] Position/RUN TIME top block; TRICK SCORE + PERSONAL BEST right
-- [ ] Course map SVG with progress dot + KM remaining
-- [ ] Start panel (GO BIG. GET TRICKY. + rider card THE MAVERICK), countdown
+- [x] Position/RUN TIME top block; TRICK SCORE + PERSONAL BEST right
+- [x] Course map SVG with progress dot + KM remaining
+- [x] Start panel (GO BIG. GET TRICKY. + rider card THE MAVERICK), countdown
       (READY TO DROP? + number), toast (skew, bail variant)
-- [ ] Air hint / trick callout (AIR COMBO ×n, name, PTS)
-- [ ] Bottom: speed KM/H + boost bar (SPEED LANE / SUPER TRICKY / TRICKY
+- [x] Air hint / trick callout (AIR COMBO ×n, name, PTS)
+- [x] Bottom: speed KM/H + boost bar (SPEED LANE / SUPER TRICKY / TRICKY
       BOOST labels, B kbd), stance status (AERO TUCK/LOW TUCK/FORWARD
       LEAN/FLOW CARVE), jump charge bar, conditions block
-- [ ] Results: PLACE heading, POINTS, position/time/best combo/clean
+- [x] Results: PLACE heading, POINTS, position/time/best combo/clean
       landings grid, Rematch/Exit; session-only honesty preserved
-- [ ] Boosting speed-lines overlay; touch controls equivalents
+- [x] Boosting speed-lines overlay; touch controls equivalents
 
 **Host lifecycle (2.3, 4.x)**
-- [ ] Lazy load on participation only; no second renderer/RAF/socket/app
-- [ ] Host renderer settings restored on exit (tone mapping/exposure/
+- [x] Lazy load on participation only; no second renderer/RAF/socket/app
+- [x] Host renderer settings restored on exit (tone mapping/exposure/
       shadows/camera); view lease + frame loop integration
-- [ ] E is Indy grab during racing; R Ready/Rematch in lobby/results only;
+- [x] E is Indy grab during racing; R Ready/Rematch in lobby/results only;
       Escape exits; typing/blur neutralize; touch equivalents same action path
-- [ ] Load handshake per seat identity; first Ready loads then readies
-- [ ] Rematch resets prediction/pickups/boost/tricks/results; finish order +
+- [x] Load handshake per seat identity; first Ready loads then readies
+- [x] Rematch resets prediction/pickups/boost/tricks/results; finish order +
       trick scores authoritative
 
 **Evidence (5.x)**: paired captures vs `captures/source/01–08`, source rules

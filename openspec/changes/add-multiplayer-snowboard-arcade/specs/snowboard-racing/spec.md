@@ -1,4 +1,10 @@
 > **PARTIAL SUPERSESSION by `integrate-ssxtricky-snowboard` (2026-09-09).**
+> Also superseded by explicit user decision (2026-09-09): the minimum field
+> is ONE rider, not two — "Hostless explicit readiness" now reads "minimum
+> one and maximum eight riders"; a lone loaded+ready rider locks the roster
+> and starts a solo run on the same shared authority (no AI substitution,
+> manifest `minPlayers: 1`). Every other readiness/lifecycle guarantee is
+> retained.
 > "One valid downhill course" is superseded in its specifics: the course is
 > the versioned Alpine Rush document (source terrain, 13 ramps, speed zones,
 > pickups) and the phrase "without requiring trick scoring" no longer applies

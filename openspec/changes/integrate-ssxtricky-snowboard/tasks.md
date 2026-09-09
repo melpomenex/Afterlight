@@ -8,9 +8,9 @@
 ## 2. Extract the actual Alpine Rush presentation
 
 - [x] 2.1 Extract source scene/course construction into host-compatible modules without altering terrain composition, seed, scenery, ramps, lanes or pickups; preserve standalone comparison entry.
-- [ ] 2.2 Port the source rider rigs, camera, trick animation, particles, shadows and daylight lighting; verify matching captures at fixed poses.
-- [ ] 2.3 Connect scene update/resize/dispose to the existing view lease and host frame loop; verify no second renderer, RAF, app or socket and restore renderer settings on exit.
-- [ ] 2.4 Port source HUD/menu/result feedback to scoped DOM/CSS, hiding unrelated world HUD during play while preserving chat and exit.
+- [x] 2.2 Port the source rider rigs, camera, trick animation, particles, shadows and daylight lighting; verify matching captures at fixed poses.
+- [x] 2.3 Connect scene update/resize/dispose to the existing view lease and host frame loop; verify no second renderer, RAF, app or socket and restore renderer settings on exit.
+- [x] 2.4 Port source HUD/menu/result feedback to scoped DOM/CSS, hiding unrelated world HUD during play while preserving chat and exit.
 
 ## 3. Deterministic source gameplay
 
@@ -21,17 +21,17 @@
 
 ## 4. Shared race integration
 
-- [ ] 4.1 Extend bounded controls/snapshots for source trick/boost state and score; provide explicit authoritative start time and normalize rider slot/player identity.
-- [ ] 4.2 Wire source-model prediction/reconciliation and remote interpolation to existing activity transport and version negotiation; replace AI with actual participants.
-- [ ] 4.3 Preserve source E/Q/X/B/W/Shift/Space inputs with phase-scoped Ready/Rematch and Escape exit; add touch equivalents and typing/blur neutralization.
-- [ ] 4.4 Implement first-press load/readiness with seat identity, acknowledgement matching, retry and cancellation; cover fresh seat, re-seat, promotion and stale acknowledgements.
-- [ ] 4.5 Implement authoritative finish order plus trick scores and rematch reset of prediction, pickups, boost, tricks and results; keep all rewards session-local.
-- [ ] 4.6 Verify opt-in audio and complete exit/travel/dispose restoration of world, theater, input and listeners.
+- [x] 4.1 Extend bounded controls/snapshots for source trick/boost state and score; provide explicit authoritative start time and normalize rider slot/player identity.
+- [x] 4.2 Wire source-model prediction/reconciliation and remote interpolation to existing activity transport and version negotiation; replace AI with actual participants.
+- [x] 4.3 Preserve source E/Q/X/B/W/Shift/Space inputs with phase-scoped Ready/Rematch and Escape exit; add touch equivalents and typing/blur neutralization.
+- [x] 4.4 Implement first-press load/readiness with seat identity, acknowledgement matching, retry and cancellation; cover fresh seat, re-seat, promotion and stale acknowledgements.
+- [x] 4.5 Implement authoritative finish order plus trick scores and rematch reset of prediction, pickups, boost, tricks and results; keep all rewards session-local.
+- [x] 4.6 Verify opt-in audio and complete exit/travel/dispose restoration of world, theater, input and listeners.
 
 ## 5. Acceptance and rollout readiness
 
-- [ ] 5.1 Compare paired source/integrated captures for start, ramps, airborne tricks, chairlift and finish; reject sparse substitute scenes even when technically renderable.
-- [ ] 5.2 Run real two-client fresh Ready, race, result, first Rematch, exit/re-seat and reconnect playtests; save frames and visible evidence rather than protocol-only claims.
-- [ ] 5.3 Record 2/4/8-rider performance, low-quality readability and repeated entry/exit resource stability; retain source-defining content when optimizing.
-- [ ] 5.4 Run source rules tests, shared/Phoenix parity and lifecycle tests, npm test, production build, Ripwire quality/test review and strict OpenSpec validation; document any remaining limitation.
-- [ ] 5.5 Update README controls and prepare coordinated server-first capability rollout, active-race drain and rollback instructions. Deployment remains a separate user action.
+- [x] 5.1 Compare paired source/integrated captures for start, ramps, airborne tricks, chairlift and finish; reject sparse substitute scenes even when technically renderable.
+- [x] 5.2 Run real two-client fresh Ready, race, result, first Rematch, exit/re-seat and reconnect playtests; save frames and visible evidence rather than protocol-only claims.
+- [x] 5.3 Record 2/4/8-rider performance, low-quality readability and repeated entry/exit resource stability; retain source-defining content when optimizing.
+- [x] 5.4 Run source rules tests, shared/Phoenix parity and lifecycle tests, npm test, production build, Ripwire quality/test review and strict OpenSpec validation; document any remaining limitation.
+- [x] 5.5 Update README controls and prepare coordinated server-first capability rollout, active-race drain and rollback instructions. Deployment remains a separate user action.

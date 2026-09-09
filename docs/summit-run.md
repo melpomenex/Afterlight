@@ -1,7 +1,8 @@
 # Summit Run — multiplayer snowboard arcade
 
 Summit Run is the Orpheum's fifth arcade machine and Afterlight's first
-multiplayer 3D activity: one polished 2–8 rider downhill night race, entered
+multiplayer 3D activity: one polished 1–8 rider downhill race on the daylight
+Alpine Rush course (integrate-ssxtricky-snowboard), entered
 and exited inside the same application. No reload, second socket, browser
 host or separate window — the mountain renders through Afterlight's existing
 renderer while your social avatar waits at the cabinet and chat keeps
@@ -45,7 +46,9 @@ server simulation; remote riders are interpolated.
 ## Race lifecycle
 
 - **Lobby** — one rider waits ("Waiting for another rider"); there is no AI
-  and no solo start. Ready expires after 60 s.
+  with no AI — and a lone ready rider starts a solo run on the same shared
+  authority (user decision 2026-09-09, manifest minPlayers: 1). Ready expires
+  after 60 s.
 - **Countdown** — every seated, connected, loaded rider ready with at least
   two riders locks the roster and starts a 3-second synchronized countdown.
   An unready, leave or disconnect during countdown returns everyone to the
