@@ -163,6 +163,16 @@ function buildUnderstoryWorld(ctx) {
       });
     }
   }
+  // Mycelial Choir ring (Task 9.5) at [0, 2] — low pads, walkable center.
+  box(0, .06, 2, 2.4, .08, 2.4, '#241e18');
+  for (const [i, [dx, dz, color]] of [[-0.7, 0, '#7ee8b0'], [0.7, 0, '#edb66c'], [0, -0.7, '#38bdf8'], [0, 0.7, '#a78bfa']].entries()) {
+    box(dx, .1, 2 + dz, .45, .08, .45, '#32281e');
+    const pad = glow(dx, .16, 2 + dz, .38, .05, .38, color, .35);
+    animated.push((time, done) => {
+      pad.material.emissiveIntensity = done ? 1.2 + Math.sin(time * 2 + i) * .35 : .35;
+    });
+  }
+
   // Mycelial heart node landmark at [6, -5]
   box(6, .8, -5, 2, 1.6, 1.8, '#322d25'); block(6, -5, 2, 1.8);
   const core = glow(6, 1.8, -5, .8, .8, .8, '#85f5bc', .5);
@@ -238,6 +248,11 @@ function buildMangroveWorld(ctx) {
   animated.push((time, done) => {
     weirGate.position.y = done ? .8 : 1.8 + Math.sin(time) * .05;
   });
+  // Shoreline activity props — decorative only, keep the weir and water walkable.
+  box(6.9, .22, 3.6, .18, .44, .18, '#4a5c46');
+  box(5.1, .2, 3.7, .16, .4, .16, '#3f5340');
+  box(-5.5, .16, 4.7, .55, .22, .4, '#6d6a63');
+  box(-5.15, .28, 4.55, .28, .16, .22, '#5c5850');
 }
 
 function buildTrestleWorld(ctx) {
@@ -280,6 +295,12 @@ function buildFoundryWorld(ctx) {
   animated.push((time, done) => {
     hearth.material.emissiveIntensity = done ? 2.8 + Math.sin(time * 5) * .4 : .5;
   });
+  // Hammer / forge stations — visual only, clear of the landmark and copper nodes
+  // at [4, 2.5], [8.5, 1], [-3.5, 2.5]. Activity scenes add the moving tools.
+  box(-5.5, 0.22, 2.5, 1.05, 0.16, 0.8, '#3a3a40');
+  box(-5.5, 0.48, 2.5, 0.7, 0.36, 0.42, '#2a2a30');
+  box(5.5, 0.24, 2.5, 1.15, 0.22, 0.85, '#3c2b28');
+  glow(5.5, 0.42, 2.5, 0.55, 0.06, 0.28, '#ff6622', 0.55);
 }
 
 function buildFrostSpireWorld(ctx) {
@@ -321,6 +342,11 @@ function buildDeltaWorld(ctx) {
   animated.push((time, done) => {
     beaconLantern.material.emissiveIntensity = done ? 2.8 + Math.sin(time * 2) * .5 : .4;
   });
+  // Shoreline activity props — reeds by the marsh dock, cairn by the skip shore.
+  box(6.3, .2, 3.5, .16, .4, .16, '#3f5340');
+  box(4.7, .22, 3.6, .18, .44, .18, '#4a5c46');
+  box(-5.5, .16, 4.7, .55, .22, .4, '#6d6a63');
+  box(-5.2, .28, 4.55, .28, .16, .22, '#5c5850');
 }
 
 function buildArchivesWorld(ctx) {

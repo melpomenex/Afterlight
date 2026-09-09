@@ -303,6 +303,21 @@ export function buildTheaterScenery(ctx) {
   box(-4.2, .165, 7.0, .045, .02, 2.4, colors.brass);
   block(-5.8, 7.0, 2.0, 1.2);
 
+  // --- Lobby darts oche (Task 9.6) at [8.4, 3.6], west of Summit Run (x≈10.42)
+  // and east of Row 2/3 seats (x=8.15). Low runner only — no extra collision.
+  box(8.55, .148, 3.6, 1.1, .02, 1.6, '#2a1c18');
+  box(8.55, .165, 2.85, 1.1, .02, .035, colors.brass);
+  box(8.55, .165, 4.35, 1.1, .02, .035, colors.brass);
+
+  // --- Lobby piano rug (Task 9.7) at [-2.2, 5.8], behind Row 3, clear of cinema.
+  box(-2.2, .148, 5.8, 1.7, .02, 0.9, '#2c2018');
+  box(-2.2, .165, 5.4, 1.7, .02, .03, colors.brass);
+  box(-2.2, .165, 6.2, 1.7, .02, .03, colors.brass);
+
+  // --- Photo booth pad (Task 9.8) at [2.4, 8.2], south of the projector (z=9.35).
+  box(2.4, .148, 8.15, 1.6, .02, 1.1, '#3a1c22');
+  box(2.4, .165, 7.65, 1.6, .02, .03, colors.brass);
+
   for (const [geo, materials] of parts) for (const [mat, instances] of materials) {
     const mesh = new THREE.InstancedMesh(geo, mat, instances.length);
     instances.forEach((p, i) => { mesh.setMatrixAt(i, p.matrix); mesh.setColorAt(i, p.color); });
