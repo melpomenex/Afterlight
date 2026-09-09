@@ -39,6 +39,7 @@ import './activities/snowboard.js';
 import './activities/pool.js';
 import './activities/airHockey.js';
 import './activities/foosball.js';
+import './activities/drones.js';
 import { createAtmosphereStateClient, legacyWeatherDisplaySuppressed } from './atmosphere/stateClient.js';
 import { createAtmosphereController } from './atmosphere/controller.js';
 import { createAtmosphereEvents } from './atmosphere/events.js';

@@ -14,6 +14,7 @@ defmodule Afterlight.Activities.SessionServer do
   alias Afterlight.Activities
   alias Afterlight.Activities.Admission
   alias Afterlight.Activities.{AirHockey, Foosball}
+  alias Afterlight.Activities.Drone
   alias Afterlight.Activities.Environment
   alias Afterlight.Activities.Pong
   alias Afterlight.Activities.RainRunner
@@ -571,6 +572,35 @@ defmodule Afterlight.Activities.SessionServer do
         player_to_slot = Map.delete(state.player_to_slot, player_id)
 
         cond do
+          snowboard_type(state) == "drones" and state.status == :in_progress ->
+            sim = Drone.mark_dnf(state.sim_state, slot)
+            state = %{
+              state
+              | players: players,
+                player_to_slot: player_to_slot,
+                disconnects: disconnects,
+                sim_state: sim,
+                revision: state.revision + 1
+            }
+
+            if sim["status"] == "complete" do
+              winner_slot = sim["winner"]
+              winner_player = Map.get(players, winner_slot)
+              winner_id = if winner_player, do: winner_player.player_id, else: "slot_#{winner_slot}"
+              outcome = %{
+                "winner" => winner_id,
+                "winnerSlot" => winner_slot,
+                "reason" => "finish"
+              }
+              state = record_and_broadcast_event(state, "match_ended", outcome)
+              state = %{state | status: :ended, match_outcome: outcome}
+              broadcast_activity_state(state)
+              {:noreply, maybe_start_idle_timer(state)}
+            else
+              broadcast_activity_state(state)
+              {:noreply, maybe_start_idle_timer(state)}
+            end
+
           snowboard?(state) and state.status == :in_progress ->
             # D4: grace expiry marks DNF(disconnect) ONCE; the race continues
             # for everyone else — no forfeit victory is ever invented. With
@@ -1187,6 +1217,23 @@ defmodule Afterlight.Activities.SessionServer do
             snowboard?(state) and state.status == :in_progress ->
               snowboard_telemetry(state, :leave, %{}, %{reason: "exit"})
               leave_racing_snowboard(state, slot, player_id)
+
+            snowboard_type(state) == "drones" and state.status == :in_progress ->
+              sim = Drone.mark_dnf(state.sim_state, slot)
+              if sim["status"] == "complete" do
+                winner_slot = sim["winner"]
+                winner_player = Map.get(players, winner_slot)
+                winner_id = if winner_player, do: winner_player.player_id, else: "slot_#{winner_slot}"
+                outcome = %{
+                  "winner" => winner_id,
+                  "winnerSlot" => winner_slot,
+                  "reason" => "finish"
+                }
+                broadcast_activity_event(state, "match_ended", outcome)
+                %{state | sim_state: sim, status: :ended, match_outcome: outcome}
+              else
+                %{state | sim_state: sim}
+              end
 
             state.status in [:in_progress, :paused] ->
               remaining = map_size(players)
@@ -1944,13 +1991,19 @@ defmodule Afterlight.Activities.SessionServer do
       (state.lobby_config && state.lobby_config["seriesLength"]) ||
       (state.activity_def && (state.activity_def["seriesLength"] || state.activity_def["series_length"])) ||
       1
-    [series_length: series_len]
+
+    [
+      series_length: series_len,
+      slots: Map.keys(state.players),
+      environment: state.environment
+    ]
   end
 
   defp init_simulation(act_type, opts \\ [])
   defp init_simulation("pong", _opts), do: Pong.init_sim_state()
   defp init_simulation("air-hockey", opts), do: AirHockey.init_sim_state(opts)
   defp init_simulation("foosball", opts), do: Foosball.init_sim_state(opts)
+  defp init_simulation("drones", opts), do: Drone.init_sim_state(opts)
   defp init_simulation("rain-runner", _opts), do: RainRunner.init_sim_state()
   defp init_simulation("signal-lost", _opts), do: SignalLost.init_sim_state()
   defp init_simulation("sporefall", _opts), do: Sporefall.init_sim_state()
@@ -2050,6 +2103,10 @@ defmodule Afterlight.Activities.SessionServer do
 
   defp step_simulation("foosball", sim_state, players, steps) do
     Foosball.step(sim_state, players, steps)
+  end
+
+  defp step_simulation("drones", sim_state, players, steps) do
+    Drone.step_simulation(sim_state, players, steps)
   end
 
   defp step_simulation("rain-runner", sim_state, players, steps) do

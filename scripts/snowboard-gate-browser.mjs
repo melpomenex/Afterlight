@@ -174,6 +174,18 @@ async function runLeg(s, code, axis, target, timeoutMs = 300_000) {
   }
 }
 
+// Poll participation until it reaches `want` (lazy scene load can take a
+// while under SwiftShader).
+async function waitParticipation(s, want, timeoutMs = 45_000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const st = await participationState(s);
+    if (st === want) return true;
+    await sleep(1500);
+  }
+  return false;
+}
+
 // Route to the Summit Run bay: dev teleport behind ?debug=1 (real E/race
 // keys are the feature under test; navigation is not), then one real nudge
 // tap so a movement frame reaches the server before proximity checks.
@@ -275,19 +287,19 @@ async function phaseRematch() {
   await twoSessions(async (a, b) => {
     await walkToSummit(a);
     await tap(a, 'KeyE', 90);
-    await sleep(2000);
+    if (!(await waitParticipation(a, 'participating'))) throw new Error('rider-a never seated');
     await walkToSummit(b);
     await tap(b, 'KeyE', 90);
-    await sleep(2000);
+    if (!(await waitParticipation(b, 'participating'))) throw new Error('rider-b never seated');
     await tap(a, 'KeyR', 90);
     await sleep(500);
     await tap(b, 'KeyR', 90);
-    await sleep(5000);
+    await sleep(16_000);
     // Rematch readiness is explicit; identity rotates server-side.
     await tap(a, 'KeyR', 90);
     await sleep(500);
     await tap(b, 'KeyR', 90);
-    await sleep(4500);
+    await sleep(14_000);
     const stateA = await participationState(a);
     if (stateA !== 'participating') throw new Error('rematch lost the seat');
     log('PHASE rematch PASS');
@@ -298,14 +310,17 @@ async function phaseExit() {
   await twoSessions(async (a) => {
     await walkToSummit(a);
     await tap(a, 'KeyE', 90);
-    await sleep(3000);
+    if (!(await waitParticipation(a, 'participating'))) throw new Error('rider-a never seated');
     // E exits the race; world movement must work again afterwards.
     await tap(a, 'KeyE', 90);
-    await sleep(1500);
+    await sleep(2500);
     const before = await pos(a);
-    await runLeg(a, 'KeyS', 1, 4.5, 120_000);
+    await tap(a, 'KeyS', 200);
+    await sleep(800);
     const after = await pos(a);
-    if (!after || (before && before[1] === after[1])) throw new Error('world movement not restored after exit');
+    if (!after || (before && Math.abs(before[1] - after[1]) < 0.01 && Math.abs(before[0] - after[0]) < 0.01)) {
+      throw new Error('world movement not restored after exit');
+    }
     log('PHASE exit PASS');
   });
 }

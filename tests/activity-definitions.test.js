@@ -65,6 +65,12 @@ test('place definitions remain valid; theater declares 5 arcade cabinets and 1 p
       assert.equal(acts[6].type, 'air-hockey');
       assert.equal(acts[7].id, 'orpheum-foosball');
       assert.equal(acts[7].type, 'foosball');
+    } else if (def.id === 'rooftops') {
+      assert.equal(placeHasCapability(def, 'activities'), true, `${def.id} has activities capability`);
+      const acts = getPlaceActivities(def.id);
+      assert.equal(acts.length, 1);
+      assert.equal(acts[0].id, 'rooftops-drones');
+      assert.equal(acts[0].type, 'drones');
     } else {
       assert.equal(placeHasCapability(def, 'activities'), false, `${def.id} has no activities capability`);
       assert.deepEqual(getPlaceActivities(def.id), [], `${def.id} has empty activities`);

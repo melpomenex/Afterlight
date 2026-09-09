@@ -342,6 +342,35 @@ export const FOOSBALL_ACTIVITY_DEFINITION = Object.freeze({
   controllerKey: 'foosball',
 });
 
+export const DRONES_ACTIVITY_DEFINITION = Object.freeze({
+  id: 'rooftops-drones',
+  type: 'drones',
+  title: 'Rooftop Drones',
+  sub: 'Press E to race · 1–4 pilots',
+  rulesVersion: 1,
+  minPlayers: 1,
+  readyPolicy: 'explicit',
+  environmentPolicy: 'frozen',
+  course: Object.freeze({ id: 'rooftop-circuit', version: 1 }),
+  transform: Object.freeze({ position: Object.freeze([-3.0, 0, 3.5]), rotationY: 0 }),
+  footprint: Object.freeze({ width: 3.2, depth: 1.4 }),
+  interactionRadius: 2.8,
+  participantAnchors: Object.freeze([
+    Object.freeze({ slot: 0, position: Object.freeze([-4.2, 0, 4.4]), facing: 0, dismount: Object.freeze([Object.freeze({ x: -4.2, z: 5.2 })]) }),
+    Object.freeze({ slot: 1, position: Object.freeze([-3.4, 0, 4.4]), facing: 0, dismount: Object.freeze([Object.freeze({ x: -3.4, z: 5.2 })]) }),
+    Object.freeze({ slot: 2, position: Object.freeze([-2.6, 0, 4.4]), facing: 0, dismount: Object.freeze([Object.freeze({ x: -2.6, z: 5.2 })]) }),
+    Object.freeze({ slot: 3, position: Object.freeze([-1.8, 0, 4.4]), facing: 0, dismount: Object.freeze([Object.freeze({ x: -1.8, z: 5.2 })]) }),
+  ]),
+  capacities: Object.freeze({ players: 4, spectators: 32, queue: 16 }),
+  spectatorPolicy: 'world',
+  rendererKey: 'droneRenderer',
+  controllerKey: 'drones',
+});
+
+export const ROOFTOPS_ACTIVITIES = Object.freeze([
+  DRONES_ACTIVITY_DEFINITION,
+]);
+
 export const ORPHEUM_ACTIVITIES = Object.freeze([
   PONG_ACTIVITY_DEFINITION,
   RAIN_RUNNER_ACTIVITY_DEFINITION,
@@ -441,6 +470,7 @@ function defineLegacyPlace(display, index) {
     social: { featured: theater || display.id === 'court', legacy: true },
     exits: legacyExits(display.id),
     ...(theater ? { activities: ORPHEUM_ALL_ACTIVITIES } : {}),
+    ...(display.id === 'rooftops' ? { activities: ROOFTOPS_ACTIVITIES } : {}),
     ...SOCIAL_PLACE_OVERRIDES[display.id],
   });
 }
@@ -743,10 +773,10 @@ export function validateActivityDefinition(activity, { placeBounds = null } = {}
       at(Number.isInteger(course.version) && course.version >= 1, 'course.version must be an integer >= 1');
     }
   }
-  if (activity.type === 'snowboard-race') {
-    at(activity.minPlayers !== undefined, 'snowboard-race requires minPlayers');
-    at(activity.readyPolicy === 'explicit', 'snowboard-race uses explicit readiness (readyPolicy "explicit")');
-    at(activity.course !== undefined, 'snowboard-race requires course metadata');
+  if (['snowboard-race', 'drones', 'rc-boats'].includes(activity.type)) {
+    at(activity.minPlayers !== undefined, `${activity.type} requires minPlayers`);
+    at(activity.readyPolicy === 'explicit', `${activity.type} uses explicit readiness (readyPolicy "explicit")`);
+    at(activity.course !== undefined, `${activity.type} requires course metadata`);
   }
 
   const envPolicy = activity.environmentPolicy ?? 'none';

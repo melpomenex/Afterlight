@@ -151,17 +151,18 @@ export function projectActivity(act, placeBounds) {
   const minPlayers = act.minPlayers;
   const readyPolicy = act.readyPolicy;
   const course = act.course;
-  if (act.type === 'snowboard-race') {
-    at(Number.isInteger(minPlayers) && minPlayers >= 1 && minPlayers <= c.players, 'snowboard-race requires minPlayers in 1..capacities.players');
-    at(readyPolicy === 'explicit', 'snowboard-race requires readyPolicy "explicit"');
-    at(course && typeof course === 'object' && !Array.isArray(course), 'snowboard-race requires course metadata');
+  const RACE_TYPES = ['snowboard-race', 'drones', 'rc-boats'];
+  if (RACE_TYPES.includes(act.type)) {
+    at(Number.isInteger(minPlayers) && minPlayers >= 1 && minPlayers <= c.players, `${act.type} requires minPlayers in 1..capacities.players`);
+    at(readyPolicy === 'explicit', `${act.type} requires readyPolicy "explicit"`);
+    at(course && typeof course === 'object' && !Array.isArray(course), `${act.type} requires course metadata`);
     if (course && typeof course === 'object') {
       at(typeof course.id === 'string' && /^[a-z0-9-]+$/.test(course.id), 'course.id must be a kebab-case string');
       at(Number.isInteger(course.version) && course.version >= 1, 'course.version must be an integer >= 1');
     }
   } else {
     at(minPlayers === undefined && readyPolicy === undefined && course === undefined,
-      'minPlayers/readyPolicy/course are snowboard-race fields; other types omit them');
+      'minPlayers/readyPolicy/course are race fields; other types omit them');
   }
 
   return {
