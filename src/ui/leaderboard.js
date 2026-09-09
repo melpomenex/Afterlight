@@ -10,10 +10,12 @@
 import {
   ARCADE_GAMES,
   LEADERBOARD_PAGE_SIZE,
+  MATCH_GAMES,
   RECORDING_LABELS,
   clampPage,
   gameTitle,
   mergeLocalAndVerified,
+  normalizeProfile,
   normalizeVerifiedBoard,
 } from '../../shared/leaderboardModel.js';
 import { getBest, listBests, reconcileWithVerified } from '../activities/localBests.js';
@@ -38,10 +40,14 @@ export function createLeaderboardDialog({
     next: dialog.querySelector('#leaderboard-next'),
     page: dialog.querySelector('#leaderboard-page'),
     close: dialog.querySelector('#close-leaderboard'),
+    profile: dialog.querySelector('#leaderboard-profile'),
+    identity: dialog.querySelector('#leaderboard-identity'),
   };
 
   let openState = false;
   let currentGame = ARCADE_GAMES[0];
+  let currentView = 'board';
+  const BOARD_GAMES = [...ARCADE_GAMES, ...MATCH_GAMES.filter(g => g !== 'billiards')];
   let currentVersion = 1;
   let currentPage = 0;
   let total = 0;
@@ -86,14 +92,31 @@ export function createLeaderboardDialog({
   function renderTabs() {
     if (!els.tabs) return;
     els.tabs.textContent = '';
-    for (const game of ARCADE_GAMES) {
+    const profileBtn = $doc.createElement('button');
+    profileBtn.type = 'button';
+    profileBtn.className = 'leaderboard-tab';
+    profileBtn.textContent = 'Profile';
+    profileBtn.setAttribute('aria-pressed', currentView === 'profile' ? 'true' : 'false');
+    profileBtn.addEventListener('click', () => {
+      currentView = 'profile';
+      renderTabs();
+      refresh();
+    });
+    els.tabs.append(profileBtn);
+
+    for (const game of BOARD_GAMES) {
       const btn = $doc.createElement('button');
       btn.type = 'button';
       btn.className = 'leaderboard-tab';
       btn.textContent = gameTitle(game);
-      btn.setAttribute('aria-pressed', game === currentGame ? 'true' : 'false');
+      btn.setAttribute('aria-pressed', currentView === 'board' && game === currentGame ? 'true' : 'false');
       btn.addEventListener('click', () => {
-        if (game === currentGame) return;
+        currentView = 'board';
+        if (game === currentGame) {
+          renderTabs();
+          refresh();
+          return;
+        }
         currentGame = game;
         currentVersion = getBest(game, 1)?.rulesVersion || 1;
         currentPage = 0;
@@ -158,7 +181,9 @@ export function createLeaderboardDialog({
 
       const score = $doc.createElement('span');
       score.className = 'leaderboard-score';
-      score.textContent = String(row.score);
+      score.textContent = MATCH_GAMES.includes(currentGame)
+        ? `${row.wins ?? row.score ?? 0} wins`
+        : String(row.score);
 
       const label = $doc.createElement('span');
       label.className = 'leaderboard-label';
@@ -209,7 +234,75 @@ export function createLeaderboardDialog({
 
   // --- refresh cycle ---
 
+  async function fetchProfile() {
+    const requestId = ++latestRequestId;
+    const id = getPlayerId?.();
+    if (!id) return null;
+    const base = typeof net?.apiBase === 'string' ? net.apiBase.replace(/\/+$/, '') : '';
+    try {
+      const res = await fetch(`${base}/api/activities/profile/${encodeURIComponent(id)}`);
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const body = await res.json();
+      if (requestId !== latestRequestId) return null;
+      if (!body?.ok) throw new Error(body?.error || 'unavailable');
+      return normalizeProfile(body);
+    } catch (err) {
+      if (requestId !== latestRequestId) return null;
+      setStatus('Profile unavailable right now.', true);
+      return null;
+    }
+  }
+
+  function renderProfile(profile) {
+    if (els.rows) els.rows.textContent = '';
+    if (els.profile) {
+      els.profile.hidden = false;
+      els.profile.textContent = '';
+      if (!profile) {
+        els.profile.textContent = 'Sign in to this room to load verified records.';
+        return;
+      }
+      const head = $doc.createElement('p');
+      head.className = 'leaderboard-identity';
+      head.textContent = `${profile.displayName} · ${profile.identityLabel}`;
+      const note = $doc.createElement('p');
+      note.className = 'leaderboard-note';
+      note.textContent = profile.continuityNote;
+      els.profile.append(head, note);
+      if (profile.games.length === 0) {
+        const empty = $doc.createElement('p');
+        empty.textContent = 'No verified games yet.';
+        els.profile.append(empty);
+        return;
+      }
+      const list = $doc.createElement('ul');
+      list.className = 'leaderboard-profile-games';
+      for (const g of profile.games) {
+        const li = $doc.createElement('li');
+        const best = g.bestScore != null ? ` · best ${g.bestScore}` : '';
+        li.textContent = `${g.title} v${g.rulesVersion}: ${g.gamesPlayed} games, ${g.wins} wins, streak ${g.currentStreak} (best ${g.bestStreak})${best}`;
+        list.append(li);
+      }
+      els.profile.append(list);
+    }
+    if (els.identity) {
+      els.identity.textContent = profile
+        ? `${profile.identityLabel}. ${profile.continuityNote}`
+        : '';
+    }
+  }
+
   async function refresh() {
+    if (currentView === 'profile') {
+      if (els.profile) els.profile.hidden = false;
+      setStatus('Loading profile…');
+      const profile = await fetchProfile();
+      if (profile) setStatus('');
+      renderProfile(profile);
+      renderPager();
+      return;
+    }
+    if (els.profile) els.profile.hidden = true;
     setStatus('Loading records…');
     const board = await fetchBoard(currentGame, currentVersion, clampPage(currentPage, total));
     renderPager();
@@ -236,7 +329,7 @@ export function createLeaderboardDialog({
     openState = true;
     previousFocus = $doc?.activeElement ?? null;
 
-    if (game && ARCADE_GAMES.includes(game)) currentGame = game;
+    if (game && BOARD_GAMES.includes(game)) currentGame = game;
     currentVersion = getBest(currentGame, 1)?.rulesVersion || 1;
     currentPage = 0;
     total = 0;

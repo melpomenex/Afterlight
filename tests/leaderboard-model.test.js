@@ -2,10 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ARCADE_GAMES,
+  IDENTITY_KIND,
+  MATCH_GAMES,
+  MAX_LEADERBOARD_PAGE_SIZE,
   RECORDING_LABELS,
   clampPage,
+  clampPageSize,
+  continuityNote,
+  deriveMatchStats,
   gameTitle,
   mergeLocalAndVerified,
+  normalizeProfile,
   normalizeVerifiedBoard,
   pageCount,
   recordingStatusToLocalState,
@@ -57,6 +64,12 @@ test('pagination math is bounded and pages clamp', () => {
   assert.equal(clampPage(9, 35), 3);
   assert.equal(clampPage(-1, 35), 0);
   assert.equal(clampPage(2, 0), 0);
+  assert.equal(clampPageSize(1000), MAX_LEADERBOARD_PAGE_SIZE);
+  assert.equal(clampPageSize(0), 10);
+  const oversized = normalizeVerifiedBoard({
+    board: { game: 'sporefall', pageSize: 500, total: 3, entries: [{ score: 1 }, { score: 2 }, { score: 3 }] },
+  });
+  assert.equal(oversized.pageSize, MAX_LEADERBOARD_PAGE_SIZE);
 });
 
 test('recording statuses map to honest local labels', () => {
@@ -169,4 +182,64 @@ test('verified board entries with the local player verify the local best', () =>
     board: { game: 'signal-lost', rulesVersion: 1, total: 1, entries: [{ playerId: 'me', score: 10, endedAt: 5 }] },
   });
   assert.equal(reconcileWithVerified('signal-lost', 1, lowBoard, 'me'), false);
+});
+
+test('incompatible rules versions stay on separate boards', () => {
+  const v1 = normalizeVerifiedBoard({
+    board: { game: 'pool', rulesVersion: 1, total: 1, entries: [{ playerId: 'a', wins: 4, gamesPlayed: 6 }] },
+  });
+  const v2 = normalizeVerifiedBoard({
+    board: { game: 'pool', rulesVersion: 2, total: 1, entries: [{ playerId: 'a', wins: 1, gamesPlayed: 1 }] },
+  });
+  assert.equal(v1.kind, 'wins');
+  assert.equal(v1.rulesVersion, 1);
+  assert.equal(v1.entries[0].wins, 4);
+  assert.equal(v2.rulesVersion, 2);
+  assert.equal(v2.entries[0].wins, 1);
+  assert.deepEqual(MATCH_GAMES, ['pool', 'pong', 'billiards']);
+});
+
+test('profile stats key off identity, not display name, and label guest continuity', () => {
+  const profile = normalizeProfile({
+    profile: {
+      playerId: 'guest_abc',
+      displayName: 'Kiln',
+      identity: 'guest',
+      games: [
+        { game: 'pool', rulesVersion: 1, gamesPlayed: 8, wins: 5, currentStreak: 2, bestStreak: 3 },
+        { game: 'sporefall', rulesVersion: 1, gamesPlayed: 4, wins: 0, bestScore: 900 },
+      ],
+    },
+  });
+  assert.equal(profile.playerId, 'guest_abc');
+  assert.equal(profile.identity, IDENTITY_KIND.guest);
+  assert.match(profile.identityLabel, /Guest/);
+  assert.match(profile.continuityNote, /not recovered on another device/);
+  assert.equal(profile.games[0].title, 'Billiards');
+  assert.equal(profile.games[1].bestScore, 900);
+
+  const renamed = normalizeProfile({
+    playerId: 'guest_abc',
+    displayName: 'NewFace',
+    games: profile.games,
+  });
+  assert.equal(renamed.playerId, 'guest_abc');
+  assert.equal(renamed.displayName, 'NewFace');
+  assert.match(continuityNote(IDENTITY_KIND.signed), /signed identity/);
+});
+
+test('walkovers and forfeits never count as played games or wins', () => {
+  const rows = [
+    { outcome: 'completed', winnerId: 'me', participants: { 0: 'me', 1: 'you' }, endedAt: 1, matchId: 'a' },
+    { outcome: 'walkover', winnerId: 'me', participants: { 0: 'me', 1: 'no' }, endedAt: 2, matchId: 'b' },
+    { outcome: 'forfeit', winnerId: 'me', participants: { 0: 'me', 1: 'gone' }, endedAt: 3, matchId: 'c' },
+    { outcome: 'aborted', winnerId: null, participants: { 0: 'me', 1: 'you' }, endedAt: 4, matchId: 'd' },
+    { outcome: 'eight_ball', winnerId: 'you', participants: { 0: 'me', 1: 'you' }, endedAt: 5, matchId: 'e' },
+    { outcome: 'completed', winnerId: 'me', participants: { 0: 'me', 1: 'you' }, endedAt: 6, matchId: 'f' },
+  ];
+  const stats = deriveMatchStats(rows, 'me');
+  assert.equal(stats.gamesPlayed, 3);
+  assert.equal(stats.wins, 2);
+  assert.equal(stats.currentStreak, 1);
+  assert.equal(stats.bestStreak, 1);
 });

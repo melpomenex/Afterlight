@@ -12,15 +12,16 @@ defmodule AfterlightWeb.LeaderboardController do
 
   alias Afterlight.Activities
 
-  @games MapSet.new(["rain-runner", "signal-lost", "sporefall"])
+  @games MapSet.new(["rain-runner", "signal-lost", "sporefall", "pool", "pong", "billiards"])
   @max_rules_version 1000
 
   def show(conn, %{"game" => game} = params) do
     if MapSet.member?(@games, game) do
       rules_version = parse_version(params["rulesVersion"])
       page = parse_page(params["page"])
+      page_size = parse_page_size(params["pageSize"])
 
-      case Activities.leaderboard(game, rules_version, page) do
+      case Activities.leaderboard(game, rules_version, page, page_size: page_size) do
         {:ok, board} ->
           json(conn, %{"ok" => true, "board" => board})
 
@@ -34,6 +35,15 @@ defmodule AfterlightWeb.LeaderboardController do
 
   def show(conn, _params), do: json(conn, %{"ok" => false, "error" => "unknown_game"})
 
+  def profile(conn, %{"playerId" => player_id}) when is_binary(player_id) do
+    case Activities.profile(player_id) do
+      {:ok, profile} -> json(conn, %{"ok" => true, "profile" => profile})
+      {:error, _} -> json(conn, %{"ok" => false, "error" => "profile_unavailable"})
+    end
+  end
+
+  def profile(conn, _params), do: json(conn, %{"ok" => false, "error" => "unknown_player"})
+
   defp parse_version(raw) do
     case Integer.parse(raw || "") do
       {v, ""} when v >= 1 and v <= @max_rules_version -> v
@@ -45,6 +55,13 @@ defmodule AfterlightWeb.LeaderboardController do
     case Integer.parse(raw || "") do
       {p, ""} when p >= 0 -> p
       _ -> 0
+    end
+  end
+
+  defp parse_page_size(raw) do
+    case Integer.parse(raw || "") do
+      {n, ""} when n >= 1 -> min(n, 100)
+      _ -> 10
     end
   end
 end

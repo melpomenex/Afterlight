@@ -8,6 +8,8 @@
 
 export const LEADERBOARD_PAGE_SIZE = 10;
 export const MAX_LEADERBOARD_PAGE = 100;
+/** Spec: rankings are paginated and capped at 100 entries per response. */
+export const MAX_LEADERBOARD_PAGE_SIZE = 100;
 
 export const RECORDING_LABELS = Object.freeze({
   verified: 'Verified',
@@ -17,20 +19,38 @@ export const RECORDING_LABELS = Object.freeze({
 });
 
 export const ARCADE_GAMES = Object.freeze(['rain-runner', 'signal-lost', 'sporefall']);
+export const MATCH_GAMES = Object.freeze(['pool', 'pong', 'billiards']);
+export const PROFILE_GAMES = Object.freeze([...ARCADE_GAMES, ...MATCH_GAMES]);
+
+export const IDENTITY_KIND = Object.freeze({
+  signed: 'signed',
+  guest: 'guest',
+});
 
 const GAME_TITLES = Object.freeze({
   'rain-runner': 'Rain Runner',
   'signal-lost': 'Signal Lost',
   sporefall: 'Sporefall',
+  pool: 'Billiards',
+  billiards: 'Billiards',
+  pong: 'Pong',
 });
+
+const NON_PLAYED_MATCH_OUTCOMES = Object.freeze(['aborted', 'forfeit', 'walkover', 'cancelled']);
 
 export function gameTitle(game) {
   return GAME_TITLES[game] || game;
 }
 
+export function clampPageSize(pageSize = LEADERBOARD_PAGE_SIZE) {
+  if (!Number.isInteger(pageSize) || pageSize < 1) return LEADERBOARD_PAGE_SIZE;
+  return Math.min(pageSize, MAX_LEADERBOARD_PAGE_SIZE);
+}
+
 export function pageCount(total, pageSize = LEADERBOARD_PAGE_SIZE) {
   if (!Number.isFinite(total) || total <= 0) return 0;
-  return Math.min(Math.ceil(total / pageSize), MAX_LEADERBOARD_PAGE + 1);
+  const size = clampPageSize(pageSize);
+  return Math.min(Math.ceil(total / size), MAX_LEADERBOARD_PAGE + 1);
 }
 
 export function clampPage(page, total, pageSize = LEADERBOARD_PAGE_SIZE) {
@@ -48,18 +68,25 @@ export function normalizeVerifiedBoard(payload) {
   const entries = Array.isArray(board.entries) ? board.entries : [];
   const total = Number.isInteger(board.total) ? board.total : entries.length;
   const rulesVersion = Number.isInteger(board.rulesVersion) ? board.rulesVersion : 1;
-  const page = clampPage(Number.isInteger(board.page) ? board.page : 0, total);
+  const pageSize = clampPageSize(
+    Number.isInteger(board.pageSize) ? board.pageSize : LEADERBOARD_PAGE_SIZE,
+  );
+  const page = clampPage(Number.isInteger(board.page) ? board.page : 0, total, pageSize);
+  const kind = MATCH_GAMES.includes(board.game) ? 'wins' : 'score';
 
   return {
     game: typeof board.game === 'string' ? board.game : null,
+    kind,
     rulesVersion,
     page,
-    pageSize: Number.isInteger(board.pageSize) ? board.pageSize : LEADERBOARD_PAGE_SIZE,
+    pageSize,
     total,
     versions: Array.isArray(board.versions)
       ? board.versions.filter(v => Number.isInteger(v) && v >= 1).sort((a, b) => b - a)
       : [rulesVersion],
-    entries: entries.map((e, i) => normalizeEntry(e, i, page, board.pageSize || LEADERBOARD_PAGE_SIZE)),
+    entries: entries.slice(0, MAX_LEADERBOARD_PAGE_SIZE).map((e, i) =>
+      normalizeEntry(e, i, page, pageSize),
+    ),
   };
 }
 
@@ -74,9 +101,112 @@ function normalizeEntry(e, i, page, pageSize) {
     playerId: typeof e?.playerId === 'string' ? e.playerId : null,
     displayName: typeof e?.displayName === 'string' && e.displayName ? e.displayName : 'visitor',
     score,
+    wins: Number.isInteger(e?.wins) ? e.wins : null,
+    gamesPlayed: Number.isInteger(e?.gamesPlayed) ? e.gamesPlayed : null,
+    streak: Number.isInteger(e?.streak) ? e.streak : null,
     outcome: typeof e?.outcome === 'string' ? e.outcome : null,
     endedAt,
   };
+}
+
+export function isPlayedMatchOutcome(outcome) {
+  return typeof outcome === 'string' && !NON_PLAYED_MATCH_OUTCOMES.includes(outcome);
+}
+
+export function identityKindFromPlayerId(playerId) {
+  if (typeof playerId !== 'string' || !playerId) return IDENTITY_KIND.guest;
+  return playerId.startsWith('acct_') ? IDENTITY_KIND.signed : IDENTITY_KIND.guest;
+}
+
+export function continuityNote(kind) {
+  if (kind === IDENTITY_KIND.signed) {
+    return 'Verified records stay attached to your signed identity when you rename.';
+  }
+  return 'Guest records stay with this identity on this browser. They are not recovered on another device.';
+}
+
+export function identityLabel(kind) {
+  return kind === IDENTITY_KIND.signed ? 'Signed identity' : 'Guest (this browser)';
+}
+
+/**
+ * Profile payload: games / wins / streaks / bests keyed by signed identity,
+ * never by display name. Unknown shapes normalize empty so the UI stays honest.
+ */
+export function normalizeProfile(payload) {
+  const raw = payload?.profile || payload || {};
+  const playerId = typeof raw.playerId === 'string' ? raw.playerId : null;
+  const kind = raw.identity === IDENTITY_KIND.signed || raw.identity === IDENTITY_KIND.guest
+    ? raw.identity
+    : identityKindFromPlayerId(playerId);
+  const games = Array.isArray(raw.games) ? raw.games : [];
+
+  return {
+    playerId,
+    displayName: typeof raw.displayName === 'string' && raw.displayName ? raw.displayName : 'visitor',
+    identity: kind,
+    identityLabel: identityLabel(kind),
+    continuityNote: typeof raw.continuityNote === 'string' && raw.continuityNote
+      ? raw.continuityNote
+      : continuityNote(kind),
+    recording: ['verified', 'pending', 'unrecorded'].includes(raw.recording)
+      ? raw.recording
+      : 'verified',
+    games: games
+      .filter(g => g && typeof g.game === 'string')
+      .map(g => ({
+        game: g.game,
+        title: gameTitle(g.game),
+        rulesVersion: Number.isInteger(g.rulesVersion) ? g.rulesVersion : 1,
+        gamesPlayed: Number.isInteger(g.gamesPlayed) ? g.gamesPlayed : 0,
+        wins: Number.isInteger(g.wins) ? g.wins : 0,
+        currentStreak: Number.isInteger(g.currentStreak) ? g.currentStreak : 0,
+        bestStreak: Number.isInteger(g.bestStreak) ? g.bestStreak : 0,
+        bestScore: Number.isFinite(g.bestScore) ? g.bestScore : null,
+      })),
+  };
+}
+
+/**
+ * Rebuildable per-game stats from verified match rows. Walkovers, forfeits
+ * and aborts never count as played games or wins.
+ */
+export function deriveMatchStats(rows, playerId) {
+  const played = (Array.isArray(rows) ? rows : [])
+    .filter(r => r && isPlayedMatchOutcome(r.outcome))
+    .filter(r => participantIds(r).includes(playerId))
+    .sort((a, b) => (a.endedAt || 0) - (b.endedAt || 0) || String(a.matchId || '').localeCompare(String(b.matchId || '')));
+
+  let wins = 0;
+  let currentStreak = 0;
+  let bestStreak = 0;
+  let streak = 0;
+  for (const row of played) {
+    const won = row.winnerId === playerId;
+    if (won) {
+      wins += 1;
+      streak += 1;
+      currentStreak = streak;
+      if (streak > bestStreak) bestStreak = streak;
+    } else {
+      streak = 0;
+      currentStreak = 0;
+    }
+  }
+
+  return {
+    gamesPlayed: played.length,
+    wins,
+    currentStreak,
+    bestStreak,
+  };
+}
+
+function participantIds(row) {
+  const p = row?.participants;
+  if (Array.isArray(p)) return p.filter(id => typeof id === 'string');
+  if (p && typeof p === 'object') return Object.values(p).filter(id => typeof id === 'string');
+  return [];
 }
 
 /**
