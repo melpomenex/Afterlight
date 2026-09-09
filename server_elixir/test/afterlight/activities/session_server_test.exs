@@ -1351,4 +1351,112 @@ defmodule Afterlight.Activities.SessionServerTest do
       assert rematch_info.sim_state["state"] == "serving"
     end
   end
+
+  describe "winner-stays and queue presentation (task 10.2)" do
+    @pool_def %{
+      "id" => "pool-table",
+      "type" => "pool",
+      "rulesVersion" => 1,
+      "capacities" => %{"players" => 2, "spectators" => 4, "queue" => 4},
+      "interactionRadius" => 5.0,
+      "transform" => %{"position" => [0.0, 0.0, 0.0]}
+    }
+
+    test "snapshot exposes queue positions and next player", ctx do
+      assert {:ok, session_pid} =
+               Activities.get_or_start_session(
+                 ctx.room_pid,
+                 ctx.room_key,
+                 ctx.room_epoch,
+                 "pool-table",
+                 ctx.handle,
+                 activity_def: @pool_def,
+                 check_proximity: false
+               )
+
+      p1 = make_player("p1", 1)
+      p2 = make_player("p2", 2)
+      q1 = make_player("q1", 10)
+      q2 = make_player("q2", 11)
+
+      Activities.command(session_pid, "activity_join", %{"role" => "player"}, p1)
+      Activities.command(session_pid, "activity_join", %{"role" => "player"}, p2)
+      Activities.command(session_pid, "activity_join", %{"role" => "queue"}, q1)
+      Activities.command(session_pid, "activity_join", %{"role" => "queue"}, q2)
+
+      snap = Activities.session_full_snapshot(session_pid)
+      assert snap["state"]["queue"] == [
+               %{"playerId" => q1.player_id, "position" => 1},
+               %{"playerId" => q2.player_id, "position" => 2}
+             ]
+      assert snap["nextPlayer"] == q1.player_id
+      assert snap["queueLength"] == 2
+    end
+
+    test "winner stays keeps the winner and offers the other slot FIFO", ctx do
+      assert {:ok, session_pid} =
+               Activities.get_or_start_session(
+                 ctx.room_pid,
+                 ctx.room_key,
+                 ctx.room_epoch,
+                 "pool-table",
+                 ctx.handle,
+                 activity_def: @pool_def,
+                 check_proximity: false
+               )
+
+      p1 = make_player("p1", 1)
+      p2 = make_player("p2", 2)
+      q1 = make_player("q1", 10)
+
+      Activities.command(session_pid, "activity_join", %{"role" => "player"}, p1)
+      Activities.command(session_pid, "activity_join", %{"role" => "player"}, p2)
+      Activities.command(session_pid, "activity_join", %{"role" => "queue"}, q1)
+      Activities.command(session_pid, "activity_ready", %{"ready" => true, "winnerStays" => true}, p1)
+      Activities.command(session_pid, "activity_ready", %{"ready" => true}, p2)
+
+      Activities.command(session_pid, "activity_leave", %{}, p2)
+      Process.sleep(30)
+
+      info = Activities.session_info(session_pid)
+      assert info.match_outcome["winner"] == p1.player_id
+      assert Map.has_key?(info.players, 0)
+      assert info.players[0].player_id == p1.player_id
+      refute Map.has_key?(info.players, 1)
+      assert info.offers[1].player_id == q1.player_id
+    end
+
+    test "both-player abort invents no winner and does not start an empty match", ctx do
+      assert {:ok, session_pid} =
+               Activities.get_or_start_session(
+                 ctx.room_pid,
+                 ctx.room_key,
+                 ctx.room_epoch,
+                 "pool-table",
+                 ctx.handle,
+                 activity_def: @pool_def,
+                 reconnect_grace_ms: 40,
+                 check_proximity: false
+               )
+
+      loop = fn rec -> receive do _ -> rec.(rec) end end
+      c1 = spawn(fn -> loop.(loop) end)
+      c2 = spawn(fn -> loop.(loop) end)
+      p1 = make_player("p1", 1, c1)
+      p2 = make_player("p2", 2, c2)
+      Activities.command(session_pid, "activity_join", %{"role" => "player"}, p1)
+      Activities.command(session_pid, "activity_join", %{"role" => "player"}, p2)
+      Activities.command(session_pid, "activity_ready", %{"ready" => true, "winnerStays" => true}, p1)
+      Activities.command(session_pid, "activity_ready", %{"ready" => true}, p2)
+
+      Process.exit(c1, :kill)
+      Process.exit(c2, :kill)
+      Process.sleep(80)
+
+      info = Activities.session_info(session_pid)
+      assert info.match_outcome["reason"] == "aborted"
+      refute Map.has_key?(info.match_outcome, "winner")
+      assert info.status in [:lobby, :ended]
+    end
+  end
 end

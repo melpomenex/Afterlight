@@ -13,11 +13,25 @@ defmodule Afterlight.Activities.SessionServer do
 
   alias Afterlight.Activities
   alias Afterlight.Activities.Admission
-  alias Afterlight.Activities.{AirHockey, Foosball}
+  alias Afterlight.Activities.{AirHockey, Foosball, WinnerStays}
   alias Afterlight.Activities.Drone
   alias Afterlight.Activities.PaperAirplane
   alias Afterlight.Activities.GutterBoat
   alias Afterlight.Activities.RcBoat
+  alias Afterlight.Activities.Horseshoes
+  alias Afterlight.Activities.Telescope
+  alias Afterlight.Activities.HammerStrike
+  alias Afterlight.Activities.ForgeChallenge
+  alias Afterlight.Activities.Curling
+  alias Afterlight.Activities.Chess
+  alias Afterlight.Activities.Checkers
+  alias Afterlight.Activities.TilePuzzle
+  alias Afterlight.Activities.LightMusic
+  alias Afterlight.Activities.Darts
+  alias Afterlight.Activities.Piano
+  alias Afterlight.Activities.PhotoBooth
+  alias Afterlight.Activities.Fishing
+  alias Afterlight.Activities.SkippingStones
   alias Afterlight.Activities.Environment
   alias Afterlight.Activities.Pong
   alias Afterlight.Activities.RainRunner
@@ -91,7 +105,8 @@ defmodule Afterlight.Activities.SessionServer do
     ready_timeout_ms: @default_ready_timeout_ms,
     idle_reap_ms: @default_idle_reap_ms,
     check_proximity: true,
-    environment: nil
+    environment: nil,
+    winner_stays_applied: false
   ]
 
   def start_link(args) do
@@ -383,8 +398,17 @@ defmodule Afterlight.Activities.SessionServer do
 
     act_type = snowboard_type(state)
 
+    sim_in =
+      if act_type == "fishing" do
+        now_ms = System.system_time(:millisecond)
+        env = Environment.resolve(wire_room_id(state), "live", now_ms)
+        Fishing.apply_environment(state.sim_state, env, now_ms)
+      else
+        state.sim_state
+      end
+
     {sim_state, maybe_ended} =
-      step_simulation(act_type, state.sim_state, state.players, steps_to_run)
+      step_simulation(act_type, sim_in, state.players, steps_to_run)
 
       sim_tick_count = state.sim_tick_count + steps_to_run
 
@@ -646,6 +670,46 @@ defmodule Afterlight.Activities.SessionServer do
                 {:noreply, state}
             end
 
+          curling?(state) and state.status in [:in_progress, :paused] ->
+            remaining_slots =
+              players
+              |> Enum.reject(fn {_s, p} -> Map.has_key?(disconnects, p.player_id) end)
+              |> Enum.map(fn {s, _} -> s end)
+
+            {sim, event} = Curling.apply_disconnect(state.sim_state, remaining_slots)
+
+            if state.tick_timer_ref, do: Process.cancel_timer(state.tick_timer_ref)
+
+            state = %{
+              state
+              | players: players,
+                player_to_slot: player_to_slot,
+                disconnects: disconnects,
+                sim_state: sim,
+                tick_timer_ref: nil,
+                revision: state.revision + 1
+            }
+
+            case event do
+              %{"type" => "match_ended", "winner" => winner} ->
+                outcome = %{"winnerSlot" => winner, "reason" => "forfeit"}
+                state = %{state | status: :ended, match_outcome: outcome}
+                state = record_and_broadcast_event(state, "match_ended", outcome)
+                broadcast_activity_state(state)
+                {:noreply, maybe_start_idle_timer(state)}
+
+              %{"type" => "match_aborted"} ->
+                outcome = %{"reason" => "aborted"}
+                state = %{state | status: :lobby, match_outcome: outcome}
+                state = record_and_broadcast_event(state, "match_aborted", outcome)
+                broadcast_activity_state(state)
+                {:noreply, maybe_start_idle_timer(state)}
+
+              _ ->
+                broadcast_activity_state(state)
+                {:noreply, maybe_start_idle_timer(state)}
+            end
+
           state.status in [:in_progress, :paused] ->
             # Connected players are those not in disconnect grace
             connected_players =
@@ -829,6 +893,10 @@ defmodule Afterlight.Activities.SessionServer do
     {:noreply, %{state | last_summary_at: last_summary_at, last_summary_phase: phase}}
   end
 
+  def handle_info(:apply_winner_stays, state) do
+    {:noreply, apply_winner_stays_rotation(state)}
+  end
+
   def handle_info(_other, state), do: {:noreply, state}
 
   @impl true
@@ -852,10 +920,18 @@ defmodule Afterlight.Activities.SessionServer do
       disconnects: state.disconnects,
       recent_events: state.recent_events,
       sim_state: state.sim_state,
-      sim_tick_count: state.sim_tick_count
+      sim_tick_count: state.sim_tick_count,
+      lobby_config: state.lobby_config,
+      max_players: state.max_players,
+      max_queue: state.max_queue,
+      max_spectators: state.max_spectators
     }
 
     {:reply, reply, state}
+  end
+
+  def handle_call(:public_summary, _from, state) do
+    {:reply, WinnerStays.public_summary(state), state}
   end
 
   def handle_call(:get_full_snapshot, _from, state) do
@@ -1023,6 +1099,14 @@ defmodule Afterlight.Activities.SessionServer do
                 last_snapshot_at: now_mono,
                 status: :in_progress
             }
+
+            s =
+              if curling?(s) do
+                {sim, _} = Curling.apply_input(s.sim_state, slot, %{"kind" => "resume"})
+                %{s | sim_state: sim}
+              else
+                s
+              end
 
             s = record_and_broadcast_event(s, "match_resumed", %{})
             {:in_progress, s}
@@ -1281,6 +1365,7 @@ defmodule Afterlight.Activities.SessionServer do
         }
 
         state = maybe_offer_next_slot(state, slot)
+        state = maybe_vacate_after_winner_leave(state, player_id)
         state = maybe_start_idle_timer(state)
         broadcast_activity_state(state)
         {:reply, {:ok, %{result: "left", role: "player", revision: state.revision}}, state}
@@ -1489,13 +1574,21 @@ defmodule Afterlight.Activities.SessionServer do
 
   defp update_lobby_config(state, payload) when is_map(payload) do
     if state.status == :lobby do
-      series_len = Map.get(payload, "seriesLength") || Map.get(payload, "series")
-      if series_len in [1, 3, 5, 7] do
-        cfg = Map.put(state.lobby_config || %{}, "seriesLength", series_len)
-        %{state | lobby_config: cfg}
-      else
-        state
-      end
+      cfg = state.lobby_config || %{}
+
+      cfg =
+        case Map.get(payload, "seriesLength") || Map.get(payload, "series") do
+          len when len in [1, 3, 5, 7] -> Map.put(cfg, "seriesLength", len)
+          _ -> cfg
+        end
+
+      cfg =
+        case Map.get(payload, "winnerStays") do
+          flag when is_boolean(flag) -> Map.put(cfg, "winnerStays", flag)
+          _ -> cfg
+        end
+
+      %{state | lobby_config: cfg}
     else
       state
     end
@@ -1617,6 +1710,9 @@ defmodule Afterlight.Activities.SessionServer do
                         pool?(state) ->
                           handle_pool_input(state, player, slot, seq, controls)
 
+                        chess?(state) ->
+                          handle_chess_input(state, player, slot, seq, controls)
+
                         true ->
                           # Cancel previous watchdog timer if present
                           if player[:watchdog_timer_ref] do
@@ -1699,8 +1795,22 @@ defmodule Afterlight.Activities.SessionServer do
         snowboard?(state) and state.status == :countdown ->
           {:lobby, cancel_snowboard_countdown(state)}
 
-        snowboard?(state) ->
+          snowboard?(state) ->
           {state.status, state}
+
+        curling?(state) and state.status == :in_progress ->
+          if state.tick_timer_ref, do: Process.cancel_timer(state.tick_timer_ref)
+          {sim, _} = Curling.apply_input(state.sim_state, slot, %{"kind" => "pause"})
+
+          s = %{state | tick_timer_ref: nil, sim_state: sim}
+
+          s =
+            record_and_broadcast_event(s, "match_paused", %{
+              "disconnectedPlayer" => player_id,
+              "graceMs" => state.reconnect_grace_ms
+            })
+
+          {:paused, s}
 
         state.status == :in_progress ->
           if state.tick_timer_ref, do: Process.cancel_timer(state.tick_timer_ref)
@@ -1862,6 +1972,7 @@ defmodule Afterlight.Activities.SessionServer do
         status: :in_progress,
         match_id: match_id,
         match_outcome: nil,
+        winner_stays_applied: false,
         environment: environment,
         sim_state: sim_state,
         tick_timer_ref: tick_ref,
@@ -2021,6 +2132,20 @@ defmodule Afterlight.Activities.SessionServer do
   defp init_simulation("paper-airplanes", opts), do: PaperAirplane.init_sim_state(opts)
   defp init_simulation("gutter-boats", opts), do: GutterBoat.init_sim_state(opts)
   defp init_simulation("rc-boats", opts), do: RcBoat.init_sim_state(opts)
+  defp init_simulation("horseshoes", opts), do: Horseshoes.init_sim_state(opts)
+  defp init_simulation("telescope", opts), do: Telescope.init_sim_state(opts)
+  defp init_simulation("hammer-strike", opts), do: HammerStrike.init_sim_state(opts)
+  defp init_simulation("forge-challenge", opts), do: ForgeChallenge.init_sim_state(opts)
+  defp init_simulation("curling", opts), do: Curling.init_sim_state(opts)
+  defp init_simulation("chess", opts), do: Chess.init_sim_state(opts)
+  defp init_simulation("checkers", opts), do: Checkers.init_sim_state(opts)
+  defp init_simulation("tile-puzzle", opts), do: TilePuzzle.init_sim_state(opts)
+  defp init_simulation("light-music-puzzle", opts), do: LightMusic.init_sim_state(opts)
+  defp init_simulation("darts", opts), do: Darts.init_sim_state(opts)
+  defp init_simulation("piano", opts), do: Piano.init_sim_state(opts)
+  defp init_simulation("photo-booth", opts), do: PhotoBooth.init_sim_state(opts)
+  defp init_simulation("fishing", opts), do: Fishing.init_sim_state(opts)
+  defp init_simulation("skipping-stones", opts), do: SkippingStones.init_sim_state(opts)
   defp init_simulation("rain-runner", _opts), do: RainRunner.init_sim_state()
   defp init_simulation("signal-lost", _opts), do: SignalLost.init_sim_state()
   defp init_simulation("sporefall", _opts), do: Sporefall.init_sim_state()
@@ -2030,6 +2155,14 @@ defmodule Afterlight.Activities.SessionServer do
 
   defp pool?(state) do
     snowboard_type(state) in ["pool", "billiards"]
+  end
+
+  defp curling?(state) do
+    snowboard_type(state) == "curling"
+  end
+
+  defp chess?(state) do
+    snowboard_type(state) == "chess"
   end
 
   # Snowboard race policy helpers (add-multiplayer-snowboard-arcade 4.2):
@@ -2136,6 +2269,62 @@ defmodule Afterlight.Activities.SessionServer do
 
   defp step_simulation("rc-boats", sim_state, players, steps) do
     RcBoat.step_simulation(sim_state, players, steps)
+  end
+
+  defp step_simulation("horseshoes", sim_state, players, steps) do
+    Horseshoes.step_simulation(sim_state, players, steps)
+  end
+
+  defp step_simulation("telescope", sim_state, players, steps) do
+    Telescope.step_simulation(sim_state, players, steps)
+  end
+
+  defp step_simulation("hammer-strike", sim_state, players, steps) do
+    HammerStrike.step_simulation(sim_state, players, steps)
+  end
+
+  defp step_simulation("forge-challenge", sim_state, players, steps) do
+    ForgeChallenge.step_simulation(sim_state, players, steps)
+  end
+
+  defp step_simulation("curling", sim_state, players, steps) do
+    Curling.step_simulation(sim_state, players, steps)
+  end
+
+  defp step_simulation("chess", sim_state, players, steps) do
+    Chess.step_simulation(sim_state, players, steps)
+  end
+
+  defp step_simulation("checkers", sim_state, players, steps) do
+    Checkers.step_simulation(sim_state, players, steps)
+  end
+
+  defp step_simulation("tile-puzzle", sim_state, players, steps) do
+    TilePuzzle.step_simulation(sim_state, players, steps)
+  end
+
+  defp step_simulation("light-music-puzzle", sim_state, players, steps) do
+    LightMusic.step_simulation(sim_state, players, steps)
+  end
+
+  defp step_simulation("darts", sim_state, players, steps) do
+    Darts.step_simulation(sim_state, players, steps)
+  end
+
+  defp step_simulation("piano", sim_state, players, steps) do
+    Piano.step_simulation(sim_state, players, steps)
+  end
+
+  defp step_simulation("photo-booth", sim_state, players, steps) do
+    PhotoBooth.step_simulation(sim_state, players, steps)
+  end
+
+  defp step_simulation("fishing", sim_state, players, steps) do
+    Fishing.step_simulation(sim_state, players, steps)
+  end
+
+  defp step_simulation("skipping-stones", sim_state, players, steps) do
+    SkippingStones.step_simulation(sim_state, players, steps)
   end
 
   defp step_simulation("rain-runner", sim_state, players, steps) do
@@ -2282,6 +2471,29 @@ defmodule Afterlight.Activities.SessionServer do
     }
 
     {:reply, {:ok, reply}, state}
+  end
+
+  defp handle_chess_input(state, player, slot, seq, controls) do
+    if state.status != :in_progress do
+      {:reply, {:error, :not_in_progress}, state}
+    else
+      case Chess.apply_input(state.sim_state, slot, controls) do
+        {:ok, new_sim, _events} ->
+          accept_pool_input(state, player, slot, seq, controls, new_sim)
+
+        {:error, :out_of_turn} ->
+          {:reply, {:error, :out_of_turn}, state}
+
+        {:error, :illegal_move} ->
+          {:reply, {:error, :invalid_input}, state}
+
+        {:error, :game_over} ->
+          {:reply, {:error, :not_in_progress}, state}
+
+        {:error, reason} ->
+          {:reply, {:error, reason}, state}
+      end
+    end
   end
 
   defp float_or(v, default) when is_float(v), do: v
@@ -2464,8 +2676,11 @@ defmodule Afterlight.Activities.SessionServer do
             "inputState" => p.input_state
           }
         end),
-      "queue" => Enum.map(state.queue, fn q -> %{"playerId" => q.player_id} end),
+      "queue" => WinnerStays.queue_with_positions(state.queue),
       "queueLength" => length(state.queue),
+      "nextPlayer" => WinnerStays.next_player(state.offers, state.queue),
+      "winnerStays" => lobby_winner_stays?(state),
+      "matchOutcome" => state.match_outcome,
       "spectatorCount" => map_size(state.spectators),
       "sim" => state.sim_state,
       "events" => state.recent_events || [],
@@ -2493,6 +2708,8 @@ defmodule Afterlight.Activities.SessionServer do
       "matchId" => state.match_id,
       "players" => raw_state["players"],
       "queueLength" => raw_state["queueLength"],
+      "nextPlayer" => raw_state["nextPlayer"],
+      "winnerStays" => raw_state["winnerStays"],
       "spectatorCount" => raw_state["spectatorCount"],
       "state" => raw_state
     }
@@ -2659,6 +2876,11 @@ defmodule Afterlight.Activities.SessionServer do
       end
     end
 
+    if event_name in ["match_ended", "match_aborted"] and
+         WinnerStays.table_game?(Map.get(state.activity_def || %{}, "type")) do
+      send(self(), :apply_winner_stays)
+    end
+
     state
   end
 
@@ -2721,6 +2943,102 @@ defmodule Afterlight.Activities.SessionServer do
 
   defp broadcast_activity_event(state, event_name, data) do
     record_and_broadcast_event(state, event_name, data)
+  end
+
+  defp lobby_winner_stays?(state) do
+    cfg = state.lobby_config || %{}
+    cfg["winnerStays"] == true
+  end
+
+  defp apply_winner_stays_rotation(state) do
+    type = Map.get(state.activity_def || %{}, "type")
+
+    cond do
+      state.winner_stays_applied ->
+        state
+
+      state.status != :ended ->
+        state
+
+      not WinnerStays.table_game?(type) ->
+        state
+
+      not lobby_winner_stays?(state) ->
+        %{state | winner_stays_applied: true}
+
+      true ->
+        winner = WinnerStays.winner_id(state.match_outcome)
+
+        winner_player =
+          Enum.find_value(state.players, fn {_slot, p} ->
+            if p.player_id == winner, do: p, else: nil
+          end)
+
+        plan =
+          WinnerStays.plan(state.match_outcome, Map.to_list(state.players),
+            winner_stays?: lobby_winner_stays?(state),
+            winner_present?: winner_player != nil,
+            winner_willing?: winner_player != nil,
+            queue_length: length(state.queue)
+          )
+
+        state = Enum.reduce(plan.vacate_slots, state, &vacate_slot_for_rotation/2)
+
+        state =
+          Enum.reduce(plan.vacate_slots, state, fn slot, acc ->
+            maybe_offer_next_slot(acc, slot)
+          end)
+
+        status =
+          if plan.waiting? or (state.players == %{} and state.queue == [] and state.offers == %{}) do
+            :lobby
+          else
+            state.status
+          end
+
+        state = %{state | status: status, winner_stays_applied: true, revision: state.revision + 1}
+        broadcast_activity_state(state)
+        state
+    end
+  end
+
+  defp vacate_slot_for_rotation(slot, state) do
+    case Map.get(state.players, slot) do
+      nil ->
+        state
+
+      player ->
+        if player[:channel_monitor], do: Process.demonitor(player.channel_monitor, [:flush])
+        if player[:ready_timer_ref], do: Process.cancel_timer(player.ready_timer_ref)
+        if player[:watchdog_timer_ref], do: Process.cancel_timer(player.watchdog_timer_ref)
+        Admission.release(player.player_id)
+
+        %{
+          state
+          | players: Map.delete(state.players, slot),
+            player_to_slot: Map.delete(state.player_to_slot, player.player_id)
+        }
+    end
+  end
+
+  defp maybe_vacate_after_winner_leave(state, player_id) do
+    type = Map.get(state.activity_def || %{}, "type")
+    winner = WinnerStays.winner_id(state.match_outcome)
+
+    if state.status == :ended and lobby_winner_stays?(state) and WinnerStays.table_game?(type) and
+         winner == player_id do
+      slots = Map.keys(state.players)
+      state = Enum.reduce(slots, state, &vacate_slot_for_rotation/2)
+
+      state =
+        Enum.reduce(0..(max(state.max_players, 1) - 1), state, fn slot, acc ->
+          maybe_offer_next_slot(acc, slot)
+        end)
+
+      %{state | status: if(state.queue == [] and state.offers == %{}, do: :lobby, else: state.status)}
+    else
+      state
+    end
   end
 
   defp generate_lease_id do
