@@ -367,8 +367,29 @@ export const DRONES_ACTIVITY_DEFINITION = Object.freeze({
   controllerKey: 'drones',
 });
 
+export const PAPER_AIRPLANES_ACTIVITY_DEFINITION = Object.freeze({
+  id: 'rooftops-paper-airplanes',
+  type: 'paper-airplanes',
+  title: 'Paper Airplanes',
+  sub: 'Press E to fold & launch · Overlook distance',
+  rulesVersion: 1,
+  environmentPolicy: 'frozen',
+  transform: Object.freeze({ position: Object.freeze([7.5, 0, -7.5]), rotationY: 0 }),
+  footprint: Object.freeze({ width: 1.6, depth: 0.9 }),
+  interactionRadius: 2.5,
+  participantAnchors: Object.freeze([
+    Object.freeze({ slot: 0, position: Object.freeze([7.0, 0, -6.8]), facing: 0, dismount: Object.freeze([Object.freeze({ x: 7.0, z: -5.8 })]) }),
+    Object.freeze({ slot: 1, position: Object.freeze([8.0, 0, -6.8]), facing: 0, dismount: Object.freeze([Object.freeze({ x: 8.0, z: -5.8 })]) }),
+  ]),
+  capacities: Object.freeze({ players: 2, spectators: 32, queue: 16 }),
+  spectatorPolicy: 'world',
+  rendererKey: 'airplaneRenderer',
+  controllerKey: 'paper-airplanes',
+});
+
 export const ROOFTOPS_ACTIVITIES = Object.freeze([
   DRONES_ACTIVITY_DEFINITION,
+  PAPER_AIRPLANES_ACTIVITY_DEFINITION,
 ]);
 
 export const ORPHEUM_ACTIVITIES = Object.freeze([

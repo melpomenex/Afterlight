@@ -40,6 +40,7 @@ import './activities/pool.js';
 import './activities/airHockey.js';
 import './activities/foosball.js';
 import './activities/drones.js';
+import './activities/paperAirplanes.js';
 import { createAtmosphereStateClient, legacyWeatherDisplaySuppressed } from './atmosphere/stateClient.js';
 import { createAtmosphereController } from './atmosphere/controller.js';
 import { createAtmosphereEvents } from './atmosphere/events.js';
@@ -555,6 +556,11 @@ if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
     // Dev/test teleport (behind ?debug=1 only): places the avatar and
     // broadcasts one movement frame so server-side proximity checks see the
     // new pose. Used by automated browser gates; never a player feature.
+    netState: () => ({
+      mode: net.transportMode,
+      supports: net.supportsActivities,
+      open: net.transport?.isOpen?.() ?? null,
+    }),
     tp: (x, z) => {
       player.position.set(Number(x) || 0, 0, Number(z) || 0);
       target = null;

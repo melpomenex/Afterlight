@@ -62,7 +62,7 @@
 - [x] 7.1 Implement the versioned activity environment projection/defaults from existing room atmosphere; prove frozen competitive conditions and unchanged crop/weather contracts.
 - [x] 7.2 Implement rooftop drone authority, checkpoints, lap times, collisions, DNF and one-to-four-player start/results with rule fixtures.
 - [x] 7.3 Build drone racks/course and flight camera/control/spectator presentation; complete a visible multiplayer race and return to the avatar.
-- [ ] 7.4 Implement rooftop paper airplanes with angle/pitch/power, wind trajectories and server distance/tie scoring; verify reproducible launches across clients.
+- [x] 7.4 Implement rooftop paper airplanes with angle/pitch/power, wind trajectories and server distance/tie scoring; verify reproducible launches across clients.
 - [ ] 7.5 Implement Rain Court gutter boat starts/current/rain/finish ordering and physical props; test simultaneous finishes and weather snapshot parity.
 - [ ] 7.6 Implement Sluiceworks RC boat rules/steering/buoys/recovery and visible world course; test missed checkpoints, leaving and DNF.
 

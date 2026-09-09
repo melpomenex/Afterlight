@@ -21,6 +21,7 @@ export function buildRooftopScenery(ctx) {
   [[-6.5,5.8],[-3.7,6.4],[4.8,5.8],[6.2,5.8]].forEach(([x,z],i)=>s.seat(`roof-south-${i}`,x,z,Math.PI,'south','#987a5e'));
   [-2.5,-4].forEach((z,i)=>s.seat(`roof-overlook-${i}`,8,z,-Math.PI/2,'overlook','#987a5e'));
   ctx.block(-3.0, 3.5, 3.2, 1.4);
+  ctx.block(7.5, -7.5, 1.6, 0.9);
   s.box(8,.95,6.8,1.2,1.9,.8,'#3d5b5e','metal');ctx.block(8,6.8,1.2,.8);
   s.box(8,1.15,6.35,.9,1,.04,'#d3ad7c','windows');
   for(const x of [-8.5,8.5]) {
