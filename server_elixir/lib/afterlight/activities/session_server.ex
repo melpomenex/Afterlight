@@ -14,6 +14,7 @@ defmodule Afterlight.Activities.SessionServer do
   alias Afterlight.Activities
   alias Afterlight.Activities.Admission
   alias Afterlight.Activities.{AirHockey, Foosball}
+  alias Afterlight.Activities.Environment
   alias Afterlight.Activities.Pong
   alias Afterlight.Activities.RainRunner
   alias Afterlight.Activities.SignalLost
@@ -85,7 +86,8 @@ defmodule Afterlight.Activities.SessionServer do
     input_watchdog_ms: @default_input_watchdog_ms,
     ready_timeout_ms: @default_ready_timeout_ms,
     idle_reap_ms: @default_idle_reap_ms,
-    check_proximity: true
+    check_proximity: true,
+    environment: nil
   ]
 
   def start_link(args) do
@@ -145,6 +147,10 @@ defmodule Afterlight.Activities.SessionServer do
         # countdown rotates it at GO.
         match_id = generate_match_id()
 
+        env_policy = Map.get(act_def, "environmentPolicy", "none")
+        now_ms = System.system_time(:millisecond)
+        environment = Environment.resolve(wire_room_id, env_policy, now_ms)
+
         state = %__MODULE__{
           room_key: room_key,
           wire_room_id: wire_room_id,
@@ -155,6 +161,7 @@ defmodule Afterlight.Activities.SessionServer do
           room_monitor_ref: ref,
           ownership_handle: handle,
           activity_def: act_def,
+          environment: environment,
           max_players: max_players,
           max_queue: max_queue,
           max_spectators: max_spectators,
@@ -1780,12 +1787,21 @@ defmodule Afterlight.Activities.SessionServer do
     sim_opts = extract_sim_opts(state)
     sim_state = init_simulation(act_type, sim_opts)
 
+    env_policy = (state.activity_def && state.activity_def["environmentPolicy"]) || "none"
+    environment =
+      if env_policy in ["frozen", :frozen] do
+        Environment.resolve(wire_room_id(state), "frozen", System.system_time(:millisecond))
+      else
+        state.environment
+      end
+
     state = %{
       state
       | players: players,
         status: :in_progress,
         match_id: match_id,
         match_outcome: nil,
+        environment: environment,
         sim_state: sim_state,
         tick_timer_ref: tick_ref,
         last_tick_at: now_mono,
@@ -1814,12 +1830,21 @@ defmodule Afterlight.Activities.SessionServer do
     tick_ref = Process.send_after(self(), :sim_tick, state.tick_interval_ms)
     deadline_ref = Process.send_after(self(), :race_deadline, state.race_deadline_ms)
 
+    env_policy = (state.activity_def && state.activity_def["environmentPolicy"]) || "none"
+    environment =
+      if env_policy in ["frozen", :frozen] do
+        Environment.resolve(wire_room_id(state), "frozen", System.system_time(:millisecond))
+      else
+        state.environment
+      end
+
     state = %{
       state
       | players: players,
         status: :in_progress,
         match_id: match_id,
         match_outcome: nil,
+        environment: environment,
         sim_state: sim_state,
         tick_timer_ref: tick_ref,
         deadline_ref: deadline_ref,
@@ -2362,6 +2387,13 @@ defmodule Afterlight.Activities.SessionServer do
         Map.new(state.players, fn {_s, p} -> {p.player_id, Map.get(p, :last_seq, 0)} end)
     }
 
+    raw_state =
+      if state.environment do
+        Map.put(raw_state, "environment", state.environment)
+      else
+        raw_state
+      end
+
     envelope = %{
       "type" => "activity_state",
       "version" => 1,
@@ -2378,6 +2410,13 @@ defmodule Afterlight.Activities.SessionServer do
       "spectatorCount" => raw_state["spectatorCount"],
       "state" => raw_state
     }
+
+    envelope =
+      if state.environment do
+        Map.put(envelope, "environment", state.environment)
+      else
+        envelope
+      end
 
     envelope =
       if ack_seq != nil do
