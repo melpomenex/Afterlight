@@ -68,36 +68,36 @@
 
 ## 8. P5 — Quiet boards, camp and ice
 
-- [ ] 8.1 Select/reuse a suitable board-rules implementation within the authoritative boundary and document its version; implement/test chess special moves, check/mate/stalemate, draws and resignation.
-- [ ] 8.2 Build shared chess tables in Rain Court and Paper Catacombs with seated avatars, legal selection/turn feedback and lifecycle recovery.
-- [ ] 8.3 Implement English draughts/checkers mandatory capture/chains/kings/end conditions and the Rain Court table; test illegal and concurrent moves.
-- [ ] 8.4 Implement the Paper Catacombs shared tile puzzle, concurrent move ordering, visible progress and solved/reset behavior.
-- [ ] 8.5 Implement Desert Camp horseshoes throws, distance/ringer cancellation, first-to-21 results and physical stakes; prove tied and overshoot cases.
-- [ ] 8.6 Implement Desert Camp telescope shared seeded sky/marks, eye camera and noncompetitive exit; verify two users locate the same object.
-- [ ] 8.7 Implement curling server launch/curl/sweep/collision/end scoring for 1v1 and 2v2, including tied end and final tie fixtures.
-- [ ] 8.8 Build Glacial Glasshouse rink/stone/control/spectator presentation with safe routes; verify both team sizes and disconnected teammate handling.
+- [x] 8.1 Select/reuse a suitable board-rules implementation within the authoritative boundary and document its version; implement/test chess special moves, check/mate/stalemate, draws and resignation.
+- [x] 8.2 Build shared chess tables in Rain Court and Paper Catacombs with seated avatars, legal selection/turn feedback and lifecycle recovery.
+- [x] 8.3 Implement English draughts/checkers mandatory capture/chains/kings/end conditions and the Rain Court table; test illegal and concurrent moves.
+- [x] 8.4 Implement the Paper Catacombs shared tile puzzle, concurrent move ordering, visible progress and solved/reset behavior.
+- [x] 8.5 Implement Desert Camp horseshoes throws, distance/ringer cancellation, first-to-21 results and physical stakes; prove tied and overshoot cases.
+- [x] 8.6 Implement Desert Camp telescope shared seeded sky/marks, eye camera and noncompetitive exit; verify two users locate the same object.
+- [x] 8.7 Implement curling server launch/curl/sweep/collision/end scoring for 1v1 and 2v2, including tied end and final tie fixtures.
+- [x] 8.8 Build Glacial Glasshouse rink/stone/control/spectator presentation with safe routes; verify both team sizes and disconnected teammate handling.
 
 ## 9. P5 — Craft, nature and shared expression
 
-- [ ] 9.1 Implement Foundry hammer timing/strike/bell with bounded spatial audio and deterministic score.
-- [ ] 9.2 Implement Foundry forge target/strike/deformation scoring and readable hot-metal presentation; verify identical inputs yield identical profiles.
-- [ ] 9.3 Implement fishing cast/bobber/bite/reel/release with authoritative environment/time and visible nearby lines; place in Basin and Marshes without economy writes.
-- [ ] 9.4 Implement skipping stones angle/power/skip/distance behavior in Basin and Marshes with shared outcomes and cleanup.
-- [ ] 9.5 Implement Understory light/music cooperative puzzle with bounded participant inputs, sequence/reset and shared completion.
-- [ ] 9.6 Implement Orpheum darts 301 double-out scoring/bust rules and pointer/touch plus keyboard/controller throw controls; verify complete matches.
-- [ ] 9.7 Implement Orpheum spatial piano, bounded polyphony/note events, input mapping, mute and all note-off/blur/travel paths.
-- [ ] 9.8 Implement Orpheum photo booth opt-in roster, countdown, four poses, restricted capture scene and local download; verify declines, departures and exclusion of media/chat/bystanders.
+- [x] 9.1 Implement Foundry hammer timing/strike/bell with bounded spatial audio and deterministic score.
+- [x] 9.2 Implement Foundry forge target/strike/deformation scoring and readable hot-metal presentation; verify identical inputs yield identical profiles.
+- [x] 9.3 Implement fishing cast/bobber/bite/reel/release with authoritative environment/time and visible nearby lines; place in Basin and Marshes without economy writes.
+- [x] 9.4 Implement skipping stones angle/power/skip/distance behavior in Basin and Marshes with shared outcomes and cleanup.
+- [x] 9.5 Implement Understory light/music cooperative puzzle with bounded participant inputs, sequence/reset and shared completion.
+- [x] 9.6 Implement Orpheum darts 301 double-out scoring/bust rules and pointer/touch plus keyboard/controller throw controls; verify complete matches.
+- [x] 9.7 Implement Orpheum spatial piano, bounded polyphony/note events, input mapping, mute and all note-off/blur/travel paths.
+- [x] 9.8 Implement Orpheum photo booth opt-in roster, countdown, four poses, restricted capture scene and local download; verify declines, departures and exclusion of media/chat/bystanders.
 - [ ] 9.9 P5 gate: inspect and play every listed activity in its actual destination with a second client and an observer where applicable; record rule outcomes, shared weather parity, accessible controls, safe exits, unchanged landmarks and no hidden-place resource work.
 
 ## 10. P6 — Invitations, discovery and records
 
-- [ ] 10.1 Implement direct challenges with explicit accept/decline, expiry, per-sender limits, block/mute and stale-target handling; highlight destinations without teleportation.
-- [ ] 10.2 Polish queue/next-player/winner-stays presentation across supported games, including winner departure, both-player departure, expired offers and fair FIFO replacement.
-- [ ] 10.3 Add profile games/wins/streaks/bests and rules-versioned leaderboards with identity continuity, pagination, stable ties and honest recording states.
-- [ ] 10.4 Extend public place-directory summaries with bounded activity counts/timestamps; test unknown/stale/offline data, overlapping categories and private-garden exclusion.
-- [ ] 10.5 Add compact nearby activity status and Places discovery UI without displacing people/chat/travel or implying unavailable tables are empty.
-- [ ] 10.6 Implement room-local four/eight-player pool bracket state, check-in/no-shows/walkovers, match assignment and idempotent advancement; test server-restart cancellation and slot conflicts.
-- [ ] 10.7 Build the physical tournament board and enrollment/bracket/check-in UI; prove a complete bracket with verified results and clear cancellation.
+- [x] 10.1 Implement direct challenges with explicit accept/decline, expiry, per-sender limits, block/mute and stale-target handling; highlight destinations without teleportation.
+- [x] 10.2 Polish queue/next-player/winner-stays presentation across supported games, including winner departure, both-player departure, expired offers and fair FIFO replacement.
+- [x] 10.3 Add profile games/wins/streaks/bests and rules-versioned leaderboards with identity continuity, pagination, stable ties and honest recording states.
+- [x] 10.4 Extend public place-directory summaries with bounded activity counts/timestamps; test unknown/stale/offline data, overlapping categories and private-garden exclusion.
+- [x] 10.5 Add compact nearby activity status and Places discovery UI without displacing people/chat/travel or implying unavailable tables are empty.
+- [x] 10.6 Implement room-local four/eight-player pool bracket state, check-in/no-shows/walkovers, match assignment and idempotent advancement; test server-restart cancellation and slot conflicts.
+- [x] 10.7 Build the physical tournament board and enrollment/bracket/check-in UI; prove a complete bracket with verified results and clear cancellation.
 - [ ] 10.8 P6 gate: record invitation decline/stale accept, winner-stays rotation, duplicate result handling, rename continuity, stale discovery and complete tournament evidence. Verify no XP/currency/paid-advantage writes.
 
 ## 11. Program completion and release readiness

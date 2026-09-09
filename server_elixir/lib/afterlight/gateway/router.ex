@@ -36,7 +36,11 @@ defmodule Afterlight.Gateway.Router do
   @chat_types ~w(chat_send)
   @catalog_types ~w(iptv_list_get iptv_list_remove epg_lookup)
   @theater_types ~w(theater_queue theater_control theater_channel theater_playlist_resolve)
-  @activity_types ~w(activity_join activity_leave activity_ready activity_input activity_resnapshot)
+  @activity_types ~w(
+    activity_join activity_leave activity_ready activity_input activity_resnapshot
+    activity_challenge activity_challenge_respond activity_challenge_mute activity_challenge_block
+    tournament_enroll tournament_withdraw tournament_checkin tournament_get
+  )
 
   @economy_types ~w(
     garden_action market_buy market_sell order_place order_cancel contract_complete

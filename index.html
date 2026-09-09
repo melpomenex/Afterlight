@@ -40,11 +40,23 @@
       <path id="map-path" d="M24 24H130V96H24Z M130 49H160V76H130 M65 24V13H87V24" />
       <path class="map-grid" d="M24 60H130M77 24V96" />
       <circle id="map-player" cx="78" cy="67" r="3" />
+      <circle id="map-challenge" class="map-challenge" cx="78" cy="67" r="5" visibility="hidden" />
       <circle class="map-point" cx="38" cy="38" r="2" />
       <circle class="map-point" cx="116" cy="36" r="2" />
       <circle class="map-point" cx="116" cy="86" r="2" />
     </svg>
     <div class="micro map-bottom" id="map-label">• MARKET COURT <span>01</span></div>
+  </aside>
+
+  <aside id="nearby-activities" class="panel nearby-activities" hidden>
+    <div class="micro nearby-activities-label">NEARBY TABLES</div>
+    <ul id="nearby-activities-list" class="nearby-activities-list"></ul>
+  </aside>
+
+  <div id="challenge-card" class="panel challenge-card" hidden></div>
+  <aside id="challenge-invite" class="panel challenge-invite" hidden>
+    <div class="micro challenge-invite-label">INVITE TO THIS TABLE</div>
+    <ul id="challenge-invite-list" class="challenge-invite-list"></ul>
   </aside>
 
   <aside class="mill-panel panel" id="mill-panel">
@@ -140,6 +152,7 @@
       <button id="btn-market" data-hud-legacy>⚖ Market <kbd>M</kbd></button>
       <button id="btn-travel">◇ Places</button>
       <button id="btn-records">✧ Records</button>
+      <button id="btn-tournament">▣ Tournament</button>
       <button id="btn-emote">✦ Emotes <kbd>V</kbd></button>
       <button id="call-toggle">☎ Call</button>
       <button id="camera">▧ Camera <kbd>C</kbd></button>
@@ -154,7 +167,7 @@
     <p>
       • <b>1–6</b>: Select tools in the garden & legacy areas (Hands, Hoe, Seeds, Water Can, Harvest, Sprinkler); while the emote wheel is open they choose an emote<br>
       • <b>WASD / Click</b>: Move gardener<br>
-      • <b>E</b>: Interact with beds, stalls, gather nodes, the Great Mill, theater seats, and gateways<br>
+      • <b>E</b>: Interact with beds, stalls, gather nodes, the Great Mill, theater seats, the tournament board, and gateways<br>
       • <b>I</b>: Satchel & materials &nbsp;|&nbsp; <b>M</b>: Market Exchange<br>
       • <b>V</b>: Hold for emote wheel; release to perform<br>
       • <b>Enter</b>: Town chat — <b>/msg name text</b> whispers, <b>/me</b> acts, <b>Esc</b> returns to the garden<br>
@@ -208,7 +221,7 @@
   <dialog id="district-dialog">
     <div class="micro">THE CITY EXPANDS</div>
     <h2>Places</h2>
-    <p class="dialog-sub">Every destination, featured first. Counts show who is around right now — “—” means the count is unknown.</p>
+    <p class="dialog-sub">Every destination, featured first. Counts show who is around right now — “—” means unknown, never an empty table guess. Playing, watching and queued stay separate.</p>
     <div id="district-list"></div>
     <button id="close-districts">Return to exploring →</button>
   </dialog>
@@ -218,14 +231,17 @@
     <h2>Records</h2>
     <p class="dialog-sub">
       Verified records come from the arcade's own referee. Personal bests stay
-      on your machine until the referee confirms them.
+      on your machine until the referee confirms them. Display names are labels —
+      identity stays with you when you rename. Guest records are this browser only.
     </p>
-    <div id="leaderboard-tabs" role="tablist" aria-label="Arcade game"></div>
+    <div id="leaderboard-tabs" role="tablist" aria-label="Records view"></div>
+    <div id="leaderboard-profile" class="leaderboard-profile" hidden></div>
     <div class="leaderboard-toolbar">
       <label for="leaderboard-version">Rules version</label>
       <select id="leaderboard-version" aria-label="Rules version"></select>
       <span id="leaderboard-status" role="status"></span>
     </div>
+    <p id="leaderboard-identity" class="leaderboard-identity"></p>
     <ol id="leaderboard-rows"></ol>
     <div class="leaderboard-pager">
       <button id="leaderboard-prev" type="button">← Previous</button>
@@ -233,6 +249,31 @@
       <button id="leaderboard-next" type="button">Next →</button>
     </div>
     <button id="close-leaderboard">Back to the arcade →</button>
+  </dialog>
+
+  <dialog id="tournament-dialog">
+    <div class="micro">WEST LOUNGE · BILLIARDS</div>
+    <h2>Pool tournament</h2>
+    <p class="dialog-sub">
+      Room-local four or eight players, single elimination. Walkovers are labeled
+      and never counted as played matches. No prizes, coins or XP.
+    </p>
+    <p id="tournament-status" role="status"></p>
+    <p id="tournament-deadline" class="tournament-deadline" aria-live="polite"></p>
+    <fieldset class="tournament-enroll">
+      <legend>Field size</legend>
+      <label><input id="tournament-size-4" type="radio" name="tournament-size" value="4" checked> 4 players</label>
+      <label><input id="tournament-size-8" type="radio" name="tournament-size" value="8"> 8 players</label>
+    </fieldset>
+    <div class="tournament-actions">
+      <button type="button" id="tournament-enroll">Enroll</button>
+      <button type="button" id="tournament-checkin">Check in</button>
+      <button type="button" id="tournament-withdraw">Withdraw</button>
+    </div>
+    <h3>Field</h3>
+    <ul id="tournament-roster"></ul>
+    <div id="tournament-bracket"></div>
+    <button type="button" id="close-tournament">Back to the lounge →</button>
   </dialog>
 
   <div id="loading">✧<span>INITIALIZING EXPEDITION...</span></div>

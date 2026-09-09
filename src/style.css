@@ -109,6 +109,17 @@ header {
 .map path.map-grid { stroke-dasharray: 2 5; opacity: 0.15; }
 .map circle { fill: #f4dd95; filter: drop-shadow(0 0 4px #ffe392); }
 .map-point { opacity: 0.6; }
+.map-challenge {
+  fill: none;
+  stroke: #e8c56a;
+  stroke-width: 1.6;
+  filter: drop-shadow(0 0 6px #ffe392);
+  animation: map-challenge-pulse 1.2s ease-in-out infinite;
+}
+@keyframes map-challenge-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
 .map-bottom { border-top: 1px solid #b9c6a41c; padding-top: 11px; font-size: 7px; letter-spacing: 0.5px; }
 
 .toast {
@@ -674,6 +685,9 @@ details.place-group > summary.place-group-label:focus-visible,
   white-space: nowrap;
 }
 .place-activity:empty { display: none; }
+.district-choice[data-occupied="true"] .place-count {
+  color: #d4c48a;
+}
 .place-count {
   margin-left: auto;
   font: 9px 'Space Mono', monospace;
@@ -681,6 +695,103 @@ details.place-group > summary.place-group-label:focus-visible,
   color: #93b8a4;
   white-space: nowrap;
 }
+.nearby-activities {
+  position: absolute;
+  right: 30px;
+  top: 210px;
+  width: 195px;
+  padding: 10px 12px 8px;
+  z-index: 30;
+  pointer-events: none;
+}
+.nearby-activities[hidden] { display: none; }
+.nearby-activities-label { color: #c4b582; margin-bottom: 6px; }
+.nearby-activities-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.nearby-activities-list li {
+  font-size: 10px;
+  color: #cdd8cc;
+  line-height: 1.35;
+}
+.nearby-activities-list li[data-occupied="true"] { color: #e0d49b; }
+.nearby-activities-list .nearby-unknown { color: #8fa39a; }
+.nearby-queue { color: #c4b582; }
+
+.challenge-card {
+  position: absolute;
+  top: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 16px;
+  max-width: 380px;
+  width: min(380px, calc(100vw - 48px));
+  z-index: 80;
+  pointer-events: auto;
+}
+.challenge-card[hidden] { display: none; }
+.challenge-card strong { display: block; font-size: 13px; margin: 4px 0; color: #f0e6cf; }
+.challenge-card p { font-size: 11px; color: #b0bdbb; margin: 0 0 10px; line-height: 1.45; }
+.challenge-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.challenge-actions button {
+  font: 10px 'Space Mono', monospace;
+  letter-spacing: 0.4px;
+  padding: 6px 10px;
+  background: #1a3336;
+  color: #e2e4d6;
+  border: 1px solid #a99c6f75;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.challenge-actions button:first-child {
+  background: #2a4a3c;
+  border-color: #93e9b675;
+  color: #d8f0df;
+}
+.challenge-actions .challenge-quiet { opacity: 0.85; }
+
+.challenge-invite {
+  position: absolute;
+  bottom: 168px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 12px 8px;
+  min-width: 240px;
+  z-index: 55;
+  pointer-events: auto;
+}
+.challenge-invite[hidden] { display: none; }
+.challenge-invite-label { color: #c4b582; margin-bottom: 6px; }
+.challenge-invite-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.challenge-invite-list button {
+  font: 10px 'Space Mono', monospace;
+  letter-spacing: 0.4px;
+  padding: 6px 10px;
+  width: 100%;
+  background: #1a3336;
+  color: #e2e4d6;
+  border: 1px solid #a99c6f75;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .nearby-activities { display: none; }
+  .challenge-invite { display: none; }
+}
+
 #close-districts {
   display: block;
   width: 100%;
@@ -860,6 +971,141 @@ details.place-group > summary.place-group-label:focus-visible,
 }
 #close-leaderboard:hover {
   background: #cdbc8e;
+}
+.leaderboard-identity {
+  font-size: 11px;
+  color: #93b7a4;
+  margin: 0 0 10px;
+}
+.leaderboard-profile {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: #1d3534;
+  border-radius: 4px;
+}
+.leaderboard-profile-games {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.leaderboard-profile-games li {
+  padding: 6px 0;
+  border-bottom: 1px solid #22393b;
+  font-size: 13px;
+}
+
+/* --- POOL TOURNAMENT BOARD (#tournament-dialog) --- */
+#tournament-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: 85vh;
+  overflow-y: auto;
+  background: #17292b;
+  color: #e2e4d6;
+  border: 1px solid #a99c6f75;
+  border-radius: 4px 4px 18px 4px;
+  padding: 22px 24px;
+  box-shadow: 0 20px 90px rgba(0, 0, 0, 0.7);
+}
+#tournament-dialog::backdrop {
+  background: rgba(7, 19, 16, 0.75);
+  backdrop-filter: blur(5px);
+}
+#tournament-dialog h2 {
+  font-size: 24px;
+  margin: 8px 0 4px;
+  color: #f0e6cf;
+}
+#tournament-dialog h3 {
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #c4b582;
+  margin: 14px 0 6px;
+}
+#tournament-dialog p.dialog-sub,
+#tournament-status {
+  font-size: 12px;
+  color: #adc0b8;
+  margin-bottom: 10px;
+}
+.tournament-deadline {
+  font-family: 'Space Mono', monospace;
+  color: #d9a06b;
+  min-height: 1em;
+}
+.tournament-enroll {
+  border: 1px solid #3d5a54;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 0 0 10px;
+}
+.tournament-enroll legend {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #c4b582;
+}
+.tournament-enroll label {
+  margin-right: 14px;
+  font-size: 13px;
+}
+.tournament-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.tournament-actions button,
+#close-tournament {
+  padding: 8px 12px;
+  background: #192d30;
+  color: #cfd8cb;
+  border: 1px solid #3d5a54;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.tournament-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+#tournament-enroll:not(:disabled),
+#close-tournament {
+  background: #b8a87c;
+  color: #182827;
+  border-color: #b8a87c;
+  font-weight: 600;
+}
+#tournament-roster,
+.tournament-matches {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.tournament-player,
+.tournament-match,
+.tournament-empty {
+  padding: 7px 10px;
+  border-bottom: 1px solid #22393b;
+  font-size: 13px;
+}
+.tournament-player.is-local,
+.tournament-match.is-active {
+  background: #1d3534;
+  border-radius: 3px;
+}
+.tournament-match.is-walkover small {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #d9a06b;
+}
+.tournament-round {
+  margin-top: 8px;
+}
+#tournament-dialog button:focus-visible,
+#tournament-dialog input:focus-visible {
+  outline: 2px solid #bbded5;
+  outline-offset: 2px;
 }
 
 /* --- THE GREAT MILL: HUD PANEL & MACHINE SHOP --- */
@@ -1781,6 +2027,8 @@ body.theater-watching .map,
 body.theater-watching .companion,
 body.theater-watching footer,
 body.theater-watching #interact,
+body.theater-watching .nearby-activities,
+body.theater-watching .challenge-invite,
 body.theater-watching .mill-panel,
 body.theater-watching #toast,
 body.theater-watching .vignette { display: none !important; }
@@ -2199,3 +2447,77 @@ body[data-hud-context='social'] [data-hud-legacy] { display: none !important; }
   filter: brightness(1.2);
 }
 
+
+/* Summit Run race HUD (add-multiplayer-snowboard-arcade 6.5): compact
+   translucent overlay top-center; chat/call panels untouched. */
+.sbhud {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  min-width: 300px;
+  max-width: min(560px, 92vw);
+  padding: 10px 16px 12px;
+  background: rgba(10, 22, 28, 0.82);
+  border: 1px solid rgba(122, 203, 212, 0.35);
+  border-radius: 10px 14px 10px 4px;
+  color: #ecf2ec;
+  font-family: "Space Mono", ui-monospace, monospace;
+  text-align: center;
+  display: none;
+  pointer-events: none;
+}
+.sbhud.sbhud-active {
+  display: block;
+}
+.sbhud-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: #7acbd4;
+}
+.sbhud-time {
+  color: #edb66c;
+}
+.sbhud-info {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #cfe0da;
+}
+.sbhud-center {
+  margin-top: 4px;
+  font-size: 26px;
+  font-weight: 700;
+  color: #ecf2ec;
+  min-height: 30px;
+}
+.sbhud-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+.sbhud-button {
+  pointer-events: auto;
+  background: rgba(122, 203, 212, 0.14);
+  border: 1px solid rgba(122, 203, 212, 0.5);
+  border-radius: 6px 8px 6px 3px;
+  color: #ecf2ec;
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 14px;
+  cursor: pointer;
+}
+.sbhud-button:hover {
+  background: rgba(122, 203, 212, 0.28);
+}
+.sbhud-rematch {
+  border-color: rgba(237, 182, 108, 0.6);
+  color: #edb66c;
+}
+.sbhud-rematch:hover {
+  background: rgba(237, 182, 108, 0.2);
+}

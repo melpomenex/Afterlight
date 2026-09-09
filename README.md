@@ -139,7 +139,8 @@ The market garden, the economy and the restoration landmarks live on unchanged f
 | <kbd>I</kbd> | Open Satchel / Inventory — everywhere; in social places it opens labeled "optional legacy" |
 | <kbd>M</kbd> | Open Market Exchange Board — everywhere; in social places it opens labeled "optional legacy" |
 | <kbd>T</kbd> / **Travel** | Open the **Places** selector — featured destinations first, every legacy area retained under "Legacy areas"; live occupancy counts where the server can answer ("—" means unknown) |
-| **Records** | Open the arcade **Records** dialog: your machine-local bests for each Orpheum cabinet plus the server-verified leaderboard, per rules version. Local bests are labeled **Pending** until the arcade's own referee records them — and **Unrecorded** if recording failed — so the board never claims a score it cannot back. |
+| **Records** | Open the arcade **Records** dialog: your machine-local bests for each Orpheum cabinet plus the server-verified leaderboard, per rules version. Local bests are labeled **Pending** until the arcade's own referee records them — and **Unrecorded** if recording failed — so the board never claims a score it cannot back. **Profile** shows games, wins, streaks and bests keyed to your identity (renames keep the record; guests are this-browser only). Walkovers are not counted. |
+| **Tournament** | Open the Orpheum pool tournament board (also press <kbd>E</kbd> at the chalkboard by the west lounge table). Room-local four or eight players, single elimination. Check in within 60 seconds; labeled walkovers never count as played matches. No prizes, coins or XP. |
 | Hold <kbd>V</kbd> | Emote wheel: move the pointer outward, release V to perform. Center / Esc cancels. 1–6 or arrows select; Enter confirms. Click **Emotes** for touch / click selection. |
 | <kbd>G</kbd> | In The Orpheum: open the projection booth (screen controls, IPTV lists, channel guide) |
 | <kbd>Enter</kbd> / <kbd>/</kbd> | Open town chat (type & <kbd>Enter</kbd> to send, <kbd>Esc</kbd> to return to the game) |
@@ -258,6 +259,8 @@ The auditorium has rounded burgundy seats with padded headrests, armrests and cu
 ### The arcade wall
 
 Along the auditorium's east wall stands a row of arcade cabinets — **Pong** (two players), **Rain Runner**, **Signal Lost** and **Sporefall** — plus, in its own floodlit bay just south of the travel gate, **Summit Run**, a 2–8 rider multiplayer snowboard race. Each machine has its own marquee art, trim lighting and controls. Walk up and press <kbd>E</kbd> to play or queue; anyone nearby can watch the screen and wait for a slot. Your best runs on the classic machines are kept in the **Records** dialog.
+
+The west lounge has pool, air hockey and foosball. A chalkboard next to the pool table is the **Tournament** board: enroll four or eight players in this room, check in, and follow a single-elimination bracket. Walkovers are labeled and never counted as played matches.
 
 Summit Run loads its mountain on demand (cancellable), seats everyone at the same cabinet, and starts a race when all seated riders explicitly ready up — no AI, no solo start, no browser host. One rider disconnecting never ends the race for the others. Results are session-local records only. See `docs/summit-run.md` for controls, the full lifecycle and the operations runbook; Summit Run admission ships disabled and is enabled server-side with `AFTERLIGHT_SNOWBOARD_ENABLED=1`.
 

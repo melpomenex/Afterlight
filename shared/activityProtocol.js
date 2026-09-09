@@ -17,6 +17,11 @@ export const ACTIVITY_COMMANDS = Object.freeze({
   READY: 'activity_ready',
   INPUT: 'activity_input',
   RESNAPSHOT: 'activity_resnapshot',
+  // Direct challenges (phase 6 social layer) — additive.
+  CHALLENGE: 'activity_challenge',
+  CHALLENGE_RESPOND: 'activity_challenge_respond',
+  CHALLENGE_MUTE: 'activity_challenge_mute',
+  CHALLENGE_BLOCK: 'activity_challenge_block',
 });
 
 export const ACTIVITY_EVENTS = Object.freeze({
@@ -24,6 +29,8 @@ export const ACTIVITY_EVENTS = Object.freeze({
   EVENT: 'activity_event',
   RESULT: 'activity_result',
   ERROR: 'activity_error',
+  CHALLENGE: 'activity_challenge',
+  CHALLENGE_RESULT: 'activity_challenge_result',
 });
 
 export const ACTIVITY_ROLES = Object.freeze(['play', 'watch', 'queue']);
@@ -176,6 +183,10 @@ export const ACTIVITY_ERRORS = Object.freeze({
   PAYLOAD_TOO_LARGE: 'payload_too_large',
   INPUT_DROPPED: 'input_dropped',
   STALE_MATCH: 'stale_match',
+  CHALLENGES_UNAVAILABLE: 'challenges_unavailable',
+  CHALLENGE_EXPIRED: 'challenge_expired',
+  TARGET_UNAVAILABLE: 'target_unavailable',
+  PENDING_INVITE: 'pending_invite',
 });
 
 const textEncoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;

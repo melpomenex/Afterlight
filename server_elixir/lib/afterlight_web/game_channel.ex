@@ -70,6 +70,8 @@ defmodule AfterlightWeb.GameChannel do
   require Logger
 
   alias Afterlight.Activities
+  alias Afterlight.Activities.Challenges
+  alias Afterlight.Activities.Tournament
   alias Afterlight.Catalog
   alias Afterlight.Catalog.Gateway, as: CatalogGateway
   alias Afterlight.EconomyGroup.Gateway, as: EconomyGateway
@@ -326,6 +328,11 @@ defmodule AfterlightWeb.GameChannel do
   # reply matches the request still pending; a late reply for a superseded
   # request is delivered (the client guards with its own generation)
   # without reopening the slot.
+  def handle_info({:challenge_frame, event, payload}, socket) when is_binary(event) and is_map(payload) do
+    push(socket, event, payload)
+    {:noreply, socket}
+  end
+
   def handle_info({:place_directory_snapshot, request_id, entries}, socket) do
     socket =
       if socket.assigns[:place_directory_pending] == request_id do
@@ -853,6 +860,198 @@ defmodule AfterlightWeb.GameChannel do
   defp maybe_tag_room(map, nil) when is_map(map), do: map
   defp maybe_tag_room(map, room_key) when is_map(map), do: Map.put(map, "roomId", room_key)
 
+  defp handle_challenge(type, payload, socket) do
+    req_id = Map.get(payload, "requestId")
+    act_id = Map.get(payload, "activityId")
+    room_key = room_key_of(socket)
+    room_pid = socket.assigns[:world_room_pid]
+
+    cond do
+      is_nil(room_pid) ->
+        push_activity_error(socket, nil, "room_unavailable",
+          "Must join a room before sending challenges", req_id, act_id)
+
+        {:noreply, socket}
+
+      true ->
+        case check_activity_rate_limit(type, socket) do
+          {:error, :rate_limited, socket} ->
+            push_activity_error(socket, room_key, "rate_limited",
+              "Rate limit exceeded for #{type}", req_id, act_id)
+
+            {:noreply, socket}
+
+          {:ok, socket} ->
+            dispatch_challenge(type, payload, socket, room_pid, room_key, req_id)
+        end
+    end
+  end
+
+  defp dispatch_challenge("activity_challenge", payload, socket, room_pid, room_key, req_id) do
+    act_id = Map.get(payload, "activityId")
+    target_name = Map.get(payload, "targetId") || Map.get(payload, "targetName")
+    guest = socket.assigns.guest_id
+
+    cond do
+      not is_binary(act_id) or act_id == "" ->
+        push_activity_error(socket, room_key, "invalid_input", "activityId is required", req_id, act_id)
+        {:noreply, socket}
+
+      not is_binary(target_name) or target_name == "" ->
+        push_activity_error(socket, room_key, "invalid_input", "targetId is required", req_id, act_id)
+        {:noreply, socket}
+
+      not declared_activity?(room_key, act_id) ->
+        push_activity_error(socket, room_key, "activity_not_found",
+          "Activity #{act_id} is not declared in #{room_key}", req_id, act_id)
+
+        {:noreply, socket}
+
+      true ->
+        case RoomServer.find_member(room_pid, target_name) do
+          :not_found ->
+            push_activity_error(socket, room_key, "target_unavailable",
+              "That visitor is not in this place", req_id, act_id)
+
+            {:noreply, socket}
+
+          {:ok, member} ->
+            case Challenges.invite(%{
+                   sender_id: guest,
+                   sender_name: socket.assigns[:nickname] || guest,
+                   sender_channel: self(),
+                   target_id: member.player_id,
+                   target_name: member.nickname,
+                   target_channel: member.channel_pid,
+                   activity_id: act_id,
+                   room_id: room_key
+                 }) do
+              {:ok, invite} ->
+                push(socket, "activity_challenge_result", Map.merge(invite, %{"requestId" => req_id, "status" => "pending"}))
+                {:noreply, socket}
+
+              {:error, reason} ->
+                push_activity_error(socket, room_key, to_string(reason),
+                  "Challenge failed: #{reason}", req_id, act_id)
+
+                {:noreply, socket}
+            end
+        end
+    end
+  end
+
+  defp dispatch_challenge("activity_challenge_respond", payload, socket, _room_pid, room_key, req_id) do
+    invite_id = Map.get(payload, "inviteId")
+    accept? = payload["accept"] == true
+
+    if not is_binary(invite_id) do
+      push_activity_error(socket, room_key, "invalid_input", "inviteId is required", req_id, nil)
+      {:noreply, socket}
+    else
+      invite = Challenges.get(invite_id)
+      availability = challenge_availability(socket, invite)
+
+      case Challenges.respond(%{
+             invite_id: invite_id,
+             actor_id: socket.assigns.guest_id,
+             accept: accept?,
+             availability: availability
+           }) do
+        {:ok, result} ->
+          push(socket, "activity_challenge_result", Map.put(result, "requestId", req_id))
+          {:noreply, socket}
+
+        {:error, reason} ->
+          push_activity_error(socket, room_key, to_string(reason),
+            "Challenge response failed: #{reason}", req_id, invite && invite.activity_id)
+
+          {:noreply, socket}
+      end
+    end
+  end
+
+  defp dispatch_challenge("activity_challenge_mute", payload, socket, _room_pid, _room_key, req_id) do
+    Challenges.set_muted(socket.assigns.guest_id, payload["muted"] == true)
+    push(socket, "activity_challenge_result", %{"requestId" => req_id, "status" => "muted", "muted" => payload["muted"] == true})
+    {:noreply, socket}
+  end
+
+  defp dispatch_challenge("activity_challenge_block", payload, socket, _room_pid, room_key, req_id) do
+    target = Map.get(payload, "playerId")
+
+    if is_binary(target) do
+      Challenges.set_blocked(socket.assigns.guest_id, target, payload["blocked"] != false)
+      push(socket, "activity_challenge_result", %{"requestId" => req_id, "status" => "blocked", "playerId" => target})
+      {:noreply, socket}
+    else
+      push_activity_error(socket, room_key, "invalid_input", "playerId is required", req_id, nil)
+      {:noreply, socket}
+    end
+  end
+
+  defp declared_activity?(room_key, act_id) do
+    Afterlight.World.PlaceDefinitions.activities(room_key)
+    |> Enum.any?(&(&1["id"] == act_id))
+  end
+
+  defp challenge_availability(_socket, nil), do: %{available: false}
+
+  defp challenge_availability(socket, invite) do
+    room = socket.assigns[:world_room]
+    room_pid = socket.assigns[:world_room_pid]
+    room_key = room_key_of(socket)
+    epoch = socket.assigns[:world_epoch] || 0
+
+    epoch =
+      try do
+        {_lease, e} = RoomServer.lease_handle(room_pid)
+        e
+      catch
+        :exit, _ -> epoch
+      end
+
+    case Activities.lookup_session(session_room_key(room, room_key, invite.activity_id), epoch, invite.activity_id) do
+      {:error, _} ->
+        # No live session: the table is empty and joinable. Not stale.
+        %{available: true, playing: 0, watching: 0, queued: 0, can_watch: true, can_queue: true}
+
+      {:ok, pid} ->
+        try do
+          summary = GenServer.call(pid, :public_summary, 80)
+          playing = summary["playing"] || 0
+          queued = summary["queued"] || 0
+          watching = summary["watching"] || 0
+          info = Activities.session_info(pid)
+          max_p = info[:max_players] || 2
+          max_q = info[:max_queue] || 16
+          max_s = info[:max_spectators] || 32
+
+          %{
+            available: playing < max_p,
+            playing: playing,
+            watching: watching,
+            queued: queued,
+            can_watch: watching < max_s,
+            can_queue: queued < max_q
+          }
+        catch
+          :exit, _ ->
+            %{available: false, playing: nil, watching: nil, queued: nil, can_watch: true, can_queue: true}
+        end
+    end
+  end
+
+  @challenge_types ~w(activity_challenge activity_challenge_respond activity_challenge_mute activity_challenge_block)
+  @tournament_types ~w(tournament_enroll tournament_withdraw tournament_checkin tournament_get)
+
+  defp handle_activity(type, payload, socket) when type in @challenge_types do
+    handle_challenge(type, payload || %{}, socket)
+  end
+
+  defp handle_activity(type, payload, socket) when type in @tournament_types do
+    handle_tournament(type, payload || %{}, socket)
+  end
+
   defp handle_activity(type, payload, socket) do
     req_id = Map.get(payload, "requestId")
     act_id = Map.get(payload, "activityId")
@@ -910,9 +1109,21 @@ defmodule AfterlightWeb.GameChannel do
                 {:noreply, socket}
 
               true ->
-                case Activities.get_or_start_session(room_pid, session_room_key(room, room_key, act_id), epoch, act_id, lease,
-                       wire_room_id: room_key
-                     ) do
+                player_id = socket.assigns.guest_id
+                role = Map.get(payload, "role", "play")
+
+                case type == "activity_join" &&
+                       Tournament.slot_conflict(room_key, player_id, act_id, role) do
+                  {:error, :casual_tournament_conflict} ->
+                    push_activity_error(socket, room_key, "casual_tournament_conflict",
+                      "You cannot hold a casual table and a tournament slot at the same time", req_id, act_id)
+
+                    {:noreply, socket}
+
+                  _ ->
+                    case Activities.get_or_start_session(room_pid, session_room_key(room, room_key, act_id), epoch, act_id, lease,
+                           wire_room_id: room_key
+                         ) do
                   {:error, :activity_not_found} ->
                     push_activity_error(socket, room_key, "activity_not_found",
                       "Activity #{act_id} is not declared in #{room_key}", req_id, act_id)
@@ -969,7 +1180,80 @@ defmodule AfterlightWeb.GameChannel do
                       "Could not start activity session: #{inspect(reason)}", req_id, act_id)
 
                     {:noreply, socket}
+                    end
                 end
+            end
+        end
+    end
+  end
+
+  defp handle_tournament(type, payload, socket) do
+    req_id = Map.get(payload, "requestId")
+    room_key = room_key_of(socket)
+    room_pid = socket.assigns[:world_room_pid]
+
+    cond do
+      is_nil(room_pid) or is_nil(room_key) ->
+        push_activity_error(socket, nil, "room_unavailable",
+          "Must join a room before using the tournament board", req_id, nil)
+
+        {:noreply, socket}
+
+      true ->
+        case check_activity_rate_limit(type, socket) do
+          {:error, :rate_limited, socket} ->
+            push_activity_error(socket, room_key, "rate_limited",
+              "Rate limit exceeded for #{type}", req_id, nil)
+
+            {:noreply, socket}
+
+          {:ok, socket} ->
+            player_id = socket.assigns.guest_id
+
+            reply =
+              case type do
+                "tournament_get" ->
+                  {:ok, Tournament.snapshot(room_key)}
+
+                "tournament_enroll" ->
+                  Tournament.command(room_key, %{
+                    type: "enroll",
+                    player_id: player_id,
+                    size: payload["size"],
+                    display_name: payload["displayName"]
+                  }, %{room_pid: room_pid})
+
+                "tournament_withdraw" ->
+                  Tournament.command(room_key, %{type: "withdraw", player_id: player_id}, %{
+                    room_pid: room_pid
+                  })
+
+                "tournament_checkin" ->
+                  Tournament.command(room_key, %{type: "check_in", player_id: player_id}, %{
+                    room_pid: room_pid
+                  })
+
+                _ ->
+                  {:error, "invalid_request", Tournament.snapshot(room_key)}
+              end
+
+            case reply do
+              {:ok, snap} ->
+                push(socket, "tournament_state", Map.delete(snap, "type") |> Map.put("requestId", req_id))
+                {:noreply, socket}
+
+              {:error, error, snap} ->
+                push_activity_error(socket, room_key, to_string(error),
+                  "Tournament command failed: #{error}", req_id, Map.get(snap, "activityId"))
+
+                push(socket, "tournament_state", Map.delete(snap, "type"))
+                {:noreply, socket}
+
+              {:error, reason} ->
+                push_activity_error(socket, room_key, to_string(reason),
+                  "Tournament unavailable", req_id, nil)
+
+                {:noreply, socket}
             end
         end
     end
@@ -1006,7 +1290,20 @@ defmodule AfterlightWeb.GameChannel do
           {:ok, assign(socket, :activity_rate_limits, new_limits)}
         end
 
-      action when action in ["activity_join", "activity_leave", "activity_ready"] ->
+      action
+      when action in [
+             "activity_join",
+             "activity_leave",
+             "activity_ready",
+             "activity_challenge",
+             "activity_challenge_respond",
+             "activity_challenge_mute",
+             "activity_challenge_block",
+             "tournament_enroll",
+             "tournament_withdraw",
+             "tournament_checkin",
+             "tournament_get"
+           ] ->
         {win_sec, count} = Map.get(limits, :control_window, {now_sec, 0})
 
         if win_sec == now_sec do

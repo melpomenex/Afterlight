@@ -177,6 +177,10 @@ export const MSG_TYPES = {
   ACTIVITY_READY: 'activity_ready',
   ACTIVITY_INPUT: 'activity_input',
   ACTIVITY_RESNAPSHOT: 'activity_resnapshot',
+  ACTIVITY_CHALLENGE: 'activity_challenge',
+  ACTIVITY_CHALLENGE_RESPOND: 'activity_challenge_respond',
+  ACTIVITY_CHALLENGE_MUTE: 'activity_challenge_mute',
+  ACTIVITY_CHALLENGE_BLOCK: 'activity_challenge_block',
 
   // Server -> Client
   WELCOME: 'welcome',
@@ -215,6 +219,14 @@ export const MSG_TYPES = {
   ACTIVITY_EVENT: 'activity_event',
   ACTIVITY_RESULT: 'activity_result',
   ACTIVITY_ERROR: 'activity_error',
+
+  // Room-local pool tournaments (phase 6 social layer)
+  TOURNAMENT_ENROLL: 'tournament_enroll',
+  TOURNAMENT_WITHDRAW: 'tournament_withdraw',
+  TOURNAMENT_CHECKIN: 'tournament_checkin',
+  TOURNAMENT_GET: 'tournament_get',
+  TOURNAMENT_STATE: 'tournament_state',
+  ACTIVITY_CHALLENGE_RESULT: 'activity_challenge_result',
 
   ERROR: 'error',
   PONG: 'pong',

@@ -10,6 +10,7 @@ import { createGardenerAvatar, createKilnCompanion, RemotePlayersManager, startE
 import { buildMarketWorld } from './world/marketWorld.js';
 import { buildGardenWorld } from './world/gardenWorld.js';
 import { districts, buildDistrict, readExploration } from './districts.js';
+import { getPlaceActivities, getPlaceDefinition } from '../shared/placeDefinitions.js';
 import { gateItemsFor } from './places/worldFactory.js';
 import { getBoundsForRoom, isWalkable, clampClickTarget, projectToMinimap } from './world/bounds.js';
 import { UIManager } from './ui/marketModal.js';
@@ -19,6 +20,9 @@ import { CallPanel } from './ui/callPanel.js';
 import { TheaterScreenUI } from './ui/theaterScreen.js';
 import { createPlaceSelector } from './ui/placeSelector.js';
 import { createLeaderboardDialog } from './ui/leaderboard.js';
+import { initChallenges } from './ui/challenges.js';
+import { initNearbyActivities } from './ui/nearbyActivities.js';
+import { initTournamentBoard } from './ui/tournamentBoard.js';
 import { recordRun as recordLocalBest, applyRecordingStatus } from './activities/localBests.js';
 import { ARCADE_GAMES } from '../shared/leaderboardModel.js';
 import { MSG_TYPES, ROOMS } from '../shared/protocol.js';
@@ -43,6 +47,20 @@ import './activities/drones.js';
 import './activities/paperAirplanes.js';
 import './activities/gutterBoats.js';
 import './activities/rcBoats.js';
+import './activities/horseshoes.js';
+import './activities/telescope.js';
+import './activities/hammerStrike.js';
+import './activities/forgeChallenge.js';
+import './activities/curling.js';
+import './activities/chess.js';
+import './activities/checkers.js';
+import './activities/tilePuzzle.js';
+import './activities/lightMusic.js';
+import './activities/darts.js';
+import './activities/piano.js';
+import './activities/photoBooth.js';
+import './activities/fishing.js';
+import './activities/skippingStones.js';
 import { createAtmosphereStateClient, legacyWeatherDisplaySuppressed } from './atmosphere/stateClient.js';
 import { createAtmosphereController } from './atmosphere/controller.js';
 import { createAtmosphereEvents } from './atmosphere/events.js';
@@ -541,6 +559,121 @@ const activityRuntime = createActivityRuntime({
 });
 const participation = activityRuntime.participation;
 
+// Direct challenges + nearby tables (phase 6 social layer). Accept only
+// highlights a table — never travels, sits, or joins.
+let challengePulseUntil = 0;
+function highlightChallengeTable({ activityId, roomId } = {}) {
+  const destRoom = roomId || currentRoomId;
+  const act = getPlaceActivities(destRoom).find((a) => a.id === activityId);
+  const title = act?.title || 'the table';
+  const place = destRoom !== currentRoomId ? getPlaceDefinition(destRoom) : null;
+  toast(
+    'Table marked',
+    place
+      ? `${title} is in ${place.name}. Walk there — nobody was moved.`
+      : `${title} is marked on the radar. Walk there — nobody was seated.`,
+    'ACTIVITY',
+  );
+  const marker = $('map-challenge');
+  if (!marker) return;
+  if (!act || destRoom !== currentRoomId) {
+    marker.setAttribute('visibility', 'hidden');
+    return;
+  }
+  const pos = act.transform?.position || [0, 0];
+  const ax = pos[0];
+  const az = pos.length === 3 ? pos[2] : pos[1];
+  const mapPos = projectToMinimap(currentBounds, ax, az);
+  marker.setAttribute('cx', String(mapPos.cx));
+  marker.setAttribute('cy', String(mapPos.cy));
+  marker.setAttribute('visibility', 'visible');
+  challengePulseUntil = performance.now() + 8000;
+}
+
+const challenges = initChallenges({
+  net,
+  toast: (title, body, tag) => toast(title, body, tag),
+  getLocalId: () => net.guestId,
+  onHighlight: (info) => highlightChallengeTable(info),
+});
+
+initNearbyActivities({
+  net,
+  getRoomId: () => currentRoomId,
+});
+
+const tournament = initTournamentBoard({
+  dialog: $('tournament-dialog'),
+  button: $('btn-tournament'),
+  net,
+  getPlayerId: () => net.guestId,
+  getDisplayName: () => net.nickname,
+  getRoomId: () => currentRoomId,
+  onOpen: () => {
+    paused = true;
+    keys.clear();
+    clearJumpMomentum();
+    activityRuntime.neutralizeInput?.();
+  },
+  onClose: () => {
+    paused = false;
+    keys.clear();
+    clearJumpMomentum();
+  },
+});
+
+let lastInviteKey = '';
+function refreshChallengeInvite() {
+  const panel = $('challenge-invite');
+  const list = $('challenge-invite-list');
+  if (!panel || !list) return;
+  const activityId = nearest?.type === 'activity' ? (nearest.activityId || nearest.id) : null;
+  if (!activityId) {
+    if (lastInviteKey !== '') {
+      lastInviteKey = '';
+      panel.hidden = true;
+      list.textContent = '';
+    }
+    return;
+  }
+  const visitors = [];
+  for (const [id, entry] of remotePlayers.players) {
+    if (!id || id === net.guestId) continue;
+    visitors.push({
+      id,
+      name: entry.avatar?.userData?.nickname || 'Visitor',
+    });
+  }
+  const key = `${activityId}|${visitors.map((v) => v.id).join(',')}`;
+  if (key === lastInviteKey) return;
+  lastInviteKey = key;
+  list.textContent = '';
+  if (visitors.length === 0) {
+    panel.hidden = true;
+    return;
+  }
+  const heading = panel.querySelector('.challenge-invite-label');
+  if (heading) heading.textContent = `INVITE TO ${nearest.title || 'THIS TABLE'}`;
+  for (const visitor of visitors.slice(0, 6)) {
+    const li = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = `Challenge ${visitor.name}`;
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      challenges.invite({
+        activityId,
+        targetId: visitor.id,
+        targetName: visitor.name,
+      });
+    });
+    li.append(btn);
+    list.append(li);
+  }
+  panel.hidden = false;
+}
+
 // Opt-in debug introspection (?debug=1): read-only accessors for automated
 // gate verification. Never enabled by default; exposes only local state.
 if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
@@ -779,6 +912,8 @@ const placeRuntime = createPlaceRuntime({
   adoptWorld: (world, res) => {
     currentWorld = world;
     currentBounds = getBoundsForRoom(res.roomId);
+    if (res.roomId === ROOMS.THEATER) tournament.attachWorld(world);
+    else tournament.detachWorld();
   },
   // Optional P8 conferencing adapter arrives with its own change; absent is
   // a no-op and travel never starts capture.
@@ -1253,12 +1388,12 @@ function standUp() {
 function interact() {
   if (paused && !activityView.held) return;
 
-  // E while a leased race view is up exits the race (focus hierarchy kept).
+  // E while a leased race view is up exits the race (focus hierarchy kept):
+  // leave the session (server leave + safe dismount) AND release the view so
+  // world input and the camera seam are fully restored.
   if (activityView.held) {
-    const lease = activityView.lease;
-    const instance = lease ? activityRuntime.getInstance(lease.owner) : null;
-    if (instance && typeof instance.exit === 'function') instance.exit('exit');
-    else activityView.revoke('exit');
+    activityView.revoke('exit');
+    if (participation.isOccupied) participation.leave();
     return;
   }
 
@@ -1291,6 +1426,11 @@ function interact() {
   // delegation) answer first; unknown types fall through to the legacy
   // dispatch below, unchanged.
   if (interactions.dispatch(nearest).handled) return;
+
+  if (nearest.type === 'tournament-board') {
+    tournament.open();
+    return;
+  }
 
   // Landmark Restoration
   if (nearest.type === 'landmark') {
@@ -2020,10 +2160,17 @@ function frame(now) {
       updateMillPanel();
     }
 
+    refreshChallengeInvite();
+
     // Update Minimap
     const mapPos = projectToMinimap(currentBounds, player.position.x, player.position.z);
     $('map-player').setAttribute('cx', mapPos.cx);
     $('map-player').setAttribute('cy', mapPos.cy);
+    const challengeMark = $('map-challenge');
+    if (challengeMark && challengePulseUntil > 0 && performance.now() >= challengePulseUntil) {
+      challengeMark.setAttribute('visibility', 'hidden');
+      challengePulseUntil = 0;
+    }
 
     particles.rotation.y = Math.sin(t * 0.03) * 0.04;
   }

@@ -161,4 +161,22 @@ defmodule AfterlightWeb.GameChannelActivityTest do
       }
     end)
   end
+
+  test "challenges before room join fail closed with room_unavailable" do
+    flipped(fn ->
+      guest = "guest_chal_noroom_#{System.unique_integer([:positive])}"
+      socket = connect_guest(guest)
+
+      push(socket, "activity_challenge", %{
+        "activityId" => "orpheum-pool",
+        "targetId" => "someone",
+        "requestId" => "req-chal-1"
+      })
+
+      assert_push "activity_error", %{
+        "error" => "room_unavailable",
+        "requestId" => "req-chal-1"
+      }
+    end)
+  end
 end

@@ -21,7 +21,15 @@ defmodule Afterlight.Activities.Supervisor do
        strategy: :one_for_one,
        max_restarts: 100,
        max_seconds: 5},
-      Afterlight.Activities.CompletionRecorder
+      Afterlight.Activities.CompletionRecorder,
+      Afterlight.Activities.Challenges,
+      {Registry, keys: :unique, name: Afterlight.Activities.TournamentRegistry},
+      {DynamicSupervisor,
+       name: Afterlight.Activities.TournamentSupervisor,
+       strategy: :one_for_one,
+       max_restarts: 100,
+       max_seconds: 5},
+      Afterlight.Activities.Tournament.Boot
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

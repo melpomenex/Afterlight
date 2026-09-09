@@ -6,6 +6,7 @@ defmodule Afterlight.Activities do
   """
 
   alias Afterlight.Activities.SessionServer
+  alias Afterlight.Activities.Stats
   alias Afterlight.Repo
   alias Afterlight.World.Fence
   alias Afterlight.World.PlaceDefinitions
@@ -15,6 +16,7 @@ defmodule Afterlight.Activities do
 
   @leaderboard_page_size 10
   @max_leaderboard_page 100
+  @max_leaderboard_page_size 100
   @nonranking_outcomes ["aborted", "forfeit"]
 
   import Ecto.Query
@@ -139,6 +141,47 @@ defmodule Afterlight.Activities do
     GenServer.call(session_pid, :get_full_snapshot)
   end
 
+  @doc """
+  Bounded public activity counts for one place. Reads live sessions only —
+  never starts a room or session. Playing / watching / queued stay separate.
+  Unreadable sessions are omitted (unknown), never reported as zero.
+  """
+  def list_public_summaries(room_id) when is_binary(room_id) do
+    matches =
+      try do
+        Registry.select(@registry, [{{{:"$1", :"$2", :"$3"}, :"$4", :_}, [], [{{:"$1", :"$3", :"$4"}}]}])
+      catch
+        :error, :badarg -> []
+      end
+
+    matches
+    |> Enum.filter(fn {key, _id, _pid} -> room_key_matches?(key, room_id) end)
+    |> Enum.take(8)
+    |> Enum.flat_map(fn {_key, _id, pid} ->
+      try do
+        case GenServer.call(pid, :public_summary, 80) do
+          %{} = summary -> [summary]
+          _ -> []
+        end
+      catch
+        :exit, _ -> []
+      end
+    end)
+  end
+
+  def list_public_summaries(_), do: []
+
+  defp room_key_matches?(key, room_id) when key == room_id, do: true
+
+  defp room_key_matches?(key, room_id) when is_binary(key) do
+    case String.split(key, ":", parts: 3) do
+      [_region, district, _instance] -> district == room_id
+      _ -> false
+    end
+  end
+
+  defp room_key_matches?(_, _), do: false
+
   @doc "Returns the unique session ID of the session."
   def session_id(session_pid) do
     session_info(session_pid).session_id
@@ -173,7 +216,21 @@ defmodule Afterlight.Activities do
   """
   def leaderboard(game, rules_version, page, opts \\ [])
       when is_binary(game) and is_integer(rules_version) and rules_version >= 1 do
-    page_size = Keyword.get(opts, :page_size, @leaderboard_page_size)
+    if game in Stats.match_games() do
+      Stats.match_leaderboard(game, rules_version, page, opts)
+    else
+      arcade_leaderboard(game, rules_version, page, opts)
+    end
+  end
+
+  def profile(player_id), do: Stats.profile(player_id)
+
+  defp arcade_leaderboard(game, rules_version, page, opts) do
+    page_size =
+      opts
+      |> Keyword.get(:page_size, @leaderboard_page_size)
+      |> min(@max_leaderboard_page_size)
+      |> max(1)
 
     base =
       from(r in Afterlight.Activities.ArcadeRun,

@@ -160,7 +160,9 @@ defmodule Afterlight.Activities.Results do
         record_run(fields)
 
       {:match, fields} ->
-        record_match(fields)
+        result = record_match(fields)
+        maybe_notify_tournament(state, fields, result)
+        result
 
       :ignore ->
         :ignore
@@ -314,4 +316,30 @@ defmodule Afterlight.Activities.Results do
   defp terminal_stats(_), do: %{}
 
   defp now_ms, do: System.system_time(:millisecond)
+
+  defp maybe_notify_tournament(state, fields, {:ok, status})
+       when status in [:recorded, :duplicate] do
+    if Map.get(fields, :game) in ["pool", "billiards"] do
+      {a, b} = participants_pair(Map.get(fields, :participants, %{}))
+
+      Afterlight.Activities.Tournament.notify_recorded(state.room_key, %{
+        winner_id: Map.get(fields, :winner_id),
+        outcome: Map.get(fields, :outcome),
+        player_a: a,
+        player_b: b,
+        verified_match_id: Map.get(fields, :match_id)
+      })
+    end
+
+    :ok
+  end
+
+  defp maybe_notify_tournament(_, _, _), do: :ok
+
+  defp participants_pair(map) when is_map(map) do
+    ids = map |> Map.values() |> Enum.filter(&is_binary/1)
+    {Enum.at(ids, 0), Enum.at(ids, 1)}
+  end
+
+  defp participants_pair(_), do: {nil, nil}
 end
