@@ -54,6 +54,7 @@ export function buildRainCourtScenery(ctx) {
   for (const [x,z,w,d] of [[-3,2.7,2.8,.65],[3,5.8,3,.7],[6,-2.8,1.8,.6],[-6,-1.5,1.6,.5]])
     s.box(x,.025,z,w,.014,d,'#61838a','puddle');
   for (const x of [-4.5,4.5]) s.box(x,.027,3,.06,.02,10,'#283f47','metal');
+  ctx.block(-4.5, 2.5, 1.4, 8.4);
   s.light(-5,2.6,-7.7,'#ffc47a',14,9);s.light(4,2.6,-7.7,'#ffc47a',14,9);
   s.lantern(8.8,6.8,2.7,false);s.lantern(-8.8,4,2.7,false);
   s.zone('arcade',{minX:-8,maxX:8,minZ:-8,maxZ:-4},3.4,.1,10,{rain:.35,roof:.7,wind:.15,lowpassHz:2400});

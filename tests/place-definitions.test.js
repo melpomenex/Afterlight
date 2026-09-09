@@ -5,6 +5,7 @@ import {
   LEGACY_DISTRICT_IDS,
   PLACE_VIEW_FIXTURE,
   LEGACY_URBAN_BOUNDS,
+  RAIN_COURT_ACTIVITIES,
   getPlaceDefinition,
   validatePlaceDefinition,
   validatePlaceDefinitions,
@@ -67,6 +68,7 @@ test('migrated definitions retain their original display fields and framework co
       { id: 'east', kind: 'district', position: [10.7, 0], target: 'canal' },
       { id: 'market', kind: 'market', position: [0, 8.8], target: 'market' },
     ],
+    activities: RAIN_COURT_ACTIVITIES,
   });
   const theater = getPlaceDefinition('theater');
   assert.equal(theater.kind, 'venue');

@@ -16,6 +16,7 @@ defmodule Afterlight.Activities.SessionServer do
   alias Afterlight.Activities.{AirHockey, Foosball}
   alias Afterlight.Activities.Drone
   alias Afterlight.Activities.PaperAirplane
+  alias Afterlight.Activities.GutterBoat
   alias Afterlight.Activities.Environment
   alias Afterlight.Activities.Pong
   alias Afterlight.Activities.RainRunner
@@ -2006,6 +2007,7 @@ defmodule Afterlight.Activities.SessionServer do
   defp init_simulation("foosball", opts), do: Foosball.init_sim_state(opts)
   defp init_simulation("drones", opts), do: Drone.init_sim_state(opts)
   defp init_simulation("paper-airplanes", opts), do: PaperAirplane.init_sim_state(opts)
+  defp init_simulation("gutter-boats", opts), do: GutterBoat.init_sim_state(opts)
   defp init_simulation("rain-runner", _opts), do: RainRunner.init_sim_state()
   defp init_simulation("signal-lost", _opts), do: SignalLost.init_sim_state()
   defp init_simulation("sporefall", _opts), do: Sporefall.init_sim_state()
@@ -2113,6 +2115,10 @@ defmodule Afterlight.Activities.SessionServer do
 
   defp step_simulation("paper-airplanes", sim_state, players, steps) do
     PaperAirplane.step_simulation(sim_state, players, steps)
+  end
+
+  defp step_simulation("gutter-boats", sim_state, players, steps) do
+    GutterBoat.step_simulation(sim_state, players, steps)
   end
 
   defp step_simulation("rain-runner", sim_state, players, steps) do

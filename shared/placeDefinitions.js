@@ -387,6 +387,35 @@ export const PAPER_AIRPLANES_ACTIVITY_DEFINITION = Object.freeze({
   controllerKey: 'paper-airplanes',
 });
 
+export const GUTTER_BOATS_ACTIVITY_DEFINITION = Object.freeze({
+  id: 'court-gutter-boats',
+  type: 'gutter-boats',
+  title: 'Gutter Boats',
+  sub: 'Press E to race · Copper gutters',
+  rulesVersion: 1,
+  minPlayers: 1,
+  readyPolicy: 'explicit',
+  environmentPolicy: 'live',
+  course: Object.freeze({ id: 'rain-court-gutter', version: 1 }),
+  transform: Object.freeze({ position: Object.freeze([-4.5, 0, 2.5]), rotationY: 0 }),
+  footprint: Object.freeze({ width: 1.4, depth: 8.4 }),
+  interactionRadius: 2.8,
+  participantAnchors: Object.freeze([
+    Object.freeze({ slot: 0, position: Object.freeze([-3.7, 0, -0.5]), facing: -Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: -2.8, z: -0.5 })]) }),
+    Object.freeze({ slot: 1, position: Object.freeze([-3.7, 0, 1.5]), facing: -Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: -2.8, z: 1.5 })]) }),
+    Object.freeze({ slot: 2, position: Object.freeze([-3.7, 0, 3.5]), facing: -Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: -2.8, z: 3.5 })]) }),
+    Object.freeze({ slot: 3, position: Object.freeze([-3.7, 0, 5.5]), facing: -Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: -2.8, z: 5.5 })]) }),
+  ]),
+  capacities: Object.freeze({ players: 4, spectators: 32, queue: 16 }),
+  spectatorPolicy: 'world',
+  rendererKey: 'boatRenderer',
+  controllerKey: 'gutter-boats',
+});
+
+export const RAIN_COURT_ACTIVITIES = Object.freeze([
+  GUTTER_BOATS_ACTIVITY_DEFINITION,
+]);
+
 export const ROOFTOPS_ACTIVITIES = Object.freeze([
   DRONES_ACTIVITY_DEFINITION,
   PAPER_AIRPLANES_ACTIVITY_DEFINITION,
@@ -492,6 +521,7 @@ function defineLegacyPlace(display, index) {
     exits: legacyExits(display.id),
     ...(theater ? { activities: ORPHEUM_ALL_ACTIVITIES } : {}),
     ...(display.id === 'rooftops' ? { activities: ROOFTOPS_ACTIVITIES } : {}),
+    ...(display.id === 'court' ? { activities: RAIN_COURT_ACTIVITIES } : {}),
     ...SOCIAL_PLACE_OVERRIDES[display.id],
   });
 }

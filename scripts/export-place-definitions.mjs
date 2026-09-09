@@ -151,7 +151,7 @@ export function projectActivity(act, placeBounds) {
   const minPlayers = act.minPlayers;
   const readyPolicy = act.readyPolicy;
   const course = act.course;
-  const RACE_TYPES = ['snowboard-race', 'drones', 'rc-boats'];
+  const RACE_TYPES = ['snowboard-race', 'drones', 'gutter-boats', 'rc-boats'];
   if (RACE_TYPES.includes(act.type)) {
     at(Number.isInteger(minPlayers) && minPlayers >= 1 && minPlayers <= c.players, `${act.type} requires minPlayers in 1..capacities.players`);
     at(readyPolicy === 'explicit', `${act.type} requires readyPolicy "explicit"`);

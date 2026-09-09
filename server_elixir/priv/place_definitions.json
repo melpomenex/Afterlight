@@ -16,7 +16,76 @@
         "weatherMode": "fixed",
         "timeMode": "fixed"
       },
-      "activities": []
+      "activities": [
+        {
+          "id": "court-gutter-boats",
+          "type": "gutter-boats",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              -4.5,
+              0,
+              2.5
+            ],
+            "rotationY": 0
+          },
+          "footprint": {
+            "width": 1.4,
+            "depth": 8.4
+          },
+          "interactionRadius": 2.8,
+          "participantAnchors": [
+            {
+              "facing": -1.5707963267948966,
+              "position": [
+                -3.7,
+                0,
+                -0.5
+              ],
+              "slot": 0
+            },
+            {
+              "facing": -1.5707963267948966,
+              "position": [
+                -3.7,
+                0,
+                1.5
+              ],
+              "slot": 1
+            },
+            {
+              "facing": -1.5707963267948966,
+              "position": [
+                -3.7,
+                0,
+                3.5
+              ],
+              "slot": 2
+            },
+            {
+              "facing": -1.5707963267948966,
+              "position": [
+                -3.7,
+                0,
+                5.5
+              ],
+              "slot": 3
+            }
+          ],
+          "capacities": {
+            "players": 4,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "live",
+          "minPlayers": 1,
+          "readyPolicy": "explicit",
+          "course": {
+            "id": "rain-court-gutter",
+            "version": 1
+          }
+        }
+      ]
     },
     {
       "id": "canal",

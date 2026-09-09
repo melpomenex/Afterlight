@@ -590,7 +590,7 @@ defmodule Afterlight.World.PlaceDefinitions do
   # (add-multiplayer-snowboard-arcade): additive optional fields for every
   # type, required complete for snowboard-race so the authoritative server
   # projection carries everything admission and the session policy need.
-  defp activity_race_problems(problems, %{"id" => id, "type" => type} = act) when type in ~w(snowboard-race drones rc-boats) do
+  defp activity_race_problems(problems, %{"id" => id, "type" => type} = act) when type in ~w(snowboard-race drones gutter-boats rc-boats) do
     problems
     |> activity_min_players_problems(act, required?: true)
     |> activity_ready_policy_problems(act, required?: true)
