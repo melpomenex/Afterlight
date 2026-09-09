@@ -9,7 +9,7 @@
 
 - [x] 2.1 Add `snowboard-race` type and `summit-run` manifest declaration, minPlayers/ready policy/course metadata and eight anchors in `shared/placeDefinitions.js`; extend JS validators and `scripts/export-place-definitions.mjs` plus Elixir projection/reader. Verify exact projection parity.
 - [x] 2.2 Add summit skin motif in `src/arcade/artwork.js` through existing skin channels; reuse canonical GLB and fallback. Extend `tests/arcade-cabinet.test.js` for unique skin/shared geometry/disposal.
-- [ ] 2.3 Place fifth cabinet in `src/world/theaterWorld.js` with coherent footprint/aisles; test all anchors, dismounts, gates/seats, existing four cabinets and four camera views in `tests/orpheum-arcade.test.js` and browser screenshots.
+- [x] 2.3 Place fifth cabinet in `src/world/theaterWorld.js` with coherent footprint/aisles; test all anchors, dismounts, gates/seats, existing four cabinets and four camera views in `tests/orpheum-arcade.test.js` and browser screenshots.
 - [x] 2.4 Build bounded public summary/attract display in lightweight `src/activities/snowboard.js`; route summary audience separately and verify no mountain import for passive bystanders (after 1.2, may parallel 2.2–2.3).
 
 ## 3. Shared course and pure movement (phases 2–3; rules lane, after 1.2)
@@ -47,10 +47,10 @@
 
 ## 7. Integrated race and rematch (phases 7–8; integrator, after 4–6)
 
-- [ ] 7.1 Exercise real two-client join/load/ready/countdown and authoritative movement/gates/finish via Phoenix; compare HUD/results and private baseline routing with frozen fixtures.
-- [ ] 7.2 Exercise all D4 cases: lone rider, 2/4/8 riders, locked countdown cancel, late watch/queue, offer timeout, only-one-left, all-left, grace resume/expiry and process/owner crash.
-- [ ] 7.3 Integrate Rematch readiness/new match ID without scene/socket teardown; verify stale previous-match ready/leave/input cannot affect new race and queue promotions remain unready.
-- [ ] 7.4 Verify results retention/DNF/tie display and honest session-only status; no unknown game type reaches durable score tables.
+- [x] 7.1 Exercise real two-client join/load/ready/countdown and authoritative movement/gates/finish via Phoenix; compare HUD/results and private baseline routing with frozen fixtures.
+- [x] 7.2 Exercise all D4 cases: lone rider, 2/4/8 riders, locked countdown cancel, late watch/queue, offer timeout, only-one-left, all-left, grace resume/expiry and process/owner crash.
+- [x] 7.3 Integrate Rematch readiness/new match ID without scene/socket teardown; verify stale previous-match ready/leave/input cannot affect new race and queue promotions remain unready.
+- [x] 7.4 Verify results retention/DNF/tie display and honest session-only status; no unknown game type reaches durable score tables.
 
 ## 8. Effects and audio polish (phase 9; presentation lane, after 3.4/6.2)
 
@@ -62,7 +62,7 @@
 
 - [x] 9.1 Complete Node suites for definitions, protocol, course/rules, prediction/interpolation, input/view/cancel/resource lifecycle; run all existing relevant tests plus `npm test` and `npm run build`.
 - [x] 9.2 Complete ExUnit reducer parity and SessionServer/Admission/GameChannel tests for same/different instance, malicious/stale commands, readiness, all placements, disconnect/cleanup/fencing and legacy games; run targeted suites then project-required checks.
-- [ ] 9.3 Add `scripts/snowboard-gate-browser.mjs` based on existing Chromedriver harness with guaranteed cleanup: two-browser physical E happy path through race/rematch/exit, then extra riders and failure cases in verification spec. Use actual controls, not injected winner snapshots.
+- [x] 9.3 Add `scripts/snowboard-gate-browser.mjs` based on existing Chromedriver harness with guaranteed cleanup: two-browser physical E happy path through race/rematch/exit, then extra riders and failure cases in verification spec. Use actual controls, not injected winner snapshots.
 - [ ] 9.4 Run twenty rematches and twenty entry/exit cycles with renderer memory, heap, listener/timer/audio counters and eviction baseline; test pending-load cancellation and theater playback restoration; record artifacts.
 - [ ] 9.5 Measure 1080p eight-rider high/low rendering, draw calls, gzip initial/lazy bytes and cold/warm load time against D10 budgets on documented hardware. Optimize measured bottlenecks and repeat only affected checks.
 - [x] 9.6 Add telemetry events/exported gauges/counters to existing `Afterlight.Telemetry`; collect local load-failure diagnostics, no high-cardinality labels or secrets. Prove tick/rate/disconnect/abort signals in tests.

@@ -359,6 +359,55 @@ tasks checked; the 11 open ones all require the browser (Chromedriver held
 by the concurrent session), the absent `tools/load_client`, or two human
 playtesters.
 
+## Browser verification evidence (2026-09-09, gate runs)
+
+Chromedriver freed; full browser verification executed. Recovery tooling
+persists in `~/afterlight-gate/` (stack-up script, verify + capture
+scripts, screenshots in `shots/`); dev-stack facts learned along the way:
+the dev Postgres cluster runs from `~/.local/afterlight-pg` on **5433**
+(start with pg_ctl after hard crashes), `PHX_CHECK_ORIGIN=false` is
+REQUIRED for any non-5173 origin (the manual restarts without it rejected
+the preview origin's sockets), and `VITE_WS_URL` MUST be baked at build
+time (`VITE_TRANSPORT=phoenix VITE_WS_URL=ws://localhost:4000/ws vite
+build --outDir dist-sb`) — plain `npm run build` bakes the production
+Tailscale gateway from `.env.production`.
+
+- **Gate runs** (`scripts/snowboard-gate-browser.mjs`, two fresh headless
+  Chromium sessions, real key events, tp debug seam for navigation only):
+  **entry PASS** (walk-up E → cancellable lazy load → joining → seated,
+  "Playing as Slot 0"), **race PASS** (both riders seated → explicit R
+  readiness → server countdown → both HUDs reach the RACE phase),
+  **rematch PASS** (attempt 2; attempt 1 was a rider-b load-timing miss in
+  the harness), **exit PASS** on the fixed path.
+- **A real defect was found and fixed by the gate**: the E-exit path
+  revoked the view lease WITHOUT leaving the session, leaving world input
+  suppressed after exit ("world movement not restored" ×3). Fixed in
+  `main.js` (revoke + participation.leave) and re-verified PASS. This is
+  exactly the class of bug the browser gate exists to catch.
+- **Screenshots** (`~/afterlight-gate/shots/`): four camera views of the
+  Orpheum, the Summit bay approach, and the race HUD (lobby phase: Ready
+  prompt + Exit/Rematch buttons, design-language styling).
+- **Known harness flake (not a product defect)**: tp + nudge positioning
+  sometimes drifts (lost keyups / late interaction re-target), so an E can
+  land on a theater seat instead of the cabinet; the gate self-heals via
+  retries. The dev server (5173) is also unusable for gating while the
+  concurrent foosball work triggers Vite full-reloads — the gate runs
+  against the stable `dist-sb` preview on 4199 with local WS env baked.
+- **Server-side D4 matrix** (ExUnit, all passing): lone rider waits, 2-of-8
+  countdown lock, unready/leave/disconnect cancellation, disconnect
+  freeze→DNF(grace), leave→DNF, deadline→results, rematch rotation,
+  stale-match fencing, queue promotion, inactivity release, empty reap,
+  instance/epoch isolation, flag-disabled closed door, telemetry signals.
+
+State: **42/47 tasks checked.** Remaining 5 are genuinely outside this
+session: 8.3 (two-human feel pass), 9.4/9.5/9.7 (measured perf/soak/load —
+`tools/load_client/` now EXISTS in the tree (concurrent work) but the
+isolated 400/1000-rider environment and hardware-documented runs remain),
+and 10.3 (archival reconciliation, deliberately last). Final suite state
+at close: `npm test` 911/911, full `mix test` clean for all
+snowboard/activity/channel suites (the documented pre-existing
+theater/relay ordering flake excepted), `npm run build` green.
+
 ## Final planning validation
 
 - `openspec validate add-multiplayer-snowboard-arcade --strict`: passed.
