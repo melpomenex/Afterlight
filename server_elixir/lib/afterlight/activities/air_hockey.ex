@@ -181,32 +181,67 @@ defmodule Afterlight.Activities.AirHockey do
         goal_delay = Map.get(state, "goalDelay", 0) - 1
 
         if goal_delay <= 0 do
-          conceded_slot = if state["lastScorerSlot"] == 0, do: 1, else: 0
-          vx = if conceded_slot == 0, do: -4.0, else: 4.0
+          score0 = (state["score"]["0"] || 0)
+          score1 = (state["score"]["1"] || 0)
 
-          reset_puck = %{
-            "x" => @center_x,
-            "y" => @center_y,
-            "vx" => vx,
-            "vy" => 0.5,
-            "radius" => round(@puck_radius)
-          }
+          if score0 >= @winning_points or score1 >= @winning_points do
+            scorer_slot = if score0 >= @winning_points, do: 0, else: 1
+            slot_str = Integer.to_string(scorer_slot)
+            curr_series_score = state["seriesScore"] || %{"0" => 0, "1" => 0}
+            new_series_score = Map.put(curr_series_score, slot_str, Map.get(curr_series_score, slot_str, 0) + 1)
+            wins_needed = state["winsNeeded"] || 1
 
-          reset_mallets = %{
-            "0" => %{mallets["0"] | "x" => 30.0, "y" => @center_y, "vx" => 0.0, "vy" => 0.0},
-            "1" => %{mallets["1"] | "x" => 170.0, "y" => @center_y, "vx" => 0.0, "vy" => 0.0}
-          }
+            if Map.get(new_series_score, slot_str, 0) >= wins_needed do
+              final_state =
+                state
+                |> Map.put("state", "ended")
+                |> Map.put("winner", scorer_slot)
+                |> Map.put("seriesScore", new_series_score)
 
-          state =
-            state
-            |> Map.put("goalDelay", 0)
-            |> Map.put("puck", reset_puck)
-            |> Map.put("mallets", reset_mallets)
-            |> Map.put("state", "serving")
-            |> Map.put("serveDelay", @serve_delay_ticks)
-            |> Map.put("lastGoalBy", nil)
+              outcome = {:match_ended, scorer_slot, %{
+                winner_slot: scorer_slot,
+                score: state["score"],
+                series_score: new_series_score
+              }}
 
-          {state, nil}
+              {final_state, outcome}
+            else
+              state =
+                state
+                |> Map.put("state", "game_break")
+                |> Map.put("gameBreakDelay", @game_break_ticks)
+                |> Map.put("seriesScore", new_series_score)
+
+              {state, nil}
+            end
+          else
+            conceded_slot = if state["lastScorerSlot"] == 0, do: 1, else: 0
+            vx = if conceded_slot == 0, do: -4.0, else: 4.0
+
+            reset_puck = %{
+              "x" => @center_x,
+              "y" => @center_y,
+              "vx" => vx,
+              "vy" => 0.5,
+              "radius" => round(@puck_radius)
+            }
+
+            reset_mallets = %{
+              "0" => %{mallets["0"] | "x" => 30.0, "y" => @center_y, "vx" => 0.0, "vy" => 0.0},
+              "1" => %{mallets["1"] | "x" => 170.0, "y" => @center_y, "vx" => 0.0, "vy" => 0.0}
+            }
+
+            state =
+              state
+              |> Map.put("goalDelay", 0)
+              |> Map.put("puck", reset_puck)
+              |> Map.put("mallets", reset_mallets)
+              |> Map.put("state", "serving")
+              |> Map.put("serveDelay", @serve_delay_ticks)
+              |> Map.put("lastGoalBy", nil)
+
+            {state, nil}
+          end
         else
           {Map.put(state, "goalDelay", goal_delay), nil}
         end
