@@ -15,6 +15,7 @@ import { createFoosballTableScene } from './foosball/tableScene.js';
 import { createFoosballAudio } from './foosball/audio.js';
 import { createFoosballController } from './foosball/controller.js';
 import { initFoosballState } from '../../shared/foosballModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export function createFoosballInstance({
   activityDef,
@@ -173,6 +174,14 @@ export function createFoosballInstance({
     },
 
     update(time, dt = 0.016) {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant,
+        onJoin: (info) => this.onJoin(info),
+        onLeave: () => this.onLeave(),
+      });
+
       // Step controller input and prediction
       if (isParticipant && mySlot !== null) {
         controller.update(dt, simState);
@@ -208,8 +217,7 @@ export function createFoosballInstance({
     },
 
     acceptSnapshot(envelope) {
-      const state = envelope?.state || envelope?.simState || envelope;
-      this.onSnapshot(state);
+      this.onSnapshot(extractActivitySim(envelope));
     },
 
     acceptEvent(envelope) {

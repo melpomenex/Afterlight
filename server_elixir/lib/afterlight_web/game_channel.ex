@@ -903,7 +903,7 @@ defmodule AfterlightWeb.GameChannel do
 
       not declared_activity?(room_key, act_id) ->
         push_activity_error(socket, room_key, "activity_not_found",
-          "Activity #{act_id} is not declared in #{room_key}", req_id, act_id)
+          "This table isn't available here", req_id, act_id)
 
         {:noreply, socket}
 
@@ -1126,7 +1126,13 @@ defmodule AfterlightWeb.GameChannel do
                          ) do
                   {:error, :activity_not_found} ->
                     push_activity_error(socket, room_key, "activity_not_found",
-                      "Activity #{act_id} is not declared in #{room_key}", req_id, act_id)
+                      "This table isn't available here", req_id, act_id)
+
+                    {:noreply, socket}
+
+                  {:error, :race_unavailable} ->
+                    push_activity_error(socket, room_key, "race_unavailable",
+                      "Summit Run isn't open on this server", req_id, act_id)
 
                     {:noreply, socket}
 

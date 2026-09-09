@@ -249,10 +249,10 @@ export const SUMMIT_RUN_ACTIVITY_DEFINITION = Object.freeze({
   type: 'snowboard-race',
   title: 'Summit Run',
   sub: 'Press E to ride · 2–8 riders',
-  rulesVersion: 1,
+  rulesVersion: 2,
   minPlayers: 2,
   readyPolicy: 'explicit',
-  course: Object.freeze({ id: 'summit-night', version: 1 }),
+  course: Object.freeze({ id: 'alpine-rush', version: 2 }),
   cabinet: SUMMIT_RUN_CABINET,
   transform: Object.freeze({ position: Object.freeze([10.42, 0, 2.6]), rotationY: -Math.PI / 2 }),
   footprint: Object.freeze({ width: 0.85, depth: 0.9 }),
@@ -522,13 +522,14 @@ export const CAMP_HORSESHOES_ACTIVITY_DEFINITION = defineWorldActivity({
   type: 'horseshoes',
   title: 'Horseshoes',
   sub: 'Press E to throw · First to 21',
-  position: [4.5, 0, 2.0],
+  // Southeast of the fire circle: the historical camp route along z=3 stays open.
+  position: [8, 0, 5.5],
   width: 2.2,
   depth: 6.0,
   radius: 2.8,
   anchors: [
-    seatedAnchor(0, 4.5, -0.6, 0, -1.2, 0),
-    seatedAnchor(1, 4.5, 4.6, Math.PI, -1.2, 0),
+    seatedAnchor(0, 8, 2.9, 0, -1.6, 0),
+    seatedAnchor(1, 8, 8.1, Math.PI, -1.6, 0),
   ],
   environmentPolicy: 'frozen',
 });
@@ -560,7 +561,9 @@ export const CURLING_ACTIVITY_DEFINITION = defineWorldActivity({
   sub: 'Press E to throw · Four ends',
   players: 4,
   position: [0, 0, 1.5],
-  width: 4.2,
+  // Narrow enough that the sheet-center interaction anchor stays reachable
+  // from the ice edge (half-extent with clearance 1.48 < approach 1.8).
+  width: 2.2,
   depth: 10.0,
   radius: 3.2,
   anchors: [
@@ -679,8 +682,8 @@ export const UNDERSTORY_LIGHT_MUSIC_ACTIVITY_DEFINITION = defineWorldActivity({
   sub: 'Press E to play · Shared sequence',
   players: 4,
   position: [0, 0, 2.0],
-  width: 2.4,
-  depth: 2.4,
+  width: 2.0,
+  depth: 2.0,
   radius: 2.8,
   anchors: [
     seatedAnchor(0, -1.1, 2.0, Math.PI / 2, 0, 1.1),
@@ -695,13 +698,16 @@ export const ORPHEUM_DARTS_ACTIVITY_DEFINITION = defineWorldActivity({
   type: 'darts',
   title: 'Lobby Darts',
   sub: 'Press E to throw · 301 double-out',
-  position: [8.4, 0, 3.6],
-  width: 1.4,
-  depth: 2.2,
+  // West wall of the auditorium, board east-facing throwers; the previous
+  // lobby-floor spot collided with seat row three and the summit-run aisle.
+  position: [-10.4, 0, -1.5],
+  rotationY: Math.PI,
+  width: 1.0,
+  depth: 1.4,
   radius: 2.6,
   anchors: [
-    seatedAnchor(0, 7.3, 3.2, Math.PI / 2, 0, 1.1),
-    seatedAnchor(1, 7.3, 4.0, Math.PI / 2, 0, 1.1),
+    seatedAnchor(0, -9.35, -1.1, -Math.PI / 2, 1.2, 0),
+    seatedAnchor(1, -9.35, -1.9, -Math.PI / 2, 1.2, 0),
   ],
 });
 

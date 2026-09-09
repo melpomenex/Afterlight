@@ -11,6 +11,7 @@ import { createCheckersTableScene } from './checkers/tableScene.js';
 import { createCheckersAudio } from './checkers/audio.js';
 import { createCheckersController } from './checkers/controller.js';
 import { CHECKERS_TABLE_POSITION, initCheckersSimState } from '../../shared/checkersModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export function createCheckersInstance({
   activityDef,
@@ -136,8 +137,7 @@ export function createCheckersInstance({
     },
 
     acceptSnapshot(envelope) {
-      const state = envelope?.sim || envelope?.state || envelope?.simState || envelope;
-      this.onSnapshot(state);
+      this.onSnapshot(extractActivitySim(envelope));
     },
 
     acceptEvent(envelope) {
@@ -167,6 +167,13 @@ export function createCheckersInstance({
     },
 
     update(time) {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant,
+        onJoin: (info) => this.onJoin(info),
+        onLeave: () => this.onLeave(),
+      });
       tableScene.updateVisuals(simState, time);
       if (isParticipant) controller.update(simState);
     },

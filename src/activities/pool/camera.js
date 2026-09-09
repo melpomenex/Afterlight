@@ -22,19 +22,16 @@ export function createPoolCamera({
   getActiveCamera = null,
   setActivityCamera = null,
   clearActivityCamera = null,
-  acquireView = null,
-  releaseView = null,
+  acquireView: _acquireView = null,
+  releaseView: _releaseView = null,
 } = {}) {
   const tableX = tablePosition[0];
   const tableY = 0.78;
   const tableZ = tablePosition.length === 3 ? tablePosition[2] : tablePosition[1];
 
   let modeIndex = 0; // Starts in 'cue' view for shooting
-  let viewLease = null;
   let active = false;
 
-  // Camera targets
-  const currentPos = new THREE.Vector3();
   const targetPos = new THREE.Vector3();
   const lookTarget = new THREE.Vector3(tableX, tableY, tableZ);
 
@@ -76,11 +73,10 @@ export function createPoolCamera({
       if (active) return;
       active = true;
 
-      if (typeof acquireView === 'function') {
-        viewLease = acquireView('pool', { priority: 2 });
-      }
-
-      // Initial position
+      // Pool stays in the social scene and only borrows the active camera
+      // through setActivityCamera. The view lease replaces the whole render
+      // pass (Summit Run mountain); calling it with a string throws and was
+      // leaving the darts HUD / world camera in a confused state.
       this.update({ cueX: 0, cueZ: 0, angle: 0, power: 0, settled: true }, 1.0);
     },
 
@@ -91,12 +87,7 @@ export function createPoolCamera({
       if (!active) return;
       active = false;
 
-      if (viewLease) {
-        try { viewLease.release(); } catch {}
-        viewLease = null;
-      } else if (typeof releaseView === 'function') {
-        try { releaseView('pool'); } catch {}
-      } else if (typeof clearActivityCamera === 'function') {
+      if (typeof clearActivityCamera === 'function') {
         try { clearActivityCamera(); } catch {}
       }
     },

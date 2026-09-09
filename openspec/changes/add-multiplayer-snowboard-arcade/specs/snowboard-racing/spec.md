@@ -1,3 +1,14 @@
+> **PARTIAL SUPERSESSION by `integrate-ssxtricky-snowboard` (2026-09-09).**
+> "One valid downhill course" is superseded in its specifics: the course is
+> the versioned Alpine Rush document (source terrain, 13 ramps, speed zones,
+> pickups) and the phrase "without requiring trick scoring" no longer applies
+> — server-authoritative trick/boost/pickup scoring IS required, per-rider
+> per-race. Peer collisions remain disabled. Every other requirement —
+> session scoping, hostless readiness, server-owned simulation, deterministic
+> results, protocol fencing, prediction/interpolation, disconnect recovery,
+> late join/rematch, bounded lifetime, scoped delivery — is retained
+> unchanged and remains a dependency.
+
 ## Purpose
 
 Define authoritative, bounded multiplayer snowboard races with responsive prediction, validated course progression and dependable rematch and recovery behavior.

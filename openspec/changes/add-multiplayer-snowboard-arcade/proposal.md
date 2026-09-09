@@ -1,3 +1,15 @@
+> **SUPERSEDED IN PART by `integrate-ssxtricky-snowboard` (2026-09-09).**
+> The product decision to build "one original night mountain … robot
+> snowboarders" from the SSXTricky prototype used as "a useful movement and
+> mountain reference" is REVERSED: the actual user-owned SSXTricky Alpine Rush
+> implementation (engine.js/rules.mjs presentation and mechanics — daylight
+> course, ramps, speed lanes, pickups, tricks, boost) is now the port baseline.
+> The SSX branding non-goal is retained (cabinet stays Summit Run). All
+> authority, lifecycle, protocol, verification and cabinet-integration
+> requirements below remain in force and are dependencies of the new change.
+> See `openspec/changes/integrate-ssxtricky-snowboard/design.md`
+> §"Reconciliation with add-multiplayer-snowboard-arcade".
+
 ## Why
 
 Afterlight already lets friends walk up to shared arcade cabinets. **Summit Run** extends that experience into one polished 2–8 rider downhill race, entered and exited inside the same application. The local SSXTricky prototype provides a useful movement and mountain reference; Afterlight remains the runtime and authority.

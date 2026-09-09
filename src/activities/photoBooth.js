@@ -11,6 +11,7 @@ import {
   initPhotoBoothState,
   photoBoothCaptureSubjects,
 } from '../../shared/photoBoothModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export { captureBoothStrip, downloadLocalStrip };
 
@@ -118,7 +119,7 @@ export function createPhotoBoothInstance({
       if (simState.stripReady && prev !== 'ready') finishStrip();
     },
     acceptSnapshot(envelope) {
-      this.onSnapshot(envelope?.sim || envelope?.state || envelope?.simState || envelope);
+      this.onSnapshot(extractActivitySim(envelope));
     },
     acceptEvent(envelope) {
       const name = envelope?.event || envelope?.name || envelope?.type;
@@ -133,6 +134,13 @@ export function createPhotoBoothInstance({
     acceptError() {},
     neutralizeInput() {},
     update(time) {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant,
+        onJoin: (info) => this.onJoin(info),
+        onLeave: () => this.onLeave(),
+      });
       scene.updateVisuals(simState, time);
       if (isParticipant) controller.update(simState);
     },

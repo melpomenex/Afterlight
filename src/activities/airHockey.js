@@ -15,6 +15,7 @@ import { createAirHockeyTableScene } from './airHockey/tableScene.js';
 import { createAirHockeyAudio } from './airHockey/audio.js';
 import { createAirHockeyController } from './airHockey/controller.js';
 import { initAirHockeyState } from '../../shared/airHockeyModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export function createAirHockeyInstance({
   activityDef,
@@ -213,6 +214,14 @@ export function createAirHockeyInstance({
     },
 
     update(time, dt) {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant,
+        onJoin: (info) => this.onJoin(info),
+        onLeave: () => this.onLeave(),
+      });
+
       // Step controller prediction
       controller.update(dt);
       tableScene.update(dt);
@@ -249,8 +258,7 @@ export function createAirHockeyInstance({
     },
 
     acceptSnapshot(envelope) {
-      const state = envelope?.state || envelope?.simState || envelope;
-      this.onSnapshot(state);
+      this.onSnapshot(extractActivitySim(envelope));
     },
 
     acceptEvent(envelope) {

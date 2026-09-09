@@ -167,8 +167,14 @@ if config_env() != :test do
 end
 
 # Summit Run admission flag (add-multiplayer-snowboard-arcade 4.5):
-# disabled by default; AFTERLIGHT_SNOWBOARD_ENABLED=1 enables admission and
-# capability advertisement.
-config :afterlight, :snowboard_enabled,
-  System.get_env("AFTERLIGHT_SNOWBOARD_ENABLED") in ["1", "true"]
+# production stays closed unless AFTERLIGHT_SNOWBOARD_ENABLED=1; local
+# Mix dev enables it so the Orpheum cabinet is actually joinable.
+snowboard_flag =
+  case System.get_env("AFTERLIGHT_SNOWBOARD_ENABLED") do
+    v when v in ["1", "true"] -> true
+    v when v in ["0", "false"] -> false
+    _ -> config_env() == :dev
+  end
+
+config :afterlight, snowboard_enabled: snowboard_flag
 

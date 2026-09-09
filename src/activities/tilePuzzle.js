@@ -13,6 +13,7 @@ import { createTilePuzzleScene } from './tilePuzzle/scene.js';
 import { createTilePuzzleAudio } from './tilePuzzle/audio.js';
 import { createTilePuzzleController } from './tilePuzzle/controller.js';
 import { initTileSimState } from '../../shared/tilePuzzleModel.js';
+import { extractActivitySim } from './sessionBind.js';
 
 export function createTilePuzzleInstance({
   activityDef,
@@ -145,8 +146,7 @@ export function createTilePuzzleInstance({
     },
 
     acceptSnapshot(envelope) {
-      const state = envelope?.sim || envelope?.state || envelope?.simState || envelope;
-      this.onSnapshot(state);
+      this.onSnapshot(extractActivitySim(envelope));
     },
 
     acceptEvent(envelope) {

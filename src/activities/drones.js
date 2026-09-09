@@ -15,6 +15,7 @@ import { createDroneScene } from './drone/droneScene.js';
 import { createDroneAudio } from './drone/audio.js';
 import { createDroneController } from './drone/droneController.js';
 import { initDroneSimState } from '../../shared/droneModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export function createDroneInstance({
   activityDef,
@@ -175,8 +176,7 @@ export function createDroneInstance({
     },
 
     acceptSnapshot(envelope) {
-      const state = envelope?.sim || envelope?.state || envelope?.simState || envelope;
-      this.onSnapshot(state);
+      this.onSnapshot(extractActivitySim(envelope));
     },
 
     acceptEvent(envelope) {
@@ -197,6 +197,14 @@ export function createDroneInstance({
     acceptError() {},
 
     update(time, delta) {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant,
+        onJoin: (info) => this.onJoin(info),
+        onLeave: () => this.onLeave(),
+      });
+
       // 1. Advance visual 3D scene (drones and checkpoint rings)
       droneScene.updateVisuals(simState, time);
 

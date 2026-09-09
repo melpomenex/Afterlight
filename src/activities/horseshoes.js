@@ -6,6 +6,7 @@ import { registerActivityModule } from './registry.js';
 import { createHorseshoePitScene } from './horseshoes/pitScene.js';
 import { createHorseshoeController } from './horseshoes/controller.js';
 import { initHorseshoeSimState } from '../../shared/horseshoesModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export function createHorseshoeInstance({
   activityDef,
@@ -14,7 +15,7 @@ export function createHorseshoeInstance({
   roomId = 'desert-camp',
   getParticipation = null,
 } = {}) {
-  const transform = activityDef.transform || { position: [4.5, 0, 2.0], rotationY: 0 };
+  const transform = activityDef.transform || { position: [8, 0, 5.5], rotationY: 0 };
   const pos = transform.position;
   const pitScene = createHorseshoePitScene({
     position: pos,
@@ -93,8 +94,7 @@ export function createHorseshoeInstance({
     },
 
     acceptSnapshot(envelope) {
-      const state = envelope?.sim || envelope?.state || envelope?.simState || envelope;
-      this.onSnapshot(state);
+      this.onSnapshot(extractActivitySim(envelope));
     },
 
     acceptEvent() {},
@@ -102,6 +102,13 @@ export function createHorseshoeInstance({
     acceptError() {},
 
     update() {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant,
+        onJoin: (info) => this.onJoin(info),
+        onLeave: () => this.onLeave(),
+      });
       pitScene.updateVisuals(simState);
       if (isParticipant) controller.update(simState);
     },

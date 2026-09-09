@@ -164,7 +164,9 @@ function buildUnderstoryWorld(ctx) {
     }
   }
   // Mycelial Choir ring (Task 9.5) at [0, 2] — low pads, walkable center.
-  box(0, .06, 2, 2.4, .08, 2.4, '#241e18');
+  // Base matches the manifest footprint (2.0) so the ring edge keeps a
+  // reachable interaction approach.
+  box(0, .06, 2, 2, .08, 2, '#241e18');
   for (const [i, [dx, dz, color]] of [[-0.7, 0, '#7ee8b0'], [0.7, 0, '#edb66c'], [0, -0.7, '#38bdf8'], [0, 0.7, '#a78bfa']].entries()) {
     box(dx, .1, 2 + dz, .45, .08, .45, '#32281e');
     const pad = glow(dx, .16, 2 + dz, .38, .05, .38, color, .35);

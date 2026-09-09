@@ -26,14 +26,19 @@ export function createFoosballTableScene({
   // Dimensions
   const PITCH_LENGTH = 1.6;
   const PITCH_WIDTH = 0.933;
-  const BED_Y = 0.82;
+  const BED_SURFACE_Y = 0.82;
   const BALL_VIS_RADIUS = (BALL_RADIUS / TABLE_LENGTH) * PITCH_LENGTH;
 
   // Materials
+  const pitchTexture = createPitchTexture();
   const pitchMat = new THREE.MeshStandardMaterial({
     color: '#1b5e20',
+    map: pitchTexture,
     roughness: 0.4,
     metalness: 0.05,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
   });
 
   const cabinetMat = new THREE.MeshStandardMaterial({
@@ -88,14 +93,14 @@ export function createFoosballTableScene({
   const cabinet = new THREE.Group();
 
   // 4 Legs
-  const legGeo = new THREE.BoxGeometry(0.1, BED_Y, 0.1);
+  const legGeo = new THREE.BoxGeometry(0.1, BED_SURFACE_Y, 0.1);
   const legLevelerGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.03, 12);
 
   const legPositions = [
-    [-PITCH_LENGTH * 0.5 - 0.08, BED_Y * 0.5, -PITCH_WIDTH * 0.5 - 0.08],
-    [PITCH_LENGTH * 0.5 + 0.08, BED_Y * 0.5, -PITCH_WIDTH * 0.5 - 0.08],
-    [-PITCH_LENGTH * 0.5 - 0.08, BED_Y * 0.5, PITCH_WIDTH * 0.5 + 0.08],
-    [PITCH_LENGTH * 0.5 + 0.08, BED_Y * 0.5, PITCH_WIDTH * 0.5 + 0.08],
+    [-PITCH_LENGTH * 0.5 - 0.08, BED_SURFACE_Y * 0.5, -PITCH_WIDTH * 0.5 - 0.08],
+    [PITCH_LENGTH * 0.5 + 0.08, BED_SURFACE_Y * 0.5, -PITCH_WIDTH * 0.5 - 0.08],
+    [-PITCH_LENGTH * 0.5 - 0.08, BED_SURFACE_Y * 0.5, PITCH_WIDTH * 0.5 + 0.08],
+    [PITCH_LENGTH * 0.5 + 0.08, BED_SURFACE_Y * 0.5, PITCH_WIDTH * 0.5 + 0.08],
   ];
 
   legPositions.forEach(([lx, ly, lz]) => {
@@ -109,46 +114,31 @@ export function createFoosballTableScene({
     cabinet.add(leveler);
   });
 
-  // Cabinet body
-  const bodyGeo = new THREE.BoxGeometry(PITCH_LENGTH + 0.3, 0.28, PITCH_WIDTH + 0.24);
+  // Cabinet apron — recessed below the playing surface so the turf reads inset.
+  const apronHeight = 0.22;
+  const apronTopY = BED_SURFACE_Y - 0.04;
+  const bodyGeo = new THREE.BoxGeometry(PITCH_LENGTH + 0.3, apronHeight, PITCH_WIDTH + 0.24);
   const bodyMesh = new THREE.Mesh(bodyGeo, cabinetMat);
-  bodyMesh.position.set(0, BED_Y - 0.14, 0);
+  bodyMesh.position.set(0, apronTopY - apronHeight * 0.5, 0);
   bodyMesh.castShadow = bodyMesh.receiveShadow = true;
   cabinet.add(bodyMesh);
 
-  // Playing pitch
+  // Playing bed — flat textured plane (a thin box reads as a raised slab in iso view).
   const pitchGeo = new THREE.PlaneGeometry(PITCH_LENGTH, PITCH_WIDTH);
   const pitchMesh = new THREE.Mesh(pitchGeo, pitchMat);
   pitchMesh.rotation.x = -Math.PI / 2;
-  pitchMesh.position.set(0, BED_Y, 0);
+  pitchMesh.position.set(0, BED_SURFACE_Y + 0.002, 0);
   pitchMesh.receiveShadow = true;
   cabinet.add(pitchMesh);
-
-  // Pitch markings (Centerline, center circle, penalty areas)
-  const lineMat = new THREE.MeshBasicMaterial({ color: '#ffffff', opacity: 0.75, transparent: true });
-
-  // Centerline
-  const centerLineGeo = new THREE.PlaneGeometry(0.01, PITCH_WIDTH);
-  const centerLine = new THREE.Mesh(centerLineGeo, lineMat);
-  centerLine.rotation.x = -Math.PI / 2;
-  centerLine.position.set(0, BED_Y + 0.001, 0);
-  cabinet.add(centerLine);
-
-  // Center circle
-  const circleGeo = new THREE.RingGeometry(0.12, 0.13, 32);
-  const centerCircle = new THREE.Mesh(circleGeo, lineMat);
-  centerCircle.rotation.x = -Math.PI / 2;
-  centerCircle.position.set(0, BED_Y + 0.001, 0);
-  cabinet.add(centerCircle);
 
   // Side Rails
   const sideRailGeo = new THREE.BoxGeometry(PITCH_LENGTH + 0.3, 0.16, 0.1);
   const railNorth = new THREE.Mesh(sideRailGeo, railMat);
-  railNorth.position.set(0, BED_Y + 0.08, -PITCH_WIDTH * 0.5 - 0.05);
+  railNorth.position.set(0, BED_SURFACE_Y + 0.08, -PITCH_WIDTH * 0.5 - 0.05);
   cabinet.add(railNorth);
 
   const railSouth = new THREE.Mesh(sideRailGeo, railMat);
-  railSouth.position.set(0, BED_Y + 0.08, PITCH_WIDTH * 0.5 + 0.05);
+  railSouth.position.set(0, BED_SURFACE_Y + 0.08, PITCH_WIDTH * 0.5 + 0.05);
   cabinet.add(railSouth);
 
   // End Rails with Goal Cutouts
@@ -160,14 +150,14 @@ export function createFoosballTableScene({
     new THREE.BoxGeometry(END_RAIL_THICK, 0.16, (PITCH_WIDTH - GOAL_VIS_WIDTH) * 0.5),
     railMat
   );
-  leftRailNorth.position.set(-PITCH_LENGTH * 0.5 - END_RAIL_THICK * 0.5, BED_Y + 0.08, -PITCH_WIDTH * 0.5 + (PITCH_WIDTH - GOAL_VIS_WIDTH) * 0.25);
+  leftRailNorth.position.set(-PITCH_LENGTH * 0.5 - END_RAIL_THICK * 0.5, BED_SURFACE_Y + 0.08, -PITCH_WIDTH * 0.5 + (PITCH_WIDTH - GOAL_VIS_WIDTH) * 0.25);
   cabinet.add(leftRailNorth);
 
   const leftRailSouth = new THREE.Mesh(
     new THREE.BoxGeometry(END_RAIL_THICK, 0.16, (PITCH_WIDTH - GOAL_VIS_WIDTH) * 0.5),
     railMat
   );
-  leftRailSouth.position.set(-PITCH_LENGTH * 0.5 - END_RAIL_THICK * 0.5, BED_Y + 0.08, PITCH_WIDTH * 0.5 - (PITCH_WIDTH - GOAL_VIS_WIDTH) * 0.25);
+  leftRailSouth.position.set(-PITCH_LENGTH * 0.5 - END_RAIL_THICK * 0.5, BED_SURFACE_Y + 0.08, PITCH_WIDTH * 0.5 - (PITCH_WIDTH - GOAL_VIS_WIDTH) * 0.25);
   cabinet.add(leftRailSouth);
 
   // Right End Rail (X = +PITCH_LENGTH / 2)
@@ -175,14 +165,14 @@ export function createFoosballTableScene({
     new THREE.BoxGeometry(END_RAIL_THICK, 0.16, (PITCH_WIDTH - GOAL_VIS_WIDTH) * 0.5),
     railMat
   );
-  rightRailNorth.position.set(PITCH_LENGTH * 0.5 + END_RAIL_THICK * 0.5, BED_Y + 0.08, -PITCH_WIDTH * 0.5 + (PITCH_WIDTH - GOAL_VIS_WIDTH) * 0.25);
+  rightRailNorth.position.set(PITCH_LENGTH * 0.5 + END_RAIL_THICK * 0.5, BED_SURFACE_Y + 0.08, -PITCH_WIDTH * 0.5 + (PITCH_WIDTH - GOAL_VIS_WIDTH) * 0.25);
   cabinet.add(rightRailNorth);
 
   const rightRailSouth = new THREE.Mesh(
     new THREE.BoxGeometry(END_RAIL_THICK, 0.16, (PITCH_WIDTH - GOAL_VIS_WIDTH) * 0.5),
     railMat
   );
-  rightRailSouth.position.set(PITCH_LENGTH * 0.5 + END_RAIL_THICK * 0.5, BED_Y + 0.08, PITCH_WIDTH * 0.5 - (PITCH_WIDTH - GOAL_VIS_WIDTH) * 0.25);
+  rightRailSouth.position.set(PITCH_LENGTH * 0.5 + END_RAIL_THICK * 0.5, BED_SURFACE_Y + 0.08, PITCH_WIDTH * 0.5 - (PITCH_WIDTH - GOAL_VIS_WIDTH) * 0.25);
   cabinet.add(rightRailSouth);
 
   // Goal Pockets
@@ -190,11 +180,11 @@ export function createFoosballTableScene({
   const goalPocketMat = new THREE.MeshStandardMaterial({ color: '#111111', roughness: 0.9 });
 
   const leftGoalPocket = new THREE.Mesh(goalBoxGeo, goalPocketMat);
-  leftGoalPocket.position.set(-PITCH_LENGTH * 0.5 - 0.08, BED_Y + 0.04, 0);
+  leftGoalPocket.position.set(-PITCH_LENGTH * 0.5 - 0.08, BED_SURFACE_Y + 0.04, 0);
   cabinet.add(leftGoalPocket);
 
   const rightGoalPocket = new THREE.Mesh(goalBoxGeo, goalPocketMat);
-  rightGoalPocket.position.set(PITCH_LENGTH * 0.5 + 0.08, BED_Y + 0.04, 0);
+  rightGoalPocket.position.set(PITCH_LENGTH * 0.5 + 0.08, BED_SURFACE_Y + 0.04, 0);
   cabinet.add(rightGoalPocket);
 
   // Slanted Corner Ramps (4 corners)
@@ -205,7 +195,7 @@ export function createFoosballTableScene({
 
   const createRamp = (rx, rz, rotY) => {
     const m = new THREE.Mesh(new THREE.ConeGeometry(rampSize, 0.03, 3), rampMat);
-    m.position.set(rx, BED_Y + 0.015, rz);
+    m.position.set(rx, BED_SURFACE_Y + 0.015, rz);
     m.rotation.y = rotY;
     cabinet.add(m);
   };
@@ -218,7 +208,7 @@ export function createFoosballTableScene({
 
   // 2. 8 Rods with Attached Player Figures
   const ROD_RADIUS = 0.01;
-  const ROD_HEIGHT = BED_Y + 0.06; // Rod axis sits above the pitch
+  const ROD_HEIGHT = BED_SURFACE_Y + 0.06; // Rod axis sits above the pitch
   const ROD_LENGTH = PITCH_WIDTH + 0.5;
 
   const rodMeshes = {
@@ -298,6 +288,7 @@ export function createFoosballTableScene({
         figureMeshes.push(figGroup);
       });
 
+      rodGroup.renderOrder = 2;
       group.add(rodGroup);
       rodMeshes[slotKey].push({
         group: rodGroup,
@@ -326,7 +317,8 @@ export function createFoosballTableScene({
   shadowMesh.position.y = -BALL_VIS_RADIUS + 0.001;
   ballGroup.add(shadowMesh);
 
-  ballGroup.position.set(0, BED_Y + BALL_VIS_RADIUS, 0);
+  ballGroup.position.set(0, BED_SURFACE_Y + BALL_VIS_RADIUS, 0);
+  ballGroup.renderOrder = 3;
   group.add(ballGroup);
 
   // 4. Overhead Bead / Score Display
@@ -343,12 +335,12 @@ export function createFoosballTableScene({
     const boardGeo = new THREE.BoxGeometry(0.35, 0.12, 0.04);
     const boardMat = new THREE.MeshBasicMaterial({ map: scoreTexture });
     scoreboardMesh = new THREE.Mesh(boardGeo, boardMat);
-    scoreboardMesh.position.set(0, BED_Y + 0.45, -PITCH_WIDTH * 0.5 - 0.08);
+    scoreboardMesh.position.set(0, BED_SURFACE_Y + 0.45, -PITCH_WIDTH * 0.5 - 0.08);
     group.add(scoreboardMesh);
 
     // Support rod for scoreboard
     const boardPost = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.35, 8), brassMat);
-    boardPost.position.set(0, BED_Y + 0.25, -PITCH_WIDTH * 0.5 - 0.08);
+    boardPost.position.set(0, BED_SURFACE_Y + 0.25, -PITCH_WIDTH * 0.5 - 0.08);
     group.add(boardPost);
   }
 
@@ -386,7 +378,7 @@ export function createFoosballTableScene({
 
   // 5. Goal Flash Glow Light
   const goalLight = new THREE.PointLight('#ffdd88', 0, 4.0);
-  goalLight.position.set(0, BED_Y + 0.5, 0);
+  goalLight.position.set(0, BED_SURFACE_Y + 0.5, 0);
   group.add(goalLight);
 
   let flashTimer = 0;
@@ -448,6 +440,7 @@ export function createFoosballTableScene({
 
     dispose() {
       if (scoreTexture) scoreTexture.dispose();
+      if (pitchTexture) pitchTexture.dispose();
       pitchMat.dispose();
       cabinetMat.dispose();
       railMat.dispose();
@@ -459,4 +452,38 @@ export function createFoosballTableScene({
       ballMat.dispose();
     },
   };
+}
+
+function createPitchTexture() {
+  if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
+    return null;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 597;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  ctx.fillStyle = '#1b5e20';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)';
+  ctx.lineWidth = 4;
+
+  // Center line at mid-table X, running the full width (Z axis on the bed).
+  ctx.beginPath();
+  ctx.moveTo(canvas.width * 0.5, 0);
+  ctx.lineTo(canvas.width * 0.5, canvas.height);
+  ctx.stroke();
+
+  // Center circle.
+  ctx.beginPath();
+  ctx.arc(canvas.width * 0.5, canvas.height * 0.5, canvas.height * 0.13, 0, Math.PI * 2);
+  ctx.stroke();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 }

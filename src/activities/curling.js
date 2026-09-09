@@ -10,6 +10,7 @@ import { createCurlingRinkScene } from './curling/rinkScene.js';
 import { createCurlingAudio } from './curling/audio.js';
 import { createCurlingController } from './curling/controller.js';
 import { initCurlingState } from '../../shared/curlingModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export function createCurlingInstance({
   activityDef,
@@ -129,8 +130,7 @@ export function createCurlingInstance({
     },
 
     acceptSnapshot(envelope) {
-      const state = envelope?.sim || envelope?.state || envelope?.simState || envelope;
-      this.onSnapshot(state);
+      this.onSnapshot(extractActivitySim(envelope));
     },
 
     acceptEvent(envelope) {
@@ -150,6 +150,13 @@ export function createCurlingInstance({
     acceptError() {},
 
     update(time, delta) {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant,
+        onJoin: (info) => this.onJoin(info),
+        onLeave: () => this.onLeave(),
+      });
       rinkScene.updateVisuals(simState, time);
       controller.update(simState);
     },

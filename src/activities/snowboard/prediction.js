@@ -35,17 +35,17 @@ export const PREDICTION_TUNING = Object.freeze({
 function positionDelta(a, b) {
   return Math.hypot(
     (a.s ?? 0) - (b.s ?? 0),
-    (a.u ?? 0) - (b.u ?? 0),
+    (a.x ?? 0) - (b.x ?? 0),
     (a.y ?? 0) - (b.y ?? 0),
   );
 }
 
 function stateMismatch(a, b) {
   return (
-    a.grounded !== b.grounded ||
-    a.nextCheckpoint !== b.nextCheckpoint ||
-    (a.recoveryTicks ?? 0) !== (b.recoveryTicks ?? 0) ||
-    (a.dnfReason ?? null) !== (b.dnfReason ?? null)
+    a.airborne !== b.airborne ||
+    (a.finishTick ?? null) !== (b.finishTick ?? null) ||
+    (a.dnfReason ?? null) !== (b.dnfReason ?? null) ||
+    (a.resetSeq ?? 0) !== (b.resetSeq ?? 0)
   );
 }
 
@@ -113,7 +113,7 @@ export function createPredictor(course, tuning = {}) {
     reset(serverState, serverTick, held, appliedSeqValue, resetSeq = 0) {
       predicted = { ...serverState };
       predictedTick = serverTick;
-      heldControls = held ? normalizeControls(held) : { steer: 0, tuck: false, brake: true, jumpHeld: false };
+      heldControls = held ? normalizeControls(held) : { steer: 0, tuck: false, lean: false, brake: true, boost: false, jumpHeld: false, trick: { Q: false, E: false, X: false } };
       appliedSeq = appliedSeqValue ?? 0;
       history = [{ tick: serverTick, state: { ...serverState } }];
       pendingControls = [];
@@ -140,7 +140,7 @@ export function createPredictor(course, tuning = {}) {
 
       if (nowMs - lastSnapshotAt > t.freezeMs) {
         frozen = true;
-        return { frozen: true };
+        return { frozen: true, events: [] };
       }
       frozen = false;
 
@@ -149,6 +149,7 @@ export function createPredictor(course, tuning = {}) {
       stepAccMs = Math.min(stepAccMs + dtMs, (t.catchUpSteps + 1) * DT * 1000);
       let steps = Math.min(Math.floor(stepAccMs / (DT * 1000)), t.catchUpSteps);
       stepAccMs -= steps * DT * 1000;
+      const events = [];
 
       for (let index = 0; index < steps; index++) {
         const sample = pendingControls.find((c) => c.tick === predictedTick);
@@ -156,6 +157,7 @@ export function createPredictor(course, tuning = {}) {
         const result = rulesStep(course, predicted, controls, predicted, predictedTick + 1);
         predicted = result.state;
         predictedTick += 1;
+        events.push(...result.events);
         history.push({ tick: predictedTick, state: predicted });
         if (history.length > t.historySteps) history = history.slice(-t.historySteps);
       }
@@ -164,7 +166,7 @@ export function createPredictor(course, tuning = {}) {
       // Correction convergence: decay active smooth corrections by age.
       if (correction && nowMs - correction.startedAtMs >= t.smoothCorrectionMs) correction = null;
 
-      return { frozen: false, state: predicted, tick: predictedTick, correction };
+      return { frozen: false, state: predicted, tick: predictedTick, correction, events };
     },
 
     /**

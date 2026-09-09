@@ -131,13 +131,27 @@ const activityView = createActivityViewLease({
     renderPass.scene = leasedScene;
     activeCamera = leasedCamera;
     renderPass.camera = activeCamera;
+    // The leased race scene is authored for the source's daylight exposure
+    // (integrate-ssxtricky-snowboard 2.3): borrow the renderer briefly and
+    // restore the exact host presentation on release.
+    leasedRendererExposure = renderer.toneMappingExposure;
+    renderer.toneMappingExposure = 1.25;
+    // A race view owns the whole frame: leave cinema view so the theater
+    // stage, its screen panel and the docked chat no longer cover the
+    // mountain. The player is at the cabinet, not watching a film.
+    if (theaterUI.isWatching()) theaterUI.setWatchMode(false);
   },
   restore: () => {
     renderPass.scene = scene;
     activeCamera = cameraSeam.resolveActiveCamera({ isoCamera: camera, fpCamera });
     renderPass.camera = activeCamera;
+    if (leasedRendererExposure !== null) {
+      renderer.toneMappingExposure = leasedRendererExposure;
+      leasedRendererExposure = null;
+    }
   },
 });
+let leasedRendererExposure = null;
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.25, 0.65, 1.05);
 composer.addPass(bloom);
 

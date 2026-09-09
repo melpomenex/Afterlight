@@ -57,10 +57,10 @@ test('race audio: loops scale with the rider state and never exceed the voice ca
   const { ctx } = makeStubContext();
   const audio = createRaceAudio({ getContext: () => ctx });
 
-  audio.update({ v: 40, grounded: true, steer: 0.8 });
-  assert.equal(audio.loopCount, 3, 'wind + slide + carve loops at speed');
+  audio.update({ v: 40, airborne: false, steer: 0.8 });
+  assert.equal(audio.loopCount, 2, 'wind + slide loops at speed (carve is a source one-shot)');
 
-  audio.update({ v: 0, grounded: true, steer: 0 });
+  audio.update({ v: 0, airborne: false, steer: 0 });
   assert.equal(audio.loopCount, 0, 'all loops stop at a standstill');
 
   // One-shots under a suspended context are no-ops and never throw.
@@ -75,7 +75,7 @@ test('race audio: muted blocks everything; dispose stops and closes exactly once
   const { ctx } = makeStubContext();
   const audio = createRaceAudio({ getContext: () => ctx });
 
-  audio.update({ v: 40, grounded: true, steer: 0.5 });
+  audio.update({ v: 40, airborne: false, steer: 0.5 });
   audio.setMuted(true);
   assert.equal(audio.loopCount, 0, 'mute stops loops');
   audio.event('finish');
@@ -90,7 +90,7 @@ test('race audio: an injected host context is never closed on dispose', () => {
   const { ctx, stats } = makeStubContext();
   const audio = createRaceAudio({ mixer: { context: ctx, buses: { effects: { name: 'effects-bus' } } } });
 
-  audio.update({ v: 30, grounded: true, steer: 0 });
+  audio.update({ v: 30, airborne: false, steer: 0 });
   audio.dispose();
   assert.equal(stats.closed, 0, 'host context outlives the race');
   assert.ok(ctx.__stats === stats);
@@ -98,7 +98,7 @@ test('race audio: an injected host context is never closed on dispose', () => {
 
 test('race audio: without any context every entry point is a no-op', () => {
   const audio = createRaceAudio({ getContext: () => null });
-  audio.update({ v: 40, grounded: true, steer: 1 });
+  audio.update({ v: 40, airborne: false, steer: 1 });
   audio.event('go');
   audio.setMuted(true);
   audio.dispose();

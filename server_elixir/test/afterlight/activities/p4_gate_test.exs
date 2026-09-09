@@ -259,7 +259,7 @@ defmodule Afterlight.Activities.P4GateTest do
     assert total_goals >= 0
   end
 
-  test "4. P4 Gate: Orpheum coexistence with 8 total activities and unobstructed sightlines", _ctx do
+  test "4. P4 Gate: Orpheum coexistence with the declared activities and unobstructed sightlines", _ctx do
     # Verify place definitions exported to priv
     path = Application.app_dir(:afterlight, "priv/place_definitions.json")
     assert File.exists?(path)
@@ -270,7 +270,10 @@ defmodule Afterlight.Activities.P4GateTest do
     assert theater != nil
 
     activities = theater["activities"] || []
-    assert length(activities) == 8
+    # P4 recorded 8 activities; the P5 Orpheum additions (darts, piano, photo
+    # booth) bring the declared set to 11. The manifest cap stays 16.
+    assert length(activities) == 11
+    assert length(activities) <= 16
 
     # Verify both continuous games are present
     assert Enum.any?(activities, fn a -> a["id"] == "orpheum-air-hockey" and a["type"] == "air-hockey" end)

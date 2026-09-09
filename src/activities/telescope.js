@@ -10,6 +10,7 @@ import { createTelescopeSkyScene } from './telescope/skyScene.js';
 import { createTelescopeEyeCamera } from './telescope/eyeCamera.js';
 import { createTelescopeController } from './telescope/controller.js';
 import { initTelescopeSimState } from '../../shared/telescopeModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export function createTelescopeInstance({
   activityDef,
@@ -126,8 +127,7 @@ export function createTelescopeInstance({
     },
 
     acceptSnapshot(envelope) {
-      const state = envelope?.sim || envelope?.state || envelope?.simState || envelope;
-      this.onSnapshot(state);
+      this.onSnapshot(extractActivitySim(envelope));
     },
 
     acceptEvent() {},
@@ -135,6 +135,13 @@ export function createTelescopeInstance({
     acceptError() {},
 
     update() {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant: isObserver,
+        onJoin: (info) => this.onJoin(info),
+        onLeave: () => this.onLeave(),
+      });
       skyScene.updateVisuals(simState);
       if (isObserver) {
         controller.update(simState);

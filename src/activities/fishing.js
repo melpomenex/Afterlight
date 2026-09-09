@@ -10,6 +10,7 @@ import { createFishingScene } from './fishing/scene.js';
 import { createFishingAudio } from './fishing/audio.js';
 import { createFishingController } from './fishing/controller.js';
 import { initFishingState } from '../../shared/fishingModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export function createFishingInstance({
   activityDef,
@@ -92,8 +93,7 @@ export function createFishingInstance({
       simState = serverSim;
     },
     acceptSnapshot(envelope) {
-      const state = envelope?.sim || envelope?.state || envelope?.simState || envelope;
-      this.onSnapshot(state);
+      this.onSnapshot(extractActivitySim(envelope));
     },
     acceptEvent(envelope) {
       const name = envelope?.event || envelope?.name || envelope?.type;
@@ -105,6 +105,13 @@ export function createFishingInstance({
     acceptResult() {},
     acceptError() {},
     update(time) {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant,
+        onJoin: (info) => this.onJoin(info),
+        onLeave: () => this.onLeave(),
+      });
       scene.updateVisuals(simState, time);
       if (isParticipant) controller.update(simState);
     },

@@ -358,8 +358,8 @@
             "rotationY": 0
           },
           "footprint": {
-            "width": 2.4,
-            "depth": 2.4
+            "width": 2,
+            "depth": 2
           },
           "interactionRadius": 2.8,
           "participantAnchors": [
@@ -832,7 +832,7 @@
             "rotationY": 0
           },
           "footprint": {
-            "width": 4.2,
+            "width": 2.2,
             "depth": 10
           },
           "interactionRadius": 3.2,
@@ -1334,7 +1334,7 @@
         {
           "id": "summit-run",
           "type": "snowboard-race",
-          "rulesVersion": 1,
+          "rulesVersion": 2,
           "transform": {
             "position": [
               10.42,
@@ -1431,8 +1431,8 @@
           "minPlayers": 2,
           "readyPolicy": "explicit",
           "course": {
-            "id": "summit-night",
-            "version": 1
+            "id": "alpine-rush",
+            "version": 2
           }
         },
         {
@@ -1573,33 +1573,33 @@
           "rulesVersion": 1,
           "transform": {
             "position": [
-              8.4,
+              -10.4,
               0,
-              3.6
+              -1.5
             ],
-            "rotationY": 0
+            "rotationY": 3.141592653589793
           },
           "footprint": {
-            "width": 1.4,
-            "depth": 2.2
+            "width": 1,
+            "depth": 1.4
           },
           "interactionRadius": 2.6,
           "participantAnchors": [
             {
-              "facing": 1.5707963267948966,
+              "facing": -1.5707963267948966,
               "position": [
-                7.3,
+                -9.35,
                 0,
-                3.2
+                -1.1
               ],
               "slot": 0
             },
             {
-              "facing": 1.5707963267948966,
+              "facing": -1.5707963267948966,
               "position": [
-                7.3,
+                -9.35,
                 0,
-                4
+                -1.9
               ],
               "slot": 1
             }
@@ -1723,9 +1723,9 @@
           "rulesVersion": 1,
           "transform": {
             "position": [
-              4.5,
+              8,
               0,
-              2
+              5.5
             ],
             "rotationY": 0
           },
@@ -1738,18 +1738,18 @@
             {
               "facing": 0,
               "position": [
-                4.5,
+                8,
                 0,
-                -0.6
+                2.9
               ],
               "slot": 0
             },
             {
               "facing": 3.141592653589793,
               "position": [
-                4.5,
+                8,
                 0,
-                4.6
+                8.1
               ],
               "slot": 1
             }

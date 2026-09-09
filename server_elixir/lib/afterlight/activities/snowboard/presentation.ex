@@ -12,6 +12,11 @@ defmodule Afterlight.Activities.Snowboard.Presentation do
   """
 
   @course_length 1800.0
+  # The Alpine Rush course has no ordered checkpoints (source design); the
+  # summary's progress marker is derived from distance in 225 m segments so
+  # the bystander cabinet display keeps its CP readout without inventing
+  # authoritative gates.
+  @progress_segment_meters 225.0
 
   # Wire phase names for the race (D4 lifecycle vocabulary).
   defp wire_status(state) do
@@ -146,7 +151,7 @@ defmodule Afterlight.Activities.Snowboard.Presentation do
         %{
           "playerId" => player.player_id,
           "slot" => slot,
-          "nextCheckpoint" => Map.get(rider, "nextCheckpoint", 0),
+          "nextCheckpoint" => min(8, trunc(Map.get(rider, "s", 0) * 1.0 / @progress_segment_meters) + 1),
           "normalizedProgress" => max(0.0, min(1.0, Map.get(rider, "s", 0) * 1.0 / @course_length)),
           "status" => player_status(player, rider),
           "dnfReason" => Map.get(rider, "dnfReason")

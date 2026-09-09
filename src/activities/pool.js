@@ -17,6 +17,7 @@ import { createPoolTableScene } from './pool/tableScene.js';
 import { createPoolAudio } from './pool/audio.js';
 import { createPoolCamera } from './pool/camera.js';
 import { createPoolController } from './pool/controller.js';
+import { extractActivitySim } from './sessionBind.js';
 
 export function createPoolInstance({
   activityDef,
@@ -306,8 +307,8 @@ export function createPoolInstance({
      */
     acceptSnapshot(frame) {
       if (!frame) return;
-      const sim = frame.state?.sim || frame.sim_state;
-      if (sim) {
+      const sim = extractActivitySim(frame);
+      if (sim && (sim.physics || sim.turn != null || Number.isInteger(sim.turn))) {
         serverSimState = sim;
 
         // If not actively simulating local shot, sync directly

@@ -102,7 +102,7 @@
 
 ## 11. Program completion and release readiness
 
-- [ ] 11.1 Run relevant Node and Elixir suites plus production build; run projection drift and protocol compatibility checks and resolve failures caused by this change.
+- [x] 11.1 Run relevant Node and Elixir suites plus production build; run projection drift and protocol compatibility checks and resolve failures caused by this change.
 - [ ] 11.2 Run final browser regression over theater media/seats, all four camera views, chat, emotes, travel, jump resets, Kiln and retained legacy interactions alongside enabled activities.
 - [ ] 11.3 Record reference hardware/browser/settings and activity performance: target 60 fps (p95 frame at most 20 ms) on the selected desktop baseline and p95 at most 33 ms on the selected touch baseline; document any unmet target and fix or explicitly revise the release scope before claiming readiness.
 - [ ] 11.4 Verify per-type disable/rollback, process/port cleanup, database outage/retry and room lease failure under load; confirm original data snapshot hashes unchanged by activity migration.

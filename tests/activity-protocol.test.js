@@ -457,6 +457,19 @@ test('NetworkClient on Phoenix transport: supportsActivities is true, sends comm
   assert.equal(sentFrames[1].type, MSG_TYPES.ACTIVITY_INPUT);
   assert.equal(sentFrames[1].seq, 0);
 
+  // Summit Run commands are fenced by match identity. The network facade
+  // must preserve it instead of silently dropping it before validation.
+  const fencedInputRes = client.sendActivityInput({
+    activityId: 'orpheum-summit-run',
+    sessionId: 'sess_1',
+    lease: 'lease_1',
+    seq: 1,
+    matchId: 'match_1',
+    controls: { kind: 'neutral' },
+  });
+  assert.equal(fencedInputRes.ok, true);
+  assert.equal(sentFrames[2].matchId, 'match_1');
+
   // Invalid input (seq < 0) fails closed
   const badInput = client.sendActivityInput({
     activityId: 'pong_court',
@@ -467,7 +480,7 @@ test('NetworkClient on Phoenix transport: supportsActivities is true, sends comm
   });
   assert.equal(badInput.ok, false);
   assert.equal(badInput.error, ACTIVITY_ERRORS.INVALID_REQUEST);
-  assert.equal(sentFrames.length, 2, 'invalid input was not sent');
+  assert.equal(sentFrames.length, 3, 'invalid input was not sent');
 });
 
 test('Old clients: receiving activity frames without registered handlers does not throw or crash', () => {

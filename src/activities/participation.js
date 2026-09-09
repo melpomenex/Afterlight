@@ -205,6 +205,7 @@ export function createParticipationController({
     get lease() { return lease; },
     get sessionId() { return sessionId; },
     get currentMatchId() { return currentMatchId; },
+    get roomId() { return getRoomId?.() || ''; },
 
     get isParticipating() { return state === 'participating'; },
     get isJoining() { return state === 'joining'; },
@@ -325,12 +326,14 @@ export function createParticipationController({
 
       const status = frame?.status;
 
-      if (status === 'seated' || frame?.role === 'player') {
+      if (status === 'seated' || frame?.result === 'seated' || frame?.role === 'player') {
         state = 'participating';
         currentSlot = frame?.slot ?? null;
         lease = frame?.lease ?? frame?.leaseId ?? null;
         sessionId = frame?.sessionId ?? null;
-        currentMatchId = frame?.matchId ?? currentMatchId;
+        if (typeof frame?.matchId === 'string' && frame.matchId) {
+          currentMatchId = frame.matchId;
+        }
         currentAnchor = findAnchorForSlot(currentActivity, currentSlot);
 
         // Accepting the seat readies the player: the server starts the match
@@ -407,6 +410,17 @@ export function createParticipationController({
       if (frame?.activityId && currentActivity && frame.activityId !== currentActivity.id) {
         return false;
       }
+
+      const recoverable = frame?.error === 'not_loaded'
+        || frame?.error === 'invalid_request'
+        || frame?.error === 'stale_match'
+        || frame?.error === 'stale_sequence';
+      if (recoverable && (state === 'participating' || state === 'joining')) {
+        const msg = frame?.message || frame?.error || 'Activity command failed';
+        toast?.('Activity', msg, 'ACTIVITY');
+        return true;
+      }
+
       if (state === 'joining' || state === 'participating' || state === 'queued' || state === 'watching') {
         const wasParticipating = state === 'participating';
         if (wasParticipating) {
@@ -428,8 +442,13 @@ export function createParticipationController({
      * Accept authoritative activity_state snapshot.
      */
     handleSnapshot(frame) {
+      if (frame?.activityId && currentActivity && frame.activityId !== currentActivity.id) {
+        return false;
+      }
+      if (typeof frame?.matchId === 'string' && frame.matchId) {
+        currentMatchId = frame.matchId;
+      }
       if (state !== 'participating' || !frame) return;
-      if (frame.activityId && currentActivity && frame.activityId !== currentActivity.id) return;
       if (typeof frame.matchId === 'string' && frame.matchId) currentMatchId = frame.matchId;
 
       // Ejection check: if the snapshot carries players and local slot is not in it

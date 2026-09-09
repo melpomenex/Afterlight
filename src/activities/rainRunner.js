@@ -516,11 +516,11 @@ export function createRainRunnerInstance({
     },
 
     acceptResult(envelope) {
-      this.lastResult = envelope?.result || envelope || null;
+      lastResult = envelope?.result || envelope || null;
     },
 
     acceptError(envelope) {
-      this.lastError = envelope?.error ? envelope : (envelope ? { error: envelope } : null);
+      lastError = envelope?.error ? envelope : (envelope ? { error: envelope } : null);
     },
 
     neutralizeInput() {

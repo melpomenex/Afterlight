@@ -1,37 +1,39 @@
 defmodule Afterlight.Activities.Snowboard.Course do
   @moduledoc """
-  Canonical Summit Run course loader, validator and samplers
-  (add-multiplayer-snowboard-arcade 3.1, design D5/D6).
+  Canonical Summit Run course — ALPINE RUSH loader, validator and samplers
+  (integrate-ssxtricky-snowboard 3.2, ported from the frozen SSXTricky source
+  rev e87f6c7d; see the change's baseline.md for provenance).
 
-  The browser and this module consume the SAME generated document
-  (`priv/snowboard_course.json`, byte-identical to
-  `shared/snowboard/course-summit-night.json`) and its embedded sha256.
-  Samplers reproduce the JavaScript arithmetic order exactly: linear
-  centerline interpolation and clamped bilinear height interpolation over the
-  baked grid. `tests/fixtures/snowboard/course-parity.json` pins sampled
-  golden points; reducer parity (D10: ≤1cm position / 0.01 m/s) builds on
-  these matching exactly.
+  The course is ANALYTIC: the browser and this module compute the SAME
+  closed-form terrain functions (winding centerline, ground height, ramp
+  profiles) that `shared/snowboard/course.js` ports verbatim, while the
+  enumerable features (13 ramps, 13 speed zones, 22 pickups, 4 banners) come
+  from the SAME canonical document (`priv/snowboard_course.json`,
+  byte-identical to `shared/snowboard/course-alpine-rush.json`) with its
+  embedded sha256. `tests/fixtures/snowboard/course-parity.json` pins sampled
+  golden points; reducer parity (≤1cm position / 0.01 m/s over the golden
+  fixture) builds on these agreeing to ≤1e-9.
 
-  There is no hand-ported terrain function here and no rigid-body dependency:
-  the baked grid IS the mountain for simulation as well as render. Document
-  maps use the JSON string keys exactly as decoded from the shared file.
+  There is no baked height grid and no rigid-body dependency: the analytic
+  surface IS the mountain for simulation and render alike, exactly as in the
+  source game (cosmetic bank noise beyond |x-center| > 29 is render-only and
+  absent from contact math on both runtimes).
   """
 
-  @course_id "summit-night"
-  @course_version 1
-  @rules_version 1
+  defstruct [:doc, :hash, :ramps, :speed_zones, :pickups, :banners, :finish]
+
+  @course_id "alpine-rush"
+  @course_version 2
+  @rules_version 2
   @length_meters 1800
-  @grid_step 2
-  @lateral_step 2
-  @corridor_half_width 24
-  @groomed_half_width 18
-  @max_colliders 64
-  @checkpoint_planes [200, 400, 600, 800, 1000, 1200, 1400, 1600]
-  @finish_meters 1800
+  @corridor_half_width 35
+  @carve_half_width 20
+  @groomed_half_width 23
+  @edge_bleed_half_width 23
+  @ramp_count 13
+  @pickup_count 22
+  @approx 1.0e-6
 
-  defstruct [:doc, :hash, :gates, :finish, :ramps, :obstacles, :recovery_points]
-
-  @doc "Default priv path of the committed canonical course."
   def default_path, do: Application.app_dir(:afterlight, "priv/snowboard_course.json")
 
   @doc """
@@ -47,11 +49,11 @@ defmodule Afterlight.Activities.Snowboard.Course do
         %__MODULE__{
           doc: doc,
           hash: Map.get(doc, "hash"),
-          gates: Map.get(doc, "gates"),
-          finish: Map.get(doc, "finish"),
           ramps: Map.get(doc, "ramps"),
-          obstacles: Map.get(doc, "obstacles"),
-          recovery_points: Map.get(doc, "recoveryPoints")
+          speed_zones: Map.get(doc, "speedZones"),
+          pickups: Map.get(doc, "pickups"),
+          banners: Map.get(doc, "banners"),
+          finish: Map.get(doc, "finish")
         }
 
       problems ->
@@ -75,7 +77,7 @@ defmodule Afterlight.Activities.Snowboard.Course do
 
   @doc """
   Canonical (sorted-key, hash-free) JSON encoding, matching
-  `canonicalCourseJson` in shared/snowboard/course.js byte for byte.
+  `canonicalCourseJson` in shared/snowboard/courseHash.js byte for byte.
   """
   def canonical_json(value) when is_map(value) do
     inner =
@@ -99,168 +101,132 @@ defmodule Afterlight.Activities.Snowboard.Course do
     Base.encode16(:crypto.hash(:sha256, canonical_json(without_hash)), case: :lower)
   end
 
+  # --- analytic terrain (verbatim ports of the source functions) -----------------
+
+  @doc """
+  Winding groomed centerline x(d). Source:
+  sin(d*.003)*24 + sin(d*.009)*7.
+  """
+  def center_at(d) do
+    :math.sin(d * 0.003) * 24 + :math.sin(d * 0.009) * 7
+  end
+
+  @doc """
+  Absolute ground height. Source:
+  -d*.18 + sin(d*.012)*2 + pow(max(0,|x-center(d)|-22),1.18)*.38
+  """
+  def ground_at(x, d) do
+    -d * 0.18 + :math.sin(d * 0.012) * 2 +
+      :math.pow(max(0.0, abs(x - center_at(d)) - 22), 1.18) * 0.38
+  end
+
+  @doc "Height on a ramp at course distance d (clamped profile)."
+  def ramp_height(ramp, d) do
+    ramp["base"] + clamp((d - ramp["start"]) / (ramp["end"] - ramp["start"]), 0, 1) * ramp["height"]
+  end
+
+  @doc "Whether (x, d) is on the ramp's footprint."
+  def on_ramp?(ramp, x, d) do
+    d >= ramp["start"] and d <= ramp["end"] and abs(x - ramp["x"]) <= ramp["width"] / 2
+  end
+
+  @doc "Contact surface at absolute (x, d): max(ground, ramp surfaces)."
+  def surface_at(%__MODULE__{} = course, x, d) do
+    Enum.reduce(course.ramps, ground_at(x, d), fn ramp, h ->
+      if on_ramp?(ramp, x, d), do: max(h, ramp_height(ramp, d)), else: h
+    end)
+  end
+
+  # --- validation -----------------------------------------------------------------
+
   @doc """
   Validates the document and returns a list of problems (empty = valid).
   Mirrors `validateCourse` in shared/snowboard/course.js.
   """
   def validate(doc) when is_map(doc) do
-    grid = fetch(doc, "grid")
-    s_values = fetch(grid, "sValues") || []
-    u_values = fetch(grid, "uValues") || []
-    height = fetch(grid, "height") || []
-    centerline = fetch(doc, "centerline") || []
-    s_count = div(@length_meters, @grid_step) + 1
-    u_count = div(@corridor_half_width * 2, @lateral_step) + 1
+    ramps = fetch(doc, "ramps") || []
+    zones = fetch(doc, "speedZones") || []
+    pickups = fetch(doc, "pickups") || []
+    banners = fetch(doc, "banners") || []
 
     []
     |> problem(fetch(doc, "id") == @course_id, "course id must be #{@course_id}")
     |> problem(fetch(doc, "version") == @course_version, "course version must be #{@course_version}")
     |> problem(fetch(doc, "rulesVersion") == @rules_version, "rulesVersion must be #{@rules_version}")
     |> problem(fetch(doc, "lengthMeters") == @length_meters, "lengthMeters must be #{@length_meters}")
-    |> problem(fetch(doc, "gridStepMeters") == @grid_step, "gridStepMeters must be 2")
-    |> problem(fetch(doc, "corridorHalfWidth") == @corridor_half_width, "corridorHalfWidth must be 24")
-    |> problem(length(s_values) == s_count, "grid needs #{s_count} s samples")
-    |> problem(length(u_values) == u_count, "grid needs #{u_count} u samples")
-    |> problem(length(height) == s_count, "height rows must match s samples")
-    |> problem(s_uniform?(s_values), "sValues must run 0..#{@length_meters} uniformly at #{@grid_step}m")
-    |> problem(u_uniform?(u_values), "uValues must span -#{@corridor_half_width}..#{@corridor_half_width} uniformly at #{@lateral_step}m")
-    |> problem(heights_finite?(height, u_count), "all heights must be finite with #{u_count} columns")
-    |> problem(centerline_ok?(centerline, s_count), "centerline entries must be finite, in-bounds, with rideable width")
-    |> problem(gates_ok?(doc), "gates must be the eight ordered full-width checkpoints")
-    |> problem(fetch(fetch(doc, "finish"), "s") == @finish_meters, "finish must sit at #{@finish_meters}m")
-    |> problem(colliders_ok?(doc), "obstacle colliders must be bounded, finite and <= #{@max_colliders}")
-    |> problem(recovery_ok?(doc), "recovery points must sit inside their earned segments")
+    |> problem(fetch(doc, "corridorHalfWidth") == @corridor_half_width, "corridorHalfWidth must be #{@corridor_half_width}")
+    |> problem(fetch(doc, "carveHalfWidth") == @carve_half_width, "carveHalfWidth must be #{@carve_half_width}")
+    |> problem(fetch(doc, "groomedHalfWidth") == @groomed_half_width, "groomedHalfWidth must be #{@groomed_half_width}")
+    |> problem(fetch(doc, "edgeBleedHalfWidth") == @edge_bleed_half_width, "edgeBleedHalfWidth must be #{@edge_bleed_half_width}")
+    |> problem(length(ramps) == @ramp_count, "course must declare exactly #{@ramp_count} ramps")
+    |> problem(ramps_ok?(ramps), "ramps must match the source layout and sit on the terrain")
+    |> problem(length(zones) == @ramp_count, "course must declare exactly #{@ramp_count} speed zones")
+    |> problem(zones_ok?(zones, ramps), "speed zones must feed their ramps at source offsets")
+    |> problem(length(pickups) == @pickup_count, "course must declare exactly #{@pickup_count} pickups")
+    |> problem(pickups_ok?(pickups), "pickups must sit on the source lines inside the corridor")
+    |> problem(length(banners) == 4, "course must declare the four source banners")
+    |> problem(banners_ok?(banners), "the finish banner must sit at the finish")
+    |> problem(fetch(fetch(doc, "finish"), "s") == @length_meters, "finish must sit at #{@length_meters}m")
     |> problem(valid_hash?(doc), "hash must match the canonical document")
     |> Enum.reverse()
   end
 
   def validate(_other), do: ["course document must be an object"]
 
-  # --- samplers (exact JS arithmetic order) -----------------------------------
-
-  @doc "Clamped bilinear surface height at course position (s, u)."
-  def height_at(%__MODULE__{} = course, s, u) do
-    grid = fetch(course.doc, "grid")
-    height = fetch(grid, "height")
-    s_max = length(fetch(grid, "sValues")) - 1
-    u_max = length(fetch(grid, "uValues")) - 1
-
-    fs = clamp(s / @grid_step, 0, s_max)
-    i0 = min(trunc(fs), s_max - 1)
-    ts = fs - i0
-    fu = clamp((u + @corridor_half_width) / @lateral_step, 0, u_max)
-    j0 = min(trunc(fu), u_max - 1)
-    tu = fu - j0
-
-    h00 = height_at_index(height, i0, j0)
-    h10 = height_at_index(height, i0 + 1, j0)
-    h01 = height_at_index(height, i0, j0 + 1)
-    h11 = height_at_index(height, i0 + 1, j0 + 1)
-
-    (h00 * (1 - ts) + h10 * ts) * (1 - tu) + (h01 * (1 - ts) + h11 * ts) * tu
-  end
-
-  @doc "Linear centerline x at s, clamped at the ends."
-  def center_x_at(%__MODULE__{} = course, s) do
-    centerline = fetch(course.doc, "centerline")
-    last = length(centerline) - 1
-    fs = clamp(s / @grid_step, 0, last)
-    i0 = min(trunc(fs), last - 1)
-    ts = fs - i0
-
-    x0 = fetch(Enum.at(centerline, i0), "x")
-    x1 = fetch(Enum.at(centerline, i0 + 1), "x")
-    x0 * (1 - ts) + x1 * ts
-  end
-
-  @doc """
-  Downhill grade g(s) = clamp(-dHeight/ds, 0, 0.6) sampled from the same
-  grid at the centerline.
-  """
-  def grade_at(%__MODULE__{} = course, s) do
-    back = max(0, s - @grid_step) * 1.0
-    ahead = min(@length_meters, s + @grid_step) * 1.0
-    slope = (height_at(course, ahead, 0) - height_at(course, back, 0)) / (ahead - back)
-    clamp(-slope, 0.0, 0.6)
-  end
-
-  # --- internals ---------------------------------------------------------------
-
-  defp height_at_index(height, i, j), do: height |> Enum.at(i) |> Enum.at(j)
-
-  defp s_uniform?(s_values) do
-    s_values
+  defp ramps_ok?(ramps) do
+    ramps
     |> Enum.with_index()
-    |> Enum.all?(fn {s, i} -> s == i * @grid_step end)
-  end
+    |> Enum.all?(fn {ramp, i} ->
+      center = 95 + i * 124
+      source_x = center_at(center) + source_offset(i)
 
-  defp u_uniform?(u_values) do
-    u_values
-    |> Enum.with_index()
-    |> Enum.all?(fn {u, j} -> u == -@corridor_half_width + j * @lateral_step end)
-  end
-
-  defp heights_finite?(height, u_count) do
-    Enum.all?(height, fn row ->
-      is_list(row) and length(row) == u_count and Enum.all?(row, &is_number/1)
+      is_binary(fetch(ramp, "id")) and
+        abs(fetch(ramp, "start") - (center - 9)) <= @approx and
+        abs(fetch(ramp, "end") - (center + 9)) <= @approx and
+        abs(fetch(ramp, "x") - source_x) <= 1.0e-4 and
+        fetch(ramp, "width") == 12 and fetch(ramp, "height") == 5 and
+        abs(fetch(ramp, "base") - ground_at(fetch(ramp, "x"), fetch(ramp, "start"))) <= 1.0e-4 and
+        fetch(ramp, "start") > 0 and fetch(ramp, "end") < @length_meters
     end)
   end
 
-  defp centerline_ok?(centerline, s_count) do
-    length(centerline) == s_count and
-      Enum.all?(centerline, fn entry ->
-        is_number(fetch(entry, "x")) and abs(fetch(entry, "x")) <= @corridor_half_width and
-          is_number(fetch(entry, "width")) and fetch(entry, "width") > 0 and
-          fetch(entry, "width") <= 2 * @corridor_half_width
-      end)
-  end
+  # Source createRamps(): the first ramp sits ON the centerline, the rest
+  # alternate (i%3-1)*11 across it.
+  defp source_offset(0), do: 0
+  defp source_offset(i), do: (rem(i, 3) - 1) * 11
 
-  defp gates_ok?(doc) do
-    gates = fetch(doc, "gates") || []
+  defp zones_ok?(zones, ramps) do
+    zones
+    |> Enum.with_index()
+    |> Enum.all?(fn {zone, i} ->
+      ramp = Enum.at(ramps, i)
 
-    length(gates) == length(@checkpoint_planes) and
-      Enum.with_index(gates, 1)
-      |> Enum.all?(fn {gate, index} ->
-        fetch(gate, "index") == index and
-          Enum.at(@checkpoint_planes, index - 1) == fetch(gate, "s") and
-          fetch(gate, "uMin") == -@corridor_half_width and
-          fetch(gate, "uMax") == @corridor_half_width
-      end)
-  end
-
-  defp colliders_ok?(doc) do
-    obstacles = fetch(doc, "obstacles") || []
-    length(obstacles) <= @max_colliders and
-      Enum.all?(obstacles, fn ob ->
-        is_binary(fetch(ob, "id")) and
-          is_number(fetch(ob, "s")) and fetch(ob, "s") >= 0 and fetch(ob, "s") <= @finish_meters and
-          abs(fetch(ob, "u") || 999) <= @corridor_half_width and
-          is_number(fetch(ob, "halfS")) and fetch(ob, "halfS") > 0 and
-          is_number(fetch(ob, "halfU")) and fetch(ob, "halfU") > 0 and
-          is_number(fetch(ob, "height")) and fetch(ob, "height") > 0
-      end)
-  end
-
-  defp recovery_ok?(doc) do
-    recovery = fetch(doc, "recoveryPoints") || []
-
-    Enum.all?(recovery, fn point ->
-      s = fetch(point, "s")
-      segment = fetch(point, "segment")
-
-      is_number(s) and s >= 0 and s < @finish_meters and
-        is_integer(segment) and segment >= 0 and segment <= length(@checkpoint_planes) and
-        abs(fetch(point, "u") || 999) < @groomed_half_width and
-        within_segment?(s, segment)
+      is_map(ramp) and is_map(zone) and
+        abs(fetch(zone, "start") - (fetch(ramp, "start") - 41)) <= @approx and
+        abs(fetch(zone, "end") - (fetch(ramp, "start") - 19)) <= @approx and
+        fetch(zone, "x") == fetch(ramp, "x") and fetch(zone, "width") == 10
     end)
   end
 
-  defp within_segment?(s, 0), do: s < Enum.at(@checkpoint_planes, 0)
+  defp pickups_ok?(pickups) do
+    pickups
+    |> Enum.with_index()
+    |> Enum.all?(fn {pickup, i} ->
+      d = 70 + i * 76
+      source_x = center_at(d) + :math.sin(i * 2) * 15
 
-  defp within_segment?(s, segment) do
-    earned = Enum.at(@checkpoint_planes, segment - 1)
-    next = Enum.at(@checkpoint_planes, segment, @finish_meters)
-    s >= earned and s < next
+      is_map(pickup) and
+        abs(fetch(pickup, "d") - d) <= @approx and
+        abs(fetch(pickup, "x") - source_x) <= 1.0e-4 and
+        abs(fetch(pickup, "x") - center_at(fetch(pickup, "d"))) <= @corridor_half_width and
+        fetch(pickup, "d") > 0 and fetch(pickup, "d") < @length_meters
+    end)
+  end
+
+  defp banners_ok?(banners) do
+    Enum.any?(banners, fn banner ->
+      is_map(banner) and fetch(banner, "finish") == true and fetch(banner, "d") == @length_meters
+    end)
   end
 
   defp valid_hash?(doc) do
@@ -274,5 +240,5 @@ defmodule Afterlight.Activities.Snowboard.Course do
   defp problem(problems, true, _message), do: problems
   defp problem(problems, false, message), do: [message | problems]
 
-  defp clamp(value, low, high), do: value |> max(low) |> min(high)
+  defp clamp(value, low, high), do: value |> max(low * 1.0) |> min(high * 1.0)
 end

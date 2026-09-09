@@ -12,6 +12,7 @@ import {
   applyDartsInput,
 } from '../shared/dartsModel.js';
 import { DartsModule } from '../src/activities/darts.js';
+import { createDartsController } from '../src/activities/darts/throwController.js';
 import { hasActivityModule, unregisterActivityModule } from '../src/activities/registry.js';
 
 function throwAt(state, slot, segment, ring) {
@@ -159,6 +160,18 @@ test('darts: three darts per turn and out-of-turn throws are ignored', () => {
   assert.equal(state.players[0].score, DARTS_START_SCORE);
   const skipped = applyDartsInput(state, 1, { kind: 'throw', u: 0, v: 0 });
   assert.equal(skipped.event, null);
+});
+
+test('darts: neutralize clears charge without enabling a bystander thrower', () => {
+  const controller = createDartsController();
+  assert.equal(typeof controller.neutralize, 'function');
+  controller.neutralize();
+  controller.disable();
+  controller.neutralize();
+  controller.enable();
+  controller.neutralize();
+  controller.disable();
+  controller.dispose();
 });
 
 test('darts: module registers darts', () => {

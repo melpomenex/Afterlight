@@ -32,8 +32,9 @@ function wireFixtures() {
 test('contract freeze: identity and phases', () => {
   assert.equal(contract.identity.activityType, 'snowboard-race');
   assert.equal(contract.identity.activityId, 'summit-run');
-  assert.equal(contract.identity.courseId, 'summit-night');
-  assert.equal(contract.identity.rulesVersion, 1);
+  assert.equal(contract.identity.courseId, 'alpine-rush');
+  assert.equal(contract.identity.courseVersion, 2);
+  assert.equal(contract.identity.rulesVersion, 2);
   assert.equal(contract.identity.protocolVersion, 1);
   assert.equal(contract.identity.wireRoomId, 'theater');
   assert.deepEqual(contract.capacities ?? contract.identity.capacities, { minPlayers: 2, maxPlayers: 8, spectators: 32, queue: 16 });
@@ -55,18 +56,27 @@ test('contract freeze: D4 timing constants', () => {
   assert.equal(contract.timing.queueOfferWindowSeconds, 30);
 });
 
-test('contract freeze: D5 simulation constants', () => {
+test('contract freeze: source simulation constants', () => {
   assert.equal(contract.simulation.tickHz, 30);
   assert.equal(contract.simulation.maxCatchUpSteps, 4);
-  assert.equal(contract.simulation.speedMax, 45);
-  assert.equal(contract.simulation.startSpeed, 8);
+  // Source motion targets (SSXTricky rules.mjs): aero tuck 42, pad boost 56.
+  assert.equal(contract.simulation.baseSpeed + contract.simulation.tuckBonus + contract.simulation.leanBonus + contract.simulation.tuckLeanBonus, 42);
+  assert.equal(contract.simulation.padBoostSpeed, 56);
+  assert.equal(contract.simulation.startSpeed, 12);
   assert.equal(contract.simulation.gravity, 20);
-  assert.equal(contract.simulation.corridorHalfWidth, 24);
-  assert.equal(contract.simulation.groomedHalfWidth, 18);
-  assert.equal(contract.simulation.maxColliders, 64);
+  assert.equal(contract.simulation.corridorHalfWidth, 35);
+  assert.equal(contract.simulation.groomedHalfWidth, 23);
+  assert.equal(contract.simulation.carveHalfWidth, 20);
+  // Source tricks table.
+  assert.equal(contract.simulation.tricks.Q.points, 800);
+  assert.equal(contract.simulation.tricks.E.points, 500);
+  assert.equal(contract.simulation.tricks.X.points, 1200);
+  // The Alpine Rush course: 13 ramps / 13 zones / 22 pickups, no checkpoints.
   assert.equal(contract.course.lengthMeters, 1800);
-  assert.equal(contract.course.checkpointCount, 8);
-  assert.deepEqual(contract.course.checkpointPlanesMeters, [200, 400, 600, 800, 1000, 1200, 1400, 1600]);
+  assert.equal(contract.course.rampCount, 13);
+  assert.equal(contract.course.speedZoneCount, 13);
+  assert.equal(contract.course.pickupCount, 22);
+  assert.equal(contract.course.checkpointCount, 0);
   assert.equal(contract.course.finishMeters, 1800);
 });
 
@@ -87,21 +97,16 @@ test('contract freeze: D7 rates, errors and events', () => {
   });
 });
 
-test('course format: sample document is structurally consistent', () => {
-  const sample = courseFormat.sample;
-  const { sValues, uValues, height, surface } = sample.grid;
-  assert.equal(sample.lengthMeters % sample.gridStepMeters, 0);
-  assert.equal(sValues.length, height.length);
-  assert.equal(sValues[sValues.length - 1], sample.lengthMeters);
-  assert.equal(sValues[0], 0);
-  assert.equal(uValues.length, height[0].length);
-  assert.deepEqual(uValues, [...uValues].sort((a, b) => a - b));
-  // symmetric lateral samples (guard against -0 vs 0)
-  assert.deepEqual([...uValues].reverse().map(u => (u === 0 ? 0 : -u)), uValues.map(u => (u === 0 ? 0 : u)));
-  for (const row of surface) assert.equal(row.length, uValues.length);
-  for (const row of height) for (const h of row) assert.ok(Number.isFinite(h));
-  assert.deepEqual(sample.gates.map(g => g.index), [1]);
-  assert.ok(sample.finish.s > Math.max(...sample.gates.map(g => g.s)));
+test('course format: the analytic document replaces the baked grid', () => {
+  // The ALPINE RUSH course format is analytic (integrate-ssxtricky-snowboard
+  // 3.2): ramps/zones/pickups/banners are baked, terrain is the ported
+  // source function set — there is no grid block to validate.
+  assert.equal(courseFormat.format.id, "string, 'alpine-rush'");
+  assert.ok(courseFormat.format.ramps);
+  assert.ok(courseFormat.format.speedZones);
+  assert.ok(courseFormat.format.pickups);
+  assert.ok(courseFormat.format.banners);
+  assert.ok(!courseFormat.format.grid);
 });
 
 test('role normalization: wire roles map to server roles one-to-one', () => {

@@ -6,8 +6,8 @@
 import { aimPowerToPoint } from '../../../shared/dartsModel.js';
 
 const HUD_STYLE = `
-.darts-hud { position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%);
-  z-index: 40; font-family: 'DM Sans', sans-serif; color: #e8e7d9; }
+.darts-hud { position: fixed; left: 50%; bottom: 168px; transform: translateX(-50%);
+  z-index: 45; font-family: 'DM Sans', sans-serif; color: #e8e7d9; pointer-events: auto; }
 .darts-card { min-width: 300px; padding: 12px 14px; background: #0e1a1ccc;
   border: 1px solid #c6b47a40; border-radius: 2px 14px 2px 10px; }
 .darts-title { font: 8px 'Space Mono', monospace; letter-spacing: 1.4px; color: #afb9ac; }
@@ -61,7 +61,7 @@ export function createDartsController({
         </div>
         <div class="darts-board" data-role="board"><div class="darts-bead" data-role="bead"></div></div>
         <div class="darts-power"><span data-role="power"></span></div>
-        <div class="darts-help">Flick the board · or arrows + hold Space for power · gamepad stick + A</div>
+        <div class="darts-help">Flick the board · arrows + Space for power · Esc or Leave Oche to stand down</div>
         <div class="darts-actions"><button type="button" data-role="leave">LEAVE OCHE</button></div>
       </div>`;
     document.body.appendChild(hud);
@@ -115,6 +115,12 @@ export function createDartsController({
   function onKeyDown(e) {
     if (!enabled) return;
     if (e.target?.closest?.('input,textarea,[contenteditable]')) return;
+    if (e.code === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      onLeave?.();
+      return;
+    }
     if (e.code === 'ArrowLeft') { e.preventDefault(); aim = (aim + 0.97) % 1; }
     if (e.code === 'ArrowRight') { e.preventDefault(); aim = (aim + 0.03) % 1; }
     if (e.code === 'ArrowUp') { e.preventDefault(); power = Math.min(1, power + 0.04); }
@@ -153,13 +159,14 @@ export function createDartsController({
 
   createHud();
   if (typeof window !== 'undefined') {
-    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', onKeyDown, true);
     window.addEventListener('keyup', onKeyUp);
   }
 
   return {
     enable() { enabled = true; if (hud) hud.style.display = 'block'; },
-    disable() { enabled = false; charging = false; if (hud) hud.style.display = 'none'; },
+    disable() { enabled = false; charging = false; flick = null; if (hud) hud.style.display = 'none'; },
+    neutralize() { charging = false; flick = null; },
     update(simState) {
       pollGamepad();
       if (charging) {
@@ -185,7 +192,7 @@ export function createDartsController({
     dispose() {
       enabled = false;
       if (typeof window !== 'undefined') {
-        window.removeEventListener('keydown', onKeyDown);
+        window.removeEventListener('keydown', onKeyDown, true);
         window.removeEventListener('keyup', onKeyUp);
       }
       hud?.remove();

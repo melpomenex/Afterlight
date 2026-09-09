@@ -7,6 +7,7 @@ import { createPianoScene } from './piano/pianoScene.js';
 import { createPianoAudio } from './piano/audio.js';
 import { createPianoController } from './piano/pianoController.js';
 import { applyPianoInput, initPianoState } from '../../shared/pianoModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export function createPianoInstance({
   activityDef,
@@ -145,7 +146,7 @@ export function createPianoInstance({
       if (simState.muted) audio.setMuted(true);
     },
     acceptSnapshot(envelope) {
-      this.onSnapshot(envelope?.sim || envelope?.state || envelope?.simState || envelope);
+      this.onSnapshot(extractActivitySim(envelope));
     },
     acceptEvent(envelope) {
       hear({
@@ -160,6 +161,13 @@ export function createPianoInstance({
       allOffLocal();
     },
     update(time) {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant,
+        onJoin: (info) => this.onJoin(info),
+        onLeave: () => this.onLeave(),
+      });
       scene.updateVisuals(simState, time);
       if (isParticipant) controller.update(simState);
     },

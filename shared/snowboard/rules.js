@@ -1,91 +1,270 @@
 /**
- * Summit Run authoritative kinematics (add-multiplayer-snowboard-arcade 3.2,
- * design D5): one fixed-step arcade course model, pure and renderer-free.
+ * Summit Run authoritative rules — the ALPINE RUSH port
+ * (integrate-ssxtricky-snowboard 3.1).
+ *
+ * Fixed-step (30 Hz), seeded-free, renderer-free port of the frozen user-owned
+ * source simulation: `SSXTricky/lib/game/rules.mjs` (motion/trick helpers) and
+ * the `phase==='running'` section of `SSXTricky/lib/game/engine.js` tick()
+ * (speed zones, charge, ramp-edge launches, airborne tricks, landings,
+ * pickups, finish), both at rev e87f6c7d (see the change's baseline.md).
  *
  * The SAME step math runs in three places: this module (browser predictor and
  * Node golden fixtures), the Elixir authority
- * (Afterlight.Activities.Snowboard, ported op-for-op in 4.1), and the tuning
- * contract in tests/fixtures/snowboard/contract.json. Any tuning change must
- * update the contract fixtures, both runtimes and the golden vectors
- * together, and bump rulesVersion when simulation semantics change.
+ * (Afterlight.Activities.Snowboard, op-for-op port), and the tuning contract
+ * in tests/fixtures/snowboard/contract.json. Any change must update all three
+ * plus the golden vectors and bump rulesVersion.
  *
- * Step evaluation order (D5, normative):
- *   input/watchdog → recovery or motion integration → boundary/obstacle
- *   swept collision → terrain contact → ordered gate crossing → terminal.
- * Keep the arithmetic flat and in this exact order: JS and Elixir must agree
- * to ≤1cm position / 0.01 m/s velocity over a 180-second fixture (D10).
+ * Source mechanics preserved: tuck/lean/aero target speeds, brake, pad/manual
+ * boost with depletion and regen, flow-carve boost reward, lateral carve
+ * approach, edge clamp ±35 with 0.65^dt bleed, charge/super-pop jumps
+ * (popVelocity 7+6·charge, +4 super pop), ramp-edge launches
+ * (10+0.17·speed+4·charge), gravity 20, Q/E/X tricks with hold chains and a
+ * 0.8 s tap buffer, combo scoring with the ×1..×3 multiplier, bail below 82%
+ * trick completion, speed-lane entry bursts (2.4 s, ≥46 m/s) and +250/+10
+ * pickups.
  *
- * Coordinate convention: s downhill meters, u lateral from centerline,
- * y surface height + BOARD_CLEARANCE. World placement: x = centerX(s) + u,
- * z = -s.
+ * Intentional multiplayer adaptations (documented, from the change design —
+ * never silent substitutions): the source's five AI rivals and rival-bump
+ * collisions are replaced by human riders (no racer-racer collision), and the
+ * source's per-run pickup respawns become per-rider per-race claims so one
+ * racer cannot remove another's source-game opportunities. Terminal riders
+ * stop simulating; the finish records a deterministic within-tick crossing
+ * key for shared ordering.
+ *
+ * State uses the source's own coordinates: `s` downhill meters (world z=-s),
+ * `x` ABSOLUTE world lateral, `lateral` lateral velocity, `y` contact/ballistic
+ * height. Held-input edges (jump release, trick taps) are detected from
+ * held-field snapshots carried in the state, so a pure held-state control
+ * stream reproduces the source's keydown/keyup semantics deterministically on
+ * both runtimes.
  */
+
+import { courseCenter, groundHeight, surfaceHeight, rampHeight, onRamp, clamp } from './course.js';
 
 export const DT = 1 / 30;
 export const TICK_HZ = 30;
 
-// Tuning constants — contract.json simulation block (frozen, rulesVersion 1).
+// Source tuning (rules.mjs constants) — contract.json simulation block.
 export const TUNING = Object.freeze({
-  gradeGravity: 9.81,
-  gradeMax: 0.6,
-  tuckAccel: 4,
-  cruiseAccel: 1.5,
-  dragCoefficient: 0.006,
-  brakeDecel: 12,
-  shoulderDecel: 6,
-  speedMin: 0,
-  speedMax: 45,
-  startSpeed: 8,
-  steerSpeedGroomed: 10,
-  steerSpeedTuck: 7,
-  lateralGroundApproach: 8,
-  lateralAirApproach: 2,
-  carveDrag: 1.5,
-  corridorHalfWidth: 24,
-  groomedHalfWidth: 18,
-  boundarySpeedLossFraction: 0.2,
-  boundaryCooldownSeconds: 0.5,
-  gravity: 20,
+  baseSpeed: 29, // source tuckSpeed base
+  tuckBonus: 6,
+  leanBonus: 4,
+  tuckLeanBonus: 3,
+  brakeSpeed: 10,
+  padBoostSpeed: 56,
+  boostSpeed: 48,
+  boostMinSpeed: 8, // manual boost requires speed > 8
+  boostSpendPerSecond: 23,
+  boostRegenPerSecond: 1.8,
+  boostStart: 45,
+  boostMax: 100,
+  carveBoostReward: 12,
+  carveChargeRate: 0.5, // per second to full
+  carveSpeedMin: 20,
+  carveSteerMin: 0.5,
+  carveHalfWidth: 20, // source carve window |x-center| < 20
+  lateralGround: 20,
+  lateralAir: 13,
+  lateralTuck: 14,
+  lateralApproach: 5, // dt multiplier
+  speedApproach: 0.8, // dt multiplier
+  edgeBleedHalfWidth: 23,
+  edgeBleedFactor: 0.65, // ^dt
+  corridorHalfWidth: 35,
+  chargeRate: 1.2, // per second
   jumpBase: 7,
   jumpChargeBonus: 6,
-  jumpChargeSeconds: 0.75,
-  rampBoost: 3,
-  crashImpactNormalSpeed: 16,
-  crashResetSpeed: 8,
-  crashRecoverySeconds: 0.75,
-  riderCapsuleRadius: 0.6,
-  boardClearance: 0.5,
-  groundDropLaunchMeters: 1.2,
-  gateAltitudeCeiling: 30,
+  superPopBonus: 4, // tuck + charge >= 0.8
+  superPopCharge: 0.8,
+  gravity: 20,
+  rampLaunchBase: 10,
+  rampLaunchSpeedFactor: 0.17,
+  rampLaunchChargeBonus: 4,
+  bailTrickProgress: 0.82, // below this fraction at landing → bail
+  bailSeconds: 1.2,
+  bailSpeedFactor: 0.3,
+  boostPerLandingPoint: 75, // boost += points / 75
+  zoneBoostSeconds: 2.4,
+  zoneMinSpeed: 46,
+  pickupScore: 250,
+  pickupBoost: 10,
+  pickupDistanceWindow: 2.2,
+  pickupLateralWindow: 2.1,
+  pickupHeightWindow: 3,
+  airTimePointsPerSecond: 100,
+  comboStepBonus: 0.5, // per extra trick, capped
+  comboMaxExtra: 4,
+  bankedTricksCap: 8, // bounded wire (source unbounded; multiplier caps at +4)
+  startSpeed: 12, // source sets speed=12 at GO
 });
 
-/** Integer recovery length in ticks: ceil(0.75s / dt) = 23. */
-export const RECOVERY_TICKS = Math.ceil(TUNING.crashRecoverySeconds / DT);
+/** Source TRICKS table (Q/E/X), with code + axis for the rig port. */
+export const TRICKS = Object.freeze({
+  Q: Object.freeze({ code: 'KeyQ', name: '360 SPIN', points: 800, duration: 0.72, axis: 'y' }),
+  E: Object.freeze({ code: 'KeyE', name: 'INDY GRAB', points: 500, duration: 0.58, axis: 'grab' }),
+  X: Object.freeze({ code: 'KeyX', name: 'BACKFLIP', points: 1200, duration: 0.92, axis: 'x' }),
+});
+export const TRICK_CODES = Object.freeze(['Q', 'E', 'X']);
+const TRICK_BUFFER_SECONDS = 0.8;
+const TRICK_AIRTIME_MARGIN = 0.2;
+const RAMP_EDGE_DROP = 0.6; // y > ground + this after leaving a ramp → fall launch
+
+// --- source helpers (verbatim ports, test-parity with the source suite) --------
+
+export const jumpVelocity = (charge) => 7 + clamp(charge, 0, 1) * 6;
+
+export const popVelocity = (s) => jumpVelocity(s.charge) + (s.tucking && s.charge >= TUNING.superPopCharge ? TUNING.superPopBonus : 0);
+
+export const rampLaunchVelocity = (speed, charge = 0) => TUNING.rampLaunchBase + speed * TUNING.rampLaunchSpeedFactor + clamp(charge, 0, 1) * TUNING.rampLaunchChargeBonus;
+
+export function awardCombo(tricks, airTime) {
+  return tricks.length ? Math.round(tricks.reduce((sum, t) => sum + t.points, 0) * (1 + Math.min(tricks.length - 1, TUNING.comboMaxExtra) * TUNING.comboStepBonus) + airTime * TUNING.airTimePointsPerSecond) : 0;
+}
+
+export const racePlace = (distance, rivals) => 1 + rivals.filter((d) => d > distance).length;
+
+export const formatTime = (seconds) => `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${Math.floor(seconds % 60).toString().padStart(2, '0')}.${Math.floor((seconds % 1) * 100).toString().padStart(2, '0')}`;
+
+/** Source stepMotion, verbatim (absolute-x convention; mutates `s`). */
+export function stepMotion(s, input, dt) {
+  s.zoneBoost = Math.max(0, (s.zoneBoost || 0) - dt);
+  const padBoost = s.zoneBoost > 0 && !input.brake;
+  const manualBoost = input.boost && s.boost > 0 && s.speed > TUNING.boostMinSpeed && !input.brake;
+  const boosting = padBoost || manualBoost;
+  s.tucking = !!input.crouch && !s.airborne && !input.brake;
+  s.leaning = !!input.lean && !s.airborne && !input.brake;
+  const tuckSpeed = TUNING.baseSpeed + (s.tucking ? TUNING.tuckBonus : 0) + (s.leaning ? TUNING.leanBonus : 0) + (s.tucking && s.leaning ? TUNING.tuckLeanBonus : 0);
+  const targetSpeed = input.brake ? TUNING.brakeSpeed : padBoost ? TUNING.padBoostSpeed : boosting ? TUNING.boostSpeed : tuckSpeed;
+  s.carving = !s.airborne && !input.brake && Math.abs(input.steer) > TUNING.carveSteerMin && s.speed > TUNING.carveSpeedMin && Math.abs(s.x - courseCenter(s.distance)) < TUNING.carveHalfWidth;
+  s.carveCharge = s.carving ? Math.min(1, (s.carveCharge || 0) + dt * TUNING.carveChargeRate) : 0;
+  if (s.carveCharge >= 1) {
+    s.boost = clamp(s.boost + TUNING.carveBoostReward, 0, TUNING.boostMax);
+    s.carveCharge = 0;
+    s.carveReward = (s.carveReward || 0) + 1;
+  }
+  s.speed += (targetSpeed - s.speed) * Math.min(1, dt * TUNING.speedApproach);
+  s.speed = Math.max(0, s.speed);
+  s.boost = clamp(s.boost + (manualBoost && !padBoost ? -TUNING.boostSpendPerSecond : TUNING.boostRegenPerSecond) * dt, 0, TUNING.boostMax);
+  s.lateral += (input.steer * (s.airborne ? TUNING.lateralAir : s.tucking ? TUNING.lateralTuck : TUNING.lateralGround) - s.lateral) * Math.min(1, dt * TUNING.lateralApproach);
+  s.x += s.lateral * dt;
+  s.distance += s.speed * dt;
+  const edge = courseCenter(s.distance);
+  if (Math.abs(s.x - edge) > TUNING.edgeBleedHalfWidth) s.speed *= Math.pow(TUNING.edgeBleedFactor, dt);
+  s.x = clamp(s.x, edge - TUNING.corridorHalfWidth, edge + TUNING.corridorHalfWidth);
+  return boosting;
+}
+
+/** Source enterSpeedZone (absolute x; mutates `s`). */
+export function enterSpeedZone(s, zone) {
+  if (s.airborne || s.bail > 0 || s.distance < zone.start || s.distance > zone.end || Math.abs(s.x - zone.x) > zone.width / 2) return false;
+  s.zoneBoost = TUNING.zoneBoostSeconds;
+  s.speed = Math.max(s.speed, TUNING.zoneMinSpeed);
+  return true;
+}
+
+/** Source launch (mutates `s`). */
+export function launch(s, velocity) {
+  s.airborne = true;
+  s.vy = velocity;
+  s.airTime = 0;
+  s.charge = 0;
+  s.tricks = [];
+  s.trick = null;
+}
+
+/** Source remainingAirTime, including the downhill landing-surface term. */
+export function remainingAirTime(s, ground) {
+  const v = s.vy + s.speed * .18;
+  return (v + Math.sqrt(v * v + 40 * Math.max(0, s.y - ground))) / 20;
+}
+
+/** Source beginTrick (mutates `s`). */
+export function beginTrick(s, code) {
+  if (!s.airborne || s.trick || !TRICKS[code]) return false;
+  s.trick = { code, ...TRICKS[code], elapsed: 0 };
+  return true;
+}
+
+/** Source advanceTrick (mutates `s`). Returns true when the trick banks.
+ * Bounded-wire deviation: at most bankedTricksCap+1 tricks bank per air
+ * (unreachable in practice — the shortest trick is .58 s). */
+export function advanceTrick(s, dt) {
+  if (!s.trick) return false;
+  s.trick.elapsed += dt;
+  if (s.trick.elapsed < s.trick.duration) return false;
+  if (s.tricks.length <= TUNING.bankedTricksCap) {
+    s.tricks.push({ code: s.trick.code, points: s.trick.points });
+  }
+  s.trick = null;
+  return true;
+}
+
+/** Source land (mutates `s`). Returns { bailed, points }. */
+export function land(s) {
+  const bailed = !!s.trick && s.trick.elapsed / s.trick.duration < TUNING.bailTrickProgress;
+  if (!bailed && s.trick) s.tricks.push({ code: s.trick.code, points: s.trick.points });
+  const points = bailed ? 0 : awardCombo(s.tricks, s.airTime);
+  if (bailed) {
+    s.speed *= TUNING.bailSpeedFactor;
+    s.bail = TUNING.bailSeconds;
+  } else if (points) {
+    s.score += points;
+    s.bestCombo = Math.max(s.bestCombo, points);
+    s.boost = clamp(s.boost + points / TUNING.boostPerLandingPoint, 0, TUNING.boostMax);
+    s.landings += 1;
+  }
+  s.airborne = false;
+  s.tricks = [];
+  s.trick = null;
+  s.charge = 0;
+  return { bailed, points };
+}
+
+// --- shared-race state and step ---------------------------------------------------
 
 /**
- * A fresh rider state at the start gate. `slot` spreads riders laterally so
- * the start line never stacks a field of eight at one point.
+ * A fresh rider state at the start gate. `slot` spreads riders laterally
+ * across the source-wide start line (the source's six-rider field spans
+ * ±12; eight riders spread ±19.25, inside the ±35 corridor).
  */
 export function initialState(slot = 0, slotCount = 1) {
-  const spread = 3;
-  const offset = slotCount > 1 ? (slot - (slotCount - 1) / 2) * spread : 0;
+  const spread = 5.5;
+  const x = slotCount > 1 ? clamp((slot - (slotCount - 1) / 2) * spread, -19, 19) : 0;
   return {
+    slot,
     s: 0,
-    u: Math.max(-12, Math.min(12, offset)),
+    x,
+    lateral: 0,
     v: TUNING.startSpeed,
-    vu: 0,
-    y: 0,
+    boost: TUNING.boostStart,
+    y: groundHeight(x, 0),
     vy: 0,
-    grounded: true,
-    jumpCharge: 0,
-    recoveryTicks: 0,
-    nextCheckpoint: 1,
+    airborne: false,
+    airTime: 0,
+    charge: 0,
+    tricks: [],
+    trick: null,
+    trickQueue: null,
+    trickBuffer: 0,
+    trickHeld: { Q: false, E: false, X: false },
+    jumpWasHeld: false,
+    score: 0,
+    bestCombo: 0,
+    landings: 0,
+    bail: 0,
+    time: 0,
+    zoneBoost: 0,
+    boosting: false,
+    tucking: false,
+    leaning: false,
+    carving: false,
+    carveCharge: 0,
+    carveReward: 0,
+    pickupsClaimed: [],
     finishTick: null,
     finishMs: null,
     finishKey: null,
     dnfReason: null,
-    crossedRampIds: [],
-    boundaryCooldownSeconds: 0,
-    splitKeys: [],
     resetSeq: 0,
   };
 }
@@ -95,388 +274,255 @@ export function neutralControls() {
   return { kind: 'neutral' };
 }
 
+/**
+ * Normalizes wire controls into the strict ride tuple. Neutral becomes a
+ * braking rider (source semantics: no input coasts toward base speed; brake
+ * fully slows; charge is cancelled by neutralization at the controller).
+ */
 export function normalizeControls(controls) {
   if (!controls || typeof controls !== 'object' || controls.kind === 'neutral') {
-    return { steer: 0, tuck: false, brake: true, jumpHeld: false };
+    return { steer: 0, tuck: false, lean: false, brake: true, boost: false, jumpHeld: false, trick: { Q: false, E: false, X: false } };
   }
   const steer = Number.isFinite(controls.steer) ? Math.max(-1, Math.min(1, controls.steer)) : 0;
   return {
     steer,
     tuck: controls.tuck === true,
+    lean: controls.lean === true,
     brake: controls.brake !== false,
+    boost: controls.boost === true,
     jumpHeld: controls.jumpHeld === true,
+    trick: {
+      Q: controls.trickQ === true,
+      E: controls.trickE === true,
+      X: controls.trickX === true,
+    },
   };
 }
 
-const round6 = (value) => Object.is(value, -0) ? 0 : Math.round(value * 1e6) / 1e6;
+const round6 = (value) => (Object.is(value, -0) ? 0 : Math.round(value * 1e6) / 1e6);
 
 /**
- * Advance one 30 Hz tick. `course` is the sampler object from
- * loadCourse(); `prev` is the pre-step state (swept collision/gates);
- * `tick` is the caller's monotonic tick index (finish key identity, D6).
- * Returns `{ state, events }`.
+ * Advance one 30 Hz tick — the source tick() running-section port.
+ * `course` is the sampler object from loadCourse(); `prev` is the pre-step
+ * state (ramp-edge sweeps); `tick` is the caller's monotonic tick index
+ * (finish key identity). Returns `{ state, events }`.
+ *
+ * Events: speed_zone, carve_reward, super_pop, launch{cause},
+ * ramp_launch{rampId}, trick_complete{code,name,points}, bail, clean_landing
+ * {points}, pickup{id}, finish{finishMs,score,bestCombo}.
  */
 export function step(course, state, controlsRaw, prev = null, tick = 0) {
   const controls = normalizeControls(controlsRaw);
   const events = [];
-  const next = { ...state };
+  const next = { ...state, trick: state.trick ? { ...state.trick } : null, trickHeld: { ...state.trickHeld } };
+  const previous = prev ?? state;
 
-  // --- recovery: frozen, no motion, no charge, no gate evaluation -----------
-  if (next.recoveryTicks > 0) {
-    next.recoveryTicks -= 1;
-    if (next.recoveryTicks === 0) {
-      events.push({ type: 'recovery_complete' });
-    }
+  // Terminal riders stop simulating (authoritative order already recorded).
+  if (next.finishTick !== null || next.dnfReason !== null) {
     return { state: next, events };
   }
 
   const dt = DT;
-  const stepMeters = next.v * dt;
+  const ramps = course.ramps;
+  const zones = course.speedZones;
 
-  // --- grade acceleration ----------------------------------------------------
-  // Tangent downhill grade at the rider's lateral position, from the same
-  // sampled grid the renderer draws (D5). Forward/backward sampling clamped
-  // to the route.
-  const sBack = Math.max(0, next.s - 2);
-  const sAhead = Math.min(course.lengthMeters, next.s + 2);
-  const span = Math.max(1e-6, sAhead - sBack);
-  const slope = (course.heightAt(sAhead, next.u) - course.heightAt(sBack, next.u)) / span;
-  const gSlope = Math.max(0, Math.min(TUNING.gradeMax, -slope));
+  // 1. Timers (source: time/toastTime/bail/trickBuffer decay).
+  next.time += dt;
+  next.bail = Math.max(0, next.bail - dt);
+  next.trickBuffer = Math.max(0, next.trickBuffer - dt);
 
-  const outsideGroomed = Math.abs(next.u) > TUNING.groomedHalfWidth;
-  const drive = controls.tuck ? TUNING.tuckAccel : TUNING.cruiseAccel;
-  const a = TUNING.gradeGravity * gSlope
-    + drive
-    - TUNING.dragCoefficient * next.v * next.v
-    - (controls.brake ? TUNING.brakeDecel : 0)
-    - (outsideGroomed ? TUNING.shoulderDecel : 0);
-
-  if (next.grounded) {
-    next.v = Math.max(TUNING.speedMin, Math.min(TUNING.speedMax, next.v + a * dt));
-  } else {
-    // Air drag only — no drive, no brake, no shoulder on airborne boards.
-    next.v = Math.max(TUNING.speedMin, Math.min(TUNING.speedMax,
-      next.v - TUNING.dragCoefficient * next.v * next.v * dt));
-  }
-
-  // --- progress: speed before position, then lateral (D5 order) --------------
-  const prevS = next.s;
-  next.s = next.s + next.v * dt;
-
-  const desiredVu = controls.steer * (controls.tuck ? TUNING.steerSpeedTuck : TUNING.steerSpeedGroomed);
-  const approachFactor = Math.min(1, (next.grounded ? TUNING.lateralGroundApproach : TUNING.lateralAirApproach) * dt);
-  next.vu = next.vu + (desiredVu - next.vu) * approachFactor;
-  // Carve drag bleeds speed while carving hard on the ground.
-  if (next.grounded) {
-    next.v = Math.max(TUNING.speedMin, next.v - Math.abs(controls.steer) * TUNING.carveDrag * dt);
-  }
-  next.u = next.u + next.vu * dt;
-
-  // --- boundary: clamp, zero outward lateral velocity, one 20% hit -----------
-  if (next.boundaryCooldownSeconds > 0) {
-    next.boundaryCooldownSeconds = Math.max(0, next.boundaryCooldownSeconds - dt);
-  }
-  if (next.u > TUNING.corridorHalfWidth) {
-    next.u = TUNING.corridorHalfWidth;
-    next.vu = Math.min(0, next.vu);
-    if (next.boundaryCooldownSeconds === 0) {
-      next.v = next.v * (1 - TUNING.boundarySpeedLossFraction);
-      next.boundaryCooldownSeconds = TUNING.boundaryCooldownSeconds;
-      events.push({ type: 'boundary_hit', side: 'right' });
-    }
-  } else if (next.u < -TUNING.corridorHalfWidth) {
-    next.u = -TUNING.corridorHalfWidth;
-    next.vu = Math.max(0, next.vu);
-    if (next.boundaryCooldownSeconds === 0) {
-      next.v = next.v * (1 - TUNING.boundarySpeedLossFraction);
-      next.boundaryCooldownSeconds = TUNING.boundaryCooldownSeconds;
-      events.push({ type: 'boundary_hit', side: 'left' });
+  // 2. Speed zones — entering toast fires only when zoneBoost was empty.
+  //    The source helpers speak the source field names (distance/speed); the
+  //    shared adapter presents the wire state (s/v) to them.
+  const motionState = toSourceMotionState(next);
+  for (const zone of zones) {
+    const entering = next.zoneBoost <= 0;
+    if (enterSpeedZone(motionState, zone) && entering) {
+      events.push({ type: 'speed_zone', zoneId: zone.id });
     }
   }
 
-  // --- jump charge / release and ramp lips ------------------------------------
-  const groundY = course.heightAt(next.s, next.u) + TUNING.boardClearance;
-  if (next.grounded) {
-    const crossed = rampCrossed(course, prevS, next.s, next.u);
-    if (crossed) {
-      // Lip launch: one 3 m/s boost per forward crossing, plus the jump
-      // (charge held now converts into the launch, base 7 when neutral).
-      applyRamp(course, next, crossed, events);
-    } else if (controls.jumpHeld) {
-      next.jumpCharge = Math.min(1, next.jumpCharge + dt / TUNING.jumpChargeSeconds);
-    } else if (next.jumpCharge > 0) {
-      if (controls.brake) {
-        // Neutralization cancels the charge (D4/D5) — it never launches.
-        next.jumpCharge = 0;
-        events.push({ type: 'charge_cancelled' });
-      } else {
-        launch(next, course, events, 'release');
+  // 3. Motion (bail zeroes steering and forces brake, like the source tick).
+  const previousCarveReward = next.carveReward;
+  next.boosting = stepMotion(motionState, {
+    steer: next.bail > 0 ? 0 : controls.steer,
+    brake: controls.brake || next.bail > 0,
+    crouch: controls.tuck,
+    lean: controls.lean,
+    boost: controls.boost,
+  }, dt);
+
+  if (next.carveReward > previousCarveReward) {
+    events.push({ type: 'carve_reward', count: next.carveReward });
+  }
+
+  // 4. Charge while Space is held on the ground (source allows it during bail).
+  if (controls.jumpHeld && !next.airborne) {
+    next.charge = clamp(next.charge + dt * TUNING.chargeRate, 0, 1);
+  }
+
+  // 5. Jump release edge → pop (source jump() on Space keyup).
+  if (next.jumpWasHeld && !controls.jumpHeld && !next.airborne && next.bail <= 0) {
+    const superPop = next.tucking && next.charge >= TUNING.superPopCharge;
+    launch(next, popVelocity(next));
+    events.push({ type: 'launch', cause: superPop ? 'super_pop' : 'release' });
+    if (superPop) events.push({ type: 'super_pop' });
+  }
+  next.jumpWasHeld = controls.jumpHeld;
+
+  // 6. Trick key edges: press in the air starts immediately (if free),
+  //    otherwise queues with the source 0.8 s buffer.
+  for (const code of TRICK_CODES) {
+    const wasHeld = next.trickHeld[code];
+    const isHeld = controls.trick[code];
+    if (!wasHeld && isHeld) {
+      if (!beginTrick(next, code)) {
+        next.trickQueue = code;
+        next.trickBuffer = TRICK_BUFFER_SECONDS;
+      }
+    }
+    next.trickHeld[code] = isHeld;
+  }
+
+  // 7. Ramp-edge launches: swept crossing of ramp.end within the ramp's line.
+  const before = previous.s ?? next.s;
+  const previousX = previous.x ?? next.x;
+  const ground = surfaceHeight(next.x, next.s, ramps);
+  if (!next.airborne && next.bail <= 0) {
+    for (const ramp of ramps) {
+      if (before <= ramp.end && next.s > ramp.end) {
+        const span = next.s - before;
+        const t = span > 1e-9 ? (ramp.end - before) / span : 1;
+        const crossingX = previousX + (next.x - previousX) * t;
+        if (Math.abs(crossingX - ramp.x) <= ramp.width / 2) {
+          next.y = rampHeight(ramp, ramp.end);
+          launch(next, rampLaunchVelocity(next.v, next.charge));
+          events.push({ type: 'ramp_launch', rampId: ramp.id });
+          events.push({ type: 'launch', cause: `ramp:${ramp.id}` });
+          break;
+        }
       }
     }
   }
 
-  // --- swept obstacle collision (crash on capsule contact) -------------------
-  // Expanded-box sweep of the rider center (capsule radius) along this tick's
-  // motion. Runs before terrain contact (D5 order); the sweep endpoints are
-  // remembered so a crash teleport later in the tick can never credit a gate
-  // beyond the pre-impact segment. Airborne riders pass over obstacles whose
-  // tops sit below the board.
-  const sPreImpact = next.s;
-  const uPreImpact = next.u;
-  const obstacleHit = findObstacleHit(course, state, next, sPreImpact, uPreImpact);
-  if (obstacleHit) {
-    crash(next, course, events, `obstacle:${obstacleHit.obstacle.id}`);
+  // 8. Airborne / ground contact (source order: ballistic → trick start →
+  //    advance → landing; off-ramp drop; grounded snap).
+  if (next.airborne) {
+    next.airTime += dt;
+    next.vy -= TUNING.gravity * dt;
+    next.y += next.vy * dt;
+    if (!next.trick) {
+      const buffered = next.trickBuffer > 0 ? next.trickQueue : null;
+      const held = TRICK_CODES.find((code) => controls.trick[code] && remainingAirTime(motionState, ground) > TRICKS[code].duration + TRICK_AIRTIME_MARGIN);
+      if (beginTrick(next, buffered || held)) {
+        next.trickQueue = null;
+        next.trickBuffer = 0;
+      }
+    }
+    if (advanceTrick(next, dt)) {
+      const banked = next.tricks[next.tricks.length - 1];
+      events.push({ type: 'trick_complete', code: banked?.code, points: banked?.points });
+    }
+    if (next.y <= ground) {
+      next.y = ground;
+      const { bailed, points } = land(motionState);
+      next.trickQueue = null;
+      next.trickBuffer = 0;
+      if (bailed) events.push({ type: 'bail' });
+      else if (points > 0) events.push({ type: 'clean_landing', points });
+      else if (next.airTime > 1) events.push({ type: 'nice_air', airTime: round6(next.airTime) });
+    }
+  } else if (next.y > ground + RAMP_EDGE_DROP && ramps.some((r) => onRamp(r, previousX, before))) {
+    // Rode off a ramp's side/back edge: fall with zero pop (source).
+    launch(next, 0);
+    events.push({ type: 'launch', cause: 'edge' });
+  } else {
+    next.y = ground;
   }
 
-  // --- vertical motion and terrain contact ------------------------------------
-  if (next.grounded) {
-    const candidate = course.heightAt(next.s, next.u) + TUNING.boardClearance;
-    const drop = next.y - candidate;
-    if (drop > TUNING.groundDropLaunchMeters) {
-      // Ground fell away (cliff edge): launch with the descent rate.
-      next.grounded = false;
-      next.vy = -(drop / dt);
-      next.y = candidate + drop;
-    } else {
-      next.y = candidate;
-      next.vy = 0;
-    }
-  } else {
-    next.vy = next.vy - TUNING.gravity * dt;
-    next.y = next.y + next.vy * dt;
-    if (next.y <= groundY) {
-      // Swept downward crossing of the current ground: land, snap, project.
-      // Crash tests the impact speed along the surface NORMAL (D5), so
-      // downslope landings that fall away with the rider stay forgiving.
-      const gSlopeLanding = localGrade(course, next.s, next.u);
-      const norm = Math.sqrt(1 + gSlopeLanding * gSlopeLanding);
-      const normalSpeed = Math.abs((next.v * gSlopeLanding + next.vy) / norm);
-      const impactSpeed = -next.vy;
-      next.y = groundY;
-      next.vy = 0;
-      next.grounded = true;
-      next.jumpCharge = 0;
-      if (normalSpeed > TUNING.crashImpactNormalSpeed) {
-        crash(next, course, events, 'impact');
-      } else {
-        events.push({ type: 'landing', impactSpeed: round6(impactSpeed), normalSpeed: round6(normalSpeed) });
+  // 9. Pickups: per-rider claims (multiplayer adaptation), source windows.
+  if (next.y - ground < TUNING.pickupHeightWindow) {
+    for (const p of course.pickups) {
+      if (next.pickupsClaimed.includes(p.id)) continue;
+      if (Math.abs(p.d - next.s) < TUNING.pickupDistanceWindow && Math.abs(p.x - next.x) < TUNING.pickupLateralWindow) {
+        next.pickupsClaimed = [...next.pickupsClaimed, p.id];
+        next.score += TUNING.pickupScore;
+        next.boost = clamp(next.boost + TUNING.pickupBoost, 0, TUNING.boostMax);
+        events.push({ type: 'pickup', id: p.id });
       }
     }
   }
 
-  // --- ordered gate crossing and terminal state (D6) --------------------------
-  // Gates evaluate along the valid pre-impact swept segment only: neither an
-  // obstacle teleport nor a landing reset can credit a gate.
-  const sweepEnd = Math.min(next.s, sPreImpact);
-  applyGates(course, next, state, sweepEnd, uPreImpact, tick, events);
+  // 10. Finish: swept crossing of the finish plane records the deterministic
+  // within-tick key (tick + fraction) * 1000/30 — never a client clock.
+  if (next.finishTick === null && next.s >= course.finish.s) {
+    const span = next.s - before;
+    const fraction = span > 1e-9 ? clamp((course.finish.s - before) / span, 0, 1) : 1;
+    const key = (tick + fraction) * (1000 / 30);
+    next.s = course.finish.s;
+    next.finishTick = tick;
+    next.finishKey = key;
+    next.finishMs = Math.round(key);
+    events.push({ type: 'finish', key, finishMs: next.finishMs, score: next.score, bestCombo: next.bestCombo });
+  }
 
-  // Numerical hygiene: keep the wire shape stable.
+  // Numerical hygiene: keep the wire shape stable and damp cross-runtime
+  // last-ulp drift without disturbing source feel (≤5e-7 per tick).
   next.s = round6(next.s);
-  next.u = round6(next.u);
+  next.x = round6(next.x);
   next.v = round6(next.v);
-  next.vu = round6(next.vu);
+  next.lateral = round6(next.lateral);
   next.y = round6(next.y);
   next.vy = round6(next.vy);
-  next.jumpCharge = round6(next.jumpCharge);
-  next.boundaryCooldownSeconds = round6(next.boundaryCooldownSeconds);
+  next.charge = round6(next.charge);
+  next.bail = round6(next.bail);
+  next.airTime = round6(next.airTime);
+  next.zoneBoost = round6(next.zoneBoost);
+  next.carveCharge = round6(next.carveCharge);
+  next.trickBuffer = round6(next.trickBuffer);
+  next.boost = round6(next.boost);
 
   return { state: next, events };
 }
 
-/** Local downhill grade (clamped) at (s, u), forward/backward sampled. */
-function localGrade(course, s, u) {
-  const sBack = Math.max(0, s - 2);
-  const sAhead = Math.min(course.lengthMeters, s + 2);
-  const span = Math.max(1e-6, sAhead - sBack);
-  const slope = (course.heightAt(sAhead, u) - course.heightAt(sBack, u)) / span;
-  return Math.max(0, Math.min(TUNING.gradeMax, -slope));
-}
-
-function launch(state, course, events, cause, { withTangent = true } = {}) {  // Jump release adds the vertical tangent speed of the ground just ridden
-  // (positive only — downhill ground contributes nothing). Ramp lips launch
-  // from the base formula alone (D5: "initiate launch with base 7").
-  let tangentVy = 0;
-  if (withTangent) {
-    const sBack = Math.max(0, state.s - 2);
-    const rise = (course.heightAt(state.s, state.u) - course.heightAt(sBack, state.u)) / Math.max(1e-6, state.s - sBack);
-    tangentVy = state.v * Math.max(0, rise);
-  }
-  state.vy = TUNING.jumpBase + TUNING.jumpChargeBonus * state.jumpCharge + tangentVy;
-  state.grounded = false;
-  state.jumpCharge = 0;
-  events.push({ type: 'launch', cause });
-}
-
-function rampCrossed(course, prevS, s, u) {
-  for (const ramp of course.ramps) {
-    if (ramp.s > prevS && ramp.s <= s && u >= ramp.uMin && u <= ramp.uMax) {
-      return ramp;
-    }
-  }
-  return null;
-}
-
-function applyRamp(course, state, ramp, events) {
-  if (state.crossedRampIds.includes(ramp.id)) return;
-  state.crossedRampIds = [...state.crossedRampIds, ramp.id];
-  state.v = Math.min(TUNING.speedMax, state.v + TUNING.rampBoost);
-  launch(state, course, events, `ramp:${ramp.id}`, { withTangent: false });
-}
-
-/** Crash: bounded recovery, speed reset, reposition to a safe recovery point. */
-function crash(state, course, events, cause) {
-  state.recoveryTicks = RECOVERY_TICKS;
-  state.v = TUNING.crashResetSpeed;
-  state.vu = 0;
-  state.vy = 0;
-  state.jumpCharge = 0;
-  state.grounded = true;
-  state.resetSeq += 1;
-
-  const point = pickRecoveryPoint(course, state);
-  if (point) {
-    state.s = point.s;
-    state.u = point.u;
-    state.y = course.heightAt(point.s, point.u) + TUNING.boardClearance;
-  }
-  events.push({ type: 'crash', cause, resetSeq: state.resetSeq });
-}
-
 /**
- * The safe recovery point nearest behind the crash site that never requires
- * crossing an unearned gate (D5). All riders keep their earned gates: a
- * point before the next unearned gate plane is always recoverable.
+ * The step's source-shaped helpers (stepMotion, enterSpeedZone,
+ * remainingAirTime, land) speak the source field names (`distance`/`speed`);
+ * the wire state uses `s`/`v`. This adapter presents the wire state to them
+ * without copying, so every source helper runs its verbatim arithmetic.
  */
-export function pickRecoveryPoint(course, state) {
-  const nextGate = course.gates[state.nextCheckpoint - 1];
-  const nextUnearnedS = nextGate ? nextGate.s : course.finish.s;
-  let best = null;
-  let bestDistance = Infinity;
-  for (const point of course.recoveryPoints || []) {
-    if (point.s > state.s || point.s >= nextUnearnedS) continue;
-    const distance = state.s - point.s;
-    if (distance < bestDistance) {
-      best = point;
-      bestDistance = distance;
-    }
-  }
-  // Degenerate fallback (crash right at the start): the first authored point.
-  if (!best) best = (course.recoveryPoints || [])[0] ?? null;
-  return best;
+function toSourceMotionState(next) {
+  const proxy = new Proxy(next, {
+    get(target, prop) {
+      if (prop === 'distance') return target.s;
+      if (prop === 'speed') return target.v;
+      return target[prop];
+    },
+    set(target, prop, value) {
+      if (prop === 'distance') target.s = value;
+      else if (prop === 'speed') target.v = value;
+      else target[prop] = value;
+      return true;
+    },
+  });
+  return proxy;
 }
 
 /**
- * Swept capsule-vs-obstacle test along this tick's motion segment. The rider
- * is a disc of radius TUNING.riderCapsuleRadius in (s, u) space; obstacle
- * boxes expand by that radius (no tunneling: the segment is clipped against
- * the box, not sampled). A hit only registers when the board is below the
- * obstacle top — airborne riders clear low hazards honestly.
- */
-export function findObstacleHit(course, prev, next, sweepEndS, sweepEndU) {
-  const radius = TUNING.riderCapsuleRadius;
-  const s0 = prev.s;
-  const u0 = prev.u;
-  const ds = sweepEndS - s0;
-  const du = sweepEndU - u0;
-
-  for (const obstacle of course.obstacles || []) {
-    const sMin = obstacle.s - obstacle.halfS - radius;
-    const sMax = obstacle.s + obstacle.halfS + radius;
-    const uMin = obstacle.u - obstacle.halfU - radius;
-    const uMax = obstacle.u + obstacle.halfU + radius;
-
-    // Liang–Barsky clip of the motion segment against the expanded box.
-    let tEnter = 0;
-    let tExit = 1;
-    let missed = false;
-    for (const [p0, d, lo, hi] of [[s0, ds, sMin, sMax], [u0, du, uMin, uMax]]) {
-      if (Math.abs(d) < 1e-9) {
-        if (p0 < lo || p0 > hi) { missed = true; break; }
-        continue;
-      }
-      let t0 = (lo - p0) / d;
-      let t1 = (hi - p0) / d;
-      if (t0 > t1) [t0, t1] = [t1, t0];
-      tEnter = Math.max(tEnter, t0);
-      tExit = Math.min(tExit, t1);
-      if (tEnter > tExit) { missed = true; break; }
-    }
-    if (missed || tEnter > 1 || tExit < 0) continue;
-
-    // Height gate: the board clears the obstacle when the rider's underside
-    // at the entry point sits above its top surface.
-    const hitS = s0 + ds * tEnter;
-    const hitU = u0 + du * tEnter;
-    const top = course.heightAt(obstacle.s, obstacle.u) + obstacle.height;
-    const riderBottom = (next.grounded
-      ? course.heightAt(hitS, hitU)
-      : next.y - TUNING.boardClearance);
-    if (riderBottom > top) continue;
-
-    return { obstacle, tEnter };
-  }
-  return null;
-}
-
-/**
- * Ordered gate crossing, checkpoint splits and the finish (D6). A gate only
- * credits on a forward sweep of its plane within one tick, below the
- * altitude ceiling, inside the corridor (u is pre-clamped, so the sweep end
- * governs). Multiple crossings in one tick credit in order. The finish
- * requires every checkpoint and records the exact monotonic key
- * `(tick + fraction) * 1000/30` — never a client clock.
- */
-export function applyGates(course, next, prev, sweepEndS, sweepEndU, tick, events) {
-  if (next.finishTick !== null || next.dnfReason !== null) return;
-  const sweepStartS = prev.s;
-  if (!(sweepEndS > sweepStartS)) return;
-
-  const corridorOK = Math.abs(sweepEndU) <= TUNING.corridorHalfWidth;
-
-  while (next.nextCheckpoint <= course.gates.length) {
-    const gate = course.gates[next.nextCheckpoint - 1];
-    if (!(sweepStartS < gate.s && gate.s <= sweepEndS)) break;
-    if (!corridorOK) break;
-    // Altitude acceptance: surface at the gate up to +ceiling.
-    const surface = course.heightAt(gate.s, sweepEndU);
-    if (next.y > surface + TUNING.gateAltitudeCeiling) break;
-    const fraction = (gate.s - sweepStartS) / (sweepEndS - sweepStartS);
-    const key = (tick + fraction) * (1000 / 30);
-    next.splitKeys = [...(next.splitKeys ?? []), key];
-    events.push({ type: 'checkpoint', index: next.nextCheckpoint, key: round6(key) });
-    next.nextCheckpoint += 1;
-  }
-
-  if (next.nextCheckpoint > course.gates.length) {
-    const finish = course.finish;
-    if (sweepStartS < finish.s && finish.s <= sweepEndS && corridorOK) {
-      const fraction = (finish.s - sweepStartS) / (sweepEndS - sweepStartS);
-      const key = (tick + fraction) * (1000 / 30);
-      next.finishTick = tick;
-      next.finishKey = key;
-      next.finishMs = Math.round(key);
-      events.push({ type: 'finish', key, finishMs: next.finishMs });
-    }
-  }
-}
-
-/**
- * World-space placement for render and remote interpolation:
- * x = centerX(s) + u, y = height + clearance, z = -s.
+ * World-space placement for render and remote interpolation (source
+ * convention): x is already absolute, z = -s.
  */
 export function worldPosition(course, state, out = {}) {
-  out.x = course.centerXAt(state.s) + state.u;
-  out.y = state.grounded
-    ? course.heightAt(state.s, state.u) + TUNING.boardClearance
-    : state.y;
+  out.x = state.x;
+  out.y = state.y;
   out.z = -state.s;
   return out;
 }
 
 /**
- * Run `ticks` fixed steps from a fresh state. Fixture/golden helper and the
- * server scheduler's core: at most `maxCatchUpSteps` per frame is enforced by
- * callers, never here.
+ * Run `ticks` fixed steps from a fresh (or given) state. Fixture/golden
+ * helper and the server scheduler's core: at most `maxCatchUpSteps` per
+ * frame is enforced by callers, never here.
  */
 export function simulate(course, controls, ticks, start = null, slotCount = 1) {
   let state = start ?? initialState(0, slotCount);

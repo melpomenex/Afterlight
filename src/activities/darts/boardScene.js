@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { DARTS_SECTORS } from '../../../shared/dartsModel.js';
 
 export function createDartsScene({
-  position = [8.4, 0, 3.6],
+  position = [-10.4, 0, -1.5],
   rotationY = 0,
 } = {}) {
   const group = new THREE.Group();

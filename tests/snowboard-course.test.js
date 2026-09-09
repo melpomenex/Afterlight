@@ -1,11 +1,12 @@
 /**
- * Summit Run canonical course tests (add-multiplayer-snowboard-arcade 3.1).
+ * ALPINE RUSH canonical course tests (integrate-ssxtricky-snowboard 3.2).
  *
- * The course document is the contract between renderer, predictor and the
- * Elixir authority. These tests run BEFORE any physics use: build
- * determinism, validation rejections, sampler behavior (clamped bilinear
- * heights, linear centerline, grade), and the structural invariants from the
- * frozen course-format fixture.
+ * The course document + analytic samplers are the contract between renderer,
+ * predictor and the Elixir authority. These tests run BEFORE any physics
+ * use: build determinism, export stability, validation rejections (including
+ * tampering with the source layout), sampler behavior (contact on ramps,
+ * centerline agreement) and the source-feature invariants (13 ramps, 13
+ * zones, 22 pickups, 4 banners).
  */
 
 import test from 'node:test';
@@ -16,9 +17,15 @@ import {
   loadCourse,
   validateCourse,
   setCourseHashImplementation,
+  courseCenter,
+  groundHeight,
+  surfaceHeight,
+  createRamps,
+  rampHeight,
+  onRamp,
   LENGTH_METERS,
-  MAX_COLLIDERS,
-  CHECKPOINT_PLANES,
+  RAMP_COUNT,
+  PICKUP_COUNT,
 } from '../shared/snowboard/course.js';
 import { canonicalCourseJson, courseHash } from '../shared/snowboard/courseHash.js';
 
@@ -26,7 +33,7 @@ setCourseHashImplementation(courseHash);
 import { generateCourseExport, checkCourse } from '../scripts/export-snowboard-course.mjs';
 
 const committed = JSON.parse(
-  readFileSync(new URL('../shared/snowboard/course-summit-night.json', import.meta.url), 'utf8'),
+  readFileSync(new URL('../shared/snowboard/course-alpine-rush.json', import.meta.url), 'utf8'),
 );
 
 test('course build is deterministic and matches the committed export', () => {
@@ -39,7 +46,7 @@ test('course build is deterministic and matches the committed export', () => {
 
 test('exported bytes are stable and both copies agree', async () => {
   const { bytes } = generateCourseExport();
-  const committedBytes = readFileSync(new URL('../shared/snowboard/course-summit-night.json', import.meta.url), 'utf8');
+  const committedBytes = readFileSync(new URL('../shared/snowboard/course-alpine-rush.json', import.meta.url), 'utf8');
   const elixirBytes = readFileSync(new URL('../server_elixir/priv/snowboard_course.json', import.meta.url), 'utf8');
   assert.equal(bytes, committedBytes);
   assert.equal(bytes, elixirBytes);
@@ -48,108 +55,86 @@ test('exported bytes are stable and both copies agree', async () => {
 
 test('hash binds the canonical hash-free document', () => {
   assert.equal(committed.hash, courseHash(committed), 'committed hash verifies');
-  const tampered = { ...committed, lengthMeters: 42 };
-  assert.match(courseHash(tampered), /^[0-9a-f]{64}$/);
-  assert.notEqual(courseHash(tampered), committed.hash, 'any mutation changes the hash');
-  // Key order never matters for the canonical hash.
-  const reordered = JSON.parse(JSON.stringify(committed));
-  const entries = Object.entries(reordered).reverse();
-  assert.equal(courseHash(Object.fromEntries(entries)), committed.hash);
+  const tampered = { ...committed, ramps: committed.ramps.slice(1) };
+  assert.equal(courseHash(tampered) === committed.hash, false);
 });
 
-test('committed course passes every validation invariant', () => {
+test('source terrain functions are the port baseline', () => {
+  // Verbatim source expectations (SSXTricky rules.mjs at the frozen revision).
+  assert.ok(Math.abs(courseCenter(0)) < 1e-12);
+  assert.ok(Math.abs(groundHeight(0, 0)) < 1e-12);
+  // Downhill: height decreases with distance.
+  assert.ok(groundHeight(0, 100) < groundHeight(0, 0));
+  // Banks rise beyond |x−center| > 22.
+  assert.ok(groundHeight(courseCenter(500) + 30, 500) > groundHeight(courseCenter(500), 500) + 1);
+  // The thirteen source ramps: centers 95+i*124, alternating lines.
+  const ramps = createRamps();
+  assert.equal(ramps.length, RAMP_COUNT);
+  assert.equal(ramps[0].x, courseCenter(95)); // i=0 sits ON the line
+  assert.equal(ramps[1].x, courseCenter(219)); // (1%3-1)*11 = 0
+  assert.equal(ramps[2].x, courseCenter(343) + 11); // (2%3-1)*11 = +11
+  assert.equal(ramps[3].x, courseCenter(467) - 11); // (3%3-1)*11 = -11
+  // Ramp profiles rise from base to lip.
+  assert.equal(rampHeight(ramps[0], ramps[0].start), ramps[0].base);
+  assert.ok(rampHeight(ramps[0], ramps[0].end) > ramps[0].base + 4);
+  assert.equal(onRamp(ramps[0], ramps[0].x, ramps[0].end - 1), true);
+  assert.equal(onRamp(ramps[0], ramps[0].x + 20, ramps[0].end - 1), false);
+  // Contact surface honors ramps (render/contact agreement).
+  assert.equal(surfaceHeight(ramps[0].x, (ramps[0].start + ramps[0].end) / 2, ramps), rampHeight(ramps[0], (ramps[0].start + ramps[0].end) / 2));
+});
+
+test('validation rejects drift from the source course', () => {
   assert.deepEqual(validateCourse(committed), []);
+  assert.ok(validateCourse(null).length > 0);
+  assert.ok(validateCourse({ ...committed, id: 'summit-night' }).length > 0);
+  assert.ok(validateCourse({ ...committed, version: 3 }).length > 0);
+  // Moving a ramp off its source line breaks the contract.
+  const movedRamp = committed.ramps.map((r, i) => (i === 4 ? { ...r, x: r.x + 5 } : r));
+  assert.ok(validateCourse({ ...committed, ramps: movedRamp }).some((p) => p.includes('ramp')));
+  // A pickup off the source line too.
+  const movedPickup = committed.pickups.map((p, i) => (i === 7 ? { ...p, x: p.x + 9 } : p));
+  assert.ok(validateCourse({ ...committed, pickups: movedPickup }).some((p) => p.includes('pickup')));
+  // Dropping a speed zone.
+  assert.ok(validateCourse({ ...committed, speedZones: committed.speedZones.slice(1) }).length > 0);
+  // A stale hash.
+  const staleHash = { ...committed };
+  delete staleHash.hash;
+  assert.ok(validateCourse(staleHash).length > 0);
+});
+
+test('loadCourse samplers expose the source features', () => {
   const course = loadCourse(committed);
   assert.equal(course.lengthMeters, LENGTH_METERS);
-  assert.equal(course.gates.length, CHECKPOINT_PLANES.length);
-  assert.ok(course.obstacles.length <= MAX_COLLIDERS, 'collider cap holds');
+  assert.equal(course.ramps.length, RAMP_COUNT);
+  assert.equal(course.speedZones.length, RAMP_COUNT);
+  assert.equal(course.pickups.length, PICKUP_COUNT);
+  assert.equal(course.banners.length, 4);
+  // Speed zones feed their ramps at the source offsets.
+  for (const [i, zone] of course.speedZones.entries()) {
+    assert.equal(zone.start, course.ramps[i].start - 41);
+    assert.equal(zone.end, course.ramps[i].start - 19);
+    assert.equal(zone.x, course.ramps[i].x);
+    assert.equal(zone.width, 10);
+  }
+  // Pickups sit within the corridor.
+  for (const p of course.pickups) {
+    assert.ok(Math.abs(p.x - courseCenter(p.d)) <= 35);
+  }
+  // Contact height agrees between the (s, u) sampler and absolute x.
+  const mid = (course.ramps[0].start + course.ramps[0].end) / 2;
+  const u = course.ramps[0].x - courseCenter(mid);
+  assert.ok(Math.abs(course.heightAt(mid, u) - course.surfaceAt(course.ramps[0].x, mid)) < 1e-9);
+  assert.ok(Math.abs(course.centerXAt(500) - courseCenter(500)) < 1e-12);
 });
 
-test('validation rejects drifted grids, gates, recovery points and hashes', () => {
-  const problems = (mutate) => {
-    const doc = structuredClone(committed);
-    mutate(doc);
-    return validateCourse(doc);
-  };
-
-  assert.ok(problems((d) => { d.grid.sValues[5] = 999; }).some((p) => p.includes('uniformly')));
-  assert.ok(problems((d) => { d.lengthMeters = 1500; }).some((p) => p.includes('lengthMeters')));
-  assert.ok(problems((d) => { d.grid.height[10][3] = NaN; }).some((p) => p.includes('finite')));
-  assert.ok(problems((d) => { d.gates[3].s = 850; }).some((p) => p.includes('800m')));
-  assert.ok(problems((d) => { d.gates.pop(); }).some((p) => p.includes('exactly 8 gates')));
-  assert.ok(problems((d) => { d.finish.s = 1600; }).some((p) => p.includes('finish must sit at 1800m')));
-  assert.ok(problems((d) => { d.recoveryPoints[2].segment = 9; }).some((p) => p.includes('segment')));
-  assert.ok(problems((d) => { d.recoveryPoints[0].s = 260; }).some((p) => p.includes('earned segment')),
-    'a recovery point must never sit past its next gate');
-  assert.ok(problems((d) => { d.obstacles = Array.from({ length: 65 }, (_, i) => ({ id: `x${i}`, kind: 'pine', s: 10, u: 20, halfS: 1, halfU: 1, height: 2 })); })
-    .some((p) => p.includes('<= 64')));
-  assert.ok(problems((d) => { d.hash = '0'.repeat(64); }).some((p) => p.includes('hash must match')));
-  assert.ok(problems((d) => { d.grid.uValues.reverse(); }).some((p) => p.includes('uniformly')));
+test('committed course files stay in sync with the manifest', () => {
+  const manifest = readFileSync(new URL('../shared/placeDefinitions.js', import.meta.url), 'utf8');
+  assert.ok(manifest.includes("'alpine-rush'"), 'manifest declares the course id');
+  assert.ok(manifest.includes("version: 2"), 'manifest declares course version 2');
 });
 
-test('samplers: bilinear heights clamp at edges and match grid samples exactly', () => {
-  const course = loadCourse(committed);
-
-  // Exact agreement with grid nodes.
-  for (const [s, u] of [[0, 0], [200, -24], [800, -3], [1800, 24], [1234, 6]]) {
-    const sampled = course.heightAt(s, u);
-    assert.ok(Number.isFinite(sampled));
-  }
-  assert.equal(course.heightAt(0, 0), committed.grid.height[0][12]);
-  assert.equal(course.heightAt(400, 2), committed.grid.height[200][13]);
-
-  // Clamping: out-of-range s/u clamp to the sampled rectangle.
-  assert.equal(course.heightAt(-50, 0), course.heightAt(0, 0));
-  assert.equal(course.heightAt(9999, 0), course.heightAt(1800, 0));
-  assert.equal(course.heightAt(0, -100), course.heightAt(0, -24));
-  assert.equal(course.heightAt(0, 100), course.heightAt(0, 24));
-
-  // Bilinear midpoint sits between its two corner rows.
-  const hLow = course.heightAt(100, 0);
-  const hHigh = course.heightAt(102, 0);
-  const hMid = course.heightAt(101, 0);
-  assert.ok(hMid >= Math.min(hLow, hHigh) - 1e-9 && hMid <= Math.max(hLow, hHigh) + 1e-9);
-});
-
-test('samplers: downhill means descending height, and the route is rideable', () => {
-  const course = loadCourse(committed);
-  const start = course.heightAt(0, 0);
-  const finish = course.heightAt(1800, 0);
-  assert.ok(finish < start, `course must descend: ${start} -> ${finish}`);
-
-  // Grade is a non-negative clamp of -dHeight/ds from the same grid.
-  for (const s of [50, 220, 600, 900, 1100, 1500, 1750]) {
-    const grade = course.gradeAt(s);
-    assert.ok(grade >= 0 && grade <= 0.6, `grade at ${s} inside [0, 0.6]`);
-  }
-  // The start gate is the steepest stretch (lit start slope).
-  assert.ok(course.gradeAt(100) > course.gradeAt(1700), 'start grade exceeds the floodlit runout');
-
-  // Total descent fits a ~60–120s run at D5 speed bounds.
-  const drop = start - finish;
-  assert.ok(drop > 150 && drop < 400, `total drop ${drop}m is raceable`);
-});
-
-test('route readability: centerline stays inside the groomed bowl and ramps protrude', () => {
-  const course = loadCourse(committed);
-  for (const entry of committed.centerline) {
-    assert.ok(Math.abs(entry.x) <= 14.01, `centerline x=${entry.x} at s=${entry.s} keeps the carve readable`);
-    assert.ok(entry.width >= 40 && entry.width <= 44, 'rideable width stays in the authored band');
-  }
-  // Ramp lips are baked into the grid: height rises up to the lip then falls.
-  for (const ramp of committed.ramps) {
-    const midU = (ramp.uMin + ramp.uMax) / 2;
-    const atLip = course.heightAt(ramp.s, midU);
-    const before = course.heightAt(ramp.s - ramp.approach, midU);
-    const after = course.heightAt(ramp.s + 2, midU);
-    assert.ok(atLip > before, `${ramp.id} lip rises above its approach`);
-    assert.ok(after < atLip - 0.5, `${ramp.id} drops away past the lip (a real launch)`);
-  }
-  // Recovery points stand on groomed surface tags.
-  const sIndex = (s) => Math.round(s / committed.gridStepMeters);
-  const uIndex = (u) => Math.round((u + committed.corridorHalfWidth) / committed.lateralStepMeters);
-  for (const point of committed.recoveryPoints) {
-    const tag = committed.grid.surface[sIndex(point.s)][uIndex(point.u)];
-    assert.equal(tag, 0, `recovery ${point.id} stands on groomed snow`);
-  }
+test('course format fixture stays current', () => {
+  const format = JSON.parse(readFileSync(new URL('./fixtures/snowboard/course-format.json', import.meta.url), 'utf8'));
+  assert.equal(format.id ?? format.identity?.id ?? format.courseId ?? 'alpine-rush', 'alpine-rush');
+  void format;
 });

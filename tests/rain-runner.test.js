@@ -126,3 +126,17 @@ test('rain runner sends inputs during active participation', () => {
   // Clean up
   instance.dispose();
 });
+
+test('rain runner accepts terminal results and errors through its read-only state accessors', () => {
+  const instance = getActivityModule('rain-runner').initialize({
+    activityDef: RAIN_RUNNER_ACTIVITY_DEFINITION,
+    world: { group: new THREE.Group() },
+  });
+
+  instance.acceptResult({ result: { score: 180 } });
+  instance.acceptError({ error: 'activity_full' });
+
+  assert.deepEqual(instance.lastResult, { score: 180 });
+  assert.equal(instance.lastError.error, 'activity_full');
+  instance.dispose();
+});

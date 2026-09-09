@@ -543,7 +543,7 @@ export function createPoolController({
     update(delta = 1 / 60, simState = null) {
       if (simState) {
         currentSim = simState;
-        isMyTurn = simState.turn === mySlot && simState.status !== 'game_over';
+        isMyTurn = Number.isInteger(simState.turn) && simState.turn === mySlot && simState.status !== 'game_over';
         isShooting = simState.status === 'shooting' || !simState.physics?.settled;
       }
 
@@ -610,7 +610,7 @@ export function createPoolController({
         const foulEl = hud.root.querySelector('[data-role="foul"]');
         const pocketPanel = hud.root.querySelector('[data-role="pocket-panel"]');
 
-        const turn = currentSim.turn;
+        const turn = Number.isInteger(currentSim.turn) ? currentSim.turn : null;
         const group = currentSim.groups ? currentSim.groups[String(mySlot)] : null;
         const myGroupLabel = group ? ` (${group.toUpperCase()})` : ' (OPEN TABLE)';
 
@@ -626,6 +626,9 @@ export function createPoolController({
             statusEl.textContent = `YOUR TURN${myGroupLabel}`;
             statusEl.style.color = '#ffffff';
           }
+        } else if (turn == null) {
+          statusEl.textContent = 'Waiting for the table…';
+          statusEl.style.color = '#afb9ac';
         } else {
           statusEl.textContent = `OPPONENT'S TURN (PLAYER ${turn + 1})`;
           statusEl.style.color = '#afb9ac';

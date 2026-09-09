@@ -149,6 +149,64 @@ test('4. Foosball activity module registered and mounts cleanly in theater world
   inst.destroy();
 });
 
+test('foosball: seating via participation starts the table and nested snapshots apply', () => {
+  const theaterDef = getPlaceDefinition('theater');
+  const world = buildDistrict(theaterDef);
+  const actDef = ORPHEUM_ALL_ACTIVITIES.find(a => a.id === 'orpheum-foosball');
+  let participating = false;
+  let slot = null;
+  let sent = 0;
+  const inst = getActivityModule('foosball').createInstance({
+    activityDef: actDef,
+    world,
+    roomId: 'theater',
+    net: {
+      sendActivityInput: () => { sent += 1; },
+      nextActivitySeq: () => sent + 1,
+    },
+    getParticipation: () => ({
+      isParticipating: participating,
+      currentActivity: { id: 'orpheum-foosball' },
+      currentSlot: slot,
+      currentRole: 'player',
+      sessionId: 'sess-1',
+      lease: 'lease-1',
+    }),
+  });
+
+  inst.update(0, 0.016);
+  assert.equal(sent, 0, 'bystanders do not send rod input');
+
+  participating = true;
+  slot = 0;
+  inst.update(0, 0.016);
+  assert.ok(sent > 0, 'pressing E at foosball must bind the seated player');
+
+  inst.acceptSnapshot({
+    type: 'activity_state',
+    activityId: 'orpheum-foosball',
+    state: {
+      status: 'in_progress',
+      sim: {
+        score: { '0': 1, '1': 0 },
+        ball: { x: 60, y: 35, vx: 0, vy: 0 },
+        rods: {
+          '0': [{ y: 35, angle: 0 }, { y: 35, angle: 0 }, { y: 35, angle: 0 }, { y: 35, angle: 0 }],
+          '1': [{ y: 35, angle: 0 }, { y: 35, angle: 0 }, { y: 35, angle: 0 }, { y: 35, angle: 0 }],
+        },
+      },
+    },
+  });
+  assert.equal(inst.getSimState().score['0'], 1);
+
+  participating = false;
+  slot = null;
+  sent = 0;
+  inst.update(0, 0.016);
+  assert.equal(sent, 0, 'leaving the table stops rod input');
+  inst.destroy();
+});
+
 test('5. Foosball table placement preserves 100% theater seat sightlines and >= 1.2m clearances', () => {
   const theaterDef = getPlaceDefinition('theater');
   const world = buildDistrict(theaterDef);

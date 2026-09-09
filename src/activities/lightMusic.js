@@ -7,6 +7,7 @@ import { createLightMusicScene } from './lightMusic/choirScene.js';
 import { createLightMusicAudio } from './lightMusic/audio.js';
 import { createLightMusicController } from './lightMusic/choirController.js';
 import { applyLightMusicInput, initLightMusicState } from '../../shared/lightMusicModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export function createLightMusicInstance({
   activityDef,
@@ -104,7 +105,7 @@ export function createLightMusicInstance({
       simState = serverSim;
     },
     acceptSnapshot(envelope) {
-      this.onSnapshot(envelope?.sim || envelope?.state || envelope?.simState || envelope);
+      this.onSnapshot(extractActivitySim(envelope));
     },
     acceptEvent(envelope) {
       hear({
@@ -116,6 +117,13 @@ export function createLightMusicInstance({
     acceptError() {},
     neutralizeInput() { audio.noteOff(); },
     update(time) {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant,
+        onJoin: (info) => this.onJoin(info),
+        onLeave: () => this.onLeave(),
+      });
       scene.updateVisuals(simState, time);
       if (isParticipant) controller.update(simState);
     },

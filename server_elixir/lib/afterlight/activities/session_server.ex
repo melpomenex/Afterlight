@@ -351,8 +351,9 @@ defmodule Afterlight.Activities.SessionServer do
     end
   end
 
-  # D7 race events: checkpoint / rider_finished per rider. Crashes stay
-  # session-local feedback (design D5) and are not broadcast.
+  # D7 race events: rider_finished per rider (the Alpine Rush course has no
+  # ordered checkpoints; trick/bail/pickup feedback stays client-local like
+  # the source game's toasts and is not broadcast).
   defp broadcast_race_event(state, slot, event) do
     player = Map.get(state.players, slot)
     player_id = if player, do: player.player_id, else: "slot_#{slot}"
@@ -362,8 +363,8 @@ defmodule Afterlight.Activities.SessionServer do
         %{type: :checkpoint, index: index, key: key} ->
           %{"playerId" => player_id, "index" => index, "elapsedMs" => round(key)}
 
-        %{type: :finish, finishMs: finish_ms} ->
-          %{"playerId" => player_id, "elapsedMs" => finish_ms}
+        %{type: :finish, finishMs: finish_ms, score: score, bestCombo: best_combo} ->
+          %{"playerId" => player_id, "elapsedMs" => finish_ms, "score" => score, "bestCombo" => best_combo}
 
         _other ->
           nil
@@ -1116,16 +1117,17 @@ defmodule Afterlight.Activities.SessionServer do
 
         state = %{state | players: players, disconnects: disconnects, status: status}
 
-        result = %{
-          result: "seated",
-          role: "player",
-          slot: slot,
-          leaseId: new_lease,
-          lease: new_lease,
-          sessionId: state.session_id,
-          revision: state.revision,
-          status: state.status
-        }
+                    result = %{
+                      result: "seated",
+                      role: "player",
+                      slot: slot,
+                      leaseId: new_lease,
+                      lease: new_lease,
+                      sessionId: state.session_id,
+                      revision: state.revision,
+                      status: state.status,
+                      matchId: state.match_id
+                    }
 
         {:reply, {:ok, result}, state}
 
@@ -1203,7 +1205,8 @@ defmodule Afterlight.Activities.SessionServer do
                       lease: lease_id,
                       sessionId: state.session_id,
                       revision: state.revision,
-                      status: state.status
+                      status: state.status,
+                      matchId: state.match_id
                     }
 
                     {:reply, {:ok, result}, state}
@@ -2037,7 +2040,7 @@ defmodule Afterlight.Activities.SessionServer do
     if state.tick_timer_ref, do: Process.cancel_timer(state.tick_timer_ref)
     if state.deadline_ref, do: Process.cancel_timer(state.deadline_ref)
 
-    standings = Snowboard.SessionPolicy.standings(state.sim_state)
+    standings = Snowboard.SessionPolicy.standings(state.sim_state, state.players)
 
     outcome = %{
       "kind" => "snowboard_race",

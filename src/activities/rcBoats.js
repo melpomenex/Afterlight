@@ -14,6 +14,7 @@ import { createRcBoatScene } from './rcBoat/boatScene.js';
 import { createRcBoatAudio } from './rcBoat/audio.js';
 import { createRcBoatController } from './rcBoat/boatController.js';
 import { initRcBoatSimState } from '../../shared/rcBoatModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export function createRcBoatInstance({
   activityDef,
@@ -114,8 +115,7 @@ export function createRcBoatInstance({
     },
 
     acceptSnapshot(envelope) {
-      const state = envelope?.sim || envelope?.state || envelope?.simState || envelope;
-      this.onSnapshot(state);
+      this.onSnapshot(extractActivitySim(envelope));
     },
 
     acceptEvent(envelope) {
@@ -140,6 +140,14 @@ export function createRcBoatInstance({
     acceptError() {},
 
     update(time, delta) {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant,
+        onJoin: (info) => this.onJoin(info),
+        onLeave: () => this.onLeave(),
+      });
+
       // 1. Advance visual 3D scene (buoys bobbing, boat postures, water spray)
       boatScene.updateVisuals(simState, time);
 

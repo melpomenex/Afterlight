@@ -1,8 +1,9 @@
 defmodule Afterlight.Activities.Snowboard.CourseTest do
   @moduledoc """
-  Course authority tests (add-multiplayer-snowboard-arcade 3.1): the
-  committed priv copy loads, its hash verifies, and the Elixir samplers
-  reproduce the JS-exported golden parity points exactly.
+  Course authority tests (integrate-ssxtricky-snowboard 3.2/3.4): the
+  committed ALPINE RUSH priv copy loads, its hash verifies, the source layout
+  invariants hold, and the Elixir analytic samplers reproduce the JS-exported
+  golden parity points exactly (≤1e-9).
   """
 
   use ExUnit.Case, async: true
@@ -16,9 +17,11 @@ defmodule Afterlight.Activities.Snowboard.CourseTest do
       assert %Course{} = course = Course.load_default()
       assert course.hash == Map.get(course.doc, "hash")
       assert Course.validate(course.doc) == []
-      assert length(course.gates) == 8
+      assert length(course.ramps) == 13
+      assert length(course.speed_zones) == 13
+      assert length(course.pickups) == 22
+      assert length(course.banners) == 4
       assert Map.get(course.finish, "s") == 1800
-      assert length(course.obstacles) <= 64
     end
 
     test "a drifted document is refused with named problems" do
@@ -27,13 +30,33 @@ defmodule Afterlight.Activities.Snowboard.CourseTest do
       assert {:error, problems} = Course.load(bad, raise: false)
       assert Enum.any?(problems, &String.contains?(&1, "lengthMeters"))
 
-      tampered = Map.update!(doc, "grid", fn grid ->
-        Map.update!(grid, "height", fn rows -> List.update_at(rows, 100, &List.replace_at(&1, 12, 99.0)) end)
-      end)
-      assert {:error, problems} = Course.load(tampered, raise: false)
-      assert Enum.any?(problems, &String.contains?(&1, "hash must match"))
+      moved_pickup =
+        Map.update!(doc, "pickups", fn pickups ->
+          List.update_at(pickups, 3, &Map.put(&1, "x", Map.get(&1, "x") + 9.0))
+        end)
+
+      assert {:error, problems} = Course.load(moved_pickup, raise: false)
+      assert Enum.any?(problems, &String.contains?(&1, "pickup"))
 
       assert {:error, ["course document must be an object"]} = Course.load("nope", raise: false)
+    end
+
+    test "the source layout invariants hold on the samplers" do
+      course = Course.load_default()
+      # Ramp 0 sits ON the centerline; ramps 1..12 alternate (i%3-1)*11.
+      ramp0 = hd(course.ramps)
+      assert abs(ramp0["x"] - Course.center_at(95)) < 1.0e-5 # baked ramp x is round6-rounded at export
+      assert ramp0["width"] == 12 and ramp0["height"] == 5
+      # Contact on the ramp rises above the raw ground under it.
+      mid = (ramp0["start"] + ramp0["end"]) / 2
+      assert Course.surface_at(course, ramp0["x"], mid) > Course.ground_at(ramp0["x"], mid)
+      # Outside the ramp footprint the surface is the analytic ground.
+      assert Course.surface_at(course, ramp0["x"] + 20, mid) ==
+               Course.ground_at(ramp0["x"] + 20, mid)
+      # Downhill: the ground descends with distance; banks rise outward.
+      assert Course.ground_at(0, 100) < Course.ground_at(0, 0)
+      assert Course.ground_at(Course.center_at(500) + 30, 500) >
+               Course.ground_at(Course.center_at(500), 500)
     end
   end
 
@@ -49,7 +72,7 @@ defmodule Afterlight.Activities.Snowboard.CourseTest do
   end
 
   describe "JS sampler parity" do
-    test "every exported golden point matches exactly" do
+    test "every exported golden point matches within 1e-9" do
       course = Course.load_default()
       parity = @parity_path |> File.read!() |> Jason.decode!()
 
@@ -57,30 +80,8 @@ defmodule Afterlight.Activities.Snowboard.CourseTest do
       points = Map.get(parity, "points")
       assert length(points) >= 20
 
-      mismatches =
-        for point <- points, mismatch?(course, point) do
-          point
-        end
-
+      mismatches = for point <- points, mismatch?(course, point), do: point
       assert mismatches == [], "sampler drift: #{inspect(Enum.take(mismatches, 3))}"
-    end
-
-    test "height descends downhill and clamps at the sampled rectangle" do
-      course = Course.load_default()
-      assert Course.height_at(course, 1800, 0) < Course.height_at(course, 0, 0)
-      assert Course.height_at(course, -50, 0) == Course.height_at(course, 0, 0)
-      assert Course.height_at(course, 9999, 0) == Course.height_at(course, 1800, 0)
-      assert Course.height_at(course, 0, -100) == Course.height_at(course, 0, -24)
-      assert Course.height_at(course, 0, 100) == Course.height_at(course, 0, 24)
-    end
-
-    test "grade stays inside the contract clamp" do
-      course = Course.load_default()
-
-      for s <- [50, 220, 600, 900, 1100, 1500, 1750] do
-        grade = Course.grade_at(course, s)
-        assert grade >= 0.0 and grade <= 0.6, "grade at #{s} inside [0, 0.6]"
-      end
     end
   end
 
@@ -90,16 +91,14 @@ defmodule Afterlight.Activities.Snowboard.CourseTest do
 
   defp default_doc, do: default_path() |> File.read!() |> Jason.decode!()
 
+  # Parity points carry (s, u-lateral); the samplers take absolute x.
   defp mismatch?(course, %{"kind" => kind, "s" => s, "u" => u, "expected" => expected})
-       when kind in ["height_node_or_interp", "clamp_low_s", "clamp_high_s", "clamp_low_u", "clamp_high_u"] do
-    abs(Course.height_at(course, s * 1.0, u * 1.0) - expected * 1.0) > 1.0e-9
+       when kind in ["height", "ramp_contact", "ground_off_center", "far_bank"] do
+    x = Course.center_at(s * 1.0) + u * 1.0
+    abs(Course.surface_at(course, x, s * 1.0) - expected * 1.0) > 1.0e-9
   end
 
   defp mismatch?(course, %{"kind" => "center_x", "s" => s, "expected" => expected}) do
-    abs(Course.center_x_at(course, s * 1.0) - expected * 1.0) > 1.0e-9
-  end
-
-  defp mismatch?(course, %{"kind" => "grade", "s" => s, "expected" => expected}) do
-    abs(Course.grade_at(course, s * 1.0) - expected * 1.0) > 1.0e-9
+    abs(Course.center_at(s * 1.0) - expected * 1.0) > 1.0e-9
   end
 end

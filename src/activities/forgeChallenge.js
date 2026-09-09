@@ -10,6 +10,7 @@ import { createForgeChallengeScene } from './forgeChallenge/scene.js';
 import { createForgeChallengeAudio } from './forgeChallenge/audio.js';
 import { createForgeChallengeController } from './forgeChallenge/controller.js';
 import { applyForgeInput, initForgeSimState } from '../../shared/forgeChallengeModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export function createForgeChallengeInstance({
   activityDef,
@@ -130,8 +131,7 @@ export function createForgeChallengeInstance({
     },
 
     acceptSnapshot(envelope) {
-      const state = envelope?.sim || envelope?.state || envelope?.simState || envelope;
-      this.onSnapshot(state);
+      this.onSnapshot(extractActivitySim(envelope));
     },
 
     acceptEvent(envelope) {
@@ -144,6 +144,13 @@ export function createForgeChallengeInstance({
     acceptError() {},
 
     update(time) {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant,
+        onJoin: (info) => this.onJoin(info),
+        onLeave: () => this.onLeave(),
+      });
       scene.updateVisuals(simState, time);
       if (isParticipant) controller.update(simState);
     },

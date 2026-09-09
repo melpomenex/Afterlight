@@ -68,13 +68,9 @@ export function buildDesertCampScenery(ctx) {
     s.box(x,.22,z,.7,.44,.6,'#655743','wood');ctx.block(x,z,.7,.6);
     s.box(x,.48,z,.75,.09,.65,'#987d56','wood');
   }
-  // Horseshoe stakes at camp-horseshoes [4.5, 2.0] — thin iron, no extra collision.
-  for (const z of [4.4, -0.4]) {
-    s.box(4.5, 0.02, z, 0.7, 0.04, 0.7, '#6b5340', 'sand');
-    s.cylinder(4.5, 0.34, z, 0.07, 0.64, '#6d5a3a', 'metal');
-    s.cylinder(4.5, 0.68, z, 0.09, 0.06, '#c4a574', 'metal');
-  }
   // Night telescope at the tent opening — compact tripod, routes stay open.
+  // (Horseshoe pits are drawn by the activity's own pit scene at its
+  // manifest transform, so the camp does not duplicate stakes here.)
   s.cylinder(-6.5, 0.45, -5.5, 0.08, 0.9, '#3d4246', 'metal');
   s.box(-6.5, 1.05, -5.5, 0.16, 0.12, 0.4, '#2a2e32', 'metal');
   s.box(-6.5, 1.12, -5.35, 0.1, 0.08, 0.18, '#1c2226', 'metal');

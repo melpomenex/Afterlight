@@ -9,7 +9,7 @@ import { HORSESHOES_STAKES } from '../../../shared/horseshoesModel.js';
 const SHOE_COLORS = ['#c47a3a', '#d8c4a0'];
 
 export function createHorseshoePitScene({
-  position = [4.5, 0, 2.0],
+  position = [8, 0, 5.5],
   rotationY = 0,
 } = {}) {
   const group = new THREE.Group();

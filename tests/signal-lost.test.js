@@ -130,3 +130,17 @@ test('signal lost sends inputs during active participation', () => {
   // Clean up
   instance.dispose();
 });
+
+test('signal lost accepts terminal results and errors through its read-only state accessors', () => {
+  const instance = getActivityModule('signal-lost').initialize({
+    activityDef: SIGNAL_LOST_ACTIVITY_DEFINITION,
+    world: { group: new THREE.Group() },
+  });
+
+  instance.acceptResult({ result: { score: 320 } });
+  instance.acceptError({ error: 'activity_full' });
+
+  assert.deepEqual(instance.lastResult, { score: 320 });
+  assert.equal(instance.lastError.error, 'activity_full');
+  instance.dispose();
+});

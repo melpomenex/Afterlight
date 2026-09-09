@@ -369,7 +369,7 @@ defmodule Afterlight.Activities.SnowboardSessionTest do
     assert match1 != match2, "every locked countdown rotates the match identity"
     info = Activities.session_info(session)
     assert map_size(info.sim_state["riders"]) == 2
-    assert Enum.all?(Map.values(info.sim_state["riders"]), &(&1["s"] == 0 and &1["nextCheckpoint"] == 1)),
+    assert Enum.all?(Map.values(info.sim_state["riders"]), &(&1["s"] == 0 and &1["finishTick"] == nil and &1["score"] == 0 and &1["pickupsClaimed"] == [])),
            "race state fully resets for the new match"
   end
 

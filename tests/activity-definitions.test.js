@@ -289,10 +289,10 @@ test('summit-run carries the complete snowboard-race contract', () => {
   const summit = ORPHEUM_ACTIVITIES.find(a => a.id === 'summit-run');
   assert.ok(summit, 'summit-run activity definition exists');
   assert.equal(summit.type, 'snowboard-race');
-  assert.equal(summit.rulesVersion, 1);
+  assert.equal(summit.rulesVersion, 2);
   assert.equal(summit.minPlayers, 2);
   assert.equal(summit.readyPolicy, 'explicit');
-  assert.deepEqual(summit.course, { id: 'summit-night', version: 1 });
+  assert.deepEqual(summit.course, { id: 'alpine-rush', version: 2 });
   assert.equal(summit.capacities.players, 8);
   assert.equal(summit.participantAnchors.length, 8, 'eight distinct rider anchors');
   const positions = new Set(summit.participantAnchors.map(a => a.position.join(',')));
@@ -303,10 +303,10 @@ test('snowboard-race validation: complete contract passes, incomplete is rejecte
   const base = {
     id: 'test-race',
     type: 'snowboard-race',
-    rulesVersion: 1,
+    rulesVersion: 2,
     minPlayers: 2,
     readyPolicy: 'explicit',
-    course: { id: 'summit-night', version: 1 },
+    course: { id: 'alpine-rush', version: 2 },
     transform: { position: [0, 0, 0] },
     footprint: { width: 0.85, depth: 0.9 },
     interactionRadius: 2.2,

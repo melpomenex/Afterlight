@@ -10,6 +10,7 @@ import { createHammerStrikeScene } from './hammerStrike/scene.js';
 import { createHammerStrikeAudio } from './hammerStrike/audio.js';
 import { createHammerStrikeController } from './hammerStrike/controller.js';
 import { applyHammerInput, initHammerSimState } from '../../shared/hammerStrikeModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export function createHammerStrikeInstance({
   activityDef,
@@ -132,8 +133,7 @@ export function createHammerStrikeInstance({
     },
 
     acceptSnapshot(envelope) {
-      const state = envelope?.sim || envelope?.state || envelope?.simState || envelope;
-      this.onSnapshot(state);
+      this.onSnapshot(extractActivitySim(envelope));
     },
 
     acceptEvent(envelope) {
@@ -146,6 +146,13 @@ export function createHammerStrikeInstance({
     acceptError() {},
 
     update(time, delta) {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant,
+        onJoin: (info) => this.onJoin(info),
+        onLeave: () => this.onLeave(),
+      });
       scene.updateVisuals(simState, time);
       if (isParticipant) controller.update(simState, delta);
     },

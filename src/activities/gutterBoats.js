@@ -14,6 +14,7 @@ import { createGutterBoatScene } from './gutterBoat/boatScene.js';
 import { createGutterBoatAudio } from './gutterBoat/audio.js';
 import { createGutterBoatController } from './gutterBoat/boatController.js';
 import { initGutterBoatState } from '../../shared/gutterBoatModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export function createGutterBoatInstance({
   activityDef,
@@ -134,8 +135,7 @@ export function createGutterBoatInstance({
     },
 
     acceptSnapshot(envelope) {
-      const state = envelope?.sim || envelope?.state || envelope?.simState || envelope;
-      this.onSnapshot(state);
+      this.onSnapshot(extractActivitySim(envelope));
     },
 
     acceptEvent(envelope) {
@@ -160,6 +160,13 @@ export function createGutterBoatInstance({
     acceptError() {},
 
     update(time, delta) {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant,
+        onJoin: (info) => this.onJoin(info),
+        onLeave: () => this.onLeave(),
+      });
       boatScene.updateVisuals(simState, time);
 
       if (isParticipant) {

@@ -1,55 +1,55 @@
 {
- "courseId": "summit-night",
- "courseVersion": 1,
- "courseHash": "494bc3dc655f26beb2ef46a7f12d2dde6bf0c90c73e4fa3b8588179daf135b7f",
+ "courseId": "alpine-rush",
+ "courseVersion": 2,
+ "courseHash": "2cd7f27aaf6ad2429edc9eef4030836eba26534088bb50f0f9814fc5c2140101",
  "points": [
   {
-   "kind": "height_node_or_interp",
+   "kind": "height",
    "s": 0,
    "u": 0,
-   "expected": 220
+   "expected": 0
   },
   {
-   "kind": "height_node_or_interp",
+   "kind": "height",
    "s": 200,
    "u": -24,
-   "expected": 158.08
+   "expected": -33.78808188607289
   },
   {
-   "kind": "height_node_or_interp",
+   "kind": "height",
    "s": 600,
    "u": 12,
-   "expected": 103.86
+   "expected": -106.4126642723017
   },
   {
-   "kind": "height_node_or_interp",
+   "kind": "height",
    "s": 800,
    "u": -3,
-   "expected": 79.625
+   "expected": -144.34865356244595
   },
   {
-   "kind": "height_node_or_interp",
+   "kind": "height",
    "s": 1200,
    "u": 6,
-   "expected": 17.93
+   "expected": -214.06868444690144
   },
   {
-   "kind": "height_node_or_interp",
-   "s": 1800,
+   "kind": "height",
+   "s": 1799,
    "u": 24,
-   "expected": -57.34
+   "expected": -322.17437537317124
   },
   {
-   "kind": "height_node_or_interp",
+   "kind": "height",
    "s": 555,
    "u": -17,
-   "expected": 107.865
+   "expected": -99.16407897885522
   },
   {
-   "kind": "height_node_or_interp",
+   "kind": "height",
    "s": 1234,
    "u": 3,
-   "expected": 12.309999999999999
+   "expected": -220.55339184782008
   },
   {
    "kind": "center_x",
@@ -61,103 +61,127 @@
    "kind": "center_x",
    "s": 100,
    "u": 0,
-   "expected": 0
+   "expected": 12.575773327264532
   },
   {
    "kind": "center_x",
    "s": 400,
    "u": 0,
-   "expected": -3.35
+   "expected": 19.271294960149465
   },
   {
    "kind": "center_x",
    "s": 800,
    "u": 0,
-   "expected": -3.54
+   "expected": 21.76679138017169
   },
   {
    "kind": "center_x",
    "s": 1234,
    "u": 0,
-   "expected": -1.79
+   "expected": -19.714115641377276
   },
   {
    "kind": "center_x",
    "s": 1700,
    "u": 0,
-   "expected": 0
+   "expected": -19.442368363951275
   },
   {
    "kind": "center_x",
    "s": 1800,
    "u": 0,
-   "expected": 0
+   "expected": -21.853301606132955
   },
   {
-   "kind": "grade",
-   "s": 50,
-   "u": 0,
-   "expected": 0.30750000000000455
+   "kind": "ramp_contact",
+   "s": 95,
+   "u": -2.4402915954624405e-7,
+   "expected": -11.263346
   },
   {
-   "kind": "grade",
-   "s": 220,
-   "u": 0,
-   "expected": 0.20749999999999602
+   "kind": "ramp_contact",
+   "s": 219,
+   "u": 4.988344990408677e-7,
+   "expected": -34.135339
   },
   {
-   "kind": "grade",
-   "s": 600,
-   "u": 0,
-   "expected": 0.11499999999999844
+   "kind": "ramp_contact",
+   "s": 343,
+   "u": 11.000000417116357,
+   "expected": -59.144015
   },
   {
-   "kind": "grade",
+   "kind": "ramp_contact",
+   "s": 467,
+   "u": -11.00000049099319,
+   "expected": -81.356739
+  },
+  {
+   "kind": "ramp_contact",
+   "s": 591,
+   "u": -3.0277721307925276e-7,
+   "expected": -100.970319
+  },
+  {
+   "kind": "ramp_contact",
+   "s": 715,
+   "u": 11.000000035322724,
+   "expected": -122.949943
+  },
+  {
+   "kind": "ramp_contact",
+   "s": 839,
+   "u": -10.999999931442485,
+   "expected": -147.920064
+  },
+  {
+   "kind": "ramp_contact",
+   "s": 963,
+   "u": -2.2223366435980552e-7,
+   "expected": -171.018779
+  },
+  {
+   "kind": "ramp_contact",
+   "s": 1087,
+   "u": 10.999999899384733,
+   "expected": -190.81746
+  },
+  {
+   "kind": "ramp_contact",
+   "s": 1211,
+   "u": -10.999999640502278,
+   "expected": -211.941711
+  },
+  {
+   "kind": "ramp_contact",
+   "s": 1335,
+   "u": 2.94520489774186e-7,
+   "expected": -236.585248
+  },
+  {
+   "kind": "ramp_contact",
+   "s": 1459,
+   "u": 11.000000144237408,
+   "expected": -260.485319
+  },
+  {
+   "kind": "ramp_contact",
+   "s": 1583,
+   "u": -11.000000478941232,
+   "expected": -280.743131
+  },
+  {
+   "kind": "ground_off_center",
+   "s": 500,
+   "u": 30,
+   "expected": -86.13875454374411
+  },
+  {
+   "kind": "far_bank",
    "s": 900,
-   "u": 0,
-   "expected": 0.14750000000000085
-  },
-  {
-   "kind": "grade",
-   "s": 1100,
-   "u": 0,
-   "expected": 0.15499999999999936
-  },
-  {
-   "kind": "grade",
-   "s": 1500,
-   "u": 0,
-   "expected": 0.07500000000000018
-  },
-  {
-   "kind": "grade",
-   "s": 1750,
-   "u": 0,
-   "expected": 0.05749999999999922
-  },
-  {
-   "kind": "clamp_low_s",
-   "s": -50,
-   "u": 0,
-   "expected": 220
-  },
-  {
-   "kind": "clamp_high_s",
-   "s": 9999,
-   "u": 0,
-   "expected": -52.73
-  },
-  {
-   "kind": "clamp_low_u",
-   "s": 0,
-   "u": -100,
-   "expected": 215.39
-  },
-  {
-   "kind": "clamp_high_u",
-   "s": 0,
-   "u": 100,
-   "expected": 215.39
+   "u": 34,
+   "expected": -156.82977175210695
   }
  ]
 }

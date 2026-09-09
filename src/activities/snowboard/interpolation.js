@@ -10,9 +10,9 @@
  * is not staleness). resetSeq increments (crash teleports, respawns) clear
  * the buffer — interpolation never animates across a recovery teleport.
  *
- * Positions/velocities interpolate in course space (s, u, y, v, vu); yaw is
- * derived by callers from the tangent and lateral velocity (no Euler wrap
- * snap here).
+ * Positions/velocities interpolate in course space (s, x, y, v, lateral);
+ * yaw is derived by callers from the tangent and lateral velocity (no Euler
+ * wrap snap here).
  */
 
 export const INTERPOLATION_TUNING = Object.freeze({
@@ -109,7 +109,7 @@ export function createRemoteRiderBuffer(tuning = {}) {
   };
 }
 
-const LERP_FIELDS = ['s', 'u', 'y', 'v', 'vu', 'vy', 'jumpCharge'];
+const LERP_FIELDS = ['s', 'x', 'y', 'v', 'lateral', 'vy', 'charge', 'boost'];
 
 function lerpState(a, b, alpha) {
   const out = { ...b };
@@ -119,9 +119,9 @@ function lerpState(a, b, alpha) {
     out[field] = va + (vb - va) * alpha;
   }
   // Discrete fields never interpolate.
-  out.grounded = alpha < 0.5 ? a.grounded : b.grounded;
-  out.nextCheckpoint = b.nextCheckpoint;
-  out.recoveryTicks = b.recoveryTicks;
+  out.airborne = alpha < 0.5 ? a.airborne : b.airborne;
+  out.trick = b.trick ?? null;
+  out.finishTick = b.finishTick ?? null;
   out.dnfReason = b.dnfReason ?? null;
   return out;
 }
@@ -130,9 +130,9 @@ function extrapolate(state, seconds) {
   if (seconds <= 0) return { ...state };
   const out = { ...state };
   out.s = (state.s ?? 0) + (state.v ?? 0) * seconds;
-  out.u = (state.u ?? 0) + (state.vu ?? 0) * seconds;
+  out.x = (state.x ?? 0) + (state.lateral ?? 0) * seconds;
   // Ballistic vertical motion only while airborne.
-  if (!state.grounded) {
+  if (state.airborne) {
     out.y = (state.y ?? 0) + (state.vy ?? 0) * seconds - 10 * seconds * seconds;
   }
   return out;

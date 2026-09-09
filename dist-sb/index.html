@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#172120">
+  <title>Afterlight — Multiplayer Market Garden</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="msapplication-TileColor" content="#141B18">
+  <meta name="msapplication-config" content="/browserconfig.xml">
+  <script type="module" crossorigin src="/assets/index-B0H-r6ug.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-BbE6ZyKG.css">
+</head>
+<body>
+  <canvas id="world" aria-label="Interactive isometric market-gardening world"></canvas>
+  <div class="vignette"></div>
+
+  <header>
+    <div class="brand">
+      <span class="star">✧</span>
+      <div>AFTERLIGHT<small>MARKET GARDENER</small></div>
+    </div>
+    <section class="location">
+      <span class="micro" id="district-tag">MARKET SOCIAL DISTRICT / 01</span>
+      <h1 id="location-title">The Market Court</h1>
+      <p><span id="weather-icon">☼</span> &nbsp; <span id="weather-text">AFTER THE RAIN</span> <span id="hud-clock">17:42</span></p>
+      <div class="player-stats-row" data-hud-legacy>
+        <span class="stat-pill" id="hud-coins">60 ⛁</span>
+        <span class="stat-pill" id="hud-rep">10 ★</span>
+        <span class="stat-pill" id="hud-xp">Lvl 1 · 0 XP</span>
+      </div>
+    </section>
+  </header>
+
+  <aside class="map panel">
+    <div class="micro">▥ LOCAL RADAR <span>N ↑</span></div>
+    <svg viewBox="0 0 180 120">
+      <path id="map-path" d="M24 24H130V96H24Z M130 49H160V76H130 M65 24V13H87V24" />
+      <path class="map-grid" d="M24 60H130M77 24V96" />
+      <circle id="map-player" cx="78" cy="67" r="3" />
+      <circle class="map-point" cx="38" cy="38" r="2" />
+      <circle class="map-point" cx="116" cy="36" r="2" />
+      <circle class="map-point" cx="116" cy="86" r="2" />
+    </svg>
+    <div class="micro map-bottom" id="map-label">• MARKET COURT <span>01</span></div>
+  </aside>
+
+  <aside class="mill-panel panel" id="mill-panel">
+    <div class="micro">⚒ THE GREAT MILL <span id="mill-status-tag" class="mill-tag broken">BROKEN</span></div>
+    <div id="mill-progress-lines" class="mill-lines"></div>
+  </aside>
+
+  <div id="toast" class="panel toast">
+    <span class="toast-icon">♧</span>
+    <div>
+      <div class="micro" id="toast-type">FIELD NOTE</div>
+      <strong id="toast-title">Welcome, Gardener.</strong>
+      <p id="toast-body">Cultivate your garden, trade produce at the market, and share the harvest.</p>
+    </div>
+  </div>
+
+  <section class="companion panel">
+    <div class="robot-icon">
+      <div class="antenna"></div>
+      <div class="robot-head">▪ ▪</div>
+      <div class="robot-body">▤</div>
+      <div class="robot-feet">▰ ▰</div>
+    </div>
+    <div>
+      <div class="micro">GARDENER PROFILE <span class="live" id="net-indicator">● ONLINE</span></div>
+      <h2><span id="hud-nick">MossyRadish42</span> <small id="btn-edit-nick" style="cursor:pointer;">✎ EDIT</small></h2>
+      <p id="hud-tool-hint" data-hud-legacy>Tool: Hands & Inspect · Press 1–5 to switch</p>
+    </div>
+  </section>
+
+  <button id="interact" class="panel interact">
+    <kbd>E</kbd>
+    <div>
+      <span class="micro">ACTION</span>
+      <strong id="action-title">Explore the Market Court</strong>
+      <p id="action-sub">Interact with stalls, garden beds, and boards</p>
+    </div>
+    <span>→</span>
+  </button>
+
+  <section class="chat-panel panel" id="chat-panel">
+    <div id="chat-resize" class="chat-resize" role="separator" tabindex="0"
+         aria-label="Resize chat panel — drag, arrow keys adjust, double-click resets"
+         title="Drag to resize the town channel"></div>
+    <button id="chat-toggle" class="chat-toggle" aria-expanded="true" aria-controls="chat-log">
+      <span class="micro">TOWN CHANNEL <span class="chat-channel">#afterlight</span></span>
+      <span class="chat-toggle-right">
+        <span id="chat-unread" class="chat-unread" hidden aria-label="unread messages"></span>
+        <span class="chat-chevron" aria-hidden="true">▾</span>
+      </span>
+    </button>
+    <div id="chat-log" class="chat-log" role="log" aria-label="Town channel messages" aria-live="polite"></div>
+    <form id="chat-form" class="chat-form">
+      <label class="visually-hidden" for="chat-input">Message the town channel</label>
+      <input id="chat-input" type="text" maxlength="600" autocomplete="off" spellcheck="false"
+             placeholder="Say hello… (Enter to chat, Esc to release)" disabled>
+      <button type="submit" id="chat-send" class="chat-send" aria-label="Send message" disabled>➤</button>
+    </form>
+  </section>
+
+  <section class="call-panel panel" id="call-panel" style="display: none;">
+    <div class="call-header">
+      <span class="micro">CONFERENCING</span>
+      <span id="call-status-badge" class="call-badge status-idle">Offline</span>
+    </div>
+    <div id="call-notice" class="call-notice" style="display: none;"></div>
+    <div id="call-participants" class="call-participants" role="list"></div>
+    <div class="call-controls">
+      <button id="call-join-btn" class="call-btn primary">Join Call</button>
+      <button id="call-leave-btn" class="call-btn danger" style="display: none;">Leave</button>
+      <button id="call-mute-audio-btn" class="call-btn" disabled>Mute Mic</button>
+      <button id="call-mute-video-btn" class="call-btn" disabled>Start Camera</button>
+      <button id="call-share-screen-btn" class="call-btn" disabled>Share Screen</button>
+    </div>
+    <div class="call-ducking">
+      <label for="call-ducking-slider">Theater Ducking</label>
+      <input type="range" id="call-ducking-slider" min="0" max="1" step="0.05" value="0.5">
+    </div>
+  </section>
+
+  <footer>
+    <div class="tool-belt" id="tool-belt" data-hud-legacy>
+      <button class="tool-btn active" data-tool="hands"><kbd>1</kbd> Hands</button>
+      <button class="tool-btn" data-tool="hoe"><kbd>2</kbd> Hoe</button>
+      <button class="tool-btn" data-tool="seed"><kbd>3</kbd> Seeds: <b id="active-seed-label">Radish</b></button>
+      <button class="tool-btn" data-tool="water"><kbd>4</kbd> Water Can</button>
+      <button class="tool-btn" data-tool="harvest"><kbd>5</kbd> Harvest</button>
+      <button class="tool-btn" data-tool="sprinkler"><kbd>6</kbd> Sprinkler</button>
+    </div>
+
+    <div class="actions">
+      <button id="btn-inventory" data-hud-legacy>🎒 Satchel <kbd>I</kbd></button>
+      <button id="btn-market" data-hud-legacy>⚖ Market <kbd>M</kbd></button>
+      <button id="btn-travel">◇ Places</button>
+      <button id="btn-records">✧ Records</button>
+      <button id="btn-emote">✦ Emotes <kbd>V</kbd></button>
+      <button id="call-toggle">☎ Call</button>
+      <button id="camera">▧ Camera <kbd>C</kbd></button>
+      <button id="sound">♫ Sound off</button>
+      <button id="settings">☷ Settings <kbd>ESC</kbd></button>
+    </div>
+  </footer>
+
+  <dialog id="settings-dialog">
+    <div class="micro">SETTINGS & HELP</div>
+    <h2>Market Gardener's Journal</h2>
+    <p>
+      • <b>1–6</b>: Select tools in the garden & legacy areas (Hands, Hoe, Seeds, Water Can, Harvest, Sprinkler); while the emote wheel is open they choose an emote<br>
+      • <b>WASD / Click</b>: Move gardener<br>
+      • <b>E</b>: Interact with beds, stalls, gather nodes, the Great Mill, theater seats, and gateways<br>
+      • <b>I</b>: Satchel & materials &nbsp;|&nbsp; <b>M</b>: Market Exchange<br>
+      • <b>V</b>: Hold for emote wheel; release to perform<br>
+      • <b>Enter</b>: Town chat — <b>/msg name text</b> whispers, <b>/me</b> acts, <b>Esc</b> returns to the garden<br>
+      • Drag the chat panel's corner grip (or use arrow keys on it) to resize; double-click resets
+    </p>
+    <label>Atmosphere <input id="atmosphere" type="checkbox" checked> Drifting mist & rain</label>
+    <label>Render quality
+      <select id="quality">
+        <option value="1">Balanced</option>
+        <option value="2">High</option>
+      </select>
+    </label>
+    <label>Weather effects
+      <select id="atmosphere-quality" aria-label="Weather effect detail">
+        <option value="normal">Normal</option>
+        <option value="reduced">Reduced</option>
+      </select>
+    </label>
+    <label>Reduced motion
+      <select id="atmosphere-motion" aria-label="Reduced motion preference">
+        <option value="os">Follow my system</option>
+        <option value="on">Always reduced</option>
+        <option value="off">Full motion</option>
+      </select>
+    </label>
+    <label>Lightning flashes
+      <select id="atmosphere-flash" aria-label="Lightning flash preference">
+        <option value="reduced">Softened</option>
+        <option value="off">Off</option>
+      </select>
+    </label>
+    <label>Footsteps
+      <input id="footsteps" type="range" min="0" max="100" step="5" value="70" aria-label="Footstep volume">
+      <span id="footsteps-value">70%</span>
+    </label>
+    <label>Ambience
+      <input id="ambience-volume" type="range" min="0" max="100" step="5" value="35" aria-label="Ambience volume">
+      <span id="ambience-value">35%</span>
+    </label>
+    <label>Weather sound
+      <input id="weather-volume" type="range" min="0" max="100" step="5" value="35" aria-label="Weather volume">
+      <span id="weather-value">35%</span>
+    </label>
+    <label>Legacy gardener HUD
+      <input id="legacy-hud" type="checkbox" aria-label="Always show the legacy gardener HUD">
+      <span>always show tools, coins &amp; exchange buttons</span>
+    </label>
+    <button id="resume">Return to game →</button>
+  </dialog>
+
+  <dialog id="district-dialog">
+    <div class="micro">THE CITY EXPANDS</div>
+    <h2>Places</h2>
+    <p class="dialog-sub">Every destination, featured first. Counts show who is around right now — “—” means the count is unknown.</p>
+    <div id="district-list"></div>
+    <button id="close-districts">Return to exploring →</button>
+  </dialog>
+
+  <dialog id="leaderboard-dialog">
+    <div class="micro">THE ORPHEUM ARCADE</div>
+    <h2>Records</h2>
+    <p class="dialog-sub">
+      Verified records come from the arcade's own referee. Personal bests stay
+      on your machine until the referee confirms them.
+    </p>
+    <div id="leaderboard-tabs" role="tablist" aria-label="Arcade game"></div>
+    <div class="leaderboard-toolbar">
+      <label for="leaderboard-version">Rules version</label>
+      <select id="leaderboard-version" aria-label="Rules version"></select>
+      <span id="leaderboard-status" role="status"></span>
+    </div>
+    <ol id="leaderboard-rows"></ol>
+    <div class="leaderboard-pager">
+      <button id="leaderboard-prev" type="button">← Previous</button>
+      <span id="leaderboard-page" aria-live="polite"></span>
+      <button id="leaderboard-next" type="button">Next →</button>
+    </div>
+    <button id="close-leaderboard">Back to the arcade →</button>
+  </dialog>
+
+  <div id="loading">✧<span>INITIALIZING EXPEDITION...</span></div>
+
+</body>
+</html>

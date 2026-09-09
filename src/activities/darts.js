@@ -7,6 +7,7 @@ import { createDartsScene } from './darts/boardScene.js';
 import { createDartsAudio } from './darts/audio.js';
 import { createDartsController } from './darts/throwController.js';
 import { applyDartsInput, initDartsState } from '../../shared/dartsModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export function createDartsInstance({
   activityDef,
@@ -17,7 +18,7 @@ export function createDartsInstance({
   getParticipation = null,
   audioMixer = null,
 } = {}) {
-  const transform = activityDef?.transform || { position: [8.4, 0, 3.6], rotationY: 0 };
+  const transform = activityDef?.transform || { position: [-10.4, 0, -1.5], rotationY: Math.PI };
   const pos = transform.position;
   const scene = createDartsScene({ position: pos, rotationY: transform.rotationY || 0 });
   if (world?.group && scene.group.parent !== world.group) world.group.add(scene.group);
@@ -60,17 +61,7 @@ export function createDartsInstance({
     else audio.playThrow();
   }
 
-  const controller = createDartsController({
-    onThrow: sendThrow,
-    onLeave: () => {
-      if (!isParticipant || !net) return;
-      const p = getParticipation?.();
-      if (!p) return;
-      net.sendActivityLeave?.({ roomId, activityId: activityDef.id, sessionId: p.sessionId });
-    },
-  });
-
-  return {
+  const instance = {
     id: activityDef.id,
     type: activityDef.type,
     group: scene.group,
@@ -98,7 +89,7 @@ export function createDartsInstance({
       if (p?.lastThrow) scene.showThrow(p.lastThrow);
     },
     acceptSnapshot(envelope) {
-      this.onSnapshot(envelope?.sim || envelope?.state || envelope?.simState || envelope);
+      this.onSnapshot(extractActivitySim(envelope));
     },
     acceptEvent(envelope) {
       hear({
@@ -108,18 +99,42 @@ export function createDartsInstance({
     },
     acceptResult() { audio.playCheckout(); },
     acceptError() {},
-    neutralizeInput() { controller.disable(); controller.enable(); },
+    neutralizeInput() { controller.neutralize(); },
     update(time) {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant,
+        onJoin: (info) => instance.onJoin(info),
+        onLeave: () => instance.onLeave(),
+      });
+      const p = getParticipation?.();
+      const mine = !!(p?.isParticipating && p.currentActivity?.id === activityDef.id);
+      if (!mine && isParticipant) instance.onLeave();
       scene.updateVisuals(simState, time);
       if (isParticipant) controller.update(simState);
     },
-    dispose() { this.destroy(); },
+    dispose() { instance.destroy(); },
     destroy() {
       controller.dispose();
       audio.dispose();
       scene.dispose();
     },
   };
+
+  const controller = createDartsController({
+    onThrow: sendThrow,
+    onLeave: () => {
+      const p = getParticipation?.();
+      if (p?.isOccupied && p.currentActivity?.id === activityDef.id) {
+        p.leave();
+        return;
+      }
+      instance.onLeave();
+    },
+  });
+
+  return instance;
 }
 
 export const DartsModule = {

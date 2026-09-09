@@ -2515,8 +2515,12 @@ body[data-hud-context='social'] [data-hud-legacy] { display: none !important; }
   background: rgba(122, 203, 212, 0.28);
 }
 .sbhud-rematch {
+  display: none; /* results-phase action; .sbhud-visible reveals it */
   border-color: rgba(237, 182, 108, 0.6);
   color: #edb66c;
+}
+.sbhud-rematch.sbhud-visible {
+  display: inline-block;
 }
 .sbhud-rematch:hover {
   background: rgba(237, 182, 108, 0.2);

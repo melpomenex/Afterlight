@@ -1,295 +1,367 @@
 /**
- * Summit Run rules tests (add-multiplayer-snowboard-arcade 3.2).
+ * ALPINE RUSH shared rules tests (integrate-ssxtricky-snowboard 3.1/3.3).
  *
- * The fixed-step kinematics must reproduce every D5 mechanic: grade
- * acceleration with tuck/brake, damped carve with shoulder penalty, boundary
- * clamp with a single cooldown-gated speed loss, charge/release jumps with
- * neutralization cancelling (never launching), ramp lip launches, normal-
- * speed landing with crash recovery, and the exact evaluation order. Golden
- * movement fixtures pin these outcomes for Elixir parity (4.1).
+ * Lane 1 — source parity: the frozen SSXTricky suite
+ * (SSXTricky/tests/rules.test.mjs @ rev e87f6c7d, 13 tests, all green at
+ * freeze — see the change's baseline.md) ported near-verbatim against the
+ * shared module's source-compatible exports (stepMotion, awardCombo,
+ * jumpVelocity, racePlace, formatTime, enterSpeedZone, launch/beginTrick/
+ * advanceTrick/land, popVelocity).
+ *
+ * Lane 2 — fixed-step shared model: the 30 Hz step() port with held-state
+ * edges (charge release, super pop, trick taps/buffer/hold chains), ramp-edge
+ * launches, per-rider pickups, bail penalties, deterministic finish keys and
+ * golden-fixture determinism.
  */
 
-import test from 'node:test';
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { loadCourse } from '../shared/snowboard/course.js';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { loadCourse, setCourseHashImplementation } from '../shared/snowboard/course.js';
+import { courseHash } from '../shared/snowboard/courseHash.js';
 import {
-  DT,
-  RECOVERY_TICKS,
-  TUNING,
-  applyGates,
-  findObstacleHit,
-  initialState,
-  normalizeControls,
-  pickRecoveryPoint,
-  step,
-  simulate,
-  worldPosition,
+  step, stepMotion, simulate, initialState, normalizeControls,
+  awardCombo, jumpVelocity, racePlace, formatTime, enterSpeedZone,
+  launch, beginTrick, advanceTrick, land, remainingAirTime, popVelocity,
+  rampLaunchVelocity, DT, TICK_HZ, TRICKS,
 } from '../shared/snowboard/rules.js';
-import { generateGoldenFixtures, checkGolden } from '../scripts/export-snowboard-golden.mjs';
 
-const committedCourse = JSON.parse(
-  readFileSync(new URL('../shared/snowboard/course-summit-night.json', import.meta.url), 'utf8'),
-);
-const course = loadCourse(committedCourse);
-const golden = JSON.parse(
-  readFileSync(new URL('../tests/fixtures/snowboard/golden-movement.json', import.meta.url).pathname, 'utf8'),
-);
+setCourseHashImplementation(courseHash);
 
-const RIDE = Object.freeze({ steer: 0, tuck: false, brake: false, jumpHeld: false });
-const TUCK = Object.freeze({ steer: 0, tuck: true, brake: false, jumpHeld: false });
-const NEUTRAL = Object.freeze({ kind: 'neutral' });
+const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const course = loadCourse(JSON.parse(readFileSync(path.join(REPO, 'shared/snowboard/course-alpine-rush.json'), 'utf8')));
 
-test('golden fixtures match regeneration and the committed course hash', async () => {
-  const generated = generateGoldenFixtures();
-  assert.equal(generated.courseHash, committedCourse.hash, 'goldens were generated from the current course');
-  assert.equal(generated.scenarios.length, golden.scenarios.length);
-  assert.deepEqual(generated.scenarios.map(s => s.final), golden.scenarios.map(s => s.final),
-    'committed golden states match regeneration');
-  await checkGolden();
+const ride = (over = {}) => ({ kind: 'ride', steer: 0, tuck: false, lean: false, brake: false, boost: false, jumpHeld: false, trickQ: false, trickE: false, trickX: false, ...over });
+
+// --- Lane 1: source test suite (verbatim semantics) -------------------------------
+
+test('source: charged jumps are bounded', () => {
+  assert.equal(jumpVelocity(-1), 7);
+  assert.equal(jumpVelocity(2), 13);
 });
 
-test('initial state spreads slots laterally and starts at contract speed', () => {
-  const solo = initialState(0, 1);
-  assert.equal(solo.s, 0);
-  assert.equal(solo.v, TUNING.startSpeed);
-  assert.equal(solo.grounded, true);
-  assert.equal(solo.nextCheckpoint, 1);
+test('source: combos reward chaining and empty air scores zero', () => {
+  assert.equal(awardCombo([], 2), 0);
+  assert.equal(awardCombo([{ points: 500 }, { points: 500 }], 2), 1700);
+});
 
-  const field = [0, 1, 2, 3, 4, 5, 6, 7].map((slot) => initialState(slot, 8));
-  const positions = new Set(field.map((state) => state.u));
-  assert.equal(positions.size, 8, 'eight riders get eight distinct start lanes');
-  for (const state of field) {
-    assert.ok(Math.abs(state.u) <= 12, 'start lanes stay inside the groomed bowl');
+test('source: boost consumes meter and increases distance while braking slows', () => {
+  const base = { distance: 0, x: 0, lateral: 0, speed: 29, boost: 100, airborne: false };
+  const fast = { ...base }, slow = { ...base };
+  for (let i = 0; i < 60; i++) {
+    stepMotion(fast, { boost: true, brake: false, steer: 0 }, 1 / 60);
+    stepMotion(slow, { boost: false, brake: true, steer: 0 }, 1 / 60);
   }
+  assert.ok(fast.distance > slow.distance);
+  assert.ok(fast.boost < 100);
+  assert.ok(slow.speed < 29);
 });
 
-test('normalizeControls: neutral brakes, steer clamps, unknown fields map safe', () => {
-  assert.deepEqual(normalizeControls(NEUTRAL), { steer: 0, tuck: false, brake: true, jumpHeld: false });
-  assert.deepEqual(normalizeControls(undefined), { steer: 0, tuck: false, brake: true, jumpHeld: false });
-  const clamped = normalizeControls({ steer: 7, tuck: true, brake: false, jumpHeld: true });
-  assert.equal(clamped.steer, 1);
-  assert.equal(clamped.tuck, true);
-  assert.equal(clamped.brake, false);
-  assert.equal(clamped.jumpHeld, true);
+test('source: off-course motion is constrained and meter cannot underflow', () => {
+  const s = { distance: 0, x: 200, lateral: 0, speed: 29, boost: 0.1, airborne: false };
+  stepMotion(s, { boost: true, brake: false, steer: 1 }, 1);
+  const center = Math.sin(s.distance * .003) * 24 + Math.sin(s.distance * .009) * 7;
+  assert.ok(Math.abs(s.x - center) <= 35);
+  assert.equal(s.boost, 0);
 });
 
-test('movement: braking stops the rider; tuck beats cruise; v stays within [0, 45]', () => {
-  const glided = simulate(course, NEUTRAL, 90).state;
-  assert.equal(glided.v, 0, 'neutral brakes to a stop');
-
-  const tuck = simulate(course, TUCK, 180).state;
-  const cruise = simulate(course, RIDE, 180).state;
-  assert.ok(tuck.s > cruise.s, 'tuck covers more ground than cruise');
-
-  const wild = simulate(course, TUCK, 3600).state;
-  assert.ok(wild.v <= TUNING.speedMax + 1e-9);
-  assert.ok(wild.v >= TUNING.speedMin);
+test('source: race positions and timer are deterministic', () => {
+  assert.equal(racePlace(100, [90, 110, 120, 50, 20]), 3);
+  assert.equal(formatTime(65.25), '01:05.25');
 });
 
-test('boundary: u clamps at ±24, speed loss applies once per cooldown window', () => {
-  const { state, trace } = simulate(course, { steer: 1, tuck: false, brake: false, jumpHeld: false }, 200);
-  assert.equal(state.u, TUNING.corridorHalfWidth, 'rider clamps to the legal corridor');
-  const hits = trace.flatMap((t) => t.events).filter((e) => e.type === 'boundary_hit');
-  assert.ok(hits.length >= 2, 'grinding the wall repeats hits');
-  const hitTicks = trace.filter((t) => t.events.some((e) => e.type === 'boundary_hit')).map((t) => t.tick);
-  for (let i = 1; i < hitTicks.length; i++) {
-    assert.ok(hitTicks[i] - hitTicks[i - 1] >= Math.round(TUNING.boundaryCooldownSeconds / DT) - 1,
-      'hits respect the 0.5s cooldown');
-  }
+const airborneState = () => ({ distance: 0, x: 0, lateral: 0, speed: 30, boost: 0, airborne: false, y: 0, vy: 0, charge: 0, airTime: 0, tricks: [], trick: null, score: 0, bestCombo: 0, landings: 0, bail: 0 });
+
+test('source: speed lanes only activate on the ground inside their marked area', () => {
+  const s = airborneState(), zone = { start: 0, end: 20, x: 0, width: 10 };
+  s.airborne = true;
+  assert.equal(enterSpeedZone(s, zone), false);
+  s.airborne = false;
+  s.x = 6;
+  assert.equal(enterSpeedZone(s, zone), false);
+  s.x = 0;
+  assert.equal(enterSpeedZone(s, zone), true);
+  assert.equal(s.speed, 46);
+  stepMotion(s, { boost: false, steer: 0, brake: false }, .1);
+  assert.ok(s.speed > 46);
+  assert.ok(s.boost >= 0);
+  for (let i = 0; i < 180; i++) stepMotion(s, { boost: false, steer: 0, brake: false }, 1 / 60);
+  assert.equal(s.zoneBoost, 0);
 });
 
-test('jump: charging caps at 1, release launches with charge bonus, lands snapped', () => {
-  let state = simulate(course, RIDE, 30).state;
-  let sawCharge = 0;
-  for (let tick = 0; tick < 15; tick++) {
-    const result = step(course, state, { steer: 0, tuck: false, brake: false, jumpHeld: true });
-    state = result.state;
-    sawCharge = Math.max(sawCharge, state.jumpCharge);
-    assert.equal(state.grounded, true, 'charging alone never leaves the ground');
-  }
-  assert.ok(sawCharge > 0.4 && sawCharge <= 1, `charge builds (${sawCharge})`);
-
-  const released = step(course, state, RIDE);
-  const launchEvent = released.events.find((e) => e.type === 'launch');
-  assert.ok(launchEvent, 'release launches');
-  assert.equal(released.state.grounded, false);
-  assert.ok(released.state.vy > TUNING.jumpBase, 'launch carries the charge bonus');
-  assert.equal(released.state.jumpCharge, 0);
-
-  // Land: keep riding in the air until grounded again; y snaps to surface.
-  let landed = released.state;
-  for (let tick = 0; tick < 120 && !landed.grounded; tick++) {
-    landed = step(course, landed, RIDE).state;
-  }
-  assert.equal(landed.grounded, true, 'rider lands');
-  const groundY = course.heightAt(landed.s, landed.u) + TUNING.boardClearance;
-  assert.ok(Math.abs(landed.y - groundY) < 1e-6, 'landing snaps to the sampled surface');
+test('source: boosted ramp launches give more airtime and clean combos bank score and refill boost', () => {
+  const normal = airborneState(), fast = airborneState();
+  fast.speed = 50;
+  launch(normal, rampLaunchVelocity(normal.speed));
+  launch(fast, rampLaunchVelocity(fast.speed));
+  assert.ok(remainingAirTime(fast, 0) > remainingAirTime(normal, 0));
+  assert.equal(beginTrick(fast, 'Q'), true);
+  assert.equal(beginTrick(fast, 'X'), false);
+  advanceTrick(fast, .72);
+  assert.equal(fast.score, 0);
+  beginTrick(fast, 'X');
+  advanceTrick(fast, .92);
+  fast.airTime = 2;
+  const result = land(fast);
+  assert.equal(result.bailed, false);
+  assert.equal(result.points, 3200);
+  assert.equal(fast.score, 3200);
+  assert.ok(fast.boost > 40);
+  assert.equal(fast.landings, 1);
+  assert.equal(fast.airborne, false);
 });
 
-test('neutralization cancels the charge and never launches', () => {
-  let state = simulate(course, RIDE, 30).state;
-  for (let tick = 0; tick < 15; tick++) {
-    state = step(course, state, { steer: 0, tuck: false, brake: false, jumpHeld: true }).state;
-  }
-  assert.ok(state.jumpCharge > 0);
-
-  const result = step(course, state, NEUTRAL);
-  assert.equal(result.state.jumpCharge, 0, 'charge cancelled');
-  assert.equal(result.state.grounded, true, 'no launch happened');
-  assert.ok(result.events.some((e) => e.type === 'charge_cancelled'));
+test('source: unfinished flips lose the entire unbanked combo and reduce speed', () => {
+  const s = airborneState();
+  launch(s, 14);
+  beginTrick(s, 'Q');
+  advanceTrick(s, .8);
+  beginTrick(s, 'X');
+  advanceTrick(s, .2);
+  const result = land(s);
+  assert.equal(result.bailed, true);
+  assert.equal(result.points, 0);
+  assert.equal(s.score, 0);
+  assert.equal(s.speed, 9);
+  assert.equal(s.tricks.length, 0);
 });
 
-test('ramp: lip crossing launches once with a speed boost and never repeats', () => {
-  // Fast-forward to just before the pine-cut jump, then cross it.
-  let state = simulate(course, TUCK, 830).state;
-  assert.ok(state.s >= 780, `rider approaches the ramp (s=${state.s})`);
-  const boosts = [];
-  for (let tick = 0; tick < 120; tick++) {
-    const result = step(course, state, TUCK);
-    state = result.state;
-    for (const event of result.events) {
-      if (event.type === 'launch' && String(event.cause).startsWith('ramp:')) boosts.push(event.cause);
-      if (event.type === 'landing') boosts.push('landing');
-    }
-  }
-  assert.equal(boosts.filter((c) => c === 'ramp:pine-cut-jump').length, 1, 'lip boost fires exactly once');
-  assert.ok(boosts.includes('landing'), 'rider lands after the jump');
-  assert.ok(state.crossedRampIds.includes('pine-cut-jump'));
-});
-
-test('landing: flat hard landings crash into bounded recovery at a safe point', () => {
-  // Drop the rider from a synthetic height far above the surface.
-  let state = { ...initialState(0, 1), s: 300, u: 0, grounded: false, y: course.heightAt(300, 0) + 40, vy: -60 };
-  let crashEvent = null;
-  for (let tick = 0; tick < 120 && !crashEvent; tick++) {
-    const result = step(course, state, RIDE);
-    state = result.state;
-    crashEvent = result.events.find((e) => e.type === 'crash') ?? crashEvent;
-  }
-  assert.ok(crashEvent, 'extreme impact crashes');
-  assert.equal(state.recoveryTicks, RECOVERY_TICKS, 'recovery lasts the contract tick count');
-  assert.equal(state.v, TUNING.crashResetSpeed);
-  assert.equal(state.resetSeq, 1, 'resetSeq increments for interpolation resets');
-
-  // Recovery freezes motion entirely.
-  const frozen = step(course, state, TUCK);
-  assert.equal(frozen.state.s, state.s, 'no motion during recovery');
-  assert.equal(frozen.state.v, state.v, 'no acceleration during recovery');
-
-  // After recovery the rider rides on, inside the corridor.
-  let after = frozen.state;
-  for (let tick = 0; tick < RECOVERY_TICKS; tick++) after = step(course, after, TUCK).state;
-  assert.equal(after.recoveryTicks, 0);
-  assert.ok(Math.abs(after.u) <= TUNING.corridorHalfWidth);
-});
-
-test('pickRecoveryPoint never places a rider beyond an unearned gate', () => {
-  // Rider who earned only the first gate (nextCheckpoint=2) cannot be
-  // dropped anywhere at or past gate 2 (400m).
-  const state = { ...initialState(0, 1), s: 380, nextCheckpoint: 2 };
-  const point = pickRecoveryPoint(course, state);
-  assert.ok(point.s < 400, `recovery s=${point.s} stays before the unearned gate`);
-  assert.ok(point.s <= state.s, 'recovery sits behind the crash site');
-
-  // A rider mid-field with no gates earned resets near the start.
-  const fresh = pickRecoveryPoint(course, { ...initialState(0, 1), s: 190 });
-  assert.ok(fresh.s < 200);
-});
-
-test('shoulder: riding outside the groomed bowl bleeds extra speed', () => {
-  // Two riders, same line: one drifts into the shoulder, one stays groomed.
-  const groomed = simulate(course, TUCK, 120).state;
-  const shoulder = simulate(course, { steer: 0.72, tuck: false, brake: false, jumpHeld: false }, 120).state;
-  assert.ok(Math.abs(shoulder.u) > TUNING.groomedHalfWidth, 'drifter reaches the shoulder');
-  assert.ok(shoulder.v < groomed.v * 0.9, `shoulder drag bites (shoulder ${shoulder.v} vs groomed ${groomed.v})`);
-});
-
-test('worldPosition: x follows centerline + u, z = -s, y rides the sampled surface', () => {
-  const state = simulate(course, TUCK, 60).state;
-  const pos = worldPosition(course, state);
-  assert.ok(Math.abs(pos.x - (course.centerXAt(state.s) + state.u)) < 1e-9);
-  assert.ok(Math.abs(pos.z + state.s) < 1e-9);
-  assert.ok(Math.abs(pos.y - (course.heightAt(state.s, state.u) + TUNING.boardClearance)) < 1e-9);
-});
-
-test('determinism: identical runs agree bit-for-bit', () => {
-  const a = simulate(course, TUCK, 300).state;
-  const b = simulate(course, TUCK, 300).state;
-  assert.deepEqual(a, b);
-});
-
-// --- 3.3: swept obstacles, ordered gates, finish keys ---------------------------
-
-test('gates credit in order; several crossings may land in one tick', () => {
-  const state = { ...initialState(0, 1), s: 0, u: 0, v: 30 };
-  const next = { ...state, s: 610 };
-  const events = [];
-  applyGates(course, next, state, 610, 0, 100, events);
-  assert.deepEqual(events.map((e) => `${e.type}#${e.index}`), ['checkpoint#1', 'checkpoint#2', 'checkpoint#3']);
-  assert.equal(next.nextCheckpoint, 4);
-  assert.equal(next.splitKeys.length, 3);
-  // Split keys are exact monotonic tick-derived values, ordered in time.
-  assert.ok(next.splitKeys[0] < next.splitKeys[1] && next.splitKeys[1] < next.splitKeys[2]);
-});
-
-test('the finish requires every checkpoint: a teleported rider cannot claim it', () => {
-  const state = { ...initialState(0, 1), s: 1780, u: 0, nextCheckpoint: 1 };
-  const next = { ...state, s: 1810 };
-  const events = [];
-  applyGates(course, next, state, 1810, 0, 5000, events);
-  assert.equal(next.finishTick, null, 'no finish without the eight checkpoints');
-  assert.ok(!events.some((e) => e.type === 'finish'));
-  assert.equal(next.nextCheckpoint, 1, 'no gate credits either — planes were never swept');
-});
-
-test('finish keys sort by within-tick crossing fraction (same tick, different riders)', () => {
-  const make = (prevS, s) => {
-    const state = { ...initialState(0, 1), s: prevS, u: 0, nextCheckpoint: 9 };
-    const next = { ...state, s };
-    const events = [];
-    applyGates(course, next, state, s, 0, 1800, events);
-    return next;
+test('source: tuck plus forward lean is faster than either alone and does not spend boost', () => {
+  const run = (crouch, lean) => {
+    const s = airborneState();
+    s.boost = 50;
+    for (let i = 0; i < 120; i++) stepMotion(s, { crouch, lean, steer: 0, boost: false, brake: false }, 1 / 60);
+    return s;
   };
-  const early = make(1799.5, 1801.5); // enters the tick closest: crosses at fraction 0.25
-  const late = make(1798.5, 1801.0);  // crosses later in the tick (fraction 0.6)
-  assert.ok(early.finishTick === 1800 && late.finishTick === 1800);
-  assert.ok(early.finishKey < late.finishKey, 'fraction orders same-tick finishes');
-  assert.ok(Math.abs(early.finishMs - Math.round(early.finishKey)) <= 1, 'display ms derives from the key');
+  const normal = run(false, false), tuck = run(true, false), lean = run(false, true), aero = run(true, true);
+  assert.ok(tuck.speed > normal.speed);
+  assert.ok(lean.speed > normal.speed);
+  assert.ok(aero.speed > tuck.speed);
+  assert.ok(aero.boost >= 50);
 });
 
-test('swept obstacles: a max-speed rider cannot tunnel through a rock', () => {
-  // Rock ob-16 sits at (480, 6). Sweep a 45 m/s rider straight through it.
-  const state = { ...initialState(0, 1), s: 478, u: 6, v: TUNING.speedMax, grounded: true, y: course.heightAt(478, 6) + TUNING.boardClearance };
-  const prev = { ...state, s: 476.5 };
-  const result = step(course, state, RIDE, prev, 500);
-  const crashEvent = result.events.find((e) => e.type === 'crash');
-  assert.ok(crashEvent, 'one 1.5m tick cannot skip the expanded collider');
-  assert.match(crashEvent.cause, /obstacle:ob-/);
-  assert.equal(result.state.recoveryTicks, RECOVERY_TICKS);
+test('source: braking overrides tuck, lean and boost; airborne riders get no tuck advantage', () => {
+  const s = airborneState();
+  s.boost = 50;
+  stepMotion(s, { crouch: true, lean: true, boost: true, brake: true, steer: 0 }, .5);
+  assert.ok(s.speed < 30);
+  assert.equal(s.tucking, false);
+  assert.equal(s.leaning, false);
+  assert.ok(s.boost >= 50);
+  s.airborne = true;
+  stepMotion(s, { crouch: true, lean: true, steer: 0, brake: false }, .1);
+  assert.equal(s.tucking, false);
 });
 
-test('crash recovery never re-credits or skips gates (golden scenario)', () => {
-  const scenario = golden.scenarios.find((s) => s.id === 'crash-rock-recovery');
-  assert.ok(scenario, 'crash-rock-recovery fixture exists');
-  const checkpoints = scenario.events.filter((e) => e.type === 'checkpoint').map((e) => e.index);
-  assert.deepEqual(checkpoints, [1, 2], 'gates 1–2 credited before the crash; the teleport earns nothing');
-  assert.equal(scenario.final.resetSeq, 1);
-  assert.equal(scenario.final.nextCheckpoint, 3, 'earned progress is kept, never duplicated');
-  const crashEvent = scenario.events.find((e) => e.type === 'crash');
-  const recovery = scenario.events.find((e) => e.type === 'recovery_complete');
-  assert.ok(recovery && crashEvent && recovery.tick === crashEvent.tick + RECOVERY_TICKS,
-    'recovery lasts exactly RECOVERY_TICKS');
+test('source: a charged tuck produces a super pop and a clean sustained carve earns boost', () => {
+  const s = airborneState();
+  s.charge = 1;
+  s.tucking = true;
+  assert.equal(popVelocity(s), 17);
+  s.tucking = false;
+  assert.equal(popVelocity(s), 13);
+  const center = (d) => Math.sin(d * .003) * 24 + Math.sin(d * .009) * 7;
+  for (let i = 0; i < 125; i++) {
+    s.x = center(s.distance);
+    stepMotion(s, { steer: 1, brake: false, boost: false }, 1 / 60);
+  }
+  assert.equal(s.carveReward, 1);
+  assert.ok(s.boost > 12);
+  stepMotion(s, { steer: 0 }, .1);
+  assert.equal(s.carveCharge, 0);
 });
 
-test('terminal riders evaluate no further gates', () => {
-  const finished = { ...initialState(0, 1), s: 100, nextCheckpoint: 9, finishTick: 100, finishKey: 3333 };
-  const events = [];
-  applyGates(course, finished, { ...finished, s: 98 }, 102, 0, 101, events);
-  assert.deepEqual(events, [], 'a finished rider earns nothing more');
+// --- Lane 2: fixed-step shared model ------------------------------------------------
 
-  const dnf = { ...initialState(0, 1), s: 100, dnfReason: 'disconnect' };
-  const dnfEvents = [];
-  applyGates(course, dnf, { ...dnf, s: 98 }, 102, 0, 101, dnfEvents);
-  assert.deepEqual(dnfEvents, [], 'a DNF rider earns nothing more');
+test('fixed step: neutral controls brake toward the source base', () => {
+  const { state } = simulate(course, { kind: 'neutral' }, 90);
+  // Exponential approach toward the source 10 m/s brake target (dt*.8 rate).
+  assert.ok(state.v > 10 && state.v < 11, `v=${state.v}`);
+  assert.ok(state.s > 0);
+});
+
+test('fixed step: aero tuck reaches the 42 m/s source target band', () => {
+  const { state } = simulate(course, ride({ tuck: true, lean: true }), 300);
+  assert.ok(state.v > 40 && state.v <= 42.1, `v=${state.v}`);
+});
+
+test('fixed step: held Space charges at 1.2/s and the release edge pops with the charged velocity', () => {
+  let state = initialState(0, 1);
+  let prev = null;
+  let events = [];
+  for (let t = 0; t < 25; t++) {
+    const r = step(course, state, ride({ jumpHeld: true }), prev, t);
+    state = r.state; prev = state; events.push(...r.events);
+  }
+  assert.equal(state.charge, 1);
+  assert.equal(events.length, 0);
+  const r = step(course, state, ride(), prev, 25);
+  assert.equal(r.state.airborne, true);
+  assert.deepEqual(r.events.map((e) => e.type), ['launch']);
+  // Source pop velocity 13 minus one tick of gravity (launch fires inside the tick).
+  assert.ok(Math.abs(r.state.vy - (13 - 20 * DT)) < 1e-6); // round6 wire hygiene
+});
+
+test('fixed step: tuck + full charge release is a super pop (vy 17 − g·dt)', () => {
+  let state = initialState(0, 1);
+  let prev = null;
+  for (let t = 0; t < 25; t++) {
+    const r = step(course, state, ride({ tuck: true, jumpHeld: true }), prev, t);
+    state = r.state; prev = state;
+  }
+  const r = step(course, state, ride({ tuck: true }), prev, 25);
+  assert.ok(r.events.some((e) => e.type === 'super_pop'));
+  assert.ok(Math.abs(r.state.vy - (17 - 20 * DT)) < 1e-6); // round6 wire hygiene
+});
+
+test('fixed step: trick tap buffers 0.8 s and starts at the next launch', () => {
+  let state = initialState(0, 1);
+  let prev = null;
+  // Tap Q on the ground (queues), then charge/release a jump.
+  const r1 = step(course, state, ride({ trickQ: true }), prev, 0);
+  state = r1.state;
+  assert.equal(state.trickQueue, 'Q');
+  assert.ok(Math.abs(state.trickBuffer - 0.8) < 1e-9);
+  prev = state;
+  for (let t = 1; t < 20; t++) {
+    const r = step(course, state, ride({ jumpHeld: true }), prev, t);
+    state = r.state; prev = state;
+  }
+  const r2 = step(course, state, ride(), prev, 20);
+  state = r2.state;
+  assert.equal(state.airborne, true);
+  assert.equal(state.trick?.name, '360 SPIN');
+  assert.equal(state.trickQueue, null);
+});
+
+test('fixed step: ramp-edge crossing launches from the lip at the ramp line', () => {
+  const aim = { x: 12.029775 }; // ramp-0 line
+  let state = initialState(0, 1);
+  let prev = null;
+  let events = [];
+  for (let t = 0; t < 620; t++) {
+    const steer = Math.max(-1, Math.min(1, (aim.x - state.x) / 6));
+    const r = step(course, state, ride({ tuck: true, steer }), prev, t);
+    state = r.state; prev = state; events.push(...r.events);
+  }
+  assert.ok(events.some((e) => e.type === 'speed_zone'));
+  const ramp = events.find((e) => e.type === 'ramp_launch');
+  assert.ok(ramp, 'ramp launch fired');
+  assert.equal(ramp.rampId, 'ramp-0');
+  assert.ok(events.some((e) => e.type === 'launch' && e.cause === 'ramp:ramp-0'));
+});
+
+test('fixed step: clean combo banks score, best combo and boost refill', () => {
+  const aim = { x: 12.029775 };
+  let state = initialState(0, 1);
+  let prev = null;
+  let events = [];
+  for (let t = 0; t < 500; t++) {
+    const steer = Math.max(-1, Math.min(1, (aim.x - state.x) / 6));
+    const r = step(course, state, ride({ tuck: true, steer }), prev, t);
+    state = r.state; prev = state; events.push(...r.events);
+  }
+  for (let t = 500; t < 640; t++) {
+    const steer = Math.max(-1, Math.min(1, (aim.x - state.x) / 6));
+    const r = step(course, state, ride({ trickQ: true, steer }), prev, t);
+    state = r.state; prev = state; events.push(...r.events);
+  }
+  const clean = events.find((e) => e.type === 'clean_landing');
+  assert.ok(clean, 'clean landing fired');
+  assert.ok(clean.points >= 800);
+  assert.ok(state.score > 0);
+  assert.ok(state.bestCombo >= clean.points);
+  assert.equal(state.landings >= 1, true);
+});
+
+test('fixed step: bailing keeps the score and applies the source penalty', () => {
+  let state = initialState(0, 1);
+  let prev = null;
+  let events = [];
+  for (let t = 0; t < 30; t++) {
+    const r = step(course, state, ride({ jumpHeld: true }), prev, t);
+    state = r.state; prev = state; events.push(...r.events);
+  }
+  const preBailSpeed = state.v;
+  for (let t = 30; t < 130; t++) {
+    const r = step(course, state, ride(t >= 60 ? { trickX: true } : {}), prev, t);
+    state = r.state; prev = state; events.push(...r.events);
+  }
+  const bail = events.find((e) => e.type === 'bail');
+  assert.ok(bail, 'bail fired');
+  assert.equal(state.score, 0);
+  // speed *= 0.3 on the bail tick, then accelerates back toward base.
+  assert.ok(state.v < preBailSpeed);
+  // While bailed, steering is neutralized and brake is forced.
+  assert.equal(state.carving, false);
+});
+
+test('fixed step: pickups are per-rider and claimable exactly once', () => {
+  const pickup = course.pickups[0];
+  let state = initialState(0, 1);
+  let prev = null;
+  let events = [];
+  for (let t = 0; t < 300; t++) {
+    const steer = Math.max(-1, Math.min(1, (pickup.x - state.x) / 6));
+    const r = step(course, state, ride({ steer }), prev, t);
+    state = r.state; prev = state; events.push(...r.events);
+  }
+  assert.ok(events.some((e) => e.type === 'pickup' && e.id === 0));
+  assert.ok(state.pickupsClaimed.includes(0));
+  assert.equal(events.filter((e) => e.type === 'pickup' && e.id === 0).length, 1);
+  // A second rider crossing the same spot claims it independently.
+  let other = initialState(1, 2);
+  let otherPrev = null;
+  let otherEvents = [];
+  for (let t = 0; t < 300; t++) {
+    const steer = Math.max(-1, Math.min(1, (pickup.x - other.x) / 6));
+    const r = step(course, other, ride({ steer }), otherPrev, t);
+    other = r.state; otherPrev = other; otherEvents.push(...r.events);
+  }
+  assert.ok(otherEvents.some((e) => e.type === 'pickup' && e.id === 0));
+  assert.ok(other.score >= 250);
+  assert.equal(otherEvents.filter((e) => e.type === 'pickup' && e.id === 0).length, 1);
+});
+
+test('fixed step: finish records a deterministic within-tick key and stops the rider', () => {
+  const { state, trace } = simulate(course, ride({ tuck: true, lean: true }), 60 * 95);
+  assert.equal(state.s, 1800);
+  assert.ok(state.finishMs > 0);
+  const finishEvents = trace.flatMap((t) => t.events).filter((e) => e.type === 'finish');
+  assert.equal(finishEvents.length, 1);
+  assert.equal(finishEvents[0].score, state.score);
+  // Terminal: further ticks change nothing.
+  const after = step(course, state, ride({ boost: true }), state, 6000);
+  assert.equal(after.state.s, 1800);
+  assert.deepEqual(after.events, []);
+});
+
+test('fixed step: slots spread the start line inside the corridor', () => {
+  const a = initialState(0, 2), b = initialState(1, 2);
+  assert.ok(a.x < 0 && b.x > 0);
+  assert.equal(Math.abs(a.x - b.x), 5.5);
+  const eight = Array.from({ length: 8 }, (_, i) => initialState(i, 8));
+  assert.ok(eight.every((r) => Math.abs(r.x) <= 19));
+});
+
+test('normalizeControls clamps steer and defaults missing fields', () => {
+  const n = normalizeControls({ kind: 'ride', steer: 7, tuck: true });
+  assert.equal(n.steer, 1);
+  assert.equal(n.tuck, true);
+  assert.equal(n.brake, true); // brake defaults ON (missing → !== false)
+  assert.equal(n.boost, false);
+  assert.deepEqual(n.trick, { Q: false, E: false, X: false });
+  const neutral = normalizeControls({ kind: 'neutral' });
+  assert.equal(neutral.brake, true);
+});
+
+test('TRICKS table matches the source', () => {
+  assert.equal(TRICKS.Q.name, '360 SPIN');
+  assert.equal(TRICKS.Q.points, 800);
+  assert.equal(TRICKS.E.name, 'INDY GRAB');
+  assert.equal(TRICKS.X.name, 'BACKFLIP');
+  assert.equal(TICK_HZ, 30);
 });

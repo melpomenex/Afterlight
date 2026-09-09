@@ -1,19 +1,34 @@
 {
-  "$comment": "Summit Run contract freeze (task 1.2). Every constant here is normative for all later lanes: client rules, server reducer, protocol validators, prediction, interpolation and fixtures. Source of truth: openspec/changes/add-multiplayer-snowboard-arcade/design.md D4-D7. Changing any value requires updating the golden fixtures and the JS/Elixir ports together, and bumping rulesVersion when simulation semantics change.",
+  "$comment": "Summit Run contract freeze \u2014 ALPINE RUSH (integrate-ssxtricky-snowboard 3.1). Every constant here is normative for all lanes: client rules, server reducer, protocol validators, prediction, interpolation and fixtures. Source of truth: the frozen SSXTricky source port (shared/snowboard/rules.js) per the change's baseline.md. Changing any value requires updating the golden fixtures and the JS/Elixir ports together, and bumping rulesVersion.",
   "identity": {
     "activityType": "snowboard-race",
     "activityId": "summit-run",
     "wireRoomId": "theater",
-    "courseId": "summit-night",
-    "courseVersion": 1,
-    "rulesVersion": 1,
+    "courseId": "alpine-rush",
+    "courseVersion": 2,
+    "rulesVersion": 2,
     "protocolVersion": 1,
-    "capacities": { "minPlayers": 2, "maxPlayers": 8, "spectators": 32, "queue": 16 }
+    "capacities": {
+      "minPlayers": 2,
+      "maxPlayers": 8,
+      "spectators": 32,
+      "queue": 16
+    }
   },
   "phases": {
     "$comment": "Server-authoritative phases (D4). loading/joining/recovering are local-only client states and never appear on the wire.",
-    "server": ["lobby", "countdown", "racing", "results", "aborted"],
-    "local": ["loading", "joining", "recovering"]
+    "server": [
+      "lobby",
+      "countdown",
+      "racing",
+      "results",
+      "aborted"
+    ],
+    "local": [
+      "loading",
+      "joining",
+      "recovering"
+    ]
   },
   "timing": {
     "$comment": "All deadlines are monotonic server time (D4/D5). Values in seconds unless suffixed Ms.",
@@ -30,48 +45,99 @@
     "watchdogNeutralizeMs": 250
   },
   "simulation": {
+    "$comment": "Source tuning (SSXTricky rules.mjs, fixed-step 30 Hz port).",
     "dtMs": 33.333333333333336,
     "dt": 0.03333333333333333,
     "tickHz": 30,
     "maxCatchUpSteps": 4,
     "overloadDebtMs": 500,
-    "speedMin": 0,
-    "speedMax": 45,
-    "startSpeed": 8,
-    "crashRecoverySeconds": 0.75,
-    "crashResetSpeed": 8,
-    "gravity": 20,
+    "baseSpeed": 29,
+    "tuckBonus": 6,
+    "leanBonus": 4,
+    "tuckLeanBonus": 3,
+    "brakeSpeed": 10,
+    "padBoostSpeed": 56,
+    "boostSpeed": 48,
+    "boostMinSpeed": 8,
+    "boostSpendPerSecond": 23,
+    "boostRegenPerSecond": 1.8,
+    "boostStart": 45,
+    "boostMax": 100,
+    "carveBoostReward": 12,
+    "carveChargeRate": 0.5,
+    "carveSpeedMin": 20,
+    "carveSteerMin": 0.5,
+    "carveHalfWidth": 20,
+    "lateralGround": 20,
+    "lateralAir": 13,
+    "lateralTuck": 14,
+    "lateralApproach": 5,
+    "speedApproach": 0.8,
+    "edgeBleedHalfWidth": 23,
+    "edgeBleedFactor": 0.65,
+    "corridorHalfWidth": 35,
+    "chargeRate": 1.2,
     "jumpBase": 7,
     "jumpChargeBonus": 6,
-    "jumpChargeSeconds": 0.75,
-    "rampBoost": 3,
-    "crashImpactNormalSpeed": 16,
-    "lateralGroundApproach": 8,
-    "lateralAirApproach": 2,
-    "steerSpeedGroomed": 10,
-    "steerSpeedTuck": 7,
-    "carveDrag": 1.5,
-    "gradeGravity": 9.81,
-    "gradeMax": 0.6,
-    "tuckAccel": 4,
-    "cruiseAccel": 1.5,
-    "dragCoefficient": 0.006,
-    "brakeDecel": 12,
-    "shoulderDecel": 6,
-    "boundarySpeedLossFraction": 0.2,
-    "boundaryCooldownSeconds": 0.5,
-    "riderCapsuleRadius": 0.6,
-    "maxColliders": 64,
-    "gridStepMeters": 2,
-    "corridorHalfWidth": 24,
-    "groomedHalfWidth": 18,
-    "gateAltitudeCeiling": 30
+    "superPopBonus": 4,
+    "superPopCharge": 0.8,
+    "gravity": 20,
+    "rampLaunchBase": 10,
+    "rampLaunchSpeedFactor": 0.17,
+    "rampLaunchChargeBonus": 4,
+    "bailTrickProgress": 0.82,
+    "bailSeconds": 1.2,
+    "bailSpeedFactor": 0.3,
+    "boostPerLandingPoint": 75,
+    "zoneBoostSeconds": 2.4,
+    "zoneMinSpeed": 46,
+    "pickupScore": 250,
+    "pickupBoost": 10,
+    "pickupDistanceWindow": 2.2,
+    "pickupLateralWindow": 2.1,
+    "pickupHeightWindow": 3,
+    "airTimePointsPerSecond": 100,
+    "comboStepBonus": 0.5,
+    "comboMaxExtra": 4,
+    "bankedTricksCap": 8,
+    "startSpeed": 12,
+    "tricks": {
+      "Q": {
+        "code": "KeyQ",
+        "name": "360 SPIN",
+        "points": 800,
+        "duration": 0.72,
+        "axis": "y"
+      },
+      "E": {
+        "code": "KeyE",
+        "name": "INDY GRAB",
+        "points": 500,
+        "duration": 0.58,
+        "axis": "grab"
+      },
+      "X": {
+        "code": "KeyX",
+        "name": "BACKFLIP",
+        "points": 1200,
+        "duration": 0.92,
+        "axis": "x"
+      }
+    },
+    "groomedHalfWidth": 23
   },
   "course": {
+    "$comment": "Alpine Rush analytic course (integrate-ssxtricky-snowboard 3.2): no ordered checkpoints (source design); 13 ramps, 13 speed zones, 22 pickups, 4 banners.",
     "lengthMeters": 1800,
-    "checkpointPlanesMeters": [200, 400, 600, 800, 1000, 1200, 1400, 1600],
     "finishMeters": 1800,
-    "checkpointCount": 8
+    "corridorHalfWidth": 35,
+    "carveHalfWidth": 20,
+    "groomedHalfWidth": 23,
+    "rampCount": 13,
+    "speedZoneCount": 13,
+    "pickupCount": 22,
+    "bannerCount": 4,
+    "checkpointCount": 0
   },
   "rates": {
     "inputTargetHz": 30,
@@ -97,16 +163,52 @@
   },
   "errors": {
     "$comment": "Typed activity_error codes. Reused shared codes plus the type-scoped additions (D7).",
-    "reused": ["invalid_request", "unauthorized", "stale_session", "stale_epoch", "stale_sequence", "rate_limited"],
-    "snowboardScoped": ["stale_match", "course_mismatch", "not_loaded", "race_in_progress", "server_busy", "race_unavailable"]
+    "reused": [
+      "invalid_request",
+      "unauthorized",
+      "stale_session",
+      "stale_epoch",
+      "stale_sequence",
+      "rate_limited"
+    ],
+    "snowboardScoped": [
+      "stale_match",
+      "course_mismatch",
+      "not_loaded",
+      "race_in_progress",
+      "server_busy",
+      "race_unavailable"
+    ]
   },
-  "events": ["countdown", "checkpoint", "rider_finished", "rider_dnf", "race_aborted", "queue_offer"],
-  "riderStatuses": ["ready", "unready", "racing", "finished", "dnf"],
-  "dnfReasons": ["disconnect", "leave", "grace_expired", "deadline", "aborted"],
+  "events": [
+    "countdown",
+    "checkpoint",
+    "rider_finished",
+    "rider_dnf",
+    "race_aborted",
+    "queue_offer"
+  ],
+  "riderStatuses": [
+    "ready",
+    "unready",
+    "racing",
+    "finished",
+    "dnf"
+  ],
+  "dnfReasons": [
+    "disconnect",
+    "leave",
+    "grace_expired",
+    "deadline",
+    "aborted"
+  ],
   "results": {
     "kind": "snowboard_race",
     "recordingStatus": "session_only",
-    "completeReasons": ["complete", "deadline"],
+    "completeReasons": [
+      "complete",
+      "deadline"
+    ],
     "tieWindowMs": 1
   }
 }

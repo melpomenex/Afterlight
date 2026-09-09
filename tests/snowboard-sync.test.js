@@ -16,10 +16,10 @@ import { createRemoteRiderBuffer } from '../src/activities/snowboard/interpolati
 import { createRaceClock } from '../src/activities/snowboard/clock.js';
 
 const course = loadCourse(
-  JSON.parse(readFileSync(new URL('../shared/snowboard/course-summit-night.json', import.meta.url), 'utf8')),
+  JSON.parse(readFileSync(new URL('../shared/snowboard/course-alpine-rush.json', import.meta.url), 'utf8')),
 );
 
-const RIDE = Object.freeze({ steer: 0, tuck: true, brake: false, jumpHeld: false });
+const RIDE = Object.freeze({ kind: 'ride', steer: 0, tuck: true, lean: false, brake: false, boost: false, jumpHeld: false, trickQ: false, trickE: false, trickX: false });
 const TICK_MS = DT * 1000;
 
 test('prediction: local input responds immediately and advances with the shared rules', () => {
@@ -51,10 +51,10 @@ test('prediction: reconciliation discards server-consumed history and replays un
   // The server state lags two ticks behind local prediction.
   let server = initialState(0, 1);
   for (let tick = 0; tick < 1; tick++) {
-    server = rulesStep(course, server, { steer: 0, tuck: true, brake: false, jumpHeld: false }, server, tick).state;
+    server = rulesStep(course, server, { kind: 'ride', steer: 0, tuck: true, lean: false, brake: false, boost: false, jumpHeld: false, trickQ: false, trickE: false, trickX: false }, server, tick).state;
   }
 
-  const outcome = predictor.reconcile({ ...server }, 1, { steer: 0, tuck: true, brake: false, jumpHeld: false }, 2, 0, 40);
+  const outcome = predictor.reconcile({ ...server }, 1, { kind: 'ride', steer: 0, tuck: true, lean: false, brake: false, boost: false, jumpHeld: false, trickQ: false, trickE: false, trickX: false }, 2, 0, 40);
   assert.ok(outcome, 'reconcile returns an outcome');
   // After replaying the two unapplied tuck samples, prediction is ahead of
   // the raw server state again and back on the same tick.

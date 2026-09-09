@@ -1,9 +1,11 @@
 defmodule Afterlight.Activities.SnowboardTest do
   @moduledoc """
-  Cross-runtime parity admission gate (add-multiplayer-snowboard-arcade 4.1,
-  D10): the Elixir step must reproduce every JS-exported golden scenario
-  within 1cm position / 0.01 m/s velocity at every recorded sample, with
-  exactly equal checkpoint/finish outcomes and event sequences.
+  Cross-runtime parity admission gate (integrate-ssxtricky-snowboard 3.4):
+  the Elixir step must reproduce every JS-exported ALPINE RUSH golden
+  scenario within 1cm position / 0.01 m/s velocity at every recorded sample,
+  with exactly equal event sequences (speed zones, ramp launches, tricks,
+  clean landings, bails, pickups, super pops, finishes) and equal trick
+  scores.
   """
 
   use ExUnit.Case, async: true
@@ -21,6 +23,8 @@ defmodule Afterlight.Activities.SnowboardTest do
     golden = golden()
     course = Snowboard.Course.load_default()
     assert Map.get(golden, "courseHash") == course.hash
+    assert Map.get(golden, "courseId") == "alpine-rush"
+    assert Map.get(golden, "rulesVersion") == 2
   end
 
   test "every golden scenario reproduces within D10 tolerance" do
@@ -69,7 +73,7 @@ defmodule Afterlight.Activities.SnowboardTest do
 
       Enum.reverse(problems)
     else
-      controls = controls_at(segments, tick, 0)
+      controls = controls_at(segments, tick, 0, rider)
       {next, step_events} = Snowboard.step_rider(course, rider, controls, rider, tick)
 
       do_replay(
@@ -88,17 +92,30 @@ defmodule Afterlight.Activities.SnowboardTest do
     end
   end
 
+  # Event sequences must match exactly in type AND the distinguishing
+  # payload fields (finish time, pickup id, landing points, ramp id).
   defp check_events(id, actual, expected) do
     types_ok =
       length(actual) == length(expected) and
         Enum.zip(actual, expected)
         |> Enum.all?(fn
-          {%{"type" => "checkpoint", "index" => index}, %{"type" => "checkpoint", "index" => ei}} -> index == ei
-          {%{"type" => "finish", "finishMs" => ms}, %{"type" => "finish", "finishMs" => ems}} -> ms == ems
-          {%{"type" => "crash", "cause" => cause, "resetSeq" => seq}, %{"type" => "crash", "cause" => ec, "resetSeq" => es}} ->
-            cause == ec and seq == es
-          {%{"type" => a}, %{"type" => b}} -> a == b
-          _ -> false
+          {%{"type" => "finish", "finishMs" => ms, "score" => score}, %{"type" => "finish", "finishMs" => ems, "score" => escore}} ->
+            ms == ems and score == escore
+
+          {%{"type" => "pickup", "id" => pid}, %{"type" => "pickup", "id" => epid}} ->
+            pid == epid
+
+          {%{"type" => "ramp_launch", "rampId" => rid}, %{"type" => "ramp_launch", "rampId" => erid}} ->
+            rid == erid
+
+          {%{"type" => "clean_landing", "points" => pts}, %{"type" => "clean_landing", "points" => epts}} ->
+            pts == epts
+
+          {%{"type" => a}, %{"type" => b}} ->
+            a == b
+
+          _ ->
+            false
         end)
 
     if types_ok do
@@ -112,13 +129,16 @@ defmodule Afterlight.Activities.SnowboardTest do
     end
   end
 
-  defp normalize_event(%{type: :checkpoint, index: index, key: _key}),
-    do: %{"type" => "checkpoint", "index" => index}
+  defp normalize_event(%{type: :finish, finishMs: finish_ms, score: score, bestCombo: best}),
+    do: %{"type" => "finish", "finishMs" => finish_ms, "score" => score, "bestCombo" => best}
 
-  defp normalize_event(%{type: :finish, finishMs: finish_ms}), do: %{"type" => "finish", "finishMs" => finish_ms}
+  defp normalize_event(%{type: :pickup, id: id}), do: %{"type" => "pickup", "id" => id}
 
-  defp normalize_event(%{type: :crash, cause: cause, resetSeq: reset_seq}),
-    do: %{"type" => "crash", "cause" => to_string(cause), "resetSeq" => reset_seq}
+  defp normalize_event(%{type: :ramp_launch, rampId: rid}),
+    do: %{"type" => "ramp_launch", "rampId" => rid}
+
+  defp normalize_event(%{type: :clean_landing, points: pts}),
+    do: %{"type" => "clean_landing", "points" => pts}
 
   defp normalize_event(%{type: type}), do: %{"type" => to_string(type)}
 
@@ -126,10 +146,10 @@ defmodule Afterlight.Activities.SnowboardTest do
     problems =
       for {field, tol} <- [
             {"s", @position_tol},
-            {"u", @position_tol},
+            {"x", @position_tol},
             {"y", @position_tol},
             {"v", @velocity_tol},
-            {"vu", @velocity_tol},
+            {"lateral", @velocity_tol},
             {"vy", @velocity_tol}
           ],
           drift = abs(to_float(Map.get(actual, field)) - to_float(Map.get(expected, field))),
@@ -138,24 +158,41 @@ defmodule Afterlight.Activities.SnowboardTest do
           "(#{inspect(Map.get(actual, field))} vs #{inspect(Map.get(expected, field))})"
       end
 
-    exact =
-      for {field, note} <- [
-            {"grounded", "grounded"},
-            {"nextCheckpoint", "nextCheckpoint must be exactly equal"},
-            {"recoveryTicks", "recoveryTicks"},
-            {"resetSeq", "resetSeq must be exactly equal"},
-            {"finishTick", "finishTick must be exactly equal"}
-          ],
-          Map.get(actual, field) != Map.get(expected, field) do
-        "scenario #{id} tick #{tick}: #{note} " <>
-          "(#{inspect(Map.get(actual, field))} vs #{inspect(Map.get(expected, field))})"
-      end
+    exact_fields = [
+      {"airborne", "airborne"},
+      {"score", "trick score must be exactly equal"},
+      {"bestCombo", "bestCombo must be exactly equal"},
+      {"landings", "clean landings must be exactly equal"},
+      {"carveReward", "carve rewards must be exactly equal"},
+      {"pickupsClaimed", "pickup claims must be exactly equal"},
+      {"resetSeq", "resetSeq must be exactly equal"},
+      {"finishTick", "finishTick must be exactly equal"}
+    ]
 
-    split_count =
-      if length(Map.get(actual, "splitKeys") || []) == length(Map.get(expected, "splitKeys") || []) do
-        []
+    exact =
+      Enum.flat_map(exact_fields, fn {field, note} ->
+        if Map.get(actual, field) != Map.get(expected, field) do
+          [
+            "scenario #{id} tick #{tick}: #{note} " <>
+              "(#{inspect(Map.get(actual, field))} vs #{inspect(Map.get(expected, field))})"
+          ]
+        else
+          []
+        end
+      end)
+
+    # The boost meter is a slow integral; tolerate tiny accumulation drift but
+    # not real divergence (0.05 over a 180 s scenario).
+    boost_drift = abs(to_float(Map.get(actual, "boost")) - to_float(Map.get(expected, "boost")))
+
+    boost =
+      if boost_drift > 0.05 do
+        [
+          "scenario #{id} tick #{tick}: boost drifted #{boost_drift} " <>
+            "(#{inspect(Map.get(actual, "boost"))} vs #{inspect(Map.get(expected, "boost"))})"
+        ]
       else
-        ["scenario #{id} tick #{tick}: split count mismatch"]
+        []
       end
 
     finish_key =
@@ -171,16 +208,29 @@ defmodule Afterlight.Activities.SnowboardTest do
         []
       end
 
-    problems ++ exact ++ split_count ++ finish_key
+    problems ++ exact ++ boost ++ finish_key
   end
 
-  defp controls_at([], _tick, _acc), do: Snowboard.neutral_controls()
+  # Golden segments are {until, controls, aim?} maps; `aim` derives steer
+  # from the CURRENT rider x exactly like the JS export.
+  defp controls_at([], _tick, _acc, _rider), do: Snowboard.neutral_controls()
 
-  defp controls_at([[until, controls] | rest], tick, acc) do
+  defp controls_at([segment | rest], tick, acc, rider) do
+    until = Map.get(segment, "until")
+
     if tick - acc < until do
-      controls
+      controls = Map.get(segment, "controls")
+
+      case Map.get(segment, "aim") do
+        aim when is_number(aim) ->
+          steer = max(-1.0, min(1.0, (aim - to_float(Map.get(rider, "x"))) / 6))
+          Map.put(controls, "steer", steer)
+
+        _ ->
+          controls
+      end
     else
-      controls_at(rest, tick, acc + until)
+      controls_at(rest, tick, acc + until, rider)
     end
   end
 

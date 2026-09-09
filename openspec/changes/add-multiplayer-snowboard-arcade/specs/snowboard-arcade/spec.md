@@ -1,3 +1,11 @@
+> **PARTIAL SUPERSESSION by `integrate-ssxtricky-snowboard` (2026-09-09).**
+> "Original" presentation wording (original night mountain, robot riders,
+> original artwork identity) is superseded: the cabinet presents the actual
+> SSXTricky Alpine Rush course and riders. Every other requirement here —
+> cabinet identity/E entry, shared application presentation, cancellable lazy
+> loading, exclusive controls/safe exit, bounded presentation, performance —
+> is retained unchanged and remains a dependency.
+
 ## Purpose
 
 Provide a seamless, original snowboarding cabinet experience within Afterlight while preserving its social world, existing games and communication.

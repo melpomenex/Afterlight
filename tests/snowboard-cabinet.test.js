@@ -199,6 +199,7 @@ test('activity_result recovers the display after event loss and disposes idempot
 
 test('the lightweight module imports no mountain code', () => {
   const source = readFileSync(new URL('../src/activities/snowboard.js', import.meta.url), 'utf8');
+  assert.ok(!source.includes('net: null'), 'the lazy race controller must receive the live net handle');
   const imports = [...source.matchAll(/import\s+(?:[\s\S]*?from\s+)?['"]([^'"]+)['"]/g)].map(m => m[1]);
   for (const spec of imports) {
     assert.ok(!spec.includes('snowboard/'), `static import "${spec}" would pull mountain code for bystanders`);

@@ -94,6 +94,7 @@ export function createSnowboardInstance({
   generation,
   getPlayer = null,
   getParticipation = null,
+  roomId = null,
   acquireView = null,
   releaseView = null,
   net = null,
@@ -161,8 +162,9 @@ export function createSnowboardInstance({
       controllerPromise = import('./snowboard/controller.js')
         .then((module) => module.createSnowboardController({
           activityDef,
-          net: null,
+          net,
           getParticipation,
+          getRoomId: () => roomId,
           acquireView,
           releaseView,
           generation,
@@ -473,8 +475,10 @@ export function createSnowboardInstance({
       needsPaint = true;
     },
 
-    acceptError() {
-      // Bystander display stays honest: errors never fabricate a race state.
+    acceptError(frame) {
+      if (disposed || !frame) return;
+      if (frame.activityId && frame.activityId !== activityDef.id) return;
+      controller?.acceptError?.(frame);
     },
 
     neutralizeInput() {

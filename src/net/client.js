@@ -231,6 +231,11 @@ export class NetworkClient {
       this.handlers.set(msgType, []);
     }
     this.handlers.get(msgType).push(handler);
+    return () => {
+      const handlers = this.handlers.get(msgType);
+      const index = handlers?.indexOf(handler) ?? -1;
+      if (index >= 0) handlers.splice(index, 1);
+    };
   }
 
   onConnect(fn) {
@@ -542,7 +547,7 @@ export class NetworkClient {
   /**
    * Send an activity_input command.
    */
-  sendActivityInput({ activityId, sessionId, lease, seq, controls } = {}) {
+  sendActivityInput({ activityId, sessionId, lease, seq, matchId = null, controls } = {}) {
     if (!this.supportsActivities) {
       this.dispatchLocalActivityError({
         activityId,
@@ -564,7 +569,14 @@ export class NetworkClient {
       }
     }
 
-    const validation = validateActivityInput({ activityId, sessionId, lease, seq, controls: sanitizedControls });
+    const validation = validateActivityInput({
+      activityId,
+      sessionId,
+      lease,
+      seq,
+      ...(matchId ? { matchId } : {}),
+      controls: sanitizedControls,
+    });
     if (!validation.valid || controlsError) {
       const message = controlsError || validation.error;
       this.dispatchLocalActivityError({

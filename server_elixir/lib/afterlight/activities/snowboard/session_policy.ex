@@ -161,44 +161,61 @@ defmodule Afterlight.Activities.Snowboard.SessionPolicy do
   end
 
   @doc """
-  Authoritative standings (D6): finishes ordered by exact finishKey, then DNF
-  riders by last checkpoint then progress. Finishes under 1 ms apart share a
-  displayed place; the next rider places after the whole tied group.
+  Authoritative standings (D6 + integrate-ssxtricky-snowboard 4.5): finishes
+  ordered by exact finishKey (ties under 1 ms share a place), then DNF riders
+  by progress. Each row carries the finish order plus the authoritative trick
+  score/best combo/clean landings and the player identity for display.
   """
-  def standings(sim) do
+  def standings(sim, players \\ %{}) do
+    identity = fn slot ->
+      player = Map.get(players, slot)
+
+      %{
+        "playerId" => player && Map.get(player, :player_id),
+        "nickname" => player && Map.get(player, :nickname)
+      }
+    end
+
     finished =
       sim["riders"]
-      |> Enum.map(fn {slot, rider} -> Map.put(rider, "slot", slot) end)
-      |> Enum.filter(&(&1["finishTick"] != nil))
-      |> Enum.sort_by(& &1["finishKey"])
+      |> Enum.map(fn {slot, rider} -> {slot, rider} end)
+      |> Enum.filter(fn {_slot, rider} -> rider["finishTick"] != nil end)
+      |> Enum.sort_by(fn {_slot, rider} -> rider["finishKey"] end)
 
     finished_rows =
       finished
       |> assign_places()
-      |> Enum.map(fn {rider, place} ->
+      |> Enum.map(fn {{slot, rider}, place} ->
         %{
-          "slot" => rider["slot"],
+          "slot" => slot,
           "place" => place,
           "timeMs" => rider["finishMs"],
           "status" => "finished",
-          "dnfReason" => nil
+          "dnfReason" => nil,
+          "score" => rider["score"],
+          "bestCombo" => rider["bestCombo"],
+          "landings" => rider["landings"]
         }
+        |> Map.merge(identity.(slot))
       end)
 
     dnf_rows =
       sim["riders"]
-      |> Enum.map(fn {slot, rider} -> Map.put(rider, "slot", slot) end)
-      |> Enum.filter(&(&1["dnfReason"] != nil))
-      |> Enum.sort_by(&{-(&1["nextCheckpoint"] || 0), -(&1["s"] || 0)})
+      |> Enum.filter(fn {_slot, rider} -> rider["dnfReason"] != nil end)
+      |> Enum.sort_by(fn {_slot, rider} -> {-(rider["s"] || 0), rider["slot"]} end)
       |> Enum.with_index(1)
-      |> Enum.map(fn {rider, index} ->
+      |> Enum.map(fn {{slot, rider}, index} ->
         %{
-          "slot" => rider["slot"],
+          "slot" => slot,
           "place" => length(finished_rows) + index,
           "timeMs" => nil,
           "status" => "dnf",
-          "dnfReason" => rider["dnfReason"]
+          "dnfReason" => rider["dnfReason"],
+          "score" => rider["score"],
+          "bestCombo" => rider["bestCombo"],
+          "landings" => rider["landings"]
         }
+        |> Map.merge(identity.(slot))
       end)
 
     Enum.sort_by(finished_rows ++ dnf_rows, & &1["place"])
@@ -207,14 +224,15 @@ defmodule Afterlight.Activities.Snowboard.SessionPolicy do
   # Rides the sorted finish list, sharing a place across sub-millisecond ties.
   defp assign_places(sorted) do
     {acc, _} =
-      Enum.reduce(sorted, {[], nil}, fn rider, {rows, group_key} ->
+      Enum.reduce(sorted, {[], nil}, fn entry, {rows, group_key} ->
+        rider = elem(entry, 1)
         tied? = group_key != nil and abs(rider["finishKey"] - group_key) < @tie_window_ms
 
         if tied? do
-          {_last_rider, place} = Enum.at(rows, length(rows) - 1)
-          {rows ++ [{rider, place}], group_key}
+          {_last, place} = Enum.at(rows, length(rows) - 1)
+          {rows ++ [{entry, place}], group_key}
         else
-          {rows ++ [{rider, length(rows) + 1}], rider["finishKey"]}
+          {rows ++ [{entry, length(rows) + 1}], rider["finishKey"]}
         end
       end)
 

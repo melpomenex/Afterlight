@@ -1,3 +1,22 @@
+> **PARTIAL SUPERSESSION by `integrate-ssxtricky-snowboard` (2026-09-09).**
+> Superseded decisions: D5's "no boost inventory/trick bonus" tuning (source
+> stepMotion with boost/charge/tricks is the contract), D6's night course
+> layout "0–200m lit start slope … floodlit lodge finish" and two authored
+> jumps (source Alpine Rush terrain, 13 ramps, speed zones, pickups are the
+> course), D9's asset rows classifying the course/rider/lift/peaks as
+> "SSX technical inspiration only" / "original robot silhouette" (extraction
+> from the user-owned SSXTricky revision `e87f6c7d…` with recorded
+> attribution is authorized), and the racing-spec phrasing "without requiring
+> trick scoring". Retained in force: D1 view lease/seams, D2 cabinet identity,
+> D3 session architecture, D4 lifecycle table, D5's authority/prediction
+> architecture and evaluation order, D6 finish-key math, D7 protocol/rates,
+> D8 prediction/interpolation/clock, D9 lazy loading/resource ownership/exit
+> restoration, D10 verification gates — all as amended to the source course
+> geometry and rules by the integrating change. Course identity
+> `summit-night`/version 1 is replaced by the versioned Alpine Rush course
+> document with coordinated capability rollout (integrate-ssxtricky-snowboard
+> design D-versioning).
+
 ## Context
 
 See `proposal.md` for motivation and `investigation.md` for inspected code and provenance. This design targets the dirty working tree at Afterlight commit `b6468e40a5639c41bf9c83c5d0e7cd012004d561` on 2026-09-08, including the uncommitted canonical cabinet changes. It does not assume the unfinished activities program, gardens migration or experimental GPU backend is complete.

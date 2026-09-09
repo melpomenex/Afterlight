@@ -130,11 +130,11 @@ export function createRaceAudio({ mixer = null, getContext = null } = {}) {
   }
 
   return {
-    /** Per-frame: drive wind/slide/carve levels from the predicted state. */
+    /** Per-frame: drive wind/slide levels from the predicted state. */
     update(state) {
       if (disposed || muted || !state) return;
       const speed01 = Math.min(1, (state.v ?? 0) / 45);
-      const steer = Math.abs(state.steer ?? 0);
+      const grounded = !state.airborne;
 
       if (speed01 > 0.05) {
         const wind = ensureLoop('wind', { filterType: 'bandpass', frequency: 620, baseGain: 0.14 });
@@ -144,42 +144,61 @@ export function createRaceAudio({ mixer = null, getContext = null } = {}) {
         stopLoop('wind');
       }
 
-      if (state.grounded && speed01 > 0.05) {
+      if (grounded && speed01 > 0.05) {
         ensureLoop('slide', { filterType: 'lowpass', frequency: 900, baseGain: 0.1 });
         setLoopLevel('slide', 0.6 + speed01 * 0.4);
       } else {
         stopLoop('slide');
       }
-
-      if (state.grounded && steer > 0.35 && speed01 > 0.2) {
-        ensureLoop('carve', { filterType: 'bandpass', frequency: 320, baseGain: 0.12 });
-        setLoopLevel('carve', steer);
-      } else {
-        stopLoop('carve');
-      }
     },
 
-    /** One-shot race events: landing, countdown beeps, finish chime. */
+    /**
+     * One-shot race events. The source tone vocabulary (SSXTricky engine.js
+     * tone(): countdown 440, go 880, jump 330 / super-pop 660, trick advance
+     * 660, bail 90 saw, clean landing 880, pickup 1100, speed lane 550, flow
+     * carve 600, finish 880 long, boost beat 110 / base 65) plus the loop
+     * integration voices above. All silent until the player opts in.
+     */
     event(name) {
       switch (name) {
-        case 'landing':
-          oneShot({ type: 'triangle', frequency: 160, sweepTo: 70, duration: 0.16, volume: 0.3 });
-          break;
         case 'countdown':
-          oneShot({ type: 'square', frequency: 660, duration: 0.1, volume: 0.22 });
+          oneShot({ type: 'sine', frequency: 440, duration: 0.12, volume: 0.2 });
           break;
         case 'go':
-          oneShot({ type: 'square', frequency: 880, duration: 0.25, volume: 0.26 });
+          oneShot({ type: 'sine', frequency: 880, duration: 0.3, volume: 0.24 });
+          break;
+        case 'jump':
+          oneShot({ type: 'sine', frequency: 330, duration: 0.1, volume: 0.18 });
+          break;
+        case 'superPop':
+          oneShot({ type: 'sine', frequency: 660, duration: 0.1, volume: 0.2 });
+          break;
+        case 'trick':
+          oneShot({ type: 'sine', frequency: 660, duration: 0.1, volume: 0.18 });
+          break;
+        case 'bail':
+          oneShot({ type: 'sawtooth', frequency: 90, duration: 0.3, volume: 0.26 });
+          break;
+        case 'landing':
+          oneShot({ type: 'sine', frequency: 880, duration: 0.18, volume: 0.2 });
+          break;
+        case 'speedLane':
+          oneShot({ type: 'sine', frequency: 550, duration: 0.2, volume: 0.2 });
+          break;
+        case 'carve':
+          oneShot({ type: 'sine', frequency: 600, duration: 0.12, volume: 0.18 });
+          break;
+        case 'pickup':
+          oneShot({ type: 'sine', frequency: 1100, duration: 0.13, volume: 0.18 });
           break;
         case 'finish':
-          oneShot({ type: 'sine', frequency: 523, duration: 0.16, volume: 0.24 });
-          setTimeout(() => !disposed && this.event('finish2'), 180);
+          oneShot({ type: 'sine', frequency: 880, duration: 0.4, volume: 0.26 });
           break;
-        case 'finish2':
-          oneShot({ type: 'sine', frequency: 784, duration: 0.22, volume: 0.24 });
+        case 'beat':
+          oneShot({ type: 'triangle', frequency: 65, duration: 0.1, volume: 0.065 });
           break;
-        case 'checkpoint':
-          oneShot({ type: 'sine', frequency: 700, duration: 0.08, volume: 0.16 });
+        case 'beatBoost':
+          oneShot({ type: 'triangle', frequency: 110, duration: 0.1, volume: 0.065 });
           break;
         default:
           break;

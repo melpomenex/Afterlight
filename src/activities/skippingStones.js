@@ -9,6 +9,7 @@ import { createSkippingScene } from './skippingStones/scene.js';
 import { createSkippingAudio } from './skippingStones/audio.js';
 import { createSkippingController } from './skippingStones/controller.js';
 import { initSkippingState } from '../../shared/skippingStonesModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export function createSkippingStonesInstance({
   activityDef,
@@ -91,8 +92,7 @@ export function createSkippingStonesInstance({
       simState = serverSim;
     },
     acceptSnapshot(envelope) {
-      const state = envelope?.sim || envelope?.state || envelope?.simState || envelope;
-      this.onSnapshot(state);
+      this.onSnapshot(extractActivitySim(envelope));
     },
     acceptEvent(envelope) {
       const name = envelope?.event || envelope?.name || envelope?.type;
@@ -109,6 +109,13 @@ export function createSkippingStonesInstance({
     acceptResult() {},
     acceptError() {},
     update(time) {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant,
+        onJoin: (info) => this.onJoin(info),
+        onLeave: () => this.onLeave(),
+      });
       scene.updateVisuals(simState, time);
       if (isParticipant) controller.update(simState);
     },

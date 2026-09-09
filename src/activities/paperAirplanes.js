@@ -14,6 +14,7 @@ import { createPaperAirplaneScene } from './paperAirplane/airplaneScene.js';
 import { createPaperAirplaneAudio } from './paperAirplane/audio.js';
 import { createPaperAirplaneController } from './paperAirplane/airplaneController.js';
 import { initAirplaneSimState } from '../../shared/paperAirplaneModel.js';
+import { bindParticipation, extractActivitySim } from './sessionBind.js';
 
 export function createPaperAirplaneInstance({
   activityDef,
@@ -145,8 +146,7 @@ export function createPaperAirplaneInstance({
     },
 
     acceptSnapshot(envelope) {
-      const state = envelope?.sim || envelope?.state || envelope?.simState || envelope;
-      this.onSnapshot(state);
+      this.onSnapshot(extractActivitySim(envelope));
     },
 
     acceptEvent(envelope) {
@@ -172,6 +172,13 @@ export function createPaperAirplaneInstance({
     acceptError() {},
 
     update(time, delta) {
+      bindParticipation({
+        getParticipation,
+        activityId: activityDef.id,
+        isParticipant,
+        onJoin: (info) => this.onJoin(info),
+        onLeave: () => this.onLeave(),
+      });
       airplaneScene.updateVisuals(simState, time);
 
       if (isParticipant) {
