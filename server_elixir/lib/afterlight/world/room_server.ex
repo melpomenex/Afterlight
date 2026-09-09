@@ -139,6 +139,18 @@ defmodule Afterlight.World.RoomServer do
     GenServer.call(room_pid, {:member_pose, player_id})
   end
 
+  @doc """
+  Resolve a live member by player id or nickname (case-insensitive).
+  Used by direct challenges. Never starts work and never guesses occupancy.
+  """
+  def find_member(room_pid, name) when is_binary(name) do
+    GenServer.call(room_pid, {:find_member, name}, 100)
+  catch
+    :exit, _ -> :not_found
+  end
+
+  def find_member(_, _), do: :not_found
+
   @doc false
   def stats(room_pid) do
     GenServer.call(room_pid, :stats)
@@ -335,6 +347,30 @@ defmodule Afterlight.World.RoomServer do
     case Map.get(state.members, player_id) do
       nil -> {:reply, :not_found, state}
       member -> {:reply, {:ok, member.pose}, state}
+    end
+  end
+
+  def handle_call({:find_member, name}, _from, state) when is_binary(name) do
+    lowered = String.downcase(name)
+
+    found =
+      Enum.find(state.members, fn {id, member} ->
+        id == name or String.downcase(to_string(member.nickname || "")) == lowered
+      end)
+
+    case found do
+      {id, member} ->
+        {:reply,
+         {:ok,
+          %{
+            player_id: id,
+            nickname: member.nickname,
+            channel_pid: member.channel_pid,
+            conn_ref: member.conn_ref
+          }}, state}
+
+      nil ->
+        {:reply, :not_found, state}
     end
   end
 

@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createPlaceSelector, PLACES_POLL_INTERVAL_MS, PLACES_OCCUPANCY_TTL_MS } from '../src/ui/placeSelector.js';
+import { createPlaceSelector, PLACES_POLL_INTERVAL_MS, PLACES_OCCUPANCY_TTL_MS, PLACES_ACTIVITY_TTL_MS } from '../src/ui/placeSelector.js';
 import { MSG_TYPES } from '../shared/protocol.js';
 
 // --- fake DOM --------------------------------------------------------------
@@ -454,4 +454,45 @@ test('closing when closed is a safe no-op', () => {
   h.selector.close();
   assert.deepEqual(h.calls, []);
   assert.equal(h.dialog.closeCalls ?? 0, 0);
+});
+
+test('Places discovery shows separate activity counts and never calls an occupied table empty', () => {
+  const h = createHarness();
+  h.selector.open();
+  h.reply(h.requests()[0].payload.requestId, [
+    {
+      roomId: 'theater',
+      occupancy: 0,
+      activities: [{ id: 'pool-1', type: 'pool', playing: 2, watching: 3, queued: 1 }],
+    },
+  ]);
+  const theater = allCards(h.container).find(c => cardName(c) === 'The Orpheum');
+  assert.equal(countText(theater), 'Tables occupied');
+  const line = activityText(theater);
+  assert.match(line, /2 playing/);
+  assert.match(line, /3 watching/);
+  assert.match(line, /1 queued/);
+  assert.equal(line.includes('6'), false);
+  assert.equal(theater.getAttribute('data-occupied'), 'true');
+});
+
+test('stale activity summaries become unknown instead of an empty-table promise', () => {
+  const h = createHarness();
+  h.selector.open();
+  h.reply(h.requests()[0].payload.requestId, [
+    {
+      roomId: 'theater',
+      occupancy: 4,
+      activities: [{ id: 'pool-1', type: 'pool', playing: 2, watching: 0, queued: 0 }],
+    },
+  ]);
+  const theater = allCards(h.container).find(c => cardName(c) === 'The Orpheum');
+  assert.match(activityText(theater), /2 playing/);
+
+  h.clock.advance(PLACES_ACTIVITY_TTL_MS + 1);
+  h.selector.snapshot();
+  // Occupancy TTL is 30s; activity TTL is 10s — refreshCounts runs on the poll tick.
+  h.clock.advance(PLACES_POLL_INTERVAL_MS);
+  assert.equal(activityText(theater), 'Tables unknown');
+  assert.notEqual(countText(theater), 'Empty right now');
 });

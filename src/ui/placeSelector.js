@@ -22,9 +22,19 @@
  */
 
 import { MSG_TYPES } from '../../shared/protocol.js';
+import {
+  ACTIVITY_SUMMARY_TTL_MS,
+  describePlaceOccupancy,
+  formatActivityLine,
+  sanitizeActivitySummaries,
+  summariesFresh,
+  tableLooksOccupied,
+} from './activityDiscovery.js';
 
-/** How long a directory answer stays trustworthy (design D8: 30 s). */
+/** How long a directory occupancy answer stays trustworthy (social-place D8: 30 s). */
 export const PLACES_OCCUPANCY_TTL_MS = 30_000;
+/** Activity summaries older than 10 s are unknown — never a false empty table. */
+export const PLACES_ACTIVITY_TTL_MS = ACTIVITY_SUMMARY_TTL_MS;
 /** Poll cadence while the selector is open (design D8: at most every 10 s). */
 export const PLACES_POLL_INTERVAL_MS = 10_000;
 
@@ -100,6 +110,7 @@ export function createPlaceSelector({
       counts.set(entry.roomId, {
         occupancy: Number.isSafeInteger(entry.occupancy) && entry.occupancy >= 0 ? entry.occupancy : null,
         activity: typeof entry.activity === 'string' && entry.activity.length > 0 ? entry.activity : null,
+        activities: sanitizeActivitySummaries(entry.activities),
         // Static semantic atmosphere label (preset key) from the manifest
         // projection — server-influenced text, so it always renders as text.
         atmosphereLabel:
@@ -120,31 +131,36 @@ export function createPlaceSelector({
     return entry;
   }
 
-  function describeOccupancy(occupancy) {
-    if (occupancy === 0) return { text: 'Empty right now', label: 'Nobody here right now' };
-    return { text: `${occupancy} here`, label: `${occupancy} here now` };
-  }
-
   function refreshCounts() {
     for (const [roomId, card] of cards) {
       const entry = countEntryFor(roomId);
-      const fresh = entry && Number.isSafeInteger(entry.occupancy) && entry.occupancy >= 0;
-      if (fresh) {
-        const said = describeOccupancy(entry.occupancy);
-        card.countEl.textContent = said.text;
-        card.countEl.setAttribute('title', 'Live occupancy');
-        card.countEl.setAttribute('aria-label', said.label);
+      const occupancyKnown = !!(entry && Number.isSafeInteger(entry.occupancy) && entry.occupancy >= 0);
+      const activityFresh = !!(entry && summariesFresh(entry.fetchedAt, now(), PLACES_ACTIVITY_TTL_MS));
+      const occupiedTable = tableLooksOccupied(entry?.activities, { fresh: activityFresh });
+      const said = describePlaceOccupancy(occupancyKnown ? entry.occupancy : null, {
+        occupiedTable,
+        occupancyKnown,
+      });
+      card.countEl.textContent = said.text;
+      card.countEl.setAttribute('title', occupancyKnown ? 'Live occupancy' : 'Occupancy unknown right now');
+      card.countEl.setAttribute('aria-label', said.label);
+      if (occupiedTable) card.button.setAttribute('data-occupied', 'true');
+      else card.button.removeAttribute?.('data-occupied');
+
+      // Prefer structured summaries; fall back to the legacy title string.
+      // Stale/unknown never promises an empty table.
+      const structured = formatActivityLine(entry?.activities, { fresh: activityFresh });
+      if (!entry) {
+        card.activityEl.textContent = '';
+      } else if (!activityFresh && (entry.activities?.length > 0 || entry.activity)) {
+        card.activityEl.textContent = 'Tables unknown';
+      } else if (structured.text) {
+        card.activityEl.textContent = structured.text;
       } else {
-        card.countEl.textContent = '—';
-        card.countEl.setAttribute('title', 'Occupancy unknown right now');
-        card.countEl.setAttribute('aria-label', 'Occupancy unknown');
+        card.activityEl.textContent = entry.activity ?? '';
       }
-      // Server-influenced strings are set as text, never as markup: a hostile
-      // title renders literally and executes nothing.
-      card.activityEl.textContent = entry?.activity ?? '';
-      // Semantic weather label rides the same freshness rules as occupancy:
-      // stale/missing data clears the line rather than guessing.
-      const label = fresh ? entry?.atmosphereLabel ?? '' : '';
+      // Semantic weather label rides occupancy freshness, not activity TTL.
+      const label = occupancyKnown ? entry?.atmosphereLabel ?? '' : '';
       card.weatherEl.textContent = label;
       if (label) {
         card.button.setAttribute('data-atmosphere', label);

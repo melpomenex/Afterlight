@@ -159,10 +159,13 @@ defmodule Afterlight.World.PlaceDirectory do
   end
 
   defp build_entry(place, occupancy) do
+    activities = Afterlight.Activities.list_public_summaries(place["id"])
+
     entry = %{
       "roomId" => place["id"],
       "occupancy" => occupancy,
-      "observedAt" => if(is_integer(occupancy), do: System.system_time(:millisecond), else: nil)
+      "observedAt" => if(is_integer(occupancy), do: System.system_time(:millisecond), else: nil),
+      "activities" => activities
     }
 
     case atmosphere_label(place) do

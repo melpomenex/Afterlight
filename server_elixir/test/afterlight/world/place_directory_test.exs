@@ -40,7 +40,10 @@ defmodule Afterlight.World.PlaceDirectoryTest do
     assert Enum.map(entries, & &1["roomId"]) == PlaceDefinitions.ids()
 
     for entry <- entries do
-      assert MapSet.subset?(MapSet.new(Map.keys(entry)), MapSet.new(["roomId", "occupancy", "observedAt", "atmosphereLabel"]))
+      assert MapSet.subset?(
+               MapSet.new(Map.keys(entry)),
+               MapSet.new(["roomId", "occupancy", "observedAt", "atmosphereLabel", "activities"])
+             )
       assert is_integer(entry["occupancy"]) or is_nil(entry["occupancy"])
       # A count is an observation; an unknown is never backdated.
       if is_integer(entry["occupancy"]), do: assert(is_integer(entry["observedAt"])), else: assert(is_nil(entry["observedAt"]))
@@ -106,6 +109,24 @@ defmodule Afterlight.World.PlaceDirectoryTest do
     # Whole entries only: whatever survived is complete and truthful.
     for entry <- entries do
       assert Map.has_key?(entry, "roomId") and Map.has_key?(entry, "occupancy")
+    end
+  end
+
+  test "activity summaries stay separate from occupancy and never invent zeros for unread sessions" do
+    clear_place_entries_override()
+    entries = PlaceDirectory.snapshot()
+    assert entries != []
+
+    for entry <- entries do
+      assert is_list(entry["activities"])
+      playing = Enum.reduce(entry["activities"], 0, fn row, acc -> acc + (row["playing"] || 0) end)
+      watching = Enum.reduce(entry["activities"], 0, fn row, acc -> acc + (row["watching"] || 0) end)
+      queued = Enum.reduce(entry["activities"], 0, fn row, acc -> acc + (row["queued"] || 0) end)
+      # Occupancy is roster size, never playing+watching+queued.
+      if is_integer(entry["occupancy"]) do
+        refute entry["occupancy"] == playing + watching + queued and playing + watching + queued > 0 and
+                 entry["occupancy"] != playing
+      end
     end
   end
 
