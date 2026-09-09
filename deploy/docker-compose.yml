@@ -64,6 +64,7 @@ services:
       AFTERLIGHT_CATALOG_OWNER: phoenix
       AFTERLIGHT_ECONOMY_OWNER: phoenix
       AFTERLIGHT_HELLO_OWNER: phoenix
+      AFTERLIGHT_SNOWBOARD_ENABLED: ${AFTERLIGHT_SNOWBOARD_ENABLED:-1}
     depends_on:
       postgres:
         condition: service_healthy
