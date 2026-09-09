@@ -47,7 +47,11 @@ export function createActivityViewLease({
         acquiredAt: now(),
       };
 
-      apply({ scene, camera, owner });
+      // The full lease request (including `resize`) is forwarded: the host
+      // sizes a freshly borrowed camera to the CURRENT window immediately —
+      // scenes construct with a placeholder aspect and a portrait window
+      // would otherwise render squeezed until the next window resize.
+      apply({ scene, camera, owner, resize, onRelease: releaseHook });
       return { ok: true, lease: this.lease };
     },
 

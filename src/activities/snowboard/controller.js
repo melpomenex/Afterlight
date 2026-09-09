@@ -92,6 +92,13 @@ export async function createSnowboardController({
   }
 
   const course = loadCourse(courseDoc);
+  // Sizes the borrowed camera to the host window; called by the view lease
+  // on acquire and defensively after every successful acquire below (hosts
+  // that do not forward the resize hook still get a correctly-shaped race).
+  const sceneResize = (width, height) => {
+    scene.camera.aspect = width / Math.max(1, height);
+    scene.camera.updateProjectionMatrix();
+  };
   const predictor = createPredictor(course);
   const clock = createRaceClock();
   const audio = createRaceAudio({ mixer: audioMixer });
@@ -512,14 +519,12 @@ export async function createSnowboardController({
           generation,
           scene: scene.scene,
           camera: scene.camera,
-          resize: (width, height) => {
-            scene.camera.aspect = width / Math.max(1, height);
-            scene.camera.updateProjectionMatrix();
-          },
+          resize: sceneResize,
           onRelease: (reason) => handleViewRelease(reason),
         });
         if (result.ok) {
           viewHeld = true;
+          if (typeof window !== 'undefined') sceneResize(window.innerWidth, window.innerHeight);
           attachControls();
           showHud();
           sendLoaded();
@@ -782,14 +787,12 @@ export async function createSnowboardController({
           generation,
           scene: scene.scene,
           camera: scene.camera,
-          resize: (width, height) => {
-            scene.camera.aspect = width / Math.max(1, height);
-            scene.camera.updateProjectionMatrix();
-          },
+          resize: sceneResize,
           onRelease: (reason) => handleViewRelease(reason),
         });
         if (result.ok) {
           viewHeld = true;
+          if (typeof window !== 'undefined') sceneResize(window.innerWidth, window.innerHeight);
           showHud();
         }
       }

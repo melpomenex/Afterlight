@@ -26,7 +26,9 @@ test('view lease: acquire applies scene+camera together and only once', () => {
 
   const result = leaseSystem.acquireView({ owner: 'summit', generation: 3, scene: 'mountain', camera: 'chase' });
   assert.equal(result.ok, true);
-  assert.deepEqual(applied, [{ scene: 'mountain', camera: 'chase', owner: 'summit' }]);
+  // The full request (resize hook included) is forwarded so the host can
+  // size a freshly borrowed camera immediately.
+  assert.deepEqual(applied, [{ scene: 'mountain', camera: 'chase', owner: 'summit', resize: null, onRelease: null }]);
 
   const second = leaseSystem.acquireView({ owner: 'other', generation: 3, scene: 'x', camera: 'y' });
   assert.equal(second.ok, false);

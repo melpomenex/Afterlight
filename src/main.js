@@ -127,15 +127,25 @@ composer.addPass(renderPass);
 // changes; on release the existing camera seam restores the saved mode.
 const activityView = createActivityViewLease({
   generation: () => activityRuntime.activeGeneration ?? 0,
-  apply: ({ scene: leasedScene, camera: leasedCamera }) => {
+  apply: ({ scene: leasedScene, camera: leasedCamera, resize: leasedResize }) => {
     renderPass.scene = leasedScene;
     activeCamera = leasedCamera;
     renderPass.camera = activeCamera;
+    // Size the borrowed camera to the CURRENT window immediately: scenes
+    // construct with a placeholder aspect and must never wait for the next
+    // window resize (portrait panes stayed squeezed at 1:1 otherwise).
+    leasedResize?.(innerWidth, innerHeight);
     // The leased race scene is authored for the source's daylight exposure
     // (integrate-ssxtricky-snowboard 2.3): borrow the renderer briefly and
     // restore the exact host presentation on release.
     leasedRendererExposure = renderer.toneMappingExposure;
     renderer.toneMappingExposure = 1.25;
+    // The Alpine Rush source renders WITHOUT bloom (engine.js calls
+    // renderer.render directly); the host bloom tuned for the dark evening
+    // world hazes over its sun-lit snow and sky. Suspend it for the leased
+    // race frames and restore the social presentation on release.
+    leasedBloomEnabled = bloom.enabled;
+    bloom.enabled = false;
     // A race view owns the whole frame: leave cinema view so the theater
     // stage, its screen panel and the docked chat no longer cover the
     // mountain. The player is at the cabinet, not watching a film.
@@ -149,9 +159,14 @@ const activityView = createActivityViewLease({
       renderer.toneMappingExposure = leasedRendererExposure;
       leasedRendererExposure = null;
     }
+    if (leasedBloomEnabled !== null) {
+      bloom.enabled = leasedBloomEnabled;
+      leasedBloomEnabled = null;
+    }
   },
 });
 let leasedRendererExposure = null;
+let leasedBloomEnabled = null;
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.25, 0.65, 1.05);
 composer.addPass(bloom);
 
