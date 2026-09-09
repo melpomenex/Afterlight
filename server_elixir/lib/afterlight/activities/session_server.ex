@@ -17,6 +17,7 @@ defmodule Afterlight.Activities.SessionServer do
   alias Afterlight.Activities.Drone
   alias Afterlight.Activities.PaperAirplane
   alias Afterlight.Activities.GutterBoat
+  alias Afterlight.Activities.RcBoat
   alias Afterlight.Activities.Environment
   alias Afterlight.Activities.Pong
   alias Afterlight.Activities.RainRunner
@@ -574,8 +575,14 @@ defmodule Afterlight.Activities.SessionServer do
         player_to_slot = Map.delete(state.player_to_slot, player_id)
 
         cond do
-          snowboard_type(state) == "drones" and state.status == :in_progress ->
-            sim = Drone.mark_dnf(state.sim_state, slot)
+          snowboard_type(state) in ["drones", "rc-boats"] and state.status == :in_progress ->
+            sim =
+              if snowboard_type(state) == "drones" do
+                Drone.mark_dnf(state.sim_state, slot)
+              else
+                RcBoat.mark_dnf(state.sim_state, slot)
+              end
+
             state = %{
               state
               | players: players,
@@ -1220,8 +1227,13 @@ defmodule Afterlight.Activities.SessionServer do
               snowboard_telemetry(state, :leave, %{}, %{reason: "exit"})
               leave_racing_snowboard(state, slot, player_id)
 
-            snowboard_type(state) == "drones" and state.status == :in_progress ->
-              sim = Drone.mark_dnf(state.sim_state, slot)
+            snowboard_type(state) in ["drones", "rc-boats"] and state.status == :in_progress ->
+              sim =
+                if snowboard_type(state) == "drones" do
+                  Drone.mark_dnf(state.sim_state, slot)
+                else
+                  RcBoat.mark_dnf(state.sim_state, slot)
+                end
               if sim["status"] == "complete" do
                 winner_slot = sim["winner"]
                 winner_player = Map.get(players, winner_slot)
@@ -2008,6 +2020,7 @@ defmodule Afterlight.Activities.SessionServer do
   defp init_simulation("drones", opts), do: Drone.init_sim_state(opts)
   defp init_simulation("paper-airplanes", opts), do: PaperAirplane.init_sim_state(opts)
   defp init_simulation("gutter-boats", opts), do: GutterBoat.init_sim_state(opts)
+  defp init_simulation("rc-boats", opts), do: RcBoat.init_sim_state(opts)
   defp init_simulation("rain-runner", _opts), do: RainRunner.init_sim_state()
   defp init_simulation("signal-lost", _opts), do: SignalLost.init_sim_state()
   defp init_simulation("sporefall", _opts), do: Sporefall.init_sim_state()
@@ -2119,6 +2132,10 @@ defmodule Afterlight.Activities.SessionServer do
 
   defp step_simulation("gutter-boats", sim_state, players, steps) do
     GutterBoat.step_simulation(sim_state, players, steps)
+  end
+
+  defp step_simulation("rc-boats", sim_state, players, steps) do
+    RcBoat.step_simulation(sim_state, players, steps)
   end
 
   defp step_simulation("rain-runner", sim_state, players, steps) do

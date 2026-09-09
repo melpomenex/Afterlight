@@ -416,6 +416,35 @@ export const RAIN_COURT_ACTIVITIES = Object.freeze([
   GUTTER_BOATS_ACTIVITY_DEFINITION,
 ]);
 
+export const RC_BOATS_ACTIVITY_DEFINITION = Object.freeze({
+  id: 'canal-rc-boats',
+  type: 'rc-boats',
+  title: 'RC Speedboats',
+  sub: 'Press E to pilot · Sluice circuit',
+  rulesVersion: 1,
+  minPlayers: 1,
+  readyPolicy: 'explicit',
+  environmentPolicy: 'frozen',
+  course: Object.freeze({ id: 'sluice-circuit', version: 1 }),
+  transform: Object.freeze({ position: Object.freeze([3.8, 0, 2.0]), rotationY: -Math.PI / 2 }),
+  footprint: Object.freeze({ width: 1.2, depth: 3.2 }),
+  interactionRadius: 2.8,
+  participantAnchors: Object.freeze([
+    Object.freeze({ slot: 0, position: Object.freeze([3.6, 0, 0.8]), facing: -Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 4.6, z: 0.8 })]) }),
+    Object.freeze({ slot: 1, position: Object.freeze([3.6, 0, 1.6]), facing: -Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 4.6, z: 1.6 })]) }),
+    Object.freeze({ slot: 2, position: Object.freeze([3.6, 0, 2.4]), facing: -Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 4.6, z: 2.4 })]) }),
+    Object.freeze({ slot: 3, position: Object.freeze([3.6, 0, 3.2]), facing: -Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 4.6, z: 3.2 })]) }),
+  ]),
+  capacities: Object.freeze({ players: 4, spectators: 32, queue: 16 }),
+  spectatorPolicy: 'world',
+  rendererKey: 'rcBoatRenderer',
+  controllerKey: 'rc-boats',
+});
+
+export const CANAL_ACTIVITIES = Object.freeze([
+  RC_BOATS_ACTIVITY_DEFINITION,
+]);
+
 export const ROOFTOPS_ACTIVITIES = Object.freeze([
   DRONES_ACTIVITY_DEFINITION,
   PAPER_AIRPLANES_ACTIVITY_DEFINITION,
@@ -522,6 +551,7 @@ function defineLegacyPlace(display, index) {
     ...(theater ? { activities: ORPHEUM_ALL_ACTIVITIES } : {}),
     ...(display.id === 'rooftops' ? { activities: ROOFTOPS_ACTIVITIES } : {}),
     ...(display.id === 'court' ? { activities: RAIN_COURT_ACTIVITIES } : {}),
+    ...(display.id === 'canal' ? { activities: CANAL_ACTIVITIES } : {}),
     ...SOCIAL_PLACE_OVERRIDES[display.id],
   });
 }

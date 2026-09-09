@@ -41,6 +41,7 @@ function buildCanalScenery(ctx) {
     for (let i = 0; i < 6; i++) box(x, .5 + i * .28, -6.86, 2.5, .08, .1, colors.brass);
     box(x, 3, -8, .5, 2, .5, colors.brass);
   }
+  block(3.8, 2.0, 1.2, 3.2);
   for (let z = -9; z < 10; z += 1.5) {
     const ripple = glow((random() - .5) * 4, .245, z, 1 + random(), .015, .045, '#72b7bd', .35);
     animated.push(time => { ripple.position.x = Math.sin(time * .45 + z) * 1.2; });

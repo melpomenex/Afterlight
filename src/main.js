@@ -42,6 +42,7 @@ import './activities/foosball.js';
 import './activities/drones.js';
 import './activities/paperAirplanes.js';
 import './activities/gutterBoats.js';
+import './activities/rcBoats.js';
 import { createAtmosphereStateClient, legacyWeatherDisplaySuppressed } from './atmosphere/stateClient.js';
 import { createAtmosphereController } from './atmosphere/controller.js';
 import { createAtmosphereEvents } from './atmosphere/events.js';

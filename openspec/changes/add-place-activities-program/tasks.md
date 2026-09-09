@@ -64,7 +64,7 @@
 - [x] 7.3 Build drone racks/course and flight camera/control/spectator presentation; complete a visible multiplayer race and return to the avatar.
 - [x] 7.4 Implement rooftop paper airplanes with angle/pitch/power, wind trajectories and server distance/tie scoring; verify reproducible launches across clients.
 - [x] 7.5 Implement Rain Court gutter boat starts/current/rain/finish ordering and physical props; test simultaneous finishes and weather snapshot parity.
-- [ ] 7.6 Implement Sluiceworks RC boat rules/steering/buoys/recovery and visible world course; test missed checkpoints, leaving and DNF.
+- [x] 7.6 Implement Sluiceworks RC boat rules/steering/buoys/recovery and visible world course; test missed checkpoints, leaving and DNF.
 
 ## 8. P5 — Quiet boards, camp and ice
 

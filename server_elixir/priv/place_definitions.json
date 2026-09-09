@@ -102,7 +102,76 @@
         "weatherMode": "fixed",
         "timeMode": "fixed"
       },
-      "activities": []
+      "activities": [
+        {
+          "id": "canal-rc-boats",
+          "type": "rc-boats",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              3.8,
+              0,
+              2
+            ],
+            "rotationY": -1.5707963267948966
+          },
+          "footprint": {
+            "width": 1.2,
+            "depth": 3.2
+          },
+          "interactionRadius": 2.8,
+          "participantAnchors": [
+            {
+              "facing": -1.5707963267948966,
+              "position": [
+                3.6,
+                0,
+                0.8
+              ],
+              "slot": 0
+            },
+            {
+              "facing": -1.5707963267948966,
+              "position": [
+                3.6,
+                0,
+                1.6
+              ],
+              "slot": 1
+            },
+            {
+              "facing": -1.5707963267948966,
+              "position": [
+                3.6,
+                0,
+                2.4
+              ],
+              "slot": 2
+            },
+            {
+              "facing": -1.5707963267948966,
+              "position": [
+                3.6,
+                0,
+                3.2
+              ],
+              "slot": 3
+            }
+          ],
+          "capacities": {
+            "players": 4,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "frozen",
+          "minPlayers": 1,
+          "readyPolicy": "explicit",
+          "course": {
+            "id": "sluice-circuit",
+            "version": 1
+          }
+        }
+      ]
     },
     {
       "id": "garden",
