@@ -41,8 +41,8 @@
         "snapshotSeq": 1,
         "serverTick": 0,
         "startAt": null,
-        "courseId": "summit-night",
-        "courseVersion": 1,
+        "courseId": "alpine-rush",
+        "courseVersion": 2,
         "courseHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "state": {
           "players": [
@@ -57,14 +57,23 @@
               "status": "unready"
             }
           ],
-          "sim": { "riders": [], "tick": 0 }
+          "sim": {
+            "riders": [],
+            "tick": 0
+          }
         },
         "lastAcceptedSeqs": {},
         "queueLength": 0,
         "spectatorCount": 0,
         "result": null
       },
-      "self": { "appliedSeq": 0, "heldControls": { "kind": "neutral" }, "serverTick": 0 }
+      "self": {
+        "appliedSeq": 0,
+        "heldControls": {
+          "kind": "neutral"
+        },
+        "serverTick": 0
+      }
     }
   },
   "invariants": [

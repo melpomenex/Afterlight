@@ -545,18 +545,31 @@ test('Old clients: receiving activity frames without registered handlers does no
 test('snowboard controls: strict allowlist per kind', async () => {
   const { validateSnowboardControls, validateSnowboardFence } = await import('../shared/activityProtocol.js');
 
-  assert.equal(validateSnowboardControls({ kind: 'ride', steer: 0.5, tuck: false, brake: false, jumpHeld: false }).valid, true);
+  // ALPINE RUSH vocabulary: tuck/lean/boost/jump + held Q/E/X tricks.
+  assert.equal(validateSnowboardControls({
+    kind: 'ride', steer: 0.5, tuck: false, lean: true, brake: false, boost: false,
+    jumpHeld: false, trickQ: true, trickE: false, trickX: false,
+  }).valid, true);
   assert.equal(validateSnowboardControls({ kind: 'ride', steer: 2 }).valid, false, 'steer clamps rejected');
   assert.equal(validateSnowboardControls({ kind: 'ride', steer: NaN }).valid, false, 'non-finite steer rejected');
-  assert.equal(validateSnowboardControls({ kind: 'ride', steer: 0, boost: true }).valid, false, 'unknown field rejected');
+  assert.equal(validateSnowboardControls({ kind: 'ride', steer: 0, speed: 30 }).valid, false, 'client-authored speed rejected');
+  assert.equal(validateSnowboardControls({ kind: 'ride', steer: 0, score: 500 }).valid, false, 'client-authored score rejected');
   assert.equal(validateSnowboardControls({ kind: 'neutral' }).valid, true);
   assert.equal(validateSnowboardControls({ kind: 'teleport', s: 1800 }).valid, false, 'forged kinds rejected');
+  assert.equal(
+    validateSnowboardControls({
+      kind: 'loaded', courseId: 'alpine-rush', courseVersion: 2,
+      courseHash: 'a'.repeat(64),
+    }).valid,
+    true,
+  );
   assert.equal(
     validateSnowboardControls({
       kind: 'loaded', courseId: 'summit-night', courseVersion: 1,
       courseHash: 'a'.repeat(64),
     }).valid,
-    true,
+    false,
+    'stale v1 course identity rejected',
   );
   assert.equal(validateSnowboardControls({ kind: 'loaded' }).valid, false);
 

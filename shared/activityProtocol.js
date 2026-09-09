@@ -42,8 +42,8 @@ export const ACTIVITY_ROLES = Object.freeze(['play', 'watch', 'queue']);
 export const SNOWBOARD_ACTIVITY_TYPE = 'snowboard-race';
 export const SNOWBOARD_ROLES = Object.freeze(['play', 'watch', 'queue']);
 export const SNOWBOARD_LEAVE_REASONS = Object.freeze(['exit', 'travel', 'load_failed']);
-export const SNOWBOARD_COURSE_ID = 'summit-night';
-export const SNOWBOARD_COURSE_VERSION = 1;
+export const SNOWBOARD_COURSE_ID = 'alpine-rush';
+export const SNOWBOARD_COURSE_VERSION = 2;
 
 /**
  * Strict D7 controls validation for snowboard-race inputs. Returns
@@ -66,22 +66,21 @@ export function validateSnowboardControls(controls, { courseHash = null } = {}) 
   }
 
   if (kind === 'ride') {
-    const allowed = ['kind', 'steer', 'tuck', 'brake', 'jumpHeld'];
+    // ALPINE RUSH control vocabulary (integrate-ssxtricky-snowboard 4.1):
+    // the source tuck/lean/boost/jump plus held Q/E/X tricks.
+    const allowed = ['kind', 'steer', 'tuck', 'lean', 'brake', 'boost', 'jumpHeld', 'trickQ', 'trickE', 'trickX'];
     for (const key of Object.keys(controls)) {
       if (!allowed.includes(key)) return { valid: false, error: `unknown ride control field: ${key}` };
     }
-    const { steer, tuck, brake, jumpHeld } = controls;
+    const { steer, tuck, lean, brake, boost, jumpHeld, trickQ, trickE, trickX } = controls;
     if (!Number.isFinite(steer) || steer < -1 || steer > 1) {
       return { valid: false, error: 'steer must be a finite number in [-1, 1]' };
     }
-    if (tuck !== undefined && typeof tuck !== 'boolean') {
-      return { valid: false, error: 'tuck must be a boolean' };
-    }
-    if (brake !== undefined && typeof brake !== 'boolean') {
-      return { valid: false, error: 'brake must be a boolean' };
-    }
-    if (jumpHeld !== undefined && typeof jumpHeld !== 'boolean') {
-      return { valid: false, error: 'jumpHeld must be a boolean' };
+    for (const [name, value] of [['tuck', tuck], ['lean', lean], ['brake', brake], ['boost', boost],
+      ['jumpHeld', jumpHeld], ['trickQ', trickQ], ['trickE', trickE], ['trickX', trickX]]) {
+      if (value !== undefined && typeof value !== 'boolean') {
+        return { valid: false, error: `${name} must be a boolean` };
+      }
     }
     return {
       valid: true,
@@ -89,8 +88,13 @@ export function validateSnowboardControls(controls, { courseHash = null } = {}) 
         kind: 'ride',
         steer,
         tuck: tuck === true,
+        lean: lean === true,
         brake: brake !== false,
+        boost: boost === true,
         jumpHeld: jumpHeld === true,
+        trickQ: trickQ === true,
+        trickE: trickE === true,
+        trickX: trickX === true,
       },
     };
   }
