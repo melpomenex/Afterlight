@@ -13,6 +13,7 @@ defmodule Afterlight.Activities.SessionServer do
 
   alias Afterlight.Activities
   alias Afterlight.Activities.Admission
+  alias Afterlight.Activities.AirHockey
   alias Afterlight.Activities.Pong
   alias Afterlight.Activities.RainRunner
   alias Afterlight.Activities.SignalLost
@@ -60,6 +61,7 @@ defmodule Afterlight.Activities.SessionServer do
     :race_deadline_ms,
     :results_retention_ms,
     :nonready_inactivity_ms,
+    lobby_config: %{},
     status: :lobby,
     max_players: 2,
     max_queue: 16,
@@ -1411,10 +1413,26 @@ defmodule Afterlight.Activities.SessionServer do
             {:reply, {:ok, %{result: "ready", slot: slot, ready: false, status: state.status, revision: state.revision}}, state}
 
           true ->
+            state = update_lobby_config(state, payload)
             do_ready_seated(ready, player_id, slot, player, ctx, state)
         end
     end
   end
+
+  defp update_lobby_config(state, payload) when is_map(payload) do
+    if state.status == :lobby do
+      series_len = Map.get(payload, "seriesLength") || Map.get(payload, "series")
+      if series_len in [1, 3, 5, 7] do
+        cfg = Map.put(state.lobby_config || %{}, "seriesLength", series_len)
+        %{state | lobby_config: cfg}
+      else
+        state
+      end
+    else
+      state
+    end
+  end
+  defp update_lobby_config(state, _), do: state
 
   # Seated ready transition shared by the generic and snowboard flows.
   defp do_ready_seated(ready, player_id, slot, player, _ctx, state) do
@@ -1759,7 +1777,8 @@ defmodule Afterlight.Activities.SessionServer do
     tick_ref = Process.send_after(self(), :sim_tick, state.tick_interval_ms)
 
     act_type = snowboard_type(state)
-    sim_state = init_simulation(act_type)
+    sim_opts = extract_sim_opts(state)
+    sim_state = init_simulation(act_type, sim_opts)
 
     state = %{
       state
@@ -1895,13 +1914,23 @@ defmodule Afterlight.Activities.SessionServer do
     state
   end
 
-  defp init_simulation("pong"), do: Pong.init_sim_state()
-  defp init_simulation("rain-runner"), do: RainRunner.init_sim_state()
-  defp init_simulation("signal-lost"), do: SignalLost.init_sim_state()
-  defp init_simulation("sporefall"), do: Sporefall.init_sim_state()
-  defp init_simulation("pool"), do: Afterlight.Activities.Pool.Rules.init_game()
-  defp init_simulation("billiards"), do: Afterlight.Activities.Pool.Rules.init_game()
-  defp init_simulation(_other), do: %{}
+  defp extract_sim_opts(state) do
+    series_len =
+      (state.lobby_config && state.lobby_config["seriesLength"]) ||
+      (state.activity_def && (state.activity_def["seriesLength"] || state.activity_def["series_length"])) ||
+      1
+    [series_length: series_len]
+  end
+
+  defp init_simulation(act_type, opts \\ [])
+  defp init_simulation("pong", _opts), do: Pong.init_sim_state()
+  defp init_simulation("air-hockey", opts), do: AirHockey.init_sim_state(opts)
+  defp init_simulation("rain-runner", _opts), do: RainRunner.init_sim_state()
+  defp init_simulation("signal-lost", _opts), do: SignalLost.init_sim_state()
+  defp init_simulation("sporefall", _opts), do: Sporefall.init_sim_state()
+  defp init_simulation("pool", _opts), do: Afterlight.Activities.Pool.Rules.init_game()
+  defp init_simulation("billiards", _opts), do: Afterlight.Activities.Pool.Rules.init_game()
+  defp init_simulation(_other, _opts), do: %{}
 
   defp pool?(state) do
     snowboard_type(state) in ["pool", "billiards"]
@@ -1987,6 +2016,10 @@ defmodule Afterlight.Activities.SessionServer do
 
   defp step_simulation("pong", sim_state, players, steps) do
     Pong.step(sim_state, players, steps)
+  end
+
+  defp step_simulation("air-hockey", sim_state, players, steps) do
+    AirHockey.step(sim_state, players, steps)
   end
 
   defp step_simulation("rain-runner", sim_state, players, steps) do

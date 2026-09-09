@@ -281,6 +281,17 @@ export function buildTheaterScenery(ctx) {
     poolLampGlow.material.emissiveIntensity = done ? 1.5 + Math.sin(time * 2.2) * .15 : 1.2;
   });
 
+  // --- Air Hockey Table Bay (Phase 4, Task 6.2) ---
+  // Located in the rear east promenade at x = 5.8, z = 7.0.
+  // Framed with dark navy runner carpet and brass borders, clear of
+  // Row 3 seats (z = 4.7), ticket pedestal, and waste bin.
+  box(5.8, .148, 7.0, 3.2, .025, 2.4, '#1e2430');
+  box(5.8, .165, 5.8, 3.2, .02, .045, colors.brass);
+  box(5.8, .165, 8.2, 3.2, .02, .045, colors.brass);
+  box(4.2, .165, 7.0, .045, .02, 2.4, colors.brass);
+  box(7.4, .165, 7.0, .045, .02, 2.4, colors.brass);
+  block(5.8, 7.0, 2.2, 1.2);
+
   for (const [geo, materials] of parts) for (const [mat, instances] of materials) {
     const mesh = new THREE.InstancedMesh(geo, mat, instances.length);
     instances.forEach((p, i) => { mesh.setMatrixAt(i, p.matrix); mesh.setColorAt(i, p.color); });

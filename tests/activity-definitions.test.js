@@ -17,6 +17,7 @@ import {
   SPOREFALL_ACTIVITY_DEFINITION,
   ORPHEUM_ACTIVITIES,
   POOL_ACTIVITY_DEFINITION,
+  AIR_HOCKEY_ACTIVITY_DEFINITION,
   ORPHEUM_ALL_ACTIVITIES,
 } from '../shared/placeDefinitions.js';
 
@@ -46,7 +47,7 @@ test('place definitions remain valid; theater declares 5 arcade cabinets and 1 p
     if (def.id === 'theater') {
       assert.equal(placeHasCapability(def, 'activities'), true, `${def.id} has activities capability`);
       const acts = getPlaceActivities(def.id);
-      assert.equal(acts.length, 6);
+      assert.equal(acts.length, 7);
       assert.equal(acts[0].id, 'orpheum-pong');
       assert.equal(acts[0].type, 'pong');
       assert.equal(acts[1].id, 'orpheum-rain-runner');
@@ -59,6 +60,8 @@ test('place definitions remain valid; theater declares 5 arcade cabinets and 1 p
       assert.equal(acts[4].type, 'snowboard-race');
       assert.equal(acts[5].id, 'orpheum-pool');
       assert.equal(acts[5].type, 'pool');
+      assert.equal(acts[6].id, 'orpheum-air-hockey');
+      assert.equal(acts[6].type, 'air-hockey');
     } else {
       assert.equal(placeHasCapability(def, 'activities'), false, `${def.id} has no activities capability`);
       assert.deepEqual(getPlaceActivities(def.id), [], `${def.id} has empty activities`);

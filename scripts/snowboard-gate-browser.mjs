@@ -178,9 +178,14 @@ async function runLeg(s, code, axis, target, timeoutMs = 300_000) {
 // keys are the feature under test; navigation is not), then one real nudge
 // tap so a movement frame reaches the server before proximity checks.
 async function walkToSummit(s) {
+  await go(s, APP); // navigate to the app (sessions start on data:,)
+  // Capture page errors for the evidence log (lazy-load failures etc.).
+  await js(s, `window.__errors = []; window.addEventListener('error', (e) => window.__errors.push(String(e.message))); window.addEventListener('unhandledrejection', (e) => window.__errors.push('rejection: ' + String(e.reason))); return true;`);
   await waitWorld(s);
   await tap(s, 'KeyC'); // camera mode 1: pure axes for the nudge tap
   await sleep(400);
+  const dbgKeys = await js(s, 'return window.__afterlight ? Object.keys(window.__afterlight).join(",") : "MISSING";');
+  log('debug keys:', dbgKeys, 'href:', await js(s, 'return location.href;'));
   await js(s, `return window.__afterlight.tp(9.3, 2.6);`);
   await sleep(600);
   // A real tap south then back north broadcasts fresh movement frames.
@@ -245,6 +250,8 @@ async function phaseRace() {
     const stateA = await participationState(a);
     const stateB = await participationState(b);
     log('participation:', stateA, stateB);
+    const errs = await js(a, 'return (window.__errors || []).join(" || ");').catch(() => '');
+    if (errs) log('rider-a page errors:', errs);
     if (stateA !== 'participating' || stateB !== 'participating') throw new Error('both riders must be seated');
 
     // Explicit readiness via R on the HUD (auto-ready disabled for snowboard).

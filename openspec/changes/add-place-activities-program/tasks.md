@@ -49,8 +49,8 @@
 
 ## 6. P4 — Continuous games
 
-- [ ] 6.1 Implement air hockey authoritative puck/mallet constraints, goals, first-to-seven and selectable series, with high-speed collision and double-goal fixtures.
-- [ ] 6.2 Build air hockey table/scoreboard/effects and keyboard, pointer/touch and controller input with spectator rendering.
+- [x] 6.1 Implement air hockey authoritative puck/mallet constraints, goals, first-to-seven and selectable series, with high-speed collision and double-goal fixtures.
+- [x] 6.2 Build air hockey table/scoreboard/effects and keyboard, pointer/touch and controller input with spectator rendering.
 - [ ] 6.3 Implement foosball rods/ball/serve/goals, bounded angular motion and first-to-five reducer with fixtures.
 - [ ] 6.4 Build foosball table and casual/advanced rod selection controls for keyboard, touch and controller with shared visual state.
 - [ ] 6.5 Implement local control prediction/ack reconciliation and remote interpolation; enforce neutral input watchdog and eliminate old-session replays.
