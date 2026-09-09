@@ -20,7 +20,7 @@ defmodule Afterlight.Activities.SnowboardSessionTest do
     "id" => "summit-run",
     "type" => "snowboard-race",
     "rulesVersion" => 1,
-    "minPlayers" => 2,
+    "minPlayers" => 1,
     "capacities" => %{"players" => 8, "spectators" => 32, "queue" => 16},
     "interactionRadius" => 3.0,
     "transform" => %{"position" => [10.42, 0.0, 2.6]}
@@ -187,14 +187,16 @@ defmodule Afterlight.Activities.SnowboardSessionTest do
     assert {:error, :not_found} = Activities.lookup_session(ctx.room_key, ctx.room_epoch, "summit-run")
   end
 
-  test "lone rider waits: ready with one seated rider never starts", ctx do
-    session = start_session(ctx)
+  test "solo racer: one seated loaded+ready rider locks the roster alone", ctx do
+    session = start_session(ctx, countdown_ms: 150, race_deadline_ms: 5_000)
     player = make_player("lone")
     {slot, lease} = join(session, player)
     assert {:ok, %{result: "loaded"}} = load(session, player, {slot, lease})
     assert {:ok, _} = ready(session, player, true)
 
-    assert status(session) == :lobby
+    # minPlayers: 1 — a lone ready rider starts the countdown (user decision
+    # 2026-09-09; no AI substitution, same shared authority).
+    assert status(session) == :countdown
   end
 
   test "readiness requires the exact course handshake", ctx do

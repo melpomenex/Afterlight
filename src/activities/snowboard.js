@@ -216,7 +216,7 @@ export function createSnowboardInstance({
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#8fb4c4';
     ctx.font = '14px monospace';
-    ctx.fillText('2–8 RIDERS · ONE MOUNTAIN', CANVAS_WIDTH / 2, CANVAS_HEIGHT * 0.36 + 34);
+    ctx.fillText('1–8 RIDERS · ONE MOUNTAIN', CANVAS_WIDTH / 2, CANVAS_HEIGHT * 0.36 + 34);
     ctx.fillStyle = `rgba(255, 202, 122, ${pulse.toFixed(2)})`;
     ctx.font = 'bold 17px monospace';
     ctx.fillText('PRESS E TO RIDE', CANVAS_WIDTH / 2, CANVAS_HEIGHT * 0.82);
@@ -233,10 +233,14 @@ export function createSnowboardInstance({
     ctx.fillStyle = ACCENT;
     ctx.font = '16px monospace';
     ctx.fillText(`${displayState.readyCount} READY`, CANVAS_WIDTH / 2, CANVAS_HEIGHT * 0.38 + 32);
-    ctx.fillStyle = displayState.riderCount >= 2 ? GLOW : '#8fb4c4';
+    ctx.fillStyle = displayState.riderCount >= 1 ? GLOW : '#8fb4c4';
     ctx.font = '14px monospace';
     ctx.fillText(
-      displayState.riderCount < 2 ? 'WAITING FOR ANOTHER RIDER' : 'ALL READY STARTS THE RUN',
+      displayState.riderCount < 1
+        ? 'PRESS E TO RIDE — SOLO OR FRIENDS'
+        : displayState.readyCount >= displayState.riderCount
+          ? 'ALL READY STARTS THE RUN'
+          : 'READY UP (R) TO DROP IN',
       CANVAS_WIDTH / 2,
       CANVAS_HEIGHT * 0.78,
     );

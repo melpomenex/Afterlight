@@ -290,7 +290,7 @@ test('summit-run carries the complete snowboard-race contract', () => {
   assert.ok(summit, 'summit-run activity definition exists');
   assert.equal(summit.type, 'snowboard-race');
   assert.equal(summit.rulesVersion, 2);
-  assert.equal(summit.minPlayers, 2);
+  assert.equal(summit.minPlayers, 1, 'solo racing is a first-class path');
   assert.equal(summit.readyPolicy, 'explicit');
   assert.deepEqual(summit.course, { id: 'alpine-rush', version: 2 });
   assert.equal(summit.capacities.players, 8);
@@ -304,7 +304,7 @@ test('snowboard-race validation: complete contract passes, incomplete is rejecte
     id: 'test-race',
     type: 'snowboard-race',
     rulesVersion: 2,
-    minPlayers: 2,
+    minPlayers: 1,
     readyPolicy: 'explicit',
     course: { id: 'alpine-rush', version: 2 },
     transform: { position: [0, 0, 0] },

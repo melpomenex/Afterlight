@@ -9,7 +9,7 @@
     "rulesVersion": 2,
     "protocolVersion": 1,
     "capacities": {
-      "minPlayers": 2,
+      "minPlayers": 1,
       "maxPlayers": 8,
       "spectators": 32,
       "queue": 16

@@ -48,7 +48,7 @@ defmodule Afterlight.Activities.Snowboard.SessionPolicy do
     end
   end
 
-  @doc "Minimum riders to lock a roster (manifest minPlayers, default 2)."
+  @doc "Minimum riders to lock a roster (manifest minPlayers, default 2; Summit Run ships 1 — solo runs are a first-class path)."
   def min_players(activity_def) do
     case Map.get(activity_def, "minPlayers") do
       n when is_integer(n) and n >= 1 -> n
@@ -58,7 +58,9 @@ defmodule Afterlight.Activities.Snowboard.SessionPolicy do
 
   @doc """
   The roster locks when every seated CONNECTED rider is ready and the field
-  is at least minPlayers — never full capacity, never a solo start (D4).
+  is at least minPlayers — never full capacity. With the Alpine Rush
+  manifest's minPlayers: 1 a lone ready rider starts a solo run on the same
+  shared authority (user decision, 2026-09-09; no AI substitution).
   """
   def start_ready?(players, activity_def) when is_map(players) do
     count = map_size(players)

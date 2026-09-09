@@ -223,12 +223,12 @@ export const SPOREFALL_ACTIVITY_DEFINITION = Object.freeze({
 // promenade (x = 9.3, clear of the seat collision band ending at x 8.91 and
 // the cabinet collision starting at x 9.615); dismounts step west into the
 // cross aisles at z = 1.4 / 3.6. Race rules live in shared/snowboard/
-// (course 'summit-night'); readiness is explicit, never auto-granted.
+// (course 'alpine-rush'); readiness is explicit, never auto-granted.
 const SUMMIT_RUN_CABINET = Object.freeze({
   model: 'upright',
   skin: Object.freeze({
     title: 'SUMMIT RUN',
-    tagline: '2–8 RIDERS',
+    tagline: '1–8 RIDERS',
     motif: 'summit',
     palette: Object.freeze({ base: '#152730', ink: '#ecf2ec', accent: '#7acbd4', glow: '#edb66c' }),
   }),
@@ -248,9 +248,9 @@ export const SUMMIT_RUN_ACTIVITY_DEFINITION = Object.freeze({
   id: 'summit-run',
   type: 'snowboard-race',
   title: 'Summit Run',
-  sub: 'Press E to ride · 2–8 riders',
+  sub: 'Press E to ride · 1–8 riders',
   rulesVersion: 2,
-  minPlayers: 2,
+  minPlayers: 1,
   readyPolicy: 'explicit',
   course: Object.freeze({ id: 'alpine-rush', version: 2 }),
   cabinet: SUMMIT_RUN_CABINET,

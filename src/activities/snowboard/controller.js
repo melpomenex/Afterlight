@@ -314,7 +314,7 @@ export async function createSnowboardController({
     const snapshot = {
       phase,
       place: state ? provisionalPosition() : null,
-      field: Math.max(2, fieldSize()),
+      field: Math.max(1, fieldSize()),
       timeMs: state ? (myState.finishMs ?? elapsedMs()) : 0,
       score: state?.score ?? 0,
       bestCombo: state?.bestCombo ?? 0,
@@ -603,8 +603,8 @@ export async function createSnowboardController({
       goAtMs = clock.toPerf(startAt, performance.now()) ?? performance.now();
       const slot = participation()?.currentSlot ?? 0;
       const playerRows = Array.isArray(frame.state?.players) ? frame.state.players : [];
-      predictor.reset(initialState(slot, Math.max(2, playerRows.length)), frame.serverTick ?? 0, NEUTRAL, 0, 0);
-      Object.assign(myState, predictor.visualState?.() ?? initialState(slot, Math.max(2, playerRows.length)));
+      predictor.reset(initialState(slot, Math.max(1, playerRows.length)), frame.serverTick ?? 0, NEUTRAL, 0, 0);
+      Object.assign(myState, predictor.visualState?.() ?? initialState(slot, Math.max(1, playerRows.length)));
       audio.event('go');
       pushToast('DROP IN!');
     }

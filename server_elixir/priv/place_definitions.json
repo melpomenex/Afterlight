@@ -1428,7 +1428,7 @@
             "queue": 16
           },
           "environmentPolicy": "none",
-          "minPlayers": 2,
+          "minPlayers": 1,
           "readyPolicy": "explicit",
           "course": {
             "id": "alpine-rush",

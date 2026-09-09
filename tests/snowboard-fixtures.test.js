@@ -37,7 +37,7 @@ test('contract freeze: identity and phases', () => {
   assert.equal(contract.identity.rulesVersion, 2);
   assert.equal(contract.identity.protocolVersion, 1);
   assert.equal(contract.identity.wireRoomId, 'theater');
-  assert.deepEqual(contract.capacities ?? contract.identity.capacities, { minPlayers: 2, maxPlayers: 8, spectators: 32, queue: 16 });
+  assert.deepEqual(contract.capacities ?? contract.identity.capacities, { minPlayers: 1, maxPlayers: 8, spectators: 32, queue: 16 });
   assert.deepEqual(contract.phases.server, ['lobby', 'countdown', 'racing', 'results', 'aborted']);
   // Local-only phases must never be server phases.
   for (const local of contract.phases.local) {
