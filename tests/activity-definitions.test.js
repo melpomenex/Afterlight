@@ -16,6 +16,8 @@ import {
   SIGNAL_LOST_ACTIVITY_DEFINITION,
   SPOREFALL_ACTIVITY_DEFINITION,
   ORPHEUM_ACTIVITIES,
+  POOL_ACTIVITY_DEFINITION,
+  ORPHEUM_ALL_ACTIVITIES,
 } from '../shared/placeDefinitions.js';
 
 const validBounds = { minX: -10, maxX: 10, minZ: -10, maxZ: 10 };
@@ -38,13 +40,13 @@ const validActivity = {
   controllerKey: 'pong',
 };
 
-test('place definitions remain valid; theater declares 5 arcade cabinets while others default to none', () => {
+test('place definitions remain valid; theater declares 5 arcade cabinets and 1 pool table while others default to none', () => {
   for (const def of PLACE_DEFINITIONS) {
     assert.equal(validatePlaceDefinition(def).length, 0, `${def.id} passes validation`);
     if (def.id === 'theater') {
       assert.equal(placeHasCapability(def, 'activities'), true, `${def.id} has activities capability`);
       const acts = getPlaceActivities(def.id);
-      assert.equal(acts.length, 5);
+      assert.equal(acts.length, 6);
       assert.equal(acts[0].id, 'orpheum-pong');
       assert.equal(acts[0].type, 'pong');
       assert.equal(acts[1].id, 'orpheum-rain-runner');
@@ -55,6 +57,8 @@ test('place definitions remain valid; theater declares 5 arcade cabinets while o
       assert.equal(acts[3].type, 'sporefall');
       assert.equal(acts[4].id, 'summit-run');
       assert.equal(acts[4].type, 'snowboard-race');
+      assert.equal(acts[5].id, 'orpheum-pool');
+      assert.equal(acts[5].type, 'pool');
     } else {
       assert.equal(placeHasCapability(def, 'activities'), false, `${def.id} has no activities capability`);
       assert.deepEqual(getPlaceActivities(def.id), [], `${def.id} has empty activities`);
@@ -76,10 +80,10 @@ test('valid activity definition passes validation', () => {
   assert.deepEqual(problems, []);
 });
 
-test('all ORPHEUM_ACTIVITIES pass validation in theater bounds', () => {
+test('all ORPHEUM_ALL_ACTIVITIES pass validation in theater bounds', () => {
   const theater = PLACE_DEFINITIONS.find(d => d.id === 'theater');
   assert.ok(theater, 'theater place definition exists');
-  for (const act of ORPHEUM_ACTIVITIES) {
+  for (const act of ORPHEUM_ALL_ACTIVITIES) {
     const problems = validateActivityDefinition(act, { placeBounds: theater.bounds });
     assert.deepEqual(problems, [], `activity ${act.id} passes validation`);
   }

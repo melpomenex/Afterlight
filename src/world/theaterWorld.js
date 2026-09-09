@@ -251,6 +251,36 @@ export function buildTheaterScenery(ctx) {
     arcadeSign.material.emissiveIntensity = done ? 1.4 + Math.sin(time * 3) * .2 : .75;
   });
 
+  // --- West Billiards Lounge (Flagship Pool, Tasks 5.1-5.5) ---
+  // Symmetrical counterpart to the east arcade wing: centered at x = -8.6,
+  // z = -4.5. Runner carpet and brass borders frame the table area; a spectator
+  // bench and wall cue rack line the west perimeter wall (x = -10.8 to -11.2);
+  // and a suspended brass billiards pendant hangs above. Sightlines from all
+  // 48 auditorium seats remain 100% unobstructed.
+  box(-8.6, .148, -4.5, 3.4, .025, 4.8, '#1e2430');
+  box(-8.6, .165, -2.1, 3.4, .02, .045, colors.brass);
+  box(-8.6, .165, -6.9, 3.4, .02, .045, colors.brass);
+  box(-6.9, .165, -4.5, .045, .02, 4.8, colors.brass);
+  box(-10.3, .165, -4.5, .045, .02, 4.8, colors.brass);
+
+  // Spectator bench against west wall
+  box(-10.8, .35, -4.5, .4, .45, 2.2, '#3a271d');
+  box(-10.8, .58, -4.5, .38, .12, 2.1, '#283a3c');
+  block(-10.8, -4.5, .4, 2.2);
+
+  // Wall-mounted cue rack
+  box(-11.2, 1.8, -4.5, .1, 1.4, .8, '#3a271d');
+  box(-11.15, 2.45, -4.5, .08, .06, .85, colors.brass);
+  box(-11.15, 1.15, -4.5, .08, .06, .85, colors.brass);
+
+  // Overhead brass billiards pendant lamp
+  box(-8.6, 2.6, -4.5, .55, .18, 1.4, colors.brass);
+  box(-8.6, 3.3, -4.5, .04, 1.2, .04, colors.dark);
+  const poolLampGlow = glow(-8.6, 2.48, -4.5, .45, .04, 1.2, '#ffdd88', 1.2);
+  animated.push((time, done) => {
+    poolLampGlow.material.emissiveIntensity = done ? 1.5 + Math.sin(time * 2.2) * .15 : 1.2;
+  });
+
   for (const [geo, materials] of parts) for (const [mat, instances] of materials) {
     const mesh = new THREE.InstancedMesh(geo, mat, instances.length);
     instances.forEach((p, i) => { mesh.setMatrixAt(i, p.matrix); mesh.setColorAt(i, p.color); });

@@ -541,6 +541,50 @@
             "id": "summit-night",
             "version": 1
           }
+        },
+        {
+          "id": "orpheum-pool",
+          "type": "pool",
+          "rulesVersion": 1,
+          "transform": {
+            "position": [
+              -8.6,
+              0,
+              -4.5
+            ],
+            "rotationY": 1.5707963267948966
+          },
+          "footprint": {
+            "width": 1.4,
+            "depth": 2.5
+          },
+          "interactionRadius": 2.8,
+          "participantAnchors": [
+            {
+              "facing": 0,
+              "position": [
+                -8.6,
+                0,
+                -6.1
+              ],
+              "slot": 0
+            },
+            {
+              "facing": 3.141592653589793,
+              "position": [
+                -8.6,
+                0,
+                -2.9
+              ],
+              "slot": 1
+            }
+          ],
+          "capacities": {
+            "players": 2,
+            "spectators": 32,
+            "queue": 16
+          },
+          "environmentPolicy": "none"
         }
       ]
     },

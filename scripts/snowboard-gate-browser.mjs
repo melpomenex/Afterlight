@@ -174,32 +174,23 @@ async function runLeg(s, code, axis, target, timeoutMs = 300_000) {
   }
 }
 
-// Route to the Summit Run bay: south corridor -> rear aisle east -> promenade north.
-// Each leg is verified (tap pairs self-heal stuck keys) and retried once;
-// position + prompt are logged for the evidence record.
+// Route to the Summit Run bay: dev teleport behind ?debug=1 (real E/race
+// keys are the feature under test; navigation is not), then one real nudge
+// tap so a movement frame reaches the server before proximity checks.
 async function walkToSummit(s) {
   await waitWorld(s);
-  await tap(s, 'KeyC'); // camera mode 1: pure axes
-  await sleep(500);
-  let leg = await runLeg(s, 'KeyS', 1, 6.2);
-  log('leg south:', JSON.stringify(leg));
-  if (!leg.ok) leg = await runLeg(s, 'KeyS', 1, 6.2);
-  leg = await runLeg(s, 'KeyD', 0, 9.3);
-  log('leg east:', JSON.stringify(leg));
-  if (!leg.ok) leg = await runLeg(s, 'KeyD', 0, 9.3);
-  leg = await runLeg(s, 'KeyW', 1, 2.6);
-  log('leg north:', JSON.stringify(leg));
-  if (!leg.ok) leg = await runLeg(s, 'KeyW', 1, 2.6);
-
+  await tap(s, 'KeyC'); // camera mode 1: pure axes for the nudge tap
+  await sleep(400);
+  await js(s, `return window.__afterlight.tp(9.3, 2.6);`);
+  await sleep(600);
+  // A real tap south then back north broadcasts fresh movement frames.
+  await tap(s, 'KeyS', 140);
+  await sleep(300);
+  await tap(s, 'KeyW', 140);
+  await sleep(700);
   const p = await pos(s);
-  let action = await readAction(s);
+  const action = await readAction(s);
   log('at', JSON.stringify(p), 'prompt:', action);
-  if (!action.trim(' |')) {
-    // Nudge a step east toward the machine and re-read the prompt.
-    await runLeg(s, 'KeyD', 0, (p?.[0] ?? 9.3) + 0.3, 60_000);
-    action = await readAction(s);
-    log('after nudge, prompt:', action);
-  }
   return action;
 }
 

@@ -36,6 +36,7 @@ import './activities/rainRunner.js';
 import './activities/signalLost.js';
 import './activities/sporefall.js';
 import './activities/snowboard.js';
+import './activities/pool.js';
 import { createAtmosphereStateClient, legacyWeatherDisplaySuppressed } from './atmosphere/stateClient.js';
 import { createAtmosphereController } from './atmosphere/controller.js';
 import { createAtmosphereEvents } from './atmosphere/events.js';
@@ -548,6 +549,17 @@ if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
       return inst?.latestSnapshot ?? null;
     },
     paused: () => paused,
+    // Dev/test teleport (behind ?debug=1 only): places the avatar and
+    // broadcasts one movement frame so server-side proximity checks see the
+    // new pose. Used by automated browser gates; never a player feature.
+    tp: (x, z) => {
+      player.position.set(Number(x) || 0, 0, Number(z) || 0);
+      target = null;
+      marker.visible = false;
+      clearJumpMomentum();
+      net.sendMovement(player.position.x, player.position.z, player.rotation.y, false, false);
+      return [player.position.x, player.position.z];
+    },
     project: (x, z) => {
       const v = new THREE.Vector3(x, 0, z).project(activeCamera);
       return [((v.x + 1) / 2) * innerWidth, ((1 - v.y) / 2) * innerHeight];

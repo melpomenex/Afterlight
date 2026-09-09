@@ -276,12 +276,43 @@ export const SUMMIT_RUN_ACTIVITY_DEFINITION = Object.freeze({
   controllerKey: 'snowboard-race',
 });
 
+// Flagship pool table (social-billiards, Tasks 5.1-5.5): standing in the
+// symmetrical West Lounge at (-8.6, -4.5), rotated 90 degrees so its long
+// playing axis aligns with the auditorium's Z axis. This placement preserves
+// 100% unobstructed sightlines from all 48 seats to the movie screen while
+// leaving >= 1.3m clearance to the west spectator bench and > 4.4m to the
+// east main aisle. Anchors place the two players at the head and foot rails.
+export const POOL_ACTIVITY_DEFINITION = Object.freeze({
+  id: 'orpheum-pool',
+  type: 'pool',
+  title: 'Billiards Table',
+  sub: 'Press E to play · Casual 8-ball',
+  rulesVersion: 1,
+  transform: Object.freeze({ position: Object.freeze([-8.6, 0, -4.5]), rotationY: Math.PI / 2 }),
+  footprint: Object.freeze({ width: 1.4, depth: 2.5 }),
+  interactionRadius: 2.8,
+  participantAnchors: Object.freeze([
+    Object.freeze({ slot: 0, position: Object.freeze([-8.6, 0, -6.1]), facing: 0, dismount: Object.freeze([Object.freeze({ x: -7.5, z: -6.1 })]) }),
+    Object.freeze({ slot: 1, position: Object.freeze([-8.6, 0, -2.9]), facing: Math.PI, dismount: Object.freeze([Object.freeze({ x: -7.5, z: -2.9 })]) }),
+  ]),
+  capacities: Object.freeze({ players: 2, spectators: 32, queue: 16 }),
+  environmentPolicy: 'none',
+  spectatorPolicy: 'world',
+  rendererKey: 'poolTableRenderer',
+  controllerKey: 'pool',
+});
+
 export const ORPHEUM_ACTIVITIES = Object.freeze([
   PONG_ACTIVITY_DEFINITION,
   RAIN_RUNNER_ACTIVITY_DEFINITION,
   SIGNAL_LOST_ACTIVITY_DEFINITION,
   SPOREFALL_ACTIVITY_DEFINITION,
   SUMMIT_RUN_ACTIVITY_DEFINITION,
+]);
+
+export const ORPHEUM_ALL_ACTIVITIES = Object.freeze([
+  ...ORPHEUM_ACTIVITIES,
+  POOL_ACTIVITY_DEFINITION,
 ]);
 
 // The universal urban shell every legacy district shares: floor, paving,
@@ -367,7 +398,7 @@ function defineLegacyPlace(display, index) {
       : { seating: false, sharedMedia: false, conferencing: false },
     social: { featured: theater || display.id === 'court', legacy: true },
     exits: legacyExits(display.id),
-    ...(theater ? { activities: ORPHEUM_ACTIVITIES } : {}),
+    ...(theater ? { activities: ORPHEUM_ALL_ACTIVITIES } : {}),
     ...SOCIAL_PLACE_OVERRIDES[display.id],
   });
 }

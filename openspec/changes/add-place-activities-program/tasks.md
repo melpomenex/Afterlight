@@ -41,11 +41,11 @@
 
 ## 5. P3 — Pool experience
 
-- [ ] 5.1 Build the detailed physical pool table, cue, readable numbered balls, pockets/materials/contact shadows and nonblocking spectator area.
-- [ ] 5.2 Implement aim/power/spin/cancel/shoot and ball-in-hand controls for mouse/keyboard, touch and controller, with compact readable rules/help.
-- [ ] 5.3 Implement standing/cue/follow cameras, reduced motion, synchronized cue/avatar poses, interpolation and deduplicated positional collision audio.
-- [ ] 5.4 Connect pool readiness, match status, spectator mode, queue, rematch and winner-stays to the P1 session contracts.
-- [ ] 5.5 P3 gate: record a full match with a third observer on each input family, foul/eight-ball cases, spin fixtures, disconnect mid-shot, owner loss and safe world return; include human playtest notes on aiming and motion feel.
+- [x] 5.1 Build the detailed physical pool table, cue, readable numbered balls, pockets/materials/contact shadows and nonblocking spectator area.
+- [x] 5.2 Implement aim/power/spin/cancel/shoot and ball-in-hand controls for mouse/keyboard, touch and controller, with compact readable rules/help.
+- [x] 5.3 Implement standing/cue/follow cameras, reduced motion, synchronized cue/avatar poses, interpolation and deduplicated positional collision audio.
+- [x] 5.4 Connect pool readiness, match status, spectator mode, queue, rematch and winner-stays to the P1 session contracts.
+- [x] 5.5 P3 gate: record a full match with a third observer on each input family, foul/eight-ball cases, spin fixtures, disconnect mid-shot, owner loss and safe world return; include human playtest notes on aiming and motion feel.
 
 ## 6. P4 — Continuous games
 

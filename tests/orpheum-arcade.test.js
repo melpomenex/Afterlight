@@ -16,17 +16,19 @@ test('Orpheum arcade wing builds with all 5 cabinets and preserved theater items
   const world = buildDistrict(theaterDef);
   assert.ok(world, 'theater world builds successfully');
 
-  // Verify all 5 activity items exist in items
-  const activityItems = world.items.filter(it => it.type === 'activity');
-  assert.equal(activityItems.length, 5, '5 activity items registered');
-  const activityIds = activityItems.map(it => it.id || it.activityId).sort();
-  assert.deepEqual(activityIds, [
+  // Verify all 5 arcade activity items and 1 pool table exist in items
+  const arcadeItems = world.items.filter(it => it.type === 'activity' && it.activityDef?.cabinet);
+  assert.equal(arcadeItems.length, 5, '5 arcade activity items registered');
+  const arcadeIds = arcadeItems.map(it => it.id || it.activityId).sort();
+  assert.deepEqual(arcadeIds, [
     'orpheum-pong',
     'orpheum-rain-runner',
     'orpheum-signal-lost',
     'orpheum-sporefall',
     'summit-run',
   ]);
+  const poolItem = world.items.find(it => it.id === 'orpheum-pool');
+  assert.ok(poolItem, 'pool activity item registered');
 
   // Verify all 48 seats are present (3 rows of 16 seats)
   const seats = world.items.filter(it => it.type === 'seat');
