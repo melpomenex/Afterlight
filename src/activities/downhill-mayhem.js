@@ -28,6 +28,11 @@ import {
 import { createArcadeCabinet } from '../arcade/cabinet.js';
 import { createResourceCache } from './resourceCache.js';
 import { createDownhillMayhemPreparation } from './downhillMayhemPreparation.js';
+import {
+  createDownhillMayhemPrepareScheduler,
+  resolveCraftedCourseDocument,
+} from './downhillMayhemPrepareScheduler.js';
+import { scheduleKartRoyaleModulePrefetch } from './kartRoyalePrefetch.js';
 
 const CANVAS_WIDTH = 512;
 const CANVAS_HEIGHT = 384;
@@ -118,6 +123,7 @@ export function createDownhillMayhemInstance({
   net = null,
   audioMixer = null,
   toast = null,
+  runGraphicsTransaction = null,
 } = {}) {
   if (!activityDef || activityDef.type !== 'downhill-mayhem') {
     throw new Error('downhill-mayhem module requires a downhill-mayhem activity definition');
@@ -155,6 +161,34 @@ export function createDownhillMayhemInstance({
     } : null,
   });
   const preparation = createDownhillMayhemPreparation({ cache: resourceCache, placeGeneration: generation });
+
+  // Staged background preparation (7.2–7.4): only in a host that can run
+  // renderer transactions (the browser); a retained prepared host makes
+  // repeated entry instant.
+  const prepEnabled = typeof runGraphicsTransaction === 'function';
+  const prepareScheduler = createDownhillMayhemPrepareScheduler({
+    preparation,
+    getDistance: () => throttler.getDistance(),
+    shouldRun: () => prepEnabled && !disposed && roomId === 'theater',
+    isInputPending: () => pendingActivation,
+    resolveCourseDocument: () => resolveCraftedCourseDocument(activityDef.course?.id ?? 'classic'),
+    runTransaction: runGraphicsTransaction,
+    createBackgroundHost: (mod, { courseDocument }) => {
+      const renderer = getRenderer?.();
+      if (!renderer || !mod?.createDownhillMayhemHost) return null;
+      return mod.createDownhillMayhemHost({
+        renderer,
+        viewport: () => ({
+          width: typeof window !== 'undefined' ? window.innerWidth : 1280,
+          height: typeof window !== 'undefined' ? window.innerHeight : 720,
+        }),
+        hudHost: null,
+        params: { difficulty: 'mayhem' },
+        courseDocument,
+        authority: 'remote',
+      });
+    },
+  });
 
   let displayState = {
     status: 'idle',
@@ -198,6 +232,9 @@ export function createDownhillMayhemInstance({
             preparation,
             audioMixer,
             toast,
+            runGraphicsTransaction,
+            retentionEnabled: prepEnabled,
+            getDistance: () => throttler.getDistance(),
           });
           if (disposed) {
             instance.dispose();
@@ -433,8 +470,72 @@ export function createDownhillMayhemInstance({
     /** Test/verification seam: bounded summary display state. */
     getDisplayState() { return displayState; },
 
+    /**
+     * Read-only gate projection (`?debug=1`): the live controller's state when
+     * a rider is in, otherwise the bounded public summary.
+     */
+    getDebugState() {
+      const live = controller?.debugState?.() ?? null;
+      const hasLive = !!live && Array.isArray(live.field) && live.field.length > 0
+        && typeof live.phase === 'string' && live.phase !== 'idle';
+      if (hasLive) return live;
+      return {
+        phase: displayState.status,
+        matchId: displayState.matchId,
+        courseHash: null,
+        mountain: displayState.mountain,
+        difficulty: displayState.difficulty,
+        humans: displayState.riders.filter((r) => !r.isAI),
+        field: displayState.riders,
+        riders: displayState.riders,
+        standings: displayState.result?.standings ?? [],
+        selfSlot: null,
+        countdown: displayState.countdownStartAt != null
+          ? { startAt: displayState.countdownStartAt }
+          : null,
+        strikes: [],
+        lastStrike: null,
+      };
+    },
+
     /** Preparation handle (D17). */
     get preparation() { return preparation; },
+
+    /** Staged background-preparation hooks (7.2), driven by the host loop. */
+    scheduleIdleModulePrefetch({ roomId: prefetchRoomId = roomId } = {}) {
+      if (disposed || !prepEnabled) {
+        return { scheduled: false, reason: disposed ? 'disposed' : 'rollout-disabled' };
+      }
+      return scheduleKartRoyaleModulePrefetch({
+        preparation,
+        roomId: prefetchRoomId,
+        onRun: () => prepareScheduler.enableAfterModulePrefetch(),
+      });
+    },
+
+    getPrepareFrameBudgetMs() {
+      if (disposed || (typeof document !== 'undefined' && document.hidden)) return 0;
+      return prepareScheduler.getFrameBudgetMs();
+    },
+
+    tickBackgroundPreparation({
+      maxMs = null,
+      viewLeaseHeld = false,
+      framePressure = false,
+    } = {}) {
+      if (disposed) return { ran: false, reason: 'disposed' };
+      if (typeof document !== 'undefined' && document.hidden) {
+        prepareScheduler.pause('hidden-tab');
+        return { ran: false, reason: 'hidden-tab' };
+      }
+      prepareScheduler.resume();
+      const budget = maxMs ?? prepareScheduler.getFrameBudgetMs();
+      return prepareScheduler.tick({
+        maxMs: budget,
+        viewLeaseHeld,
+        framePressure,
+      });
+    },
 
     beginParticipation() {
       if (disposed) return Promise.resolve(false);
@@ -565,6 +666,7 @@ export function createDownhillMayhemInstance({
       controller?.dispose?.();
       controller = null;
       controllerPromise = null;
+      prepareScheduler.disable();
       preparation.dispose();
       try { sessionStorage.removeItem('afterlight-activity-hint'); } catch {}
       screenPipeline.dispose();

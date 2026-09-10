@@ -59,6 +59,14 @@ export function createActivityRuntime({
     onStateChange: onParticipationStateChange,
   });
 
+  /** The first active activity instance declaring a hook of this name. */
+  function firstWithHook(hook) {
+    for (const instance of instances.values()) {
+      if (typeof instance?.[hook] === 'function') return instance;
+    }
+    return null;
+  }
+
   return {
     get active() {
       return active;
@@ -345,29 +353,28 @@ export function createActivityRuntime({
     },
 
     /**
-     * After Theater interactivity, schedule one idle Kart module prefetch.
-     * Other activity types stay lazy until explicit entry.
+     * Background-preparation frame budget for any hosted activity that
+     * declares the hooks (Kart Royale, Downhill Mayhem). Activities without
+     * them stay lazy until explicit entry.
      */
-    getKartPrepareFrameBudgetMs() {
+    getBackgroundPrepareFrameBudgetMs() {
       if (!active || activeRoomId !== 'theater') return 0;
-      for (const instance of instances.values()) {
-        if (instance?.type !== 'kart-royale') continue;
-        if (typeof instance.getPrepareFrameBudgetMs !== 'function') continue;
-        return instance.getPrepareFrameBudgetMs();
-      }
-      return 0;
+      const instance = firstWithHook('getPrepareFrameBudgetMs');
+      return instance ? instance.getPrepareFrameBudgetMs() : 0;
+    },
+
+    /** Back-compat alias for the Kart-era name. */
+    getKartPrepareFrameBudgetMs() {
+      return this.getBackgroundPrepareFrameBudgetMs();
     },
 
     tickBackgroundPreparation(opts = {}) {
       if (!active || activeRoomId !== 'theater') {
         return { ran: false, reason: 'not_theater' };
       }
-      for (const instance of instances.values()) {
-        if (instance?.type !== 'kart-royale') continue;
-        if (typeof instance.tickBackgroundPreparation !== 'function') continue;
-        return instance.tickBackgroundPreparation(opts);
-      }
-      return { ran: false, reason: 'no_kart_instance' };
+      const instance = firstWithHook('tickBackgroundPreparation');
+      if (!instance) return { ran: false, reason: 'no_prepare_instance' };
+      return instance.tickBackgroundPreparation(opts);
     },
 
     scheduleTheaterIdlePrefetches() {
@@ -378,18 +385,15 @@ export function createActivityRuntime({
         return { scheduled: false, reason: 'already_scheduled' };
       }
 
-      for (const instance of instances.values()) {
-        if (instance?.type !== 'kart-royale') continue;
-        if (typeof instance.scheduleIdleModulePrefetch !== 'function') continue;
-        const result = instance.scheduleIdleModulePrefetch({ roomId: activeRoomId });
-        if (result?.scheduled) {
-          theaterIdlePrefetchScheduled = true;
-          return result;
-        }
-        return result ?? { scheduled: false, reason: 'kart_declined' };
-      }
+      const instance = firstWithHook('scheduleIdleModulePrefetch');
+      if (!instance) return { scheduled: false, reason: 'no_prepare_instance' };
 
-      return { scheduled: false, reason: 'no_kart_instance' };
+      const result = instance.scheduleIdleModulePrefetch({ roomId: activeRoomId });
+      if (result?.scheduled) {
+        theaterIdlePrefetchScheduled = true;
+        return result;
+      }
+      return result ?? { scheduled: false, reason: 'instance_declined' };
     },
   };
 }

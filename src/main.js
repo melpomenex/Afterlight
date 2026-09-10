@@ -748,6 +748,14 @@ if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
     exportKartPerformance: () => exportKartPerfJson(),
     kartReadinessMetrics: () => globalThis.__kartReadinessMetrics?.summarizeReadinessMetrics?.() ?? null,
     kartAllocationLedger: () => globalThis.__kartAllocationLedger?.summary?.() ?? null,
+    // Downhill Mayhem gate projection (bounded, local; see
+    // scripts/downhill-mayhem-gate-browser.mjs).
+    downhill: () => {
+      const inst = activityRuntime.getInstance('orpheum-downhill-mayhem')
+        ?? activityRuntime.getInstance(participation.currentActivity?.id);
+      return inst?.getDebugState?.() ?? null;
+    },
+    downhillReadinessMetrics: () => globalThis.__downhillReadinessMetrics?.summarizeReadinessMetrics?.() ?? null,
     // Dev/test teleport (behind ?debug=1 only): places the avatar and
     // broadcasts one movement frame so server-side proximity checks see the
     // new pose. Used by automated browser gates; never a player feature.
@@ -2229,19 +2237,21 @@ function frame(now) {
     // inactive or when the place declares no activities.
     activityRuntime.update(t, dt);
 
-    // Background Kart preparation (D3/D4): proximity-aware CPU slices and
-    // graphics jobs only while the Theater still owns presentation.
+    // Staged background preparation for hosted arcade games (Kart Royale,
+    // Downhill Mayhem): proximity-aware CPU slices and graphics jobs only
+    // while the Theater still owns presentation.
     if (!activityView.held) {
-      const kartBudget = activityRuntime.getKartPrepareFrameBudgetMs?.() ?? 0;
+      const prepBudget = activityRuntime.getBackgroundPrepareFrameBudgetMs?.()
+        ?? activityRuntime.getKartPrepareFrameBudgetMs?.() ?? 0;
       const framePressure = dt > 0.033 || (typeof document !== 'undefined' && document.hidden);
-      if (kartBudget > 0) {
+      if (prepBudget > 0) {
         activityRuntime.tickBackgroundPreparation?.({
-          maxMs: kartBudget,
+          maxMs: prepBudget,
           viewLeaseHeld: activityView.held,
           framePressure,
         });
       }
-      graphicsJobs.drain({ maxMs: kartBudget > 0 && !framePressure ? kartBudget : 2 });
+      graphicsJobs.drain({ maxMs: prepBudget > 0 && !framePressure ? prepBudget : 2 });
     }
 
     // Shared lightning envelopes + environmental audio (tasks 4.2/4.1), on
