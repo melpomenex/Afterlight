@@ -281,6 +281,8 @@ export class HUD implements System {
   private driftGlow = 0;
   private tierFlash = 0;
   private wasCounting = true;
+  private offBus: (() => void) | null = null;
+  private sessionMounted = false;
 
   // ---------------------------------------------------------------- lifecycle
 
@@ -332,9 +334,13 @@ export class HUD implements System {
       hosted: this.options.hosted ?? false,
       startScreen: this.options.startScreen,
     });
-    this.menus.init(ctx);
-
-    ctx.bus.on(this.onEvent);
+    this.menus.prepareResources(ctx);
+    if (this.options.hosted) {
+      this.root.hidden = true;
+    } else {
+      this.offBus = ctx.bus.on(this.onEvent);
+      this.menus.mountSession(ctx);
+    }
     this.ctx = ctx;
 
     const player = ctx.race.player;
@@ -347,6 +353,43 @@ export class HUD implements System {
   }
 
   private ctx!: Ctx;
+
+  /** Hosted: reveal HUD and attach live session listeners. */
+  enterSession() {
+    if (!this.options.hosted || this.sessionMounted) return;
+    this.sessionMounted = true;
+    this.root.hidden = false;
+    this.offBus = this.ctx.bus.on(this.onEvent);
+    this.menus.mountSession(this.ctx);
+  }
+
+  /** Clear race/results presentation without destroying prepared DOM. */
+  resetSelectionPresentation() {
+    this.menus.resetToSelectionSession();
+    this.countShown = -99;
+    this.countHold = 0;
+    this.wasCounting = false;
+    this.chain = 0;
+    this.chainT = 0;
+    this.prevRaceTime = 0;
+    this.bestLap = Infinity;
+    this.lapsSeen = -1;
+    this.prevLap = -1;
+    const player = this.ctx?.race?.player;
+    this.prevPlace = player ? player.place : 1;
+    this.leadToastT = this.prevPlace === 1 ? 6 : 0;
+    this.root?.classList.remove('is-counting', 'is-blocked', 'is-dimmed');
+  }
+
+  /** Hosted: hide HUD and drop session listeners without destroying DOM. */
+  leaveSession() {
+    if (!this.options.hosted || !this.sessionMounted) return;
+    this.sessionMounted = false;
+    this.root.hidden = true;
+    this.offBus?.();
+    this.offBus = null;
+    this.menus.unmountSession();
+  }
 
   // ------------------------------------------------------------------- build
 
@@ -1441,6 +1484,9 @@ export class HUD implements System {
   }
 
   dispose() {
+    this.leaveSession();
+    this.offBus?.();
+    this.offBus = null;
     this.root?.remove();
   }
 }

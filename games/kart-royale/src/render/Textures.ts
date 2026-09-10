@@ -559,6 +559,8 @@ export interface BuildOpts {
 }
 
 export function buildMaps(f: Fields, o: BuildOpts = {}): MapSet {
+  const perf = (globalThis as any).__kartPerf;
+  perf?.startSpan?.('textures:build-maps');
   const size = f.size;
   const aniso = o.anisotropy ?? 8;
   const wrap = o.wrap ?? THREE.RepeatWrapping;
@@ -573,6 +575,7 @@ export function buildMaps(f: Fields, o: BuildOpts = {}): MapSet {
   const ormMap = bytesTexture(size, f.orm, { srgb: false, wrap, anisotropy: aniso });
   // AO defaults to the second UV set; our meshes only have one.
   ormMap.channel = 0;
+  perf?.endSpan?.('textures:build-maps');
   return { map, normalMap, ormMap, all: [map, normalMap, ormMap] };
 }
 

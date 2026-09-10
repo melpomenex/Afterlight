@@ -702,6 +702,26 @@ export class ChaseCamera implements System {
     this.aspect = h > 0 && w > 0 ? w / h : REF_ASPECT;
   }
 
+  /**
+   * Place the lens on the menu orbit pose without stepping physics or AI.
+   * Hosted entry calls this after boot to avoid an origin-camera first frame.
+   */
+  initSelectionPose(ctx: Ctx): boolean {
+    const k = ctx.race?.player;
+    if (!k || !this.sampleFn) return false;
+    if (!this.ready) this.seed(k);
+    this.poseOrbit(ctx, k, true, 1 / 60);
+    _m.lookAt(_eye, _aim, WORLD_UP);
+    ctx.camera.position.copy(_eye);
+    ctx.camera.quaternion.setFromRotationMatrix(_m);
+    ctx.camera.fov = 40;
+    ctx.camera.updateProjectionMatrix();
+    ctx.camera.updateMatrixWorld(true);
+    const p = ctx.camera.position;
+    return Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)
+      && !(p.x === 0 && p.y === 0 && p.z === 0);
+  }
+
   addShake(a: number, s = 0.3) {
     this.trauma = Math.min(1, this.trauma + a);
     // A longer requested duration means a slower bleed-off, not a timer, so

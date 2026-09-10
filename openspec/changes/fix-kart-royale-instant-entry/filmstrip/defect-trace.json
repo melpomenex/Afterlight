@@ -1,0 +1,222 @@
+{
+  "totalFrames": 83,
+  "unposedFramesCount": 16,
+  "unposedSample": {
+    "booted": false,
+    "booting": true,
+    "camera": {
+      "isOrigin": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "kartsCount": 0,
+    "kartsSample": [],
+    "krRacing": true,
+    "partState": null,
+    "t": 8850.1
+  },
+  "kartsBeforeBootCount": 9,
+  "firstVisiblePose": {
+    "isOrigin": true,
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "quaternion": [
+      0,
+      0,
+      0,
+      1
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  "readyPose": {
+    "isOrigin": false,
+    "position": [
+      -5.659812937731411,
+      9.380996843522425,
+      3.5148804792647024
+    ],
+    "quaternion": [
+      -0.11617027170517363,
+      0.0007446777191925222,
+      -0.005066124617022,
+      0.9932161133451297
+    ],
+    "rotation": [
+      -0.23285626634038847,
+      0.0026563210902566313,
+      -0.009890690531641318
+    ]
+  },
+  "perfRecord": {
+    "attemptId": "1789018778750",
+    "endTime": 9088.300000011921,
+    "environment": {
+      "gpuBackend": "ANGLE (NVIDIA Corporation, NVIDIA GeForce RTX 2060 SUPER/PCIe/SSE2, OpenGL ES 3.2)",
+      "isSoftwareGpu": false,
+      "userAgent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+      "viewport": {
+        "dpr": 1,
+        "height": 747,
+        "width": 1706
+      }
+    },
+    "error": null,
+    "generation": 1,
+    "marks": [
+      {
+        "data": {
+          "route": "cold"
+        },
+        "name": "attempt-start",
+        "time": 8485.10000000894
+      },
+      {
+        "data": null,
+        "name": "interaction:start",
+        "time": 8485.300000011921
+      },
+      {
+        "data": null,
+        "name": "controller-import:start",
+        "time": 8485.5
+      },
+      {
+        "data": null,
+        "name": "interaction:end",
+        "time": 8486.60000000894
+      },
+      {
+        "data": null,
+        "name": "controller-import:end",
+        "time": 8526.300000011921
+      },
+      {
+        "data": null,
+        "name": "admission:start",
+        "time": 8528.5
+      },
+      {
+        "data": null,
+        "name": "admission:end",
+        "time": 8560.40000000596
+      },
+      {
+        "data": null,
+        "name": "host-import:start",
+        "time": 8561.20000000298
+      },
+      {
+        "data": null,
+        "name": "host-import:end",
+        "time": 8877.5
+      },
+      {
+        "data": null,
+        "name": "construct:start",
+        "time": 8877.60000000894
+      },
+      {
+        "data": null,
+        "name": "construct:end",
+        "time": 9085.800000011921
+      },
+      {
+        "data": null,
+        "name": "boot:start",
+        "time": 9086.300000011921
+      },
+      {
+        "data": null,
+        "name": "boot:start",
+        "time": 9086.60000000894
+      },
+      {
+        "data": null,
+        "name": "system-wait:starting renderer:start",
+        "time": 9086.60000000894
+      },
+      {
+        "data": null,
+        "name": "first-visible-frame",
+        "time": 9088.20000000298
+      },
+      {
+        "data": {
+          "error": null,
+          "status": "success"
+        },
+        "name": "attempt-end",
+        "time": 9088.300000011921
+      }
+    ],
+    "route": "cold",
+    "spans": {
+      "admission": {
+        "durationMs": 31.900000005960464,
+        "end": 8560.40000000596,
+        "meta": {},
+        "start": 8528.5
+      },
+      "boot": {
+        "durationMs": null,
+        "end": null,
+        "meta": {},
+        "start": 9086.300000011921
+      },
+      "construct": {
+        "durationMs": 208.30000001192093,
+        "end": 9085.800000011921,
+        "meta": {},
+        "start": 8877.5
+      },
+      "controller-import": {
+        "durationMs": 40.80000001192093,
+        "end": 8526.300000011921,
+        "meta": {},
+        "start": 8485.5
+      },
+      "host-import": {
+        "durationMs": 316.3999999910593,
+        "end": 8877.5,
+        "meta": {},
+        "start": 8561.10000000894
+      },
+      "interaction": {
+        "durationMs": 1.2999999970197678,
+        "end": 8486.60000000894,
+        "meta": {},
+        "start": 8485.300000011921
+      },
+      "system-wait:starting renderer": {
+        "durationMs": null,
+        "end": null,
+        "meta": {},
+        "start": 9086.60000000894
+      }
+    },
+    "startTime": 8485,
+    "status": "success",
+    "totalDurationMs": 603.3000000119209
+  }
+}

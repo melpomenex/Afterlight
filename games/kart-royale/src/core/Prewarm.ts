@@ -471,19 +471,28 @@ export async function prewarm(ctx: Ctx): Promise<PrewarmResult> {
         renderer.setRenderTarget(null);
       }
       surfaces.push(s);
-      // compileAsync uses KHR_parallel_shader_compile where available, so the
-      // compiles overlap instead of serialising — worth the async plumbing.
-      await renderer.compileAsync(ctx.scene, ctx.camera);
+      // compileAsync uses KHR_parallel_shader_compile where available. Restore
+      // the shared renderer synchronously after obtaining the promise, then
+      // await outside the transaction (fix-kart-royale-instant-entry D4).
+      (ctx as any).perfSpan?.(`gpu-prepare:compile-${s}`, 'start');
+      const compilePromise = renderer.compileAsync(ctx.scene, ctx.camera);
+      renderer.setRenderTarget(prevTarget, prevCubeFace, prevMip);
+      await compilePromise;
+      (ctx as any).perfSpan?.(`gpu-prepare:compile-${s}`, 'end');
     }
     // Now the depth variants, which the loop above provably does not build.
     programsBeforeDepth = renderer.info.programs?.length ?? 0;
     geometriesBefore = renderer.info.memory.geometries;
+    (ctx as any).perfSpan?.('gpu-prepare:shadow-depth', 'start');
     warmShadowDepth(ctx);
+    (ctx as any).perfSpan?.('gpu-prepare:shadow-depth', 'end');
     depthPrograms = (renderer.info.programs?.length ?? 0) - programsBeforeDepth;
 
     // And the vertex buffers, which nothing above uploads at every tier.
     if (scratch === null) scratch = new THREE.WebGLRenderTarget(1, 1);
+    (ctx as any).perfSpan?.('gpu-prepare:geometry-upload', 'start');
     warmGeometryUpload(ctx, scratch, cage);
+    (ctx as any).perfSpan?.('gpu-prepare:geometry-upload', 'end');
     geometriesWarmed = renderer.info.memory.geometries - geometriesBefore;
   } catch (err) {
     // A failed pre-warm must never stop the game booting; the worst case is

@@ -108,7 +108,9 @@ export class Track implements ITrack {
   }
 
   init(ctx: Ctx) {
+    (ctx as any).perfSpan?.('track:geometry', 'start');
     buildTrackGeometry(this, ctx);
+    (ctx as any).perfSpan?.('track:geometry', 'end');
     ctx.scene.add(this.group);
   }
 

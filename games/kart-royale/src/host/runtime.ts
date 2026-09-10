@@ -72,6 +72,14 @@ export interface KartRoyaleRuntimeOptions {
   onSystemsReady?: () => void;
   /** Irrecoverable pipeline failure; hosted routes this to session exit. */
   onFatal?: (title: string, detail: string) => void;
+  /** Optional perf reporting hooks (fix-kart-royale-instant-entry D10) */
+  perfSpan?: (name: string, action: 'start' | 'end', meta?: Record<string, unknown>) => void;
+  perfMark?: (phase: string, data?: unknown) => void;
+  /** Host frame-bound graphics transaction (fix-kart-royale-instant-entry D4). */
+  runGraphicsTransaction?: ((fn: (ctx: {
+    renderer: THREE.WebGLRenderer;
+    viewport: { width: number; height: number };
+  }) => void | Promise<void>) => Promise<void>) | null;
 }
 
 export interface KartRoyaleRuntime {
@@ -96,6 +104,9 @@ export interface KartRoyaleRuntime {
   setMuted(muted: boolean): void;
   /** Watchdog state for harnesses (`__loopHealth` in the standalone shell). */
   loopHealth(): Record<string, unknown>;
+  /** Mount session listeners/HUD/audio; hosted only splits resource vs session. */
+  beginSession(): void;
+  endSession(): void;
   dispose(): void;
 }
 
@@ -156,10 +167,23 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
     speedIntensity: 0,
     fovPunch: 0,
   };
+  const perfSpan = (name: string, action: 'start' | 'end', meta?: Record<string, unknown>) => {
+    if (options.perfSpan) options.perfSpan(name, action, meta);
+    else if (action === 'start') (globalThis as any).__kartPerf?.startSpan?.(name, meta);
+    else (globalThis as any).__kartPerf?.endSpan?.(name, meta);
+  };
+  const perfMark = (phase: string, data?: unknown) => {
+    if (options.perfMark) options.perfMark(phase, data);
+    else (globalThis as any).__kartPerf?.recordMark?.(phase, data);
+  };
+
   // `Ctx` has no slot for the shared material library, so every visual system
   // reaches it through the `getMaterials()` module singleton that `Materials`
   // registers in its constructor. Published here too — one place to look.
   (ctx as any).materials = materials;
+  (ctx as any).perfSpan = perfSpan;
+  (ctx as any).perfMark = perfMark;
+  (ctx as any).runGraphicsTransaction = options.runGraphicsTransaction ?? null;
 
   // Init order matters and is load-bearing (moved verbatim from main.ts):
   //   pipeline  — sets ctx.renderer; everything that compiles a shader or reads
@@ -325,12 +349,19 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
   }
 
   async function boot(): Promise<void> {
+    perfMark('boot:start');
     for (let i = 0; i < systems.length; i++) {
-      reportProgress(i / (systems.length + 1), SYSTEM_LABELS[i] ?? 'loading');
+      const label = SYSTEM_LABELS[i] ?? `system_${i}`;
+      reportProgress(i / (systems.length + 1), label);
       // Yield to the compositor so a progress UI actually repaints between
       // steps (the standalone curtain needs this; the host benefits too).
+      perfSpan(`system-wait:${label}`, 'start');
       await new Promise((r) => requestAnimationFrame(r));
+      perfSpan(`system-wait:${label}`, 'end');
+
+      perfSpan(`system-init:${label}`, 'start');
       await systems[i].init?.(ctx);
+      perfSpan(`system-init:${label}`, 'end');
     }
   // ---------------------------------------------------------------------------
   //  WebGL context loss — standalone only. A HOST owns its canvas and its own
@@ -391,8 +422,19 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
     // costs a moment of boot; not doing it costs a dropped frame mid-race every
     // time a new material first appears, which reads as the screen flashing black.
     reportProgress(systems.length / (systems.length + 1), 'compiling shaders');
+    perfSpan('system-wait:compiling shaders', 'start');
     await new Promise((r) => requestAnimationFrame(r));
-    const warm = await prewarm(ctx);
+    perfSpan('system-wait:compiling shaders', 'end');
+    perfSpan('GPU-prepare', 'start');
+    let warm;
+    if (options.runGraphicsTransaction) {
+      await options.runGraphicsTransaction(async () => {
+        warm = await prewarm(ctx);
+      });
+    } else {
+      warm = await prewarm(ctx);
+    }
+    perfSpan('GPU-prepare', 'end', { ...warm });
     console.info(
       `[prewarm] ${warm.programsBefore} -> ${warm.programsAfter} programs ` +
       `(${warm.objectsRevealed} hidden objects included) in ${warm.ms}ms`,
@@ -401,6 +443,7 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
     // Deliberately NOT race.start(): the director already sits in RaceState.Menu,
     // which is what puts the title screen and character select on screen.
     reportProgress(1, 'ready');
+    perfMark('boot:end');
 
     // See `?scaler=`. Applied here so that the very first presented frame is
     // already at the pinned resolution.
@@ -614,10 +657,27 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
     };
   }
 
+  function beginSession() {
+    if (hosted) {
+      hud.enterSession();
+      audio.enterSession();
+    }
+    input.enter();
+  }
+
+  function endSession() {
+    input.leave();
+    if (hosted) {
+      hud.leaveSession();
+      audio.leaveSession();
+    }
+  }
+
   let disposed = false;
   function dispose() {
     if (disposed) return;
     disposed = true;
+    endSession();
     // Reverse order: consumers before their dependencies (drawBudget first,
     // pipeline last — mirroring the init order's "load-bearing" list).
     for (let i = systems.length - 1; i >= 0; i--) {
@@ -627,6 +687,6 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
 
   return {
     ctx, systems, pipeline, race, input, audio, sky, hud, camera, drawBudget,
-    boot, update, present, resize, setMuted, loopHealth, dispose,
+    boot, update, present, resize, setMuted, loopHealth, beginSession, endSession, dispose,
   };
 }

@@ -343,7 +343,9 @@ const DRIFT_STRAIGHT_BAIL = 1.0;
 let cornerTable: Float32Array | null = null;
 let cornerTableFor: ITrack | null = null;
 
-function buildCornerTable(track: ITrack) {
+export function buildCornerTable(track: ITrack) {
+  const perf = (globalThis as any).__kartPerf;
+  perf?.startSpan?.('race:corner-table');
   const n = CORNER_BINS;
   const tan = new Float64Array(n * 3);
   for (let i = 0; i < n; i++) {
@@ -376,6 +378,7 @@ function buildCornerTable(track: ITrack) {
   }
   cornerTable = out;
   cornerTableFor = track;
+  perf?.endSpan?.('race:corner-table');
 }
 
 /** 0 on a straight, 1 in a corner, ramped across the window between. */

@@ -59,6 +59,14 @@ export interface KartRoyaleHostOptions {
    * session down through its normal exit path.
    */
   onExitRequest?: () => void;
+  /** Optional perf reporting hooks (fix-kart-royale-instant-entry D10) */
+  perfSpan?: (name: string, action: 'start' | 'end', meta?: Record<string, unknown>) => void;
+  perfMark?: (phase: string, data?: unknown) => void;
+  /** Host frame-bound graphics transaction (fix-kart-royale-instant-entry D4). */
+  runGraphicsTransaction?: ((fn: (ctx: {
+    renderer: THREE.WebGLRenderer;
+    viewport: { width: number; height: number };
+  }) => void | Promise<void>) => Promise<void>) | null;
 }
 
 /** Thin, host-safe race controls (pass-throughs to `game/Race.ts`). */
@@ -84,6 +92,10 @@ export interface KartRoyaleHost {
    * its own world) BEFORE calling this — see design.md D3.
    */
   boot(): Promise<void>;
+  /** Pose the selection grid and camera without advancing simulation. */
+  prepareSelectionReadiness(): boolean;
+  /** True once grid support and menu camera pose have been validated. */
+  isSelectionReady(): boolean;
   /** The game context (scene/camera exist before boot; boot fills the scene). */
   ctx: Ctx;
   /** Advance the simulation by `rawDt` seconds (host clamps/derives it). */

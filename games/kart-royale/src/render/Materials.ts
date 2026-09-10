@@ -1731,7 +1731,10 @@ export class Materials implements System {
     const key = ALIASES[name] ?? name;
     const hit = this.cache.get(key);
     if (hit) return hit.mat;
+    const perf = (globalThis as any).__kartPerf;
+    perf?.startSpan?.(`material-cache-miss:${key}`);
     const entry = this.build(key);
+    perf?.endSpan?.(`material-cache-miss:${key}`);
     this.cache.set(key, entry);
     return entry.mat;
   }

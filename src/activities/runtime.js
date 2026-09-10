@@ -36,12 +36,16 @@ export function createActivityRuntime({
   clearActivityCamera = null,
   acquireView = null,
   releaseView = null,
+  scheduleGraphicsJob = null,
+  runGraphicsTransaction = null,
+  cancelGraphicsJobs = null,
 } = {}) {
   let active = false;
   let activeRoomId = null;
   let activeGeneration = 0;
   const instances = new Map();
   const errors = new Map();
+  let theaterIdlePrefetchScheduled = false;
 
   const participation = injectedParticipation || createParticipationController({
     net,
@@ -144,6 +148,9 @@ export function createActivityRuntime({
             getParticipation: () => participation,
             acquireView: seam.acquireView || acquireView,
             releaseView: seam.releaseView || releaseView,
+            scheduleGraphicsJob: seam.scheduleGraphicsJob || scheduleGraphicsJob,
+            runGraphicsTransaction: seam.runGraphicsTransaction || runGraphicsTransaction,
+            cancelGraphicsJobs: seam.cancelGraphicsJobs || cancelGraphicsJobs,
           });
           if (instance) {
             instances.set(actDef.id, instance);
@@ -175,10 +182,17 @@ export function createActivityRuntime({
         console.warn('[ActivityRuntime] Error deactivating participation:', err);
       }
 
+      try {
+        cancelGraphicsJobs?.();
+      } catch (err) {
+        console.warn('[ActivityRuntime] Error cancelling graphics jobs:', err);
+      }
+
       if (!active && instances.size === 0) return;
 
       active = false;
       activeRoomId = null;
+      theaterIdlePrefetchScheduled = false;
 
       for (const [id, instance] of instances) {
         try {
@@ -315,6 +329,65 @@ export function createActivityRuntime({
           console.warn('[ActivityRuntime] Error neutralizing input:', err);
         }
       }
+    },
+
+    scheduleGraphicsJob(job) {
+      return scheduleGraphicsJob?.(job) ?? { ok: false, reason: 'unavailable' };
+    },
+
+    runGraphicsTransaction(fn) {
+      if (!runGraphicsTransaction) return Promise.reject(new Error('graphics_transaction_unavailable'));
+      return runGraphicsTransaction(fn);
+    },
+
+    cancelGraphicsJobs() {
+      cancelGraphicsJobs?.();
+    },
+
+    /**
+     * After Theater interactivity, schedule one idle Kart module prefetch.
+     * Other activity types stay lazy until explicit entry.
+     */
+    getKartPrepareFrameBudgetMs() {
+      if (!active || activeRoomId !== 'theater') return 0;
+      for (const instance of instances.values()) {
+        if (instance?.type !== 'kart-royale') continue;
+        if (typeof instance.getPrepareFrameBudgetMs !== 'function') continue;
+        return instance.getPrepareFrameBudgetMs();
+      }
+      return 0;
+    },
+
+    tickBackgroundPreparation(opts = {}) {
+      if (!active || activeRoomId !== 'theater') return { ran: false, reason: 'not_theater' };
+      for (const instance of instances.values()) {
+        if (instance?.type !== 'kart-royale') continue;
+        if (typeof instance.tickBackgroundPreparation !== 'function') continue;
+        return instance.tickBackgroundPreparation(opts);
+      }
+      return { ran: false, reason: 'no_kart_instance' };
+    },
+
+    scheduleTheaterIdlePrefetches() {
+      if (!active || activeRoomId !== 'theater') {
+        return { scheduled: false, reason: 'not_theater' };
+      }
+      if (theaterIdlePrefetchScheduled) {
+        return { scheduled: false, reason: 'already_scheduled' };
+      }
+
+      for (const instance of instances.values()) {
+        if (instance?.type !== 'kart-royale') continue;
+        if (typeof instance.scheduleIdleModulePrefetch !== 'function') continue;
+        const result = instance.scheduleIdleModulePrefetch({ roomId: activeRoomId });
+        if (result?.scheduled) {
+          theaterIdlePrefetchScheduled = true;
+          return result;
+        }
+        return result ?? { scheduled: false, reason: 'kart_declined' };
+      }
+
+      return { scheduled: false, reason: 'no_kart_instance' };
     },
   };
 }

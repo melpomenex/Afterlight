@@ -199,6 +199,12 @@ export class ControlsMenu {
 
   // ------------------------------------------------------------------- state
 
+  detach() {
+    this.pad?.setPreview(false);
+    this.pad = null;
+    this.ctx = null;
+  }
+
   attach(ctx: Ctx) {
     this.ctx = ctx;
     // `IInput` in types.ts carries only `state` and `touch`, and widening the

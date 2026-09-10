@@ -174,6 +174,7 @@ export class Menus {
   private pauseOrderKey = '';
   private lapsEl!: HTMLDivElement;
   private resultTitle!: HTMLDivElement;
+  private offFinish: (() => void) | null = null;
 
   constructor(
     parent: HTMLElement,
@@ -220,14 +221,54 @@ export class Menus {
     }
   }
 
-  init(ctx: Ctx) {
+  /** Resource prep: roster DOM only; no live session listeners. */
+  prepareResources(ctx: Ctx) {
     this.ctx = ctx;
-    // finish times are not on IRace, so we stamp them off the bus ourselves
-    ctx.bus.on((e) => {
-      if (e.type === 'finish') this.finishTimes.set(e.kart.id, ctx.race.raceTime);
-    });
     this.fillRoster(ctx);
-    this.controls.attach(ctx);
+  }
+
+  /** Session mount: controls preview wiring + finish-time bus. */
+  mountSession(ctx?: Ctx) {
+    if (ctx) this.ctx = ctx;
+    if (!this.ctx) return;
+    this.controls.attach(this.ctx);
+    if (!this.offFinish) {
+      this.offFinish = this.ctx.bus.on((e) => {
+        if (e.type === 'finish') this.finishTimes.set(e.kart.id, this.ctx!.race.raceTime);
+      });
+    }
+  }
+
+  unmountSession() {
+    this.offFinish?.();
+    this.offFinish = null;
+    this.controls.detach();
+  }
+
+  /** Reset mutable menu/results state back to character selection. */
+  resetToSelectionSession() {
+    this.localPause = false;
+    this.localTitle = false;
+    this.forced = null;
+    this.resultsBuilt = false;
+    this.resultsFinished = -1;
+    this.finishTimes.clear();
+    this.lastRaceTime = 0;
+    this.pauseOrderKey = '';
+    this.tapConfirm = false;
+    this.btnIndex = 0;
+    if (this.controls.open) this.controls.close();
+    if (this.screen !== 'none') {
+      this.screens[this.screen].classList.remove('on');
+      this.screen = 'none';
+    }
+    this.blocking = false;
+    this.selecting = this.hostOptions.startScreen === 'select';
+  }
+
+  init(ctx: Ctx) {
+    this.prepareResources(ctx);
+    if (!this.hostOptions.hosted) this.mountSession(ctx);
   }
 
   // ------------------------------------------------------------------ frame

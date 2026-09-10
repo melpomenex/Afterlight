@@ -87,6 +87,7 @@ import {
   hazeGlsl,
 } from './Atmosphere';
 import { TUNNEL_T0, TUNNEL_T1 } from '../world/TrackLayout';
+import { runHostedGpuWork } from '../host/graphicsWork';
 
 // --- tuning ------------------------------------------------------------------
 
@@ -1634,7 +1635,7 @@ export class Sky implements System {
   private readonly axisY = new THREE.Vector3();
   private readonly axisZ = new THREE.Vector3();
 
-  init(ctx: Ctx): void {
+  async init(ctx: Ctx): Promise<void> {
     // The render pipeline is constructed before us, so whatever exposure it
     // settled on is what the calibration should solve against.
     const exposure = ctx.renderer?.toneMappingExposure || 1.05;
@@ -1653,7 +1654,9 @@ export class Sky implements System {
     this.buildDome(ctx);
     this.buildFog(ctx);
     this.buildLights(ctx);
-    this.buildEnvironment(ctx);
+    await runHostedGpuWork(ctx, 'sky:pmrem', () => {
+      this.buildEnvironment(ctx);
+    });
 
     ctx.sun = this.sun;
     ctx.sunDirection.copy(this.sunDirection);

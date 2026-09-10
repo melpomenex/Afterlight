@@ -912,6 +912,8 @@ export class Audio implements System {
   private voiceKarts: IKart[] = [];
   private failed = false;
   private unsub: (() => void) | null = null;
+  /** Hosted: gesture unlock + bus voices mount only during a live session. */
+  private sessionMounted = false;
   private lastVolume = -1;
   private tunnel = -1;
   private sidechain = -1;
@@ -933,9 +935,23 @@ export class Audio implements System {
 
   init(ctx: Ctx) {
     this.ctx = ctx;
-    this.unsub = ctx.bus.on((e) => this.onEvent(e));
-    // Audio may only start from a gesture. Until then this system is inert —
-    // which is exactly what the headless capture harness needs.
+    if (!this.external) this.mountSession();
+  }
+
+  /** Attach gesture unlock and gameplay bus routing (hosted: session-only). */
+  enterSession() {
+    this.mountSession();
+  }
+
+  /** Drop session listeners/voices without tearing down a retained synth graph. */
+  leaveSession() {
+    if (this.external) this.unmountSession();
+  }
+
+  private mountSession() {
+    if (this.sessionMounted || !this.ctx) return;
+    this.sessionMounted = true;
+    this.unsub = this.ctx.bus.on((e) => this.onEvent(e));
     try {
       addEventListener('pointerdown', this.onGesture, { passive: true });
       addEventListener('touchstart', this.onGesture, { passive: true });
@@ -944,6 +960,26 @@ export class Audio implements System {
     } catch {
       this.failed = true;
     }
+  }
+
+  private unmountSession() {
+    if (!this.sessionMounted) return;
+    this.sessionMounted = false;
+    try {
+      removeEventListener('pointerdown', this.onGesture);
+      removeEventListener('touchstart', this.onGesture);
+      removeEventListener('keydown', this.onGesture);
+      document.removeEventListener('visibilitychange', this.onVisibility);
+    } catch {
+      /* nothing to do */
+    }
+    this.unsub?.();
+    this.unsub = null;
+    this.music?.stop();
+    for (const v of this.voices) v.dispose();
+    this.voices.length = 0;
+    this.voiceKarts.length = 0;
+    if (this.synth) this.synth.master.gain.value = 0;
   }
 
   // -------------------------------------------------------------------------
@@ -1971,16 +2007,19 @@ export class Audio implements System {
   // -------------------------------------------------------------------------
 
   dispose() {
-    try {
-      removeEventListener('pointerdown', this.onGesture);
-      removeEventListener('touchstart', this.onGesture);
-      removeEventListener('keydown', this.onGesture);
-      document.removeEventListener('visibilitychange', this.onVisibility);
-    } catch {
-      /* nothing to do */
+    if (this.external) this.unmountSession();
+    else {
+      try {
+        removeEventListener('pointerdown', this.onGesture);
+        removeEventListener('touchstart', this.onGesture);
+        removeEventListener('keydown', this.onGesture);
+        document.removeEventListener('visibilitychange', this.onVisibility);
+      } catch {
+        /* nothing to do */
+      }
+      this.unsub?.();
+      this.unsub = null;
     }
-    this.unsub?.();
-    this.unsub = null;
     this.music?.stop();
     for (const v of this.voices) v.dispose();
     this.voices.length = 0;

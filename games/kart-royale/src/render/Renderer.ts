@@ -18,6 +18,7 @@ import { Quality, type Ctx, type Settings, type System } from '../types';
 import { PostFX } from './PostFX';
 import { glCapabilities, forcedFailure, drainErrors, type GLCapabilities } from '../core/Settings';
 import { logPipeline, recordShaderError, type FrameSample } from '../core/Diagnostics';
+import { hostedGpuAvailable, runHostedGpuWork, runHostedGpuWorkSync } from '../host/graphicsWork';
 
 interface DeviceProfile {
   webgl2: boolean;
@@ -210,7 +211,7 @@ export class RenderPipeline implements System {
     } | null = null,
   ) {}
 
-  init(ctx: Ctx) {
+  init(ctx: Ctx): void | Promise<void> {
     this.ctx = ctx;
     this.device = probeDevice();
     this.usePost = this.device.webgl2;
@@ -264,7 +265,14 @@ export class RenderPipeline implements System {
         throw err;
       }
     }
-    this.finishInit(ctx, renderer);
+    this.finishInitSetup(ctx, renderer);
+    const gpuInit = () => {
+      this.finishInitGpu();
+    };
+    if (this.external && hostedGpuAvailable(ctx)) {
+      return runHostedGpuWork(ctx, 'pipeline:init', gpuInit);
+    }
+    gpuInit();
   }
 
   private createRenderer(ctx: Ctx): THREE.WebGLRenderer {
@@ -339,7 +347,7 @@ export class RenderPipeline implements System {
     return renderer;
   }
 
-  private finishInit(ctx: Ctx, renderer: THREE.WebGLRenderer) {
+  private finishInitSetup(ctx: Ctx, renderer: THREE.WebGLRenderer) {
     this.renderer = renderer;
     try { this.gl = renderer.getContext(); } catch { this.gl = null; }
     ctx.renderer = renderer;
@@ -379,6 +387,9 @@ export class RenderPipeline implements System {
     this.width = Math.max(1, ctx.width);
     this.height = Math.max(1, ctx.height);
     this.signature = pipelineSignature(ctx.settings);
+  }
+
+  private finishInitGpu() {
     this.applyResolution();
 
     // DOES A REPRESENTATIVE MATERIAL ACTUALLY DRAW? Asked before the world is
@@ -661,13 +672,56 @@ export class RenderPipeline implements System {
     // without and 8 with. It does not help.
   }
 
+  /**
+   * Render one full-aspect selection frame into a hidden target without
+   * writing the visible canvas. Used by the hosted readiness barrier (D5).
+   */
+  renderHiddenSelectionFrame(ctx: Ctx): { ok: boolean; sceneCalls: number } {
+    if (this.contextLost || this.renderer === undefined) return { ok: false, sceneCalls: 0 };
+    const w = Math.max(16, Math.floor(ctx.width));
+    const h = Math.max(16, Math.floor(ctx.height));
+    let rt: THREE.WebGLRenderTarget | null = null;
+    const prevTarget = this.renderer.getRenderTarget();
+    const prevCube = this.renderer.getActiveCubeFace();
+    const prevMip = this.renderer.getActiveMipmapLevel();
+    try {
+      rt = new THREE.WebGLRenderTarget(w, h);
+      this.renderer.setRenderTarget(rt);
+      if (this.composer !== null) {
+        this.fx.sync(ctx, ctx.dt);
+        this.renderer.info.autoReset = false;
+        this.renderer.info.reset();
+        this.composer.render(ctx.dt);
+        this.lastSceneCalls = Math.max(0, this.renderer.info.render.calls - POST_QUADS);
+        this.renderer.info.autoReset = true;
+      } else {
+        this.renderer.clear(true, true, false);
+        this.renderer.render(ctx.scene, ctx.camera);
+        this.lastSceneCalls = this.renderer.info.render.calls;
+      }
+      const ok = this.lastSceneCalls > 4;
+      return { ok, sceneCalls: this.lastSceneCalls };
+    } catch (err) {
+      console.warn('[pipeline] hidden selection frame failed', err);
+      return { ok: false, sceneCalls: 0 };
+    } finally {
+      this.renderer.setRenderTarget(prevTarget, prevCube, prevMip);
+      rt?.dispose();
+    }
+  }
+
   resize(w: number, h: number) {
     const nw = Math.max(1, Math.round(w));
     const nh = Math.max(1, Math.round(h));
     if (nw === this.width && nh === this.height) return;
     this.width = nw;
     this.height = nh;
-    this.applyResolution();
+    const apply = () => this.applyResolution();
+    if (this.external && this.ctx && hostedGpuAvailable(this.ctx)) {
+      runHostedGpuWorkSync(this.ctx, 'pipeline:resize', apply);
+    } else {
+      apply();
+    }
   }
 
   dispose() {

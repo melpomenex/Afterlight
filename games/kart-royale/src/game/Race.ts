@@ -33,7 +33,8 @@ import {
   type IRace,
   type KartStats,
 } from '../types';
-import { Kart } from '../kart/Kart';
+import { Kart, buildCornerTable } from '../kart/Kart';
+import type { ChaseCamera } from './Camera';
 import { AIField, type DriveCmd } from './AI';
 import { Items } from './Items';
 
@@ -306,6 +307,56 @@ export class Race implements IRace {
   }
 
   /**
+   * Validate every kart has finite transforms on sampled road support.
+   * Used by the hosted readiness barrier before the first visible frame.
+   */
+  validateGridSupport(): boolean {
+    if (!this.karts.length) return false;
+    for (const k of this.karts) {
+      const p = k.object.position;
+      const q = k.object.quaternion;
+      const vals = [p.x, p.y, p.z, q.x, q.y, q.z, q.w];
+      if (!vals.every(Number.isFinite)) return false;
+      if (p.y < -50 || p.y > 500) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Prepare selection pose without advancing simulation or countdown.
+   * Re-forms the grid, warms the corner lookup table and poses the menu camera.
+   */
+  /**
+   * Return to character selection without arming countdown or rebuilding karts.
+   * Clears race clock, results and track litter from the prior session.
+   */
+  resetToSelectionSession(ctx: Ctx) {
+    this._state = RaceState.Menu;
+    this.countdownT = 0;
+    this.countdown = 3;
+    this.raceTime = 0;
+    this.resultsT = 0;
+    this.finishedCount = 0;
+    this.lapTimes.length = 0;
+    this.bestLap = Infinity;
+    this.wrongWay = false;
+    this.pauseEdge = false;
+    this.prePause = RaceState.Racing;
+    this.ai.reset();
+    this.items?.reset();
+    this.formGrid();
+    ctx.speedIntensity = 0;
+    ctx.fovPunch = 0;
+  }
+
+  prepareSelectionReadiness(ctx: Ctx, camera: ChaseCamera): boolean {
+    this.formGrid();
+    if (!this.validateGridSupport()) return false;
+    buildCornerTable(ctx.track);
+    return camera.initSelectionPose(ctx);
+  }
+
+  /**
    * Grid slot for kart `i`. Identity except that the player's kart and whoever
    * owns pole trade places, so the human always starts at the front.
    */
@@ -318,6 +369,7 @@ export class Race implements IRace {
 
   /** Stagger everyone back onto the grid and wipe their race record. */
   private formGrid() {
+    (this.ctx as any).perfSpan?.('race:grid', 'start');
     const track = this.ctx.track;
     const N = track.checkpointCount;
     for (let i = 0; i < this.karts.length; i++) {
@@ -364,6 +416,7 @@ export class Race implements IRace {
       this.standings[i] = k;
     }
     this.updateProgress();
+    (this.ctx as any).perfSpan?.('race:grid', 'end');
   }
 
   /**

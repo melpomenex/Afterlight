@@ -3,6 +3,7 @@ import type {
   KartRoyaleHostOptions,
 } from './types';
 import { createKartRoyaleRuntime } from './runtime';
+import { runHostedGpuWorkSyncFromOptions } from './graphicsWork';
 
 export type { KartRoyaleHost, KartRoyaleHostOptions } from './types';
 
@@ -28,6 +29,9 @@ export function createKartRoyaleHost(options: KartRoyaleHostOptions): KartRoyale
   let disposed = false;
   let dead = false;
   let booted = false;
+  let selectionReady = false;
+  let bootPromise: Promise<void> | null = null;
+  let bootGeneration = 0;
 
   const markDead = (title: string, detail: string) => {
     if (dead || disposed) return;
@@ -61,6 +65,9 @@ export function createKartRoyaleHost(options: KartRoyaleHostOptions): KartRoyale
     contextRecovery: false,
     onBootProgress: options.onBootProgress,
     onFatal: markDead,
+    perfSpan: options.perfSpan,
+    perfMark: options.perfMark,
+    runGraphicsTransaction: options.runGraphicsTransaction ?? null,
   });
 
   const guard = <A extends unknown[]>(fn: (...a: A) => void) =>
@@ -69,8 +76,6 @@ export function createKartRoyaleHost(options: KartRoyaleHostOptions): KartRoyale
       try {
         fn(...a);
       } catch (err) {
-        // A throwing race frame must not take the host's frame loop with it;
-        // the host exits the session on the first exception (design D12).
         console.error('[kart-royale] host frame threw', err);
         markDead('Kart Royale stopped', String((err as Error)?.message ?? err));
       }
@@ -90,21 +95,62 @@ export function createKartRoyaleHost(options: KartRoyaleHostOptions): KartRoyale
       neutralize: () => runtime.input.neutralize(),
     },
     async boot() {
-      if (booted || disposed) return;
-      booted = true;
-      try {
-        await runtime.boot();
-      } catch (err) {
-        markDead('Kart Royale failed to start', String((err as Error)?.message ?? err));
-        throw err;
+      if (disposed || dead) return;
+      if (booted) return;
+      if (bootPromise) return bootPromise;
+
+      const gen = ++bootGeneration;
+      bootPromise = (async () => {
+        try {
+          await runtime.boot();
+          if (disposed || dead || gen !== bootGeneration) return;
+          booted = true;
+        } catch (err) {
+          if (gen === bootGeneration) {
+            markDead('Kart Royale failed to start', String((err as Error)?.message ?? err));
+          }
+          throw err;
+        } finally {
+          if (gen === bootGeneration) bootPromise = null;
+        }
+      })();
+      return bootPromise;
+    },
+    prepareSelectionReadiness() {
+      if (disposed || dead || !booted) return false;
+      runtime.race.resetToSelectionSession(runtime.ctx);
+      runtime.hud.resetSelectionPresentation();
+      const posed = runtime.race.prepareSelectionReadiness(runtime.ctx, runtime.camera);
+      if (!posed) {
+        selectionReady = false;
+        return false;
       }
+      let hidden = { ok: false, sceneCalls: 0 };
+      const viewport = viewportOverride ?? options.viewport() ?? { width: 1280, height: 720 };
+      runHostedGpuWorkSyncFromOptions(
+        options,
+        runtime.ctx.renderer,
+        viewport,
+        'selection:hidden-frame',
+        () => {
+          hidden = runtime.pipeline.renderHiddenSelectionFrame(runtime.ctx);
+        },
+      );
+      selectionReady = hidden.ok;
+      if (selectionReady) options.perfMark?.('ready');
+      else options.perfMark?.('ready-failed', hidden);
+      return selectionReady;
+    },
+    isSelectionReady() {
+      return selectionReady && booted && !disposed && !dead;
     },
     update: guard((dt: number) => runtime.update(dt)),
-    present: guard(() => runtime.present()),
+    present: guard(() => {
+      if (!selectionReady) return;
+      runtime.present();
+    }),
     resize(w, h, force) {
       viewportOverride = { width: w, height: h };
-      // Resize is not fatal if it throws mid-session; the next lease resize
-      // retries.
       try {
         runtime.resize(force === true);
       } catch (err) {
@@ -112,10 +158,10 @@ export function createKartRoyaleHost(options: KartRoyaleHostOptions): KartRoyale
       }
     },
     beginSession() {
-      runtime.input.enter();
+      runtime.beginSession();
     },
     endSession() {
-      runtime.input.leave();
+      runtime.endSession();
     },
     setMuted(m) {
       runtime.setMuted(m);
@@ -124,7 +170,11 @@ export function createKartRoyaleHost(options: KartRoyaleHostOptions): KartRoyale
     dispose() {
       if (disposed) return;
       disposed = true;
-      runtime.input.leave();
+      bootGeneration += 1;
+      bootPromise = null;
+      booted = false;
+      selectionReady = false;
+      runtime.endSession();
       runtime.setMuted(true);
       try {
         runtime.dispose();

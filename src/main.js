@@ -35,12 +35,26 @@ import { resolveRoomRequest, worldUpdateInput } from './places/travelState.js';
 import { createTheaterAdapter, registerTheaterAdapter } from './places/theaterAdapter.js';
 import { createActivityRuntime } from './activities/runtime.js';
 import { createActivityViewLease } from './activities/viewLease.js';
+import {
+  captureRendererPolicy,
+  restoreRendererPolicy,
+  applyLeasedRendererOverrides,
+} from './activities/rendererPolicy.js';
+import { createGraphicsJobQueue } from './activities/graphicsJobs.js';
 import './activities/pong.js';
 import './activities/rainRunner.js';
 import './activities/signalLost.js';
 import './activities/sporefall.js';
 import './activities/snowboard.js';
 import './activities/kart-royale.js';
+import {
+  getRecords as getKartPerfRecords,
+  clearRecords as clearKartPerfRecords,
+  exportJson as exportKartPerfJson,
+  startAttempt as startKartAttempt,
+  startSpan as startKartSpan,
+  endSpan as endKartSpan,
+} from './activities/kartPerf.js';
 import './activities/pool.js';
 import './activities/airHockey.js';
 import './activities/foosball.js';
@@ -122,6 +136,14 @@ const composer = new EffectComposer(renderer);
 const renderPass = new RenderPass(scene, camera);
 composer.addPass(renderPass);
 
+// Frame-bound graphics jobs for background Kart preparation (D4): run only
+// while no visible activity owns the renderer.
+const graphicsJobs = createGraphicsJobQueue({
+  getRenderer: () => renderer,
+  isBlocked: () => activityView.held,
+  getViewport: () => ({ width: innerWidth, height: innerHeight }),
+});
+
 // Activity view lease (add-multiplayer-snowboard-arcade 6.1/6.2): a 3D
 // activity borrows the render pass scene AND the active camera together.
 // The social scene stays in memory and authoritative room membership never
@@ -132,43 +154,13 @@ const activityView = createActivityViewLease({
     renderPass.scene = leasedScene;
     activeCamera = leasedCamera;
     renderPass.camera = activeCamera;
-    // Size the borrowed camera to the CURRENT window immediately: scenes
-    // construct with a placeholder aspect and must never wait for the next
-    // window resize (portrait panes stayed squeezed at 1:1 otherwise).
     leasedResize?.(innerWidth, innerHeight);
-    // integrate-kart-royale-arcade D3: a leased activity may drive the shared
-    // renderer harder than the exposure the snowboard needed — snapshot the
-    // whole host presentation (tone mapping, color space, shadows, clear
-    // policy, pixel ratio, drawing-buffer size) and re-assert it on release,
-    // so the Theater is pixel-identical after every exit path.
-    leasedRendererState = {
-      toneMappingExposure: renderer.toneMappingExposure,
-      toneMapping: renderer.toneMapping,
-      outputColorSpace: renderer.outputColorSpace,
-      autoClear: renderer.autoClear,
-      shadowEnabled: renderer.shadowMap.enabled,
-      shadowType: renderer.shadowMap.type,
-      shadowAutoUpdate: renderer.shadowMap.autoUpdate,
-      pixelRatio: renderer.getPixelRatio(),
-      width: renderer.domElement?.width ?? null,
-      height: renderer.domElement?.height ?? null,
-    };
-    // The leased race scene is authored for the source's daylight exposure
-    // (integrate-ssxtricky-snowboard 2.3): borrow the renderer briefly and
-    // restore the exact host presentation on release. A lessee may state its
-    // own exposure (kart: 1.05); the default stays the snowboard's 1.25.
-    renderer.toneMappingExposure = typeof toneMappingExposure === 'number'
-      ? toneMappingExposure
-      : 1.25;
-    // The Alpine Rush source renders WITHOUT bloom (engine.js calls
-    // renderer.render directly); the host bloom tuned for the dark evening
-    // world hazes over its sun-lit snow and sky. Suspend it for the leased
-    // race frames and restore the social presentation on release.
+    leasedRendererState = captureRendererPolicy(renderer);
+    applyLeasedRendererOverrides(renderer, {
+      toneMappingExposure: typeof toneMappingExposure === 'number' ? toneMappingExposure : 1.25,
+    });
     leasedBloomEnabled = bloom.enabled;
     bloom.enabled = false;
-    // A race view owns the whole frame: leave cinema view so the theater
-    // stage, its screen panel and the docked chat no longer cover the
-    // mountain. The player is at the cabinet, not watching a film.
     if (theaterUI.isWatching()) theaterUI.setWatchMode(false);
   },
   restore: () => {
@@ -176,18 +168,7 @@ const activityView = createActivityViewLease({
     activeCamera = cameraSeam.resolveActiveCamera({ isoCamera: camera, fpCamera });
     renderPass.camera = activeCamera;
     if (leasedRendererState) {
-      const s = leasedRendererState;
-      renderer.toneMappingExposure = s.toneMappingExposure;
-      renderer.toneMapping = s.toneMapping;
-      renderer.outputColorSpace = s.outputColorSpace;
-      renderer.autoClear = s.autoClear;
-      renderer.shadowMap.enabled = s.shadowEnabled;
-      renderer.shadowMap.type = s.shadowType;
-      renderer.shadowMap.autoUpdate = s.shadowAutoUpdate;
-      if (s.width !== null && s.height !== null) {
-        renderer.setPixelRatio(s.pixelRatio);
-        renderer.setSize(s.width / s.pixelRatio, s.height / s.pixelRatio, false);
-      }
+      restoreRendererPolicy(renderer, leasedRendererState, { width: innerWidth, height: innerHeight });
       leasedRendererState = null;
     }
     if (leasedBloomEnabled !== null) {
@@ -577,6 +558,9 @@ const activityRuntime = createActivityRuntime({
   getActiveCamera: () => activeCamera,
   getCanvas: () => renderer.domElement,
   getRenderer: () => renderer,
+  scheduleGraphicsJob: (job) => graphicsJobs.schedule(job),
+  runGraphicsTransaction: (fn) => graphicsJobs.runTransaction(fn),
+  cancelGraphicsJobs: () => graphicsJobs.cancelAll(),
   getPlayer: () => player,
   audioMixer: () => audioMixer,
   setActivityCamera: (cam) => setActivityCamera(cam),
@@ -758,6 +742,9 @@ if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
       return inst?.latestSnapshot ?? null;
     },
     paused: () => paused,
+    kartPerformance: () => getKartPerfRecords(),
+    clearKartPerformance: () => clearKartPerfRecords(),
+    exportKartPerformance: () => exportKartPerfJson(),
     // Dev/test teleport (behind ?debug=1 only): places the avatar and
     // broadcasts one movement frame so server-side proximity checks see the
     // new pose. Used by automated browser gates; never a player feature.
@@ -1478,8 +1465,12 @@ function interact() {
     return;
   }
 
-  // E while participating or joining an activity leaves with safe dismount
+  // E while participating or joining an activity leaves with safe dismount.
+  // Repeated E while joining Kart Royale reuses the pending attempt (Task 2.1).
   if (participation.isOccupied) {
+    if (participation.currentActivity?.id === 'orpheum-kart-royale' && participation.isJoining) {
+      return; // reuse pending activation; Esc cancels via participation.leave
+    }
     participation.leave();
     return;
   }
@@ -1487,8 +1478,18 @@ function interact() {
   // Summit Run loads BEFORE joining (6.1): activities declaring
   // beginParticipation take the E press; other games fall through to the
   // generic immediate join below.
-  if (nearest?.type === 'activity' && activityRuntime.beginParticipationFor(nearest)) {
-    return;
+  if (nearest?.type === 'activity') {
+    const actId = nearest.activityId ?? nearest.id;
+    if (actId === 'orpheum-kart-royale') {
+      startKartAttempt({ generation: activityRuntime.activeGeneration ?? 0, attemptId: Date.now(), route: 'cold' });
+      startKartSpan('interaction');
+    }
+    if (activityRuntime.beginParticipationFor(nearest)) {
+      if (actId === 'orpheum-kart-royale') {
+        endKartSpan('interaction');
+      }
+      return;
+    }
   }
 
   if (!nearest) {
@@ -2208,6 +2209,16 @@ function frame(now) {
     // inactive or when the place declares no activities.
     activityRuntime.update(t, dt);
 
+    // Background Kart preparation (D3/D4): proximity-aware CPU slices and
+    // graphics jobs only while the Theater still owns presentation.
+    if (!activityView.held) {
+      const kartBudget = activityRuntime.getKartPrepareFrameBudgetMs?.() ?? 0;
+      if (kartBudget > 0) {
+        activityRuntime.tickBackgroundPreparation?.({ maxMs: kartBudget });
+      }
+      graphicsJobs.drain({ maxMs: kartBudget > 0 ? kartBudget : 2 });
+    }
+
     // Shared lightning envelopes + environmental audio (tasks 4.2/4.1), on
     // the same loop. The flash applies ADDITIVELY on top of the controller's
     // just-written presentation (≤0.2 exposure / ≤20% sun at full peak) and
@@ -2332,6 +2343,17 @@ function frame(now) {
 
 requestAnimationFrame(frame);
 
+// Theater TTI: overlay fade + first interactive frame, then idle Kart prefetch.
+let theaterInteractiveNotified = false;
+function notifyTheaterInteractive() {
+  if (theaterInteractiveNotified) return;
+  theaterInteractiveNotified = true;
+  requestAnimationFrame(() => {
+    activityRuntime.scheduleTheaterIdlePrefetches?.();
+  });
+}
+
 // Remove initial loading screen
 $('loading').style.opacity = '0';
+notifyTheaterInteractive();
 setTimeout(() => $('loading').remove(), 800);

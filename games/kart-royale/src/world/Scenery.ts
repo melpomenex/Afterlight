@@ -326,6 +326,7 @@ export class Scenery implements System {
     this.water.build(ctx, this.seaLevel, this.bakeSeaField());
     this.group.add(this.water.group);
 
+    (ctx as any).perfSpan?.('scenery:build', 'start');
     this.makeSets();
     this.dressStartStraight();
     this.dressHarbour();
@@ -354,6 +355,7 @@ export class Scenery implements System {
     this.dressNearFrame();
     this.dressGulls();
     this.emit();
+    (ctx as any).perfSpan?.('scenery:build', 'end');
 
     ctx.scene.add(this.group);
 

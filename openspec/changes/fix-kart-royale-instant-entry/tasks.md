@@ -1,0 +1,66 @@
+## 1. Baseline instrumentation and evidence
+
+- [x] 1.1 Recheck actual source against investigation.md and the unfinished `integrate-kart-royale-arcade` change; record baseline revision and existing work. Locate related tests with Ripwire before editing; preserve standalone and host ownership contracts.
+- [x] 1.2 Add opt-in bounded performance records around E dispatch, controller/host imports, participation request/response, constructor, each init/scheduler wait and readiness/presentation/input in `src/main.js`, `src/activities/kart-royale.js`, `kart-royale/controller.js` and `games/kart-royale/src/host/runtime.ts`; export phase JSON through the existing debug/browser seam.
+- [x] 1.3 Instrument material cache misses/map generation (`render/Materials.ts`, `Textures.ts`), Track/Scenery/Race/grid/corner-table work, Sky PMREM, pipeline construction, each `core/Prewarm.ts` compile/shadow/upload stage and offscreen/visible presentation. Separate CPU submission, compiler wall time and optional nonblocking GPU timing; label absent external decode/WASM stages N/A.
+- [x] 1.4 Extend `scripts/kart-royale-gate-browser.mjs` to capture frames/camera/spawn/readiness during delayed boot, not just eventual HUD state. Reproduce and classify the under-map frame; preserve trace/filmstrip evidence and distinguish camera-origin exposure from any additional spawn fault.
+- [x] 1.5 Produce a fresh root build and capture its module graph, raw/gzip/actual network transfer, cold and warm HTTP-cache requests and deployed headers if accessible. Record Three duplication and procedural resource allocation totals per tier; do not charge cabinet GLB or host WASM to Kart entry.
+- [x] 1.6 Record reference-device phase timings, Theater TTI/frame baseline, five cold loads per device, current repeat-entry/rebuild memory, actual walk/run/bhop arrival lead times and selection/countdown timing. Rank measured hotspots in this change's evidence.md; keep software-GPU measurements separate from hardware acceptance.
+
+## 2. Activation cancellation and under-map correctness
+
+- [x] 2.1 In the activity wrapper/controller, separate activation epoch from preparation ownership; fence both controller-import and host-import continuations, invalidate on every cancel/exit/travel, capture stable instance references, and ensure repeated E reuses one pending attempt. Update E/Escape pending behavior and prompt tests together.
+- [x] 2.2 Repair lost-admission detection when currentActivity becomes null, connect transport disconnect to cancellation through existing seams, eliminate lease-rejection retry storms and synchronous fatal-callback null dereferences; test deferred import and session-loss races in controller tests.
+- [x] 2.3 Make host boot single-flight with a shared promise and checks before/after every scheduled init/await in `host/index.ts` and `runtime.ts`. Track partial initialized ownership; fence late completion and serialize cleanup/replacement. Test cancel at each stage and nonsettling compilation quarantine.
+- [x] 2.4 Add explicit valid-grid/support and camera-pose readiness operations in `Race.ts`, `Kart.ts`, `Camera.ts` and hosted runtime; prepare first-step corner tables without advancing simulation/countdown. Validate finite transforms and actual track support, avoiding arbitrary offsets.
+- [x] 2.5 Gate visible host/controller presentation on readiness and pose. Introduce a safe cold transition path that keeps source Theater renderable while preparation waits, with pending/cancel/retry/deadline UI and rollback on first-frame failure. Keep background warming disabled until Phase 3 provides safe graphics transactions; do not run old boot against live Theater concurrently.
+- [x] 2.6 Attach context-loss handling to the actual renderer canvas, release ownership on loss, fence the invalid GPU generation, and show accurate reload guidance. Test native canvas events and delayed compile context loss; no repeated runtime allocation after failure.
+
+## 3. Shared-renderer preparation seam
+
+- [x] 3.1 Extract/reuse renderer-policy capture/apply/restore beside view-lease handling in `src/main.js`; capture before resize, restore to current viewport on release, include every actual state mutation listed in design D4 and prove restoration with stub and real render tests.
+- [x] 3.2 Add a synchronous frame-bound graphics job hook through `src/activities/runtime.js` context, with cancellation/priority and exclusion while another visible activity owns the renderer. Restore state in finally before yielding; no second RAF or renderer.
+- [x] 3.3 Adapt hosted pipeline initialization/resize/PMREM work (`host/runtime.ts`, `render/Renderer.ts`, `Sky.ts`) into those scoped jobs without changing standalone ownership; avoid visible drawing-buffer mutation during prepare. Measure each nonpreemptible batch.
+- [x] 3.4 Refactor `core/Prewarm.ts`: obtain compileAsync promise under the correct target/settings, restore shared renderer synchronously, then await; serialize variants sharing materials. Preserve shadow, hidden-effect and geometry warm coverage and cancellation-safe temporary flags.
+- [x] 3.5 Route a complete posed Kart composer frame to a hidden correctly sized target without writing the canvas; publish readiness only after explicit success and current generation/viewport validation. Replace swallowed preparation/render errors with structured readiness outcomes, allowing a supported fallback only after its own hidden-frame validation. Add delayed-compile alternating-Theater-frame and first-frame failure tests.
+- [x] 3.6 Run visual Theater/renderer-state checks after each prepare yield, resize and exception; verify other activity leases cannot be stolen by background preparation. Enable correctness-only cold preparation once these pass.
+
+## 4. Prepared runtime and side-effect separation
+
+- [x] 4.1 Implement one disposable preparation handle backed by existing `resourceCache.js`, with shared import/prepare promises, resource generation and explicit readiness states; store a handle rather than a bare Promise. Add fake-clock ref-owner/eviction/reacquisition tests and repair cache accounting only where needed.
+- [x] 4.2 Split game input/HUD/Menu/audio resource setup from session mounting/listeners/voices in `host/{types,index,runtime}.ts`, `core/Input.ts`, UI and audio systems. Prove a never-entered READY instance creates no active input/audio/global session listeners or visible HUD.
+- [x] 4.3 Add explicit selection-session reset: RaceState.Menu, grid/item/results/clock/UI cleanup and posed camera, without using reset/start's countdown behavior. Rematch remains unchanged; repeated selection preparation does not rebuild immutable resources.
+- [x] 4.4 Connect controller activation to READY plus current admission and lease availability; run admission and preparation concurrently, synchronously handle gesture audio unlock, attach input/HUD only at commit, and consume entry keyup. Optional fade stays within design D10 budgets.
+- [x] 4.5 Test pending/ready/active transitions, first-frame rollback, slow/offline admission, occupied queue, cancellation and travel with real participation semantics; verify E-as-item after activation and host movement after exit.
+
+## 5. Idle and proximity scheduling without Theater regressions
+
+- [x] 5.1 Schedule one module prefetch after actual Theater interactivity in `kart-royale.js`/activity runtime; honor visibility/save-data/network constraints and audit import-time CSS/global side effects. Keep other minigames lazy.
+- [x] 5.2 Continue incremental low-priority preparation after prefetch, with measured host frame headroom and initial 2 ms CPU slices; promote at 8-unit approach/10-unit exit hysteresis to initial 4 ms slices, using the interaction anchor coordinate system and existing host scheduler.
+- [ ] 5.3 Split baseline-ranked synchronous generation hotspots into resumable deterministic batches in the identified Material/Texture/Track/Scenery/Kart/Livery builders. Preserve ordered dependencies and cancel safety; outer-loop yields alone do not complete this task.
+- [ ] 5.4 Pause preparation on hidden tab, place departure, competing lease or frame pressure; lower priority on departure from proximity without restarting work. Test rapid approach/departure, early E, refresh and concurrent cinema playback.
+- [ ] 5.5 Measure READY hit rate versus actual walking/running/bhop arrival and 0/2/5/10/30-second preparation windows. Verify Theater TTI and frame budgets before enabling speculative preparation by default; record remaining cost-reduction work rather than relaxing the normal-approach criterion.
+
+## 6. Suspension, cleanup and bounded memory
+
+- [ ] 6.1 Audit owned geometries/materials/textures/canvas sources, PMREM/shadows/composer targets, item/effect pools, Race kart resources, prewarm/Materials/render-surface globals, event bus, HUD/touch, timers and audio. Add an allocation ledger with unique ownership and CPU/GPU estimates; fix disposal omissions without freeing host resources.
+- [ ] 6.2 Implement true suspend in the hosted runtime and controller exit funnel: stop update/present, detach all session listeners/HUD/touch, stop/disconnect voices, neutralize input, release view/admission, retain only prepared resources. Prove shared AudioContext/socket/renderer remain alive.
+- [ ] 6.3 Apply one-slot retention with 60-second idle eviction and design D7 memory ceilings; invalidate on travel/context/config changes and avoid speculative rebuild loops for over-budget devices. Handle viewport-specific target readiness separately from world construction.
+- [ ] 6.4 Serialize eviction with in-flight init/compile; bound nonsettling operations to one quarantined generation and disallow new warming until settlement or reload. Test timeout, loss and late settlement without use-after-dispose or stale view/UI publication.
+- [ ] 6.5 Run twenty retained entry/exit cycles and twenty eviction/rebuild cycles; measure session listeners/DOM/audio/RAF counts, owned resource bytes, renderer counts and forced-GC heap against module-prefetched baseline. Fix leaks before claiming cache acceptance.
+
+## 7. Measured dependency and asset optimization
+
+- [ ] 7.1 Scope/remove the global `Texture.prototype.needsUpdate` budget patch in `Textures.ts` for Kart-owned resources, then verify root/standalone texture budgets and Theater visual quality. Only then trial Vite Three dedupe; record actual bundle/evaluation savings and keep it only with regression evidence.
+- [ ] 7.2 Use Phase 1/5 results to reduce the dominant generation costs through deterministic keyed reuse or generated-output baking when needed for normal-approach readiness. Record seed/tier/version invalidation and visual equivalence. If CPU worker extraction is justified, isolate transferable pure work with cancellation; add no dependency without quantified benefit.
+- [ ] 7.3 Audit root deployed cache headers and hashed resources; change Cache-Control only if observed policy warrants it. Keep dynamic-import-based resource discovery; do not add hardcoded hashed URLs or service-worker caching.
+- [ ] 7.4 Evaluate optional UI/audio/FX deferral only against measured first-frame and first-use costs; preserve full required collision/track/AI/selection content and existing dormant-shader coverage. Record explicit no-change decisions when compression/decoder/streaming optimizations have no applicable payload.
+
+## 8. Release verification, reconciliation and handoff
+
+- [ ] 8.1 Run automated lifecycle/cache/lease/participation tests, root `npm test` and `npm run build`; report real environmental blockers without treating alternative partial commands as the complete build.
+- [ ] 8.2 Run Kart TypeScript/build and standalone autoplay, drift, screenshot and context-loss harnesses plus the existing snowboard entry/exit browser gate. Report the predecessor's known standalone context-loss issue separately and do not silently introduce additional regression.
+- [ ] 8.3 Run the full browser matrix in design D11: cold/warm/repeat, fast arrival, rapid E, cancel, queue, network unavailable/slow/disconnect, failed module/system/GPU, low-tier GPU, resize, refresh, actual context loss, full race/rematch and each exit route. Require zero invalid intermediate frames.
+- [ ] 8.4 Collect reference hardware timing cohorts and show all design D10 thresholds, including <=500 ms warm first frame, <=1 second input-ready, <=200 ms retained first frame, Theater budget preservation and >=19/20 ordinary walking READY hits. Keep raw network/queue totals and deliberate countdown duration visible in evidence.
+- [ ] 8.5 Update README.md/docs/arcade.md for staged entry, pending cancellation, selection/reentry and memory policy; reconcile the unarchived predecessor's E-only download/boot-under-lease/teardown assertions or add MODIFIED deltas if it has since archived. Do not mark unrelated outstanding predecessor work complete.
+- [ ] 8.6 Run Ripwire quality-delta/test-gate for implementation changes, review the final diff and strict OpenSpec validation, and write an evidence summary with measured before/after phases, memory, risks and rollout toggle. Enable default preparation/retention only after gates pass; retain safe cold-entry rollback.

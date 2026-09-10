@@ -27,6 +27,11 @@ import {
   createVisibilityThrottler,
 } from './cabinetRenderer.js';
 import { createArcadeCabinet } from '../arcade/cabinet.js';
+import { startSpan as startPerfSpan, endSpan as endPerfSpan } from './kartPerf.js';
+import { createResourceCache } from './resourceCache.js';
+import { createKartRoyalePreparation } from './kartRoyalePreparation.js';
+import { scheduleKartRoyaleModulePrefetch } from './kartRoyalePrefetch.js';
+import { createKartRoyalePrepareScheduler } from './kartRoyalePrepareScheduler.js';
 
 const CANVAS_WIDTH = 512;
 const CANVAS_HEIGHT = 384;
@@ -76,6 +81,9 @@ export function createKartRoyaleInstance({
   net = null,
   audioMixer = null,
   toast = null,
+  scheduleGraphicsJob = null,
+  runGraphicsTransaction = null,
+  cancelGraphicsJobs = null,
 } = {}) {
   if (!activityDef || activityDef.type !== 'kart-royale') {
     throw new Error('kart-royale module requires a kart-royale activity definition');
@@ -126,28 +134,55 @@ export function createKartRoyaleInstance({
   // Lazy race controller: loaded ONLY on E entry — never for bystanders.
   let controllerPromise = null;
   let controller = null;
+  let activationEpoch = 0;
+  let pendingActivation = false;
+  const resourceCache = createResourceCache();
+  const preparation = createKartRoyalePreparation({
+    cache: resourceCache,
+    placeGeneration: generation,
+  });
+  const prepareScheduler = createKartRoyalePrepareScheduler({
+    preparation,
+    getDistance: () => throttler.getDistance(),
+    shouldRun: () => !disposed && roomId === 'theater',
+    isInputPending: () => pendingActivation,
+  });
 
   function loadController() {
     if (!controllerPromise) {
-      controllerPromise = import('./kart-royale/controller.js')
-        .then((module) => module.createKartRoyaleController({
-          activityDef,
-          net,
-          getParticipation,
-          getRoomId: () => roomId,
-          acquireView,
-          releaseView,
-          getRenderer,
-          generation,
-          getPlayer,
-          audioMixer,
-          toast,
-        }))
-        .then((instance) => {
+      startPerfSpan('controller-import');
+      controllerPromise = preparation.prefetch()
+        .catch(() => {})
+        .then(() => import('./kart-royale/controller.js'))
+        .then((module) => {
+          endPerfSpan('controller-import');
+          if (disposed) return null;
+          const instance = module.createKartRoyaleController({
+            activityDef,
+            net,
+            getParticipation,
+            getRoomId: () => roomId,
+            acquireView,
+            releaseView,
+            getRenderer,
+            generation,
+            getPlayer,
+            audioMixer,
+            toast,
+            scheduleGraphicsJob,
+            runGraphicsTransaction,
+            cancelGraphicsJobs,
+            preparation,
+          });
+          if (disposed) {
+            instance.dispose();
+            return null;
+          }
           controller = instance;
           return instance;
         })
         .catch((error) => {
+          endPerfSpan('controller-import', { error: String(error) });
           console.warn('[KartRoyale] controller load failed:', error);
           controllerPromise = null;
           return null;
@@ -318,6 +353,34 @@ export function createKartRoyaleInstance({
       return displayState;
     },
 
+    /** Preparation handle (fix-kart-royale-instant-entry D2). */
+    get preparation() {
+      return preparation;
+    },
+
+    /** One idle controller-module prefetch after Theater interactivity (5.1). */
+    scheduleIdleModulePrefetch({ roomId: prefetchRoomId = roomId } = {}) {
+      if (disposed) return { scheduled: false, reason: 'disposed' };
+      return scheduleKartRoyaleModulePrefetch({
+        preparation,
+        roomId: prefetchRoomId,
+        onRun: () => {
+          prepareScheduler.enableAfterModulePrefetch();
+        },
+      });
+    },
+
+    getPrepareFrameBudgetMs() {
+      if (disposed || (typeof document !== 'undefined' && document.hidden)) return 0;
+      return prepareScheduler.getFrameBudgetMs();
+    },
+
+    tickBackgroundPreparation({ maxMs = null } = {}) {
+      if (disposed) return { ran: false, reason: 'disposed' };
+      const budget = maxMs ?? prepareScheduler.getFrameBudgetMs();
+      return prepareScheduler.tick({ maxMs: budget });
+    },
+
     /**
      * Optional pre-join participation flow: route E here BEFORE the generic
      * join. Loads the game controller (cancellable), which then requests play
@@ -325,10 +388,40 @@ export function createKartRoyaleInstance({
      */
     beginParticipation() {
       if (disposed) return Promise.resolve(false);
+      if (pendingActivation) {
+        return controllerPromise
+          ? controllerPromise.then((inst) => inst?.beginParticipation() ?? true)
+          : Promise.resolve(true);
+      }
+      const epoch = ++activationEpoch;
+      pendingActivation = true;
       return loadController().then((inst) => {
-        if (!inst) return false;
-        return inst.beginParticipation();
+        if (disposed || activationEpoch !== epoch) {
+          pendingActivation = false;
+          inst?.cancelActivation?.();
+          return false;
+        }
+        if (!inst) {
+          pendingActivation = false;
+          return false;
+        }
+        return inst.beginParticipation().then((ok) => {
+          if (disposed || activationEpoch !== epoch) {
+            pendingActivation = false;
+            inst.cancelActivation?.();
+            return false;
+          }
+          pendingActivation = inst.pendingActivation ?? false;
+          return ok;
+        });
       });
+    },
+
+    cancelActivation() {
+      activationEpoch += 1;
+      pendingActivation = false;
+      cancelGraphicsJobs?.();
+      controller?.cancelActivation?.();
     },
 
     /** Occupancy frames drive the cabinet display; nothing else is consumed. */
@@ -382,8 +475,14 @@ export function createKartRoyaleInstance({
     dispose() {
       if (disposed) return;
       disposed = true;
+      activationEpoch += 1;
+      pendingActivation = false;
+      controller?.cancelActivation?.();
       if (controller) controller.dispose();
       controller = null;
+      controllerPromise = null;
+      prepareScheduler.disable();
+      preparation.dispose();
       screenPipeline.dispose();
       cabinet.dispose();
     },

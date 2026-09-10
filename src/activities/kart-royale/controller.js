@@ -6,14 +6,11 @@
  *
  *   E at cabinet → beginParticipation(): toast + join (server session).
  *   seat accepted → createKartRoyaleHost (cheap: scene/camera exist, no GL)
- *                   → acquireView(scene, camera, present, resize) — the empty
- *                     game scene is the loading backdrop, and from this moment
- *                     the Theater is not presenting, so the game's boot-time
- *                     GL mutations cannot touch a live host frame.
  *                   → await host.boot() (systems + prewarm; cancellable via
- *                     the attempt token — a stale completion is discarded).
- *                   → host.beginSession(): capture-phase input routing, game
- *                     HUD mounted in the lifecycle-owned root, roster select.
+ *                     the attempt token — a stale completion is discarded)
+ *                   → prepare selection readiness (grid pose + camera)
+ *                   → acquireView(scene, camera, present, resize) — only after
+ *                     the destination is posed; present is a no-op until ready.
  *   exit paths (all funnel into exit()): pause "Leave cabinet", results
  *     "Back to the arcade" (both via the host's onExitRequest), travel
  *     (lease revoke → onRelease), seat loss/disconnect, fatal error,
@@ -34,22 +31,104 @@ export function createKartRoyaleController({
   getPlayer = null,
   audioMixer = null,
   toast = null,
+  scheduleGraphicsJob = null,
+  runGraphicsTransaction = null,
+  cancelGraphicsJobs = null,
+  preparation = null,
 } = {}) {
   if (!activityDef || activityDef.type !== 'kart-royale') {
     throw new Error('kart-royale controller requires a kart-royale activity definition');
   }
 
-  const attempt = { token: Symbol('kart-royale-attempt'), disposed: false, cancelled: false };
+  /**
+   * Boot-before-lease cold preparation (fix-kart-royale-instant-entry D4/D6).
+   * Requires frame-bound graphics transactions so Theater stays presentable.
+   */
+  const coldPreparationEnabled = typeof runGraphicsTransaction === 'function';
+
+  let controllerDisposed = false;
+  /** Bumps on every new E press; invalidates in-flight wrapper continuations. */
+  let activationEpoch = 0;
+  /** Bumps on cancel/exit/dispose; fences host boot and import continuations. */
+  let resourceGeneration = 0;
+
+  function createAttempt(epoch) {
+    return {
+      token: Symbol(`kart-royale-attempt-${epoch}`),
+      epoch,
+      generation: resourceGeneration,
+      disposed: false,
+      cancelled: false,
+    };
+  }
+
+  let attempt = createAttempt(0);
   let viewHeld = false;
   let host = null;
-  let booting = false;
+  let bootPromise = null;
   let booted = false;
+  let presentationReady = false;
   let hudRoot = null;
   let attached = false;
   let exiting = false;
-  // A failed load must not be retried on every frame while the participation
-  // state lags behind the leave (D12: bounded failure, never a loop).
+  let pendingActivation = false;
   let loadFailed = false;
+  /** Tracks admission for this controller even after participation clears currentActivity. */
+  let hadAdmission = false;
+  let contextCanvas = null;
+  let consumeEntryKeyUp = false;
+
+  function isAttemptCurrent(local) {
+    return local
+      && local === attempt
+      && !local.cancelled
+      && !local.disposed
+      && !controllerDisposed;
+  }
+
+  function bumpResourceGeneration() {
+    resourceGeneration += 1;
+    return resourceGeneration;
+  }
+
+  function invalidateAttempt() {
+    attempt.cancelled = true;
+    bumpResourceGeneration();
+  }
+
+  function onTransportDisconnect() {
+    if (viewHeld || pendingActivation || hadAdmission) {
+      exit('disconnect');
+    }
+  }
+
+  function installDisconnectWatch() {
+    if (typeof net?.onDisconnect === 'function') {
+      net.onDisconnect(onTransportDisconnect);
+    }
+  }
+
+  function removeDisconnectWatch() {
+    if (Array.isArray(net?.disconnectListeners)) {
+      const idx = net.disconnectListeners.indexOf(onTransportDisconnect);
+      if (idx >= 0) net.disconnectListeners.splice(idx, 1);
+    }
+  }
+
+  installDisconnectWatch();
+
+  function getPerf() {
+    return (typeof globalThis !== 'undefined' && globalThis.__kartPerf) || null;
+  }
+  function perfSpan(name, action, meta) {
+    const p = getPerf();
+    if (!p) return;
+    if (action === 'start') p.startSpan(name, meta);
+    else p.endSpan(name, meta);
+  }
+  function perfMark(phase, data) {
+    getPerf()?.recordMark(phase, data);
+  }
 
   function participation() {
     return typeof getParticipation === 'function' ? getParticipation() : null;
@@ -84,13 +163,6 @@ export function createKartRoyaleController({
 
   // --- input (capture-phase, attached only while the game is live) -------------
 
-  /**
-   * While the game is live it owns the whole keyboard: consume every key at
-   * window-capture so the host's own handlers (E = interact/exit, Escape
-   * hierarchy, movement keys) never see them. Without the stop, main.js's
-   * bubble-phase E exits the race instead of firing the item — the exact
-   * conflict this capture layer exists to resolve.
-   */
   function consume(event) {
     event.stopPropagation();
     if (event.cancelable) event.preventDefault();
@@ -104,15 +176,18 @@ export function createKartRoyaleController({
 
   function onKeyUp(event) {
     if (!host) return;
+    if (consumeEntryKeyUp && (event.code === 'KeyE' || event.key === 'e' || event.key === 'E')) {
+      consumeEntryKeyUp = false;
+      consume(event);
+      return;
+    }
     host.input.handleKeyUp(event);
     consume(event);
   }
 
   function onBlur() {
-    // Losing focus mid-corner must not leave controls stuck; a blur mid-race
-    // pauses so the player never misses a race they cannot see.
     host?.input.neutralize();
-    if (booted) host.race.setPaused(true);
+    if (booted) host?.race.setPaused(true);
   }
 
   function attachControls() {
@@ -132,22 +207,29 @@ export function createKartRoyaleController({
     host?.input.neutralize();
   }
 
-  // --- context loss (D12: no false recovery — exit with an honest message) -----
+  // --- context loss (D12: attach to the actual renderer canvas) ----------------
 
-  function onContextLost() {
-    if (!viewHeld) return;
+  function onContextLost(event) {
+    if (event?.cancelable) event.preventDefault();
+    if (!viewHeld && !pendingActivation) return;
     pushToast('Graphics Reset', 'The graphics context was lost. Reload the page if the world looks wrong.');
+    bumpResourceGeneration();
     exit('context-lost');
   }
 
   function installContextWatch() {
-    if (typeof window === 'undefined') return;
-    window.addEventListener('webglcontextlost', onContextLost);
+    const canvas = getRenderer?.()?.domElement;
+    if (!canvas || canvas === contextCanvas) return;
+    removeContextWatch();
+    contextCanvas = canvas;
+    canvas.addEventListener('webglcontextlost', onContextLost);
   }
 
   function removeContextWatch() {
-    if (typeof window === 'undefined') return;
-    window.removeEventListener('webglcontextlost', onContextLost);
+    if (contextCanvas) {
+      contextCanvas.removeEventListener('webglcontextlost', onContextLost);
+      contextCanvas = null;
+    }
   }
 
   // --- host lifecycle -------------------------------------------------------------
@@ -160,72 +242,150 @@ export function createKartRoyaleController({
     return {};
   }
 
+  function unlockAudioFromGesture() {
+    const mixer = typeof audioMixer === 'function' ? audioMixer() : audioMixer;
+    const ctx = mixer?.context;
+    if (ctx && ctx.state !== 'running') {
+      ctx.resume().catch(() => {});
+    }
+  }
+
+  let firstVisibleFramePresented = false;
+
   async function createAndBootHost() {
-    if (host || booting) return;
-    booting = true;
-    try {
-      // THE lazy boundary: the entire game (≈65k lines of TS + its CSS) loads
-      // here, split into its own chunk by this dynamic import. Bystanders
-      // never fetch it.
-      const module = await import('../../../games/kart-royale/src/host/index.ts');
-      if (attempt.disposed || attempt.cancelled) {
-        return; // stale load (canceled/traveled while fetching): discard
-      }
-      const nextHost = module.createKartRoyaleHost({
-        renderer: getRenderer(),
-        viewport: () => ({
-          width: typeof window !== 'undefined' ? window.innerWidth : 1280,
-          height: typeof window !== 'undefined' ? window.innerHeight : 720,
-        }),
-        hudHost: ensureHudRoot(),
-        audio: mixerAudioOptions(),
-        startScreen: 'select',
-        onFatal: (title, detail) => {
-          pushToast(title || 'Kart Royale Stopped', String(detail || 'The game could not continue.'));
-          exit('fatal');
-        },
+    if (!isAttemptCurrent(attempt)) return;
+    if (bootPromise) return bootPromise;
+
+    const localAttempt = attempt;
+    const localGen = localAttempt.generation;
+
+    bootPromise = (async () => {
+      try {
+        perfSpan('host-import', 'start');
+        const module = await import('../../../games/kart-royale/src/host/index.ts');
+        perfSpan('host-import', 'end');
+        if (!isAttemptCurrent(localAttempt) || localGen !== resourceGeneration) return;
+
+        perfSpan('construct', 'start');
+        const nextHost = module.createKartRoyaleHost({
+          renderer: getRenderer(),
+          viewport: () => ({
+            width: typeof window !== 'undefined' ? window.innerWidth : 1280,
+            height: typeof window !== 'undefined' ? window.innerHeight : 720,
+          }),
+          hudHost: ensureHudRoot(),
+          audio: mixerAudioOptions(),
+          startScreen: 'select',
+          perfSpan: (name, action, meta) => perfSpan(name, action, meta),
+          perfMark: (phase, data) => perfMark(phase, data),
+          onFatal: (title, detail) => {
+            pushToast(title || 'Kart Royale Stopped', String(detail || 'The game could not continue.'));
+            exit('fatal');
+          },
         onExitRequest: () => {
-          exiting = true; // the leave below is player-intended
+          exiting = true;
           exit('menu');
         },
+        runGraphicsTransaction: typeof runGraphicsTransaction === 'function'
+          ? runGraphicsTransaction
+          : null,
       });
-      if (attempt.disposed || attempt.cancelled) {
-        nextHost.dispose();
-        return;
+        perfSpan('construct', 'end');
+        if (!isAttemptCurrent(localAttempt) || localGen !== resourceGeneration) {
+          nextHost.dispose();
+          return;
+        }
+        host = nextHost;
+        if (typeof window !== 'undefined' && Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
+          window.__kartDebug = {
+            getCamera: () => {
+              if (!host?.ctx?.camera) return null;
+              const c = host.ctx.camera;
+              return {
+                position: [c.position.x, c.position.y, c.position.z],
+                rotation: [c.rotation.x, c.rotation.y, c.rotation.z],
+                quaternion: [c.quaternion.x, c.quaternion.y, c.quaternion.z, c.quaternion.w],
+                isOrigin: c.position.x === 0 && c.position.y === 0 && c.position.z === 0,
+              };
+            },
+            getKarts: () => {
+              const karts = host?.ctx?.race?.karts;
+              if (!karts) return null;
+              return karts.map((k) => ({
+                pos: [k.object.position.x, k.object.position.y, k.object.position.z],
+                y: k.object.position.y,
+              }));
+            },
+            isBooted: () => booted,
+            isReady: () => presentationReady,
+          };
+        }
+
+        if (!coldPreparationEnabled && !acquireTheView()) return;
+
+        perfSpan('boot', 'start');
+        await host.boot();
+        perfSpan('boot', 'end');
+        if (!isAttemptCurrent(localAttempt) || localGen !== resourceGeneration) return;
+        if (host.dead) {
+          exit('fatal');
+          return;
+        }
+
+        perfSpan('spawn-valid', 'start');
+        const ready = host.prepareSelectionReadiness();
+        perfSpan('spawn-valid', 'end', { ready });
+        if (!ready) {
+          pushToast('Kart Royale Failed to Start', 'The race grid could not be prepared. Please try again.');
+          loadFailed = true;
+          exit('load-failed');
+          return;
+        }
+        perfMark('pose-valid');
+
+        if (coldPreparationEnabled && !acquireTheView()) return;
+
+        booted = true;
+        presentationReady = true;
+        perfMark('ready');
+        preparation?.activate?.();
+        host.beginSession();
+        attachControls();
+        consumeEntryKeyUp = true;
+        perfMark('input-ready');
+      } catch (error) {
+        if (!isAttemptCurrent(localAttempt)) return;
+        console.error('[KartRoyale] load/boot failed:', error);
+        loadFailed = true;
+        pushToast('Kart Royale Failed to Start', 'The cabinet could not load the game. Please try again.');
+        exit('load-failed');
+      } finally {
+        bootPromise = null;
       }
-      host = nextHost;
-      if (!acquireTheView()) return;
-      // Boot UNDER the lease: the Theater is no longer presenting, so the
-      // game's renderer mutations (state, composer, PMREM, prewarm) are
-      // bracketed by the lease's snapshot/restore.
-      await host.boot();
-      if (attempt.disposed || attempt.cancelled) return;
-      if (host.dead) {
-        exit('fatal');
-        return;
-      }
-      booted = true;
-      host.beginSession();
-      attachControls();
-    } catch (error) {
-      console.error('[KartRoyale] load/boot failed:', error);
-      loadFailed = true;
-      pushToast('Kart Royale Failed to Start', 'The cabinet could not load the game. Please try again.');
-      exit('load-failed');
-    } finally {
-      booting = false;
-    }
+    })();
+
+    return bootPromise;
   }
 
   function acquireTheView() {
     if (!acquireView || viewHeld || !host) return Boolean(viewHeld);
+    firstVisibleFramePresented = false;
+    const localAttempt = attempt;
     const result = acquireView({
-      owner: attempt.token,
+      owner: localAttempt.token,
       generation,
       scene: host.ctx.scene,
       camera: host.ctx.camera,
       resize: (w, h) => host.resize(w, h),
-      present: () => host.present(),
+      present: () => {
+        if (!presentationReady || !host || host.dead) return;
+        if (!firstVisibleFramePresented) {
+          firstVisibleFramePresented = true;
+          perfMark('first-visible-frame');
+          getPerf()?.endAttempt?.('success');
+        }
+        host.present();
+      },
       toneMappingExposure: 1.05,
       onRelease: (reason) => handleViewRelease(reason),
     });
@@ -238,22 +398,27 @@ export function createKartRoyaleController({
     console.warn('[KartRoyale] view lease rejected:', result.reason);
     host.dispose();
     host = null;
+    loadFailed = true;
     return false;
   }
 
   function handleViewRelease(reason) {
     viewHeld = false;
+    presentationReady = false;
     detachControls();
     removeContextWatch();
-    document.body.classList.remove('kr-racing');
-    if (host) {
-      host.endSession();
-      // v1: full teardown on every exit — the world is rebuilt on re-entry.
-      // A warm cache is a permitted future refinement (spec: "may retain").
-      host.dispose();
+    if (typeof document !== 'undefined') {
+      document.body.classList.remove('kr-racing');
+    }
+    const localHost = host;
+    if (localHost) {
+      localHost.endSession();
+      localHost.dispose();
       host = null;
     }
     booted = false;
+    bootPromise = null;
+    hadAdmission = false;
     removeHudRoot();
     if (reason === 'travel' || reason === 'dispose') {
       dispose();
@@ -263,29 +428,39 @@ export function createKartRoyaleController({
   // --- frame update ------------------------------------------------------------------
 
   function update(time, dt) {
-    if (attempt.disposed || attempt.cancelled) return;
+    if (!isAttemptCurrent(attempt)) return;
 
     const p = participation();
 
+    if (p?.isParticipating && p.currentActivity?.id === activityDef.id) {
+      hadAdmission = true;
+    }
+
+    // Join cancelled (Escape / travel) before or during boot — fence async work.
+    if ((pendingActivation || bootPromise) && p?.state === 'idle') {
+      pendingActivation = false;
+      invalidateAttempt();
+      if (host || viewHeld || bootPromise) {
+        exit('cancel');
+      }
+      return;
+    }
+
     // Seat released while the game view is still up (server ejection,
-    // disconnect): restore the social world.
-    if (viewHeld && p && p.currentActivity?.id === activityDef.id && !p.isParticipating && !p.isJoining) {
+    // disconnect): restore the social world. currentActivity may already be
+    // null after participation reset — hadAdmission covers that race.
+    if (viewHeld && hadAdmission && !p?.isParticipating && !p?.isJoining) {
       exit('seat-lost');
       return;
     }
 
-    // Seat accepted: take the view, then boot the game under it (once).
-    if (p?.isParticipating && p.currentActivity?.id === activityDef.id && !viewHeld && !booting && !host && !loadFailed) {
+    if (p?.isParticipating && p.currentActivity?.id === activityDef.id && !viewHeld && !bootPromise && !host && !loadFailed) {
+      perfSpan('admission', 'end');
       void createAndBootHost();
     }
 
-    // Before boot completes the systems are uninitialized (their GPU state
-    // does not exist yet) — the lease-held empty scene plus the loading toast
-    // is the presentation; present() is a safe no-op on an unbooted pipeline.
-    if (!viewHeld || !host || !booted) return;
+    if (!viewHeld || !host || !booted || !presentationReady) return;
 
-    // The game simulates from the HOST frame loop's delta; present() is
-    // invoked by main.js through the lease after this update returns.
     try {
       host.update(dt);
     } catch (error) {
@@ -302,13 +477,21 @@ export function createKartRoyaleController({
   // --- exit / dispose ----------------------------------------------------------------
 
   function exit(reason = 'exit') {
-    if (attempt.disposed && !viewHeld) return;
-    if (mine() || exiting) {
+    if (attempt.disposed && !viewHeld && !pendingActivation) return;
+    const p = getPerf();
+    if (p?.getActiveAttempt?.()?.status === 'pending') {
+      p.endAttempt(reason === 'exit' || reason === 'menu' ? 'cancelled' : 'failed', reason);
+    }
+    invalidateAttempt();
+    cancelGraphicsJobs?.();
+    pendingActivation = false;
+    if (mine() || exiting || hadAdmission) {
       try {
         participation()?.leave?.();
       } catch {}
     }
     exiting = false;
+    hadAdmission = false;
     if (viewHeld && releaseView) {
       releaseView(attempt.token, reason);
     } else {
@@ -316,35 +499,62 @@ export function createKartRoyaleController({
     }
   }
 
+  function cancelActivation() {
+    if (!pendingActivation && !viewHeld && !hadAdmission && !bootPromise) return false;
+    exit('cancel');
+    return true;
+  }
+
   function dispose() {
-    if (attempt.disposed) return;
+    if (controllerDisposed) return;
+    controllerDisposed = true;
     attempt.disposed = true;
     attempt.cancelled = true;
+    bumpResourceGeneration();
+    pendingActivation = false;
+    const p = getPerf();
+    if (p?.getActiveAttempt?.()?.status === 'pending') {
+      p.endAttempt('cancelled', 'dispose');
+    }
+    removeDisconnectWatch();
     detachControls();
     removeContextWatch();
     removeHudRoot();
     if (viewHeld && releaseView) {
       releaseView(attempt.token, 'dispose');
-    }
-    if (host) {
+    } else if (host) {
       host.dispose();
       host = null;
     }
     booted = false;
+    presentationReady = false;
+    bootPromise = null;
+    hadAdmission = false;
   }
 
   async function beginParticipation() {
-    if (attempt.disposed) return false;
+    if (controllerDisposed) return false;
+    if (pendingActivation) return true;
     loadFailed = false;
-    pushToast('Kart Royale', 'Loading the race… Press E or Esc to cancel.');
+    activationEpoch += 1;
+    attempt = createAttempt(activationEpoch);
+    pendingActivation = true;
+    unlockAudioFromGesture();
+    preparation?.prefetch?.().catch(() => {});
+    pushToast('Kart Royale', 'Loading the race… Press Esc to cancel.');
+    perfSpan('admission', 'start');
     if (!mine()) {
       participation()?.join?.(activityDef, { role: 'play' });
+    }
+    if (coldPreparationEnabled) {
+      void createAndBootHost();
     }
     return true;
   }
 
   return {
     beginParticipation,
+    cancelActivation,
     update,
     acceptSnapshot() { /* admission-only: the bystander module owns the display */ },
     acceptEvent() { /* no server race events in v1 */ },
@@ -360,6 +570,9 @@ export function createKartRoyaleController({
     },
     get viewHeld() {
       return viewHeld;
+    },
+    get pendingActivation() {
+      return pendingActivation;
     },
   };
 }

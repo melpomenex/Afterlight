@@ -194,6 +194,9 @@ async function screenshot(s, name) {
     const b64 = await req('GET', `/session/${s.id}/screenshot`);
     const file = `/tmp/kart-gate-${name}.png`;
     writeFileSync(file, Buffer.from(b64, 'base64'));
+    try {
+      writeFileSync(`openspec/changes/fix-kart-royale-instant-entry/filmstrip/${name}.png`, Buffer.from(b64, 'base64'));
+    } catch {}
     return file;
   } catch {
     return null;
@@ -388,7 +391,149 @@ async function phaseBystander() {
   }
 }
 
-const PHASES = { entry: phaseEntry, race: phaseRace, exit: phaseExit, reentry: phaseReentry, bystander: phaseBystander };
+async function phaseTrace() {
+  guardBeforeLaunch();
+  const a = await newSession('player-a');
+  try {
+    const action = await walkToCabinet(a);
+    if (!/kart royale/i.test(action)) throw new Error(`Kart Royale prompt not reachable (got "${action}")`);
+
+    // Frame 0: At the cabinet, ready to press E
+    await screenshot(a, '01-prompt-at-cabinet');
+
+    // Install frame tracer in browser
+    await js(a, `
+      window.__kartFrameTrace = [];
+      window.__kartTraceActive = true;
+      function sampleFrame(t) {
+        if (!window.__kartTraceActive) return;
+        const dbg = window.__kartDebug;
+        const cam = dbg ? dbg.getCamera() : null;
+        const karts = dbg ? dbg.getKarts() : null;
+        const booted = dbg ? dbg.isBooted() : false;
+        const booting = dbg ? dbg.isBooting() : false;
+        const krRacing = document.body.classList.contains('kr-racing');
+        const part = window.__afterlight ? window.__afterlight.participation() : null;
+        window.__kartFrameTrace.push({
+          t,
+          krRacing,
+          partState: part ? part.state : null,
+          booting,
+          booted,
+          camera: cam,
+          kartsCount: karts ? karts.length : 0,
+          kartsSample: karts ? karts.slice(0, 2) : null,
+        });
+        requestAnimationFrame(sampleFrame);
+      }
+      requestAnimationFrame(sampleFrame);
+      return true;
+    `);
+
+    // Press E
+    log('Pressing E at cabinet...');
+    let state = 'idle';
+    for (let seatTry = 1; seatTry <= 4 && state === 'idle'; seatTry++) {
+      await tap(a, 'KeyE', 90);
+      for (let i = 0; i < 8; i++) {
+        state = await participationState(a);
+        if (state !== 'idle') break;
+        const toast = await js(a, `return (document.getElementById('toast-body')?.textContent || '');`).catch(() => '');
+        if (/activity_full|full/i.test(toast)) {
+          log(`seat still held by a prior session (disconnect grace) — retry ${seatTry}`);
+          await sleep(6000);
+          break;
+        }
+        await sleep(2000);
+      }
+    }
+    if (state === 'idle') throw new Error('E at the cabinet did not start participation');
+    log('participation after E:', state);
+
+    const startTime = Date.now();
+    let shotLeaseAcquired = false;
+    let shotPrewarm = false;
+    let shotBooted = false;
+    let shotLive = false;
+
+    // Fast polling loop to catch the transitions and take filmstrip screenshots
+    while (Date.now() - startTime < 60_000) {
+      const info = await js(a, `
+        const dbg = window.__kartDebug;
+        const part = window.__afterlight ? window.__afterlight.participation() : null;
+        return {
+          krRacing: document.body.classList.contains('kr-racing'),
+          part: part ? part.state : null,
+          booting: dbg ? dbg.isBooting() : false,
+          booted: dbg ? dbg.isBooted() : false,
+          camera: dbg ? dbg.getCamera() : null,
+          kartsCount: dbg && dbg.getKarts() ? dbg.getKarts().length : 0,
+          hudMounted: !!document.querySelector('.kr-activity .kr'),
+        };
+      `).catch(() => null);
+
+      if (info) {
+        if (!shotLeaseAcquired && info.krRacing) {
+          shotLeaseAcquired = true;
+          log('Filmstrip: Lease acquired! Camera pose:', JSON.stringify(info.camera));
+          await screenshot(a, '02-lease-acquired-unposed');
+        } else if (shotLeaseAcquired && !shotPrewarm && (Date.now() - startTime > 1500 || info.booting)) {
+          shotPrewarm = true;
+          log('Filmstrip: Mid-boot / prewarm. Camera pose:', JSON.stringify(info.camera));
+          await screenshot(a, '03-prewarm-booting');
+        } else if (info.booted && !shotBooted) {
+          shotBooted = true;
+          log('Filmstrip: Booted! Camera pose:', JSON.stringify(info.camera));
+          await screenshot(a, '04-booted-ready');
+        } else if (info.hudMounted && !shotLive) {
+          shotLive = true;
+          log('Filmstrip: Game HUD mounted / Live!');
+          await screenshot(a, '05-roster-select-live');
+          break;
+        }
+      }
+      await sleep(100);
+    }
+
+    // Stop tracing and extract trace data
+    const trace = await js(a, `
+      window.__kartTraceActive = false;
+      return window.__kartFrameTrace || [];
+    `);
+    log(`Collected ${trace.length} frame trace samples.`);
+
+    // Analyze trace
+    const unposedFrames = trace.filter(f => f.krRacing && f.camera && f.camera.isOrigin);
+    log(`Unposed frames during view lease (camera at origin): ${unposedFrames.length}`);
+    if (unposedFrames.length > 0) {
+      log('Sample unposed frame:', JSON.stringify(unposedFrames[0]));
+    }
+    const kartsBeforeBoot = trace.filter(f => f.krRacing && !f.booted && f.kartsCount > 0);
+    log(`Karts existing before boot: ${kartsBeforeBoot.length}`);
+
+    // Export trace summary
+    const perfData = await js(a, `return window.__afterlight ? window.__afterlight.kartPerformance() : null;`);
+    const latestAttempt = Array.isArray(perfData) && perfData.length > 0 ? perfData[perfData.length - 1] : null;
+    log('Kart perf latest attempt spans:', JSON.stringify(latestAttempt?.spans || {}, null, 2));
+
+    const resultReport = {
+      totalFrames: trace.length,
+      unposedFramesCount: unposedFrames.length,
+      unposedSample: unposedFrames[0] || null,
+      kartsBeforeBootCount: kartsBeforeBoot.length,
+      firstVisiblePose: unposedFrames.length > 0 ? unposedFrames[0].camera : (trace.find(f => f.krRacing && f.camera)?.camera || null),
+      readyPose: trace.find(f => f.booted && f.camera)?.camera || null,
+      perfRecord: latestAttempt,
+    };
+    writeFileSync('openspec/changes/fix-kart-royale-instant-entry/filmstrip/defect-trace.json', JSON.stringify(resultReport, null, 2));
+
+    log('PHASE trace COMPLETE. Defect classified.');
+  } finally {
+    await closeAll();
+  }
+}
+
+const PHASES = { entry: phaseEntry, race: phaseRace, exit: phaseExit, reentry: phaseReentry, bystander: phaseBystander, trace: phaseTrace };
 const requested = process.argv.slice(2);
 const phases = requested.length && requested[0] !== 'all' ? requested : ['entry', 'race', 'exit', 'reentry', 'bystander'];
 

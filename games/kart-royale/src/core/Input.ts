@@ -209,6 +209,8 @@ export class Input implements IInput {
 
   private ctx: Ctx | null = null;
   private offBus: (() => void) | null = null;
+  /** Hosted: haptics bus + gamepad listeners mount only during a live session. */
+  private sessionMounted = false;
   private rumbleCooldown = 0;
   private rumbleStrength = 0;
   /** remaining seconds of the auto-drift steer floor */
@@ -224,11 +226,8 @@ export class Input implements IInput {
   init(ctx: Ctx) {
     this.ctx = ctx;
     if (this.hosted) {
-      // Hosted: gamepad connect events are inert bookkeeping and safe to own
-      // for the session (removed in dispose); every key/pointer/blur event
-      // arrives through the host's capture-phase routing instead.
-      addEventListener('gamepadconnected', this.onPad);
-      addEventListener('gamepaddisconnected', this.onPadOff);
+      // Hosted: resource prep only. Window key/pointer listeners are routed
+      // through the host; gamepad + haptics bus mount in `enter()`.
     } else {
       addEventListener('keydown', this.onDown);
       addEventListener('keyup', this.onUp);
@@ -271,73 +270,72 @@ export class Input implements IInput {
     // budget as a gameplay one rather than inventing a second path.
     this.pad.pulse = (p) => this.pulse(p);
 
+    if (!this.hosted) this.mountHapticsBus(ctx);
+  }
+
+  private mountHapticsBus(ctx: Ctx) {
     /**
      * Haptics. The bus is the only place impacts are announced, and it is
      * fire-and-forget, so listening costs nothing when nothing can vibrate.
-     *
-     * ROUND 15 — THE BUG THAT MADE THIS WHOLE SECTION USELESS ON A PHONE.
-     * `haptic(strong, weak, ms)` gated the `navigator.vibrate` path on
-     * `strong > 0.55`. `strong` is a GAMEPAD DUAL-RUMBLE MAGNITUDE, 0..1, and it
-     * was being used as a significance threshold for a phone's LRA, which takes
-     * a pulse LENGTH and has no magnitude at all. `boost` passed 0.28 and
-     * `drift-spark` 0.16, so THE TWO EVENTS THE ENTIRE DRIFT LOOP IS BUILT ON
-     * NEVER VIBRATED — while being hit by a shell (0.95) did. The game buzzed
-     * for the things that happen TO you and was silent for the things you EARN.
-     *
-     * The two devices are now driven separately: `haptic()` keeps the gamepad's
-     * magnitudes, `pulse()` takes a phone pattern in milliseconds.
      */
-    this.offBus = ctx.bus.on((e) => {
-      switch (e.type) {
-        case 'collide': {
-          if (!e.kart.isPlayer) break;
-          const k = clamp01(e.impulse / 14);
-          this.haptic(k, 0.35, 130);
-          this.pulse([Math.round(10 + 18 * k)]);
-          break;
-        }
-        case 'hit':
-          if (!e.kart.isPlayer) break;
-          this.haptic(0.95, 0.75, 220);
-          // The only other three-part pattern in the table, so being SHELLED is
-          // unmistakable from anything the player did on purpose.
-          this.pulse([24, 50, 24]);
-          break;
-        case 'land': {
-          if (!e.kart.isPlayer) break;
-          const k = clamp01(e.impact / 22);
-          this.haptic(k, 0.2, 90);
-          // Below a third of the scale this is just driving over a kerb.
-          if (k >= 0.35) this.pulse([Math.round(8 + 14 * k)]);
-          break;
-        }
-        case 'boost':
-          if (!e.kart.isPlayer) break;
-          this.haptic(0.28, 0.75, 200);
-          this.pulse([28]);
-          break;
-        case 'item-use':
-          if (e.kart.isPlayer) this.pulse([14]);
-          break;
-        case 'drift-spark':
-          // A tick on each mini-turbo tier change. Tier 0 is drift ENTRY and
-          // fires on every corner, so it is deliberately left silent — that is
-          // the difference between feedback and a permanent buzz.
-          if (!e.kart.isPlayer || e.tier <= 0) break;
-          this.haptic(0.16, 0.5, 55);
-          // Tier 3 is a double-tap: "this is the big one", told in rhythm
-          // rather than in intensity, because an LRA has no intensity.
-          this.pulse(e.tier >= 3 ? [10, 40, 22] : e.tier === 2 ? [16] : [12]);
-          break;
-        case 'countdown':
-          // GO only. Four beats were tried and are a buzz, not a cue — and this
-          // one pulse still supplies the user activation Chrome requires before
-          // it will honour `vibrate` at all, which is the real reason the
-          // countdown is in the table.
-          if (e.n === 0) this.pulse([26]);
-          break;
+    this.offBus = ctx.bus.on((e) => this.onHapticEvent(e));
+  }
+
+  private onHapticEvent(e: import('../types').GameEvent) {
+    switch (e.type) {
+      case 'collide': {
+        if (!e.kart.isPlayer) break;
+        const k = clamp01(e.impulse / 14);
+        this.haptic(k, 0.35, 130);
+        this.pulse([Math.round(10 + 18 * k)]);
+        break;
       }
-    });
+      case 'hit':
+        if (!e.kart.isPlayer) break;
+        this.haptic(0.95, 0.75, 220);
+        this.pulse([24, 50, 24]);
+        break;
+      case 'land': {
+        if (!e.kart.isPlayer) break;
+        const k = clamp01(e.impact / 22);
+        this.haptic(k, 0.2, 90);
+        if (k >= 0.35) this.pulse([Math.round(8 + 14 * k)]);
+        break;
+      }
+      case 'boost':
+        if (!e.kart.isPlayer) break;
+        this.haptic(0.28, 0.75, 200);
+        this.pulse([28]);
+        break;
+      case 'item-use':
+        if (e.kart.isPlayer) this.pulse([14]);
+        break;
+      case 'drift-spark':
+        if (!e.kart.isPlayer || e.tier <= 0) break;
+        this.haptic(0.16, 0.5, 55);
+        this.pulse(e.tier >= 3 ? [10, 40, 22] : e.tier === 2 ? [16] : [12]);
+        break;
+      case 'countdown':
+        if (e.n === 0) this.pulse([26]);
+        break;
+    }
+  }
+
+  private mountSessionListeners() {
+    if (this.sessionMounted || !this.hosted || !this.ctx) return;
+    this.sessionMounted = true;
+    addEventListener('gamepadconnected', this.onPad);
+    addEventListener('gamepaddisconnected', this.onPadOff);
+    this.mountHapticsBus(this.ctx);
+  }
+
+  private unmountSessionListeners() {
+    if (!this.sessionMounted) return;
+    this.sessionMounted = false;
+    removeEventListener('gamepadconnected', this.onPad);
+    removeEventListener('gamepaddisconnected', this.onPadOff);
+    this.offBus?.();
+    this.offBus = null;
   }
 
   /** A real finger on a device that claimed to be a desktop. Believe the finger. */
@@ -355,11 +353,13 @@ export class Input implements IInput {
       removeEventListener('blur', this.onBlur);
       removeEventListener('keydown', this.onFirstKey);
       removeEventListener('pointerdown', this.onFirstTouch, { capture: true } as any);
+      removeEventListener('gamepadconnected', this.onPad);
+      removeEventListener('gamepaddisconnected', this.onPadOff);
+      this.offBus?.();
+      this.offBus = null;
+    } else {
+      this.unmountSessionListeners();
     }
-    removeEventListener('gamepadconnected', this.onPad);
-    removeEventListener('gamepaddisconnected', this.onPadOff);
-    this.offBus?.();
-    this.offBus = null;
     this.pad.unmount();
     this.releaseGestureBlocks();
   }
@@ -387,11 +387,17 @@ export class Input implements IInput {
    * touch-chrome outside a live race.
    */
   enter() {
-    if (this.hosted && this.touch) this.pad.mount();
+    if (this.hosted) {
+      this.mountSessionListeners();
+      if (this.touch) this.pad.mount();
+      return;
+    }
+    if (this.touch) this.pad.mount();
   }
 
   /** Session end (hosted): pad away, keys clear. */
   leave() {
+    if (this.hosted) this.unmountSessionListeners();
     this.pad.unmount();
     this.onBlur();
   }

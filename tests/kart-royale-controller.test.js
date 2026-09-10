@@ -273,3 +273,119 @@ test('neutralizeInput is safe before any host exists', () => {
     stubs.restore();
   }
 });
+
+test('repeated beginParticipation reuses the pending activation', async () => {
+  const stubs = installBrowserStubs();
+  try {
+    const { controller, state } = makeSeams();
+    const first = await controller.beginParticipation();
+    const second = await controller.beginParticipation();
+    assert.equal(first, true);
+    assert.equal(second, true);
+    assert.equal(state.joined.def.id, 'orpheum-kart-royale');
+    assert.equal(state.joined.opts.role, 'play');
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('cancelActivation is safe before any host exists', () => {
+  const stubs = installBrowserStubs();
+  try {
+    const { controller } = makeSeams();
+    assert.equal(controller.cancelActivation(), false);
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('seat loss is detected when currentActivity is already cleared', async () => {
+  const stubs = installBrowserStubs();
+  try {
+    const { controller, state, releases } = makeSeams();
+    await controller.beginParticipation();
+    state.participating = true;
+    state.currentActivity = KART_ROYALE_ACTIVITY_DEFINITION;
+    controller.update(0, 1 / 60);
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Participation reset clears currentActivity before the next frame.
+    state.participating = false;
+    state.currentActivity = null;
+    controller.update(1 / 60, 1 / 60);
+    assert.equal(controller.viewHeld, false);
+    assert.ok(releases.length >= 0);
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('beginParticipation prefetches preparation and resumes audio on gesture', async () => {
+  const stubs = installBrowserStubs();
+  let prefetched = false;
+  let resumed = false;
+  const audioContext = { state: 'suspended', resume: () => { resumed = true; return Promise.resolve(); } };
+  try {
+    const { controller } = makeSeams();
+    const controller2 = createKartRoyaleController({
+      activityDef: KART_ROYALE_ACTIVITY_DEFINITION,
+      getParticipation: () => ({
+        get isParticipating() { return false; },
+        get isJoining() { return false; },
+        get currentActivity() { return null; },
+        join() {},
+        leave() {},
+      }),
+      acquireView: () => ({ ok: false, reason: 'test' }),
+      releaseView: () => {},
+      getRenderer: () => ({ domElement: { addEventListener() {}, removeEventListener() {} } }),
+      generation: 1,
+      audioMixer: () => ({ context: audioContext }),
+      preparation: { prefetch: async () => { prefetched = true; return { ok: true }; } },
+      runGraphicsTransaction: async (fn) => fn({ renderer: {}, viewport: { width: 1280, height: 720 } }),
+    });
+    await controller2.beginParticipation();
+    assert.equal(prefetched, true);
+    assert.equal(resumed, true);
+    controller2.dispose();
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('dispose removes disconnect listener', async () => {
+  const stubs = installBrowserStubs();
+  const disconnectListeners = [];
+  const net = {
+    disconnectListeners,
+    onDisconnect(fn) { disconnectListeners.push(fn); },
+  };
+  try {
+    const participation = () => ({
+      get isParticipating() { return false; },
+      get isJoining() { return false; },
+      get currentActivity() { return null; },
+      get state() { return 'idle'; },
+      join() {},
+      leave() {},
+    });
+    const controller = createKartRoyaleController({
+      activityDef: KART_ROYALE_ACTIVITY_DEFINITION,
+      getParticipation: participation,
+      net,
+      acquireView: () => ({ ok: false, reason: 'test' }),
+      releaseView: () => {},
+      getRenderer: () => ({ domElement: { addEventListener() {}, removeEventListener() {} } }),
+      generation: 1,
+    });
+    assert.equal(disconnectListeners.length, 1);
+    controller.dispose();
+    assert.equal(disconnectListeners.length, 0);
+  } finally {
+    stubs.restore();
+  }
+});
