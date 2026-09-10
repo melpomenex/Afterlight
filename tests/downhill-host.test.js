@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import { readFileSync } from 'node:fs';
 import { createDownhillMayhemHost } from '../games/downhill-mayhem/src/host/index.js';
-import { generateCourseDocument } from '../games/downhill-mayhem/src/game/course.js';
+import { generateCourseDocument, mulberry32 } from '../games/downhill-mayhem/src/game/course.js';
+import { aiControl } from '../shared/downhill/ai.js';
 
 // integrate-multiplayer-downhill-mayhem-arcade 5.1/5.8 / 12.3. The hosted
 // runtime must never own a renderer, RAF loop or the injected renderer/audio.
@@ -67,9 +69,20 @@ test('update advances the simulation without a RAF loop', async () => {
   host.dispose();
 });
 
+test('present is a no-op until the readiness barrier completes', async () => {
+  const { host, stub } = await makeHost();
+  host.present();
+  assert.equal(stub.renderCalls, 0, 'pre-readiness present must not render');
+  await host.prepare();
+  host.present();
+  assert.ok(stub.renderCalls >= 1, 'prepared runtime presents');
+  host.dispose();
+});
+
 test('present renders through the injected renderer', async () => {
   const { host, stub } = await makeHost();
   host.enter();
+  await host.prepare();
   host.update(1 / 60, true);
   const before = stub.renderCalls;
   host.present();
@@ -93,6 +106,7 @@ test('resize updates the camera aspect and projection', async () => {
 test('dispose is idempotent and leaves the injected renderer untouched', async () => {
   const { host, stub, setTraps } = await makeHost();
   host.enter();
+  await host.prepare();
   host.update(1 / 60, true);
   host.present();
   host.dispose();
@@ -139,5 +153,56 @@ test('host reports the frozen session state shape', async () => {
   assert.equal(typeof host.present, 'function');
   assert.equal(typeof host.resize, 'function');
   assert.equal(typeof host.dispose, 'function');
+  host.dispose();
+});
+
+// --- standalone autoplay harness (13.2) ---------------------------------------
+
+test('standalone exposes the GAME.test autoplay/full-race harness', () => {
+  const source = readFileSync(new URL('../games/downhill-mayhem/src/standalone.js', import.meta.url), 'utf8');
+  for (const marker of ['test:', 'autopilot(', 'placeAt(', 'launch(', 'fullRace(', 'fastForward(']) {
+    assert.ok(source.includes(marker), `standalone harness exposes ${marker}`);
+  }
+  assert.match(source, /window\.GAME\s*=\s*\{/, 'the debug surface stays on window.GAME');
+});
+
+test('autopilot completes a full local race through the shared runtime', async () => {
+  const { host } = await makeHost({ authority: 'local' });
+  host.enter();
+  await host.prepare();
+  host.startRace({ mode: 'classic', difficulty: 'mayhem' });
+
+  const rng = mulberry32(1234);
+  const events = [];
+  const aiState = { lastPunchOnHumanAt: -99 };
+  const stats = { crashes: 0, aiKicks: 0 };
+  host.runtime.setLocalControlProvider((r, ctx) => {
+    const control = aiControl(ctx.course, r, {
+      riders: ctx.riders,
+      difficulty: ctx.difficulty,
+      elapsed: ctx.elapsed,
+      reference: r,
+      rng,
+      events,
+      state: aiState,
+      stats,
+      dt: ctx.dt,
+    });
+    control.boost = false;
+    return control;
+  });
+
+  const maxSteps = 240 * 60;
+  let steps = 0;
+  while (steps < maxSteps && host.runtime.phase !== 'results') {
+    host.update(1 / 60, true);
+    steps++;
+  }
+
+  assert.ok(['finished', 'results'].includes(host.runtime.phase),
+    `autopilot should reach a terminal phase (got ${host.runtime.phase} after ${steps} steps)`);
+  const finishers = host.runtime.riders.filter((r) => r.finished);
+  assert.ok(finishers.length >= 1, 'at least one rider finished');
+  host.runtime.setLocalControlProvider(null);
   host.dispose();
 });

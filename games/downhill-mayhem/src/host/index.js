@@ -48,10 +48,14 @@ export async function createDownhillMayhemHost(options) {
     get riders() { return runtime.riders; },
     get phase() { return runtime.phase; },
 
-    async prepare({ signal = null } = {}) {
-      if (disposed) return;
-      if (signal && signal.aborted) return;
-      await runtime.prepare();
+    async prepare({ signal = null, runTransaction = null } = {}) {
+      if (disposed) return { ok: false, reason: 'disposed' };
+      if (signal && signal.aborted) return { ok: false, reason: 'aborted' };
+      return runtime.prepare({
+        signal,
+        runTransaction,
+        viewport: options.viewport || null,
+      });
     },
 
     enter(sessionContext = null) {

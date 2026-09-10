@@ -14,9 +14,10 @@ import * as THREE from 'three';
 
 import { createDownhillMayhemRuntime } from './host/runtime.js';
 import {
-  generateCourseDocument, dailySeedFromDate, MOUNTAINS, terrainLabel,
+  generateCourseDocument, dailySeedFromDate, MOUNTAINS, terrainLabel, mulberry32,
 } from './game/course.js';
 import { DIFFS } from '../../../shared/downhill/rules.js';
+import { aiControl } from '../../../shared/downhill/ai.js';
 
 const TERRAIN_ORDER = ['classic', 'timber', 'rock'];
 
@@ -58,6 +59,15 @@ export function bootStandalone() {
   let ghostRec = [];
   let ghostAccum = 0;
   const GHOST_DT = 0.1;
+
+  // Standalone autoplay harness (13.2): deterministic local AI drives rider 0
+  // through a full race for automated verification. Never part of the hosted
+  // multiplayer path (the authority there is the server).
+  let autopilotOn = false;
+  let autopilotRng = null;
+  const autopilotEvents = [];
+  const autopilotState = { lastPunchOnHumanAt: -99 };
+  const autopilotStats = { crashes: 0, aiKicks: 0 };
 
   const state = {
     get phase() { return runtime ? runtime.phase : 'boot'; },
@@ -118,6 +128,26 @@ export function bootStandalone() {
     runtime.resetToLobby();
     refreshTitle();
     runtime.resize(innerWidth, innerHeight);
+    // Readiness barrier: pose, validate the grid and render one hidden frame
+    // before the first visible present. Synchronous here (no transaction).
+    void runtime.prepare();
+    runtime.setLocalControlProvider((r, ctx) => {
+      if (!autopilotOn) return null;
+      if (!autopilotRng) autopilotRng = mulberry32((Date.now() ^ 0x9e3779) >>> 0);
+      const control = aiControl(ctx.course, r, {
+        riders: ctx.riders,
+        difficulty,
+        elapsed: ctx.elapsed,
+        reference: r,
+        rng: autopilotRng,
+        events: autopilotEvents,
+        state: autopilotState,
+        stats: autopilotStats,
+        dt: ctx.dt,
+      });
+      control.boost = false; // harness parity with the original autoplay
+      return control;
+    });
   }
 
   function startRace() {
@@ -320,6 +350,86 @@ export function bootStandalone() {
         runtime.update(1 / 60, true);
         if (runtime.phase === 'finished') { onRaceFinished(); break; }
       }
+    },
+    // Autoplay/verification harness (13.2): the same hook shape the original
+    // offline file exposed, so external harnesses keep working.
+    test: {
+      get autopilotOn() { return autopilotOn; },
+      autopilot(on) { autopilotOn = Boolean(on); },
+      placeAt(s, lat) {
+        const p = runtime.riders[0];
+        p.s = s;
+        p.lat = lat;
+        p.y = runtime.course.heightAt(s, lat);
+        p.grounded = true;
+        p.crashed = false;
+        p.crashT = 0;
+        p.trick = null;
+        p.invuln = 0;
+        p.airTime = 0;
+        return p;
+      },
+      skipTo(s) {
+        const p = runtime.riders[0];
+        const lat = Math.max(-6, Math.min(6, p.lat));
+        return window.GAME.test.placeAt(s, lat);
+      },
+      launch() {
+        const p = runtime.riders[0];
+        p.grounded = false;
+        p.vy = 6.5;
+        p.y += 0.3;
+        p.airTime = 0.3;
+        return p;
+      },
+      spawnRivalNear(index, ds = 2, dlat = 0.5) {
+        const p = runtime.riders[0];
+        const r = runtime.riders[index || 1];
+        if (!r) return null;
+        r.s = p.s + ds;
+        r.lat = Math.max(-7, Math.min(7, p.lat + dlat));
+        r.y = runtime.course.heightAt(r.s, r.lat);
+        r.crashed = false;
+        r.invuln = 0;
+        r.grounded = true;
+        r.finished = false;
+        r.vs = p.vs;
+        r.vlat = 0;
+        r.vy = 0;
+        return r;
+      },
+      setDifficulty(d) { setDifficulty(d); },
+      startMode(m, d) { if (d) setDifficulty(d); setMode(m); startRace(); },
+      riderNames() { return runtime.riders.filter((r) => !r.isPlayer).map((r) => r.def.name); },
+      /**
+       * Autoplay a full local race (countdown through results). Returns a
+       * bounded summary; used by the standalone browser gate.
+       */
+      fullRace({ maxSeconds = 240 } = {}) {
+        autopilotOn = true;
+        try {
+          if (runtime.phase === 'lobby' || runtime.phase === 'results') startRace();
+          const steps = Math.round(maxSeconds * 60);
+          for (let i = 0; i < steps; i++) {
+            runtime.update(1 / 60, true);
+            if (runtime.phase === 'results') break;
+          }
+        } finally {
+          autopilotOn = false;
+        }
+        return {
+          phase: runtime.phase,
+          raceTime: runtime.raceTime,
+          riders: runtime.riders.map((r) => ({
+            slot: r.slot,
+            isAI: r.isAI,
+            finished: r.finished,
+            timeMs: r.finished ? Math.round((r.finishTime ?? 0) * 1000) : null,
+            s: r.s,
+          })),
+        };
+      },
+      fastForward(seconds) { window.GAME.fastForward(seconds); },
     },
   };
 }

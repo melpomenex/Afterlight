@@ -30,7 +30,7 @@ import { createHud, ordinal, fmtTime } from '../game/hud.js';
 import { createEffects } from '../game/effects.js';
 import { createInputAdapter } from '../game/input-adapter.js';
 import {
-  initialRiderState, neutralControls, stepField, DIFFS, START_LATS, DT, TICK_HZ, RULES_VERSION,
+  initialRiderState, neutralControls, normalizeControls, stepField, DIFFS, START_LATS, DT, TICK_HZ, RULES_VERSION,
 } from '../../../../shared/downhill/rules.js';
 import { aiControl } from '../../../../shared/downhill/ai.js';
 
@@ -111,6 +111,10 @@ export function createDownhillMayhemRuntime(options = {}) {
   let resultsShown = false;
   let disposed = false;
   let prepared = false;
+  let hiddenTarget = null;
+  let resolveReady = null;
+  let localControlProvider = null;
+  const readyPromise = new Promise((resolve) => { resolveReady = resolve; });
   const aiState = { lastPunchOnHumanAt: -99 };
   const stats = { topSpeed: 0, biggestAir: 0, tricksLanded: 0, decked: 0, bestCombo: 0, crashes: 0, aiKicks: 0 };
   const camPos = new THREE.Vector3();
@@ -250,7 +254,14 @@ export function createDownhillMayhemRuntime(options = {}) {
     const p = player();
     const active = phase === 'racing' || phase === 'finished';
     const controls = {};
-    controls[p.slot] = input.consumeControls(active && !p.crashed && !p.finished);
+    // Standalone autoplay/verification harness (13.2) may inject a control
+    // provider; it never exists in the hosted multiplayer path.
+    const injected = typeof localControlProvider === 'function'
+      ? localControlProvider(p, { course, riders, difficulty, elapsed: raceTime, dt: DT })
+      : null;
+    controls[p.slot] = injected
+      ? normalizeControls(injected)
+      : input.consumeControls(active && !p.crashed && !p.finished);
     const aiEvents = [];
     const rngCache = {};
     const ctx = {
@@ -344,6 +355,67 @@ export function createDownhillMayhemRuntime(options = {}) {
     void dt;
   }
 
+  // --- readiness barrier (5.7) --------------------------------------------------
+
+  /**
+   * Every rider must sit on finite, valid course support before anything may
+   * be presented. Throws a named error on invalid course/grid state.
+   */
+  function validateGrid() {
+    if (!course || !Number.isFinite(course.finishS) || course.finishS <= 0) {
+      throw new Error('invalid_course');
+    }
+    if (!Array.isArray(riders) || riders.length !== RIDER_COUNT) {
+      throw new Error('invalid_grid');
+    }
+    for (const r of riders) {
+      if (!Number.isFinite(r.s) || !Number.isFinite(r.lat) || !Number.isFinite(r.y)) {
+        throw new Error('invalid_grid');
+      }
+      const support = course.heightAt(r.s, r.lat);
+      if (!Number.isFinite(support)) throw new Error('invalid_support');
+      r.y = support;
+      if (r.grounded !== true) r.grounded = true;
+    }
+  }
+
+  /**
+   * Prepare material programs and render exactly one hidden frame into a
+   * bounded offscreen target at the visible viewport's aspect. The visible
+   * framebuffer and the caller-owned renderer policy are never permanently
+   * touched: the previous target and camera aspect are restored in `finally`.
+   */
+  function renderHiddenFrame(targetRenderer, viewport) {
+    if (!targetRenderer || typeof targetRenderer.render !== 'function') return false;
+    const vw = Math.max(1, Number(viewport?.width) || 1280);
+    const vh = Math.max(1, Number(viewport?.height) || 720);
+    const aspect = Math.max(0.5, Math.min(3, vw / vh));
+    const width = Math.max(64, Math.min(256, Math.round(vw / 4) || 192));
+    const height = Math.max(1, Math.round(width / aspect));
+    if (!hiddenTarget || hiddenTarget.width !== width || hiddenTarget.height !== height) {
+      hiddenTarget?.dispose?.();
+      hiddenTarget = new THREE.WebGLRenderTarget(width, height, { depthBuffer: true, stencilBuffer: false });
+    }
+    const prevTarget = typeof targetRenderer.getRenderTarget === 'function'
+      ? targetRenderer.getRenderTarget()
+      : null;
+    const prevAspect = camera.aspect;
+    try {
+      camera.aspect = aspect;
+      camera.updateProjectionMatrix();
+      if (typeof targetRenderer.compile === 'function') targetRenderer.compile(scene, camera);
+      if (typeof targetRenderer.setRenderTarget === 'function') targetRenderer.setRenderTarget(hiddenTarget);
+      targetRenderer.render(scene, camera);
+    } finally {
+      camera.aspect = prevAspect;
+      camera.updateProjectionMatrix();
+      if (typeof targetRenderer.setRenderTarget === 'function') {
+        targetRenderer.setRenderTarget(prevTarget ?? null);
+      }
+    }
+    return true;
+  }
+
   const runtime = {
     get course() { return course; },
     get scene() { return scene; },
@@ -362,20 +434,52 @@ export function createDownhillMayhemRuntime(options = {}) {
     get localAuthority() { return localAuthority; },
     get RULES_VERSION() { return RULES_VERSION; },
 
-    ready: Promise.resolve(),
+    ready: readyPromise,
 
     isPrepared() { return prepared; },
 
     /**
-     * Build/pose the world. The world is built at construction here (smaller
-     * than Kart's), so this is a no-op pose barrier that validates the camera
-     * and returns once the scene can render.
+     * Readiness barrier (5.7): validate the grid/support, explicitly pose the
+     * lobby camera, prepare material programs and render one hidden
+     * full-aspect frame before anything may be presented. The runtime never
+     * creates a renderer; when one is injected the caller may wrap this work
+     * in a renderer transaction (`runTransaction`) so host state is restored
+     * before any await.
      */
-    async prepare() {
-      if (disposed) return;
+    async prepare({ signal = null, runTransaction = null, viewport: viewportOverride = null } = {}) {
+      if (disposed) return { ok: false, reason: 'disposed' };
+      if (prepared) return { ok: true, shared: true };
+
+      const readViewport = () => {
+        if (viewportOverride) {
+          const v = typeof viewportOverride === 'function' ? viewportOverride() : viewportOverride;
+          if (v && v.width > 0 && v.height > 0) return v;
+        }
+        const v = typeof viewport === 'function' ? viewport() : viewport;
+        if (v && v.width > 0 && v.height > 0) return v;
+        return { width: 1280, height: 720 };
+      };
+
+      const task = () => {
+        if (signal && signal.aborted) throw new Error('aborted');
+        validateGrid();
+        resetCamera();
+        updateCamera(1 / 60);
+        renderHiddenFrame(renderer, readViewport());
+      };
+
+      try {
+        if (typeof runTransaction === 'function') await runTransaction(task);
+        else task();
+      } catch (error) {
+        if (signal && signal.aborted) return { ok: false, reason: 'aborted' };
+        throw error;
+      }
+
+      if (disposed) return { ok: false, reason: 'disposed' };
       prepared = true;
-      resetCamera();
-      updateCamera(1 / 60);
+      resolveReady?.();
+      return { ok: true, shared: false };
     },
 
     enter() {
@@ -451,7 +555,10 @@ export function createDownhillMayhemRuntime(options = {}) {
     },
 
     present() {
-      if (disposed || !renderer || typeof renderer.render !== 'function') return;
+      // Readiness barrier (5.7): before the hidden full frame has rendered,
+      // presenting must be a strict no-op so the host can never expose an
+      // unposed or partially built world.
+      if (disposed || !prepared || !renderer || typeof renderer.render !== 'function') return;
       renderer.render(scene, camera);
     },
 
@@ -464,6 +571,14 @@ export function createDownhillMayhemRuntime(options = {}) {
     buildHumanControls(active) { return input.consumeControls(active); },
     takeEnter() { return input.takeEnter(); },
     queue(action) { input.queue(action); },
+
+    /**
+     * Standalone autoplay/verification seam (13.2). Passing `null` restores
+     * the input adapter; the provider returns a shared-rules control object.
+     */
+    setLocalControlProvider(provider) {
+      localControlProvider = typeof provider === 'function' ? provider : null;
+    },
 
     applySnapshot,
     applyEvent() { /* discrete events are folded by the controller */ },
@@ -482,6 +597,8 @@ export function createDownhillMayhemRuntime(options = {}) {
       riders.length = 0;
       world.dispose();
       rendering.dispose();
+      hiddenTarget?.dispose?.();
+      hiddenTarget = null;
       if (riderGroup.parent) riderGroup.parent.remove(riderGroup);
       prepared = false;
     },
