@@ -1,6 +1,6 @@
 
 import Node from './Node.js';
-import { getByteBoundaryFromType, getMemoryLengthFromType } from './NodeUtils.js';
+import { getAlignmentFromType, getMemoryLengthFromType } from './NodeUtils.js';
 
 /**
  * Generates a layout for struct members.
@@ -74,41 +74,35 @@ class StructTypeNode extends Node {
 		 * @readonly
 		 * @default true
 		 */
-		this.isStructLayoutNode = true;
+		this.isStructTypeNode = true;
 
 	}
 
 	/**
-	 * Returns the length of the struct.
-	 * The length is calculated by summing the lengths of the struct's members.
+	 * Returns the length of the struct in 4-byte elements (e.g. float or int components).
+	 * The length is calculated by summing the lengths of the struct's members, accounting for memory alignment.
+	 * To get the size in bytes, multiply the returned value by 4.
 	 *
-	 * @returns {number} The length of the struct.
+	 * @returns {number} The length of the struct in 4-byte elements.
 	 */
 	getLength() {
 
-		const GPU_CHUNK_BYTES = 8;
-		const BYTES_PER_ELEMENT = Float32Array.BYTES_PER_ELEMENT;
-
-		let offset = 0; // global buffer offset in bytes
+		let maxAlignment = 1; // maximum alignment value in this struct
+		let offset = 0; // global buffer offset in 4 byte elements
 
 		for ( const member of this.membersLayout ) {
 
 			const type = member.type;
 
-			const itemSize = getMemoryLengthFromType( type ) * BYTES_PER_ELEMENT;
-			const boundary = getByteBoundaryFromType( type );
+			const itemSize = getMemoryLengthFromType( type );
+			const alignment = getAlignmentFromType( type );
+			maxAlignment = Math.max( maxAlignment, alignment );
 
-			const chunkOffset = offset % GPU_CHUNK_BYTES; // offset in the current chunk
-			const chunkPadding = chunkOffset % boundary; // required padding to match boundary
-			const chunkStart = chunkOffset + chunkPadding; // start position in the current chunk for the data
+			const chunkOffset = offset % maxAlignment; // offset in the current chunk of maxAlignment elements
+			const overhang = chunkOffset % alignment; // distance from the last aligned offset
+			if ( overhang !== 0 ) {
 
-			offset += chunkPadding;
-
-			// Check for chunk overflow
-			if ( chunkStart !== 0 && ( GPU_CHUNK_BYTES - chunkStart ) < itemSize ) {
-
-				// Add padding to the end of the chunk
-				offset += ( GPU_CHUNK_BYTES - chunkStart );
+				offset += alignment - overhang; // move to next aligned offset
 
 			}
 
@@ -116,7 +110,7 @@ class StructTypeNode extends Node {
 
 		}
 
-		return ( Math.ceil( offset / GPU_CHUNK_BYTES ) * GPU_CHUNK_BYTES ) / BYTES_PER_ELEMENT;
+		return ( Math.ceil( offset / maxAlignment ) * maxAlignment ); // ensure length is a multiple of maxAlignment
 
 	}
 
@@ -128,7 +122,7 @@ class StructTypeNode extends Node {
 
 	}
 
-	getNodeType( builder ) {
+	generateNodeType( builder ) {
 
 		const structType = builder.getStructTypeFromNode( this, this.membersLayout, this.name );
 

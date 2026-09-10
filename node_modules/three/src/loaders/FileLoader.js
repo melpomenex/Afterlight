@@ -1,5 +1,6 @@
 import { Cache } from './Cache.js';
 import { Loader } from './Loader.js';
+import { warn } from '../utils.js';
 
 const loading = {};
 
@@ -42,7 +43,7 @@ class FileLoader extends Loader {
 
 		/**
 		 * The expected mime type. Valid values can be found
-		 * [here]{@link hhttps://developer.mozilla.org/en-US/docs/Web/API/DOMParser/parseFromString#mimetype}
+		 * [here](https://developer.mozilla.org/en-US/docs/Web/API/DOMParser/parseFromString#mimetype)
 		 *
 		 * @type {string}
 		 */
@@ -73,7 +74,6 @@ class FileLoader extends Loader {
 	 * @param {function(any)} onLoad - Executed when the loading process has been finished.
 	 * @param {onProgressCallback} [onProgress] - Executed while the loading is in progress.
 	 * @param {onErrorCallback} [onError] - Executed when errors occur.
-	 * @return {any|undefined} The cached resource if available.
 	 */
 	load( url, onLoad, onProgress, onError ) {
 
@@ -97,7 +97,7 @@ class FileLoader extends Loader {
 
 			}, 0 );
 
-			return cached;
+			return;
 
 		}
 
@@ -148,7 +148,7 @@ class FileLoader extends Loader {
 
 					if ( response.status === 0 ) {
 
-						console.warn( 'THREE.FileLoader: HTTP Status 0 received.' );
+						warn( 'FileLoader: HTTP Status 0 received.' );
 
 					}
 

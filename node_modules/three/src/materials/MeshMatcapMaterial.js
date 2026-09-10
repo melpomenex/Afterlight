@@ -13,6 +13,7 @@ import { Color } from '../math/Color.js';
  * shadows.
  *
  * @augments Material
+ * @demo scenes/material-browser.html#MeshMatcapMaterial
  */
 class MeshMatcapMaterial extends Material {
 
@@ -53,6 +54,12 @@ class MeshMatcapMaterial extends Material {
 		/**
 		 * The matcap map.
 		 *
+		 * `matcap` represents luminance data, and the texture must be assigned
+		 * a {@link Texture#colorSpace}. HDR `matcap` textures (e.g. `.exr`)
+		 * typically set `texture.colorSpace = LinearSRGBColorSpace`, while LDR
+		 * `matcap` textures (e.g. `.png`, `.jpg`, `.webp`) typically set
+		 * `texture.colorSpace = SRGBColorSpace`.
+		 *
 		 * @type {?Texture}
 		 * @default null
 		 */
@@ -62,6 +69,10 @@ class MeshMatcapMaterial extends Material {
 		 * The color map. May optionally include an alpha channel, typically combined
 		 * with {@link Material#transparent} or {@link Material#alphaTest}. The texture map
 		 * color is modulated by the diffuse `color`.
+		 *
+		 * `map` represents color data, and the texture must be assigned a
+		 * {@link Texture#colorSpace}. Most `map` textures set
+		 * `texture.colorSpace = SRGBColorSpace`.
 		 *
 		 * @type {?Texture}
 		 * @default null
@@ -73,6 +84,9 @@ class MeshMatcapMaterial extends Material {
 		 * perceived depth in relation to the lights. Bump doesn't actually affect
 		 * the geometry of the object, only the lighting. If a normal map is defined
 		 * this will be ignored.
+		 *
+		 * `bumpMap` represents non-color data. Any texture assigned must have
+		 * `texture.colorSpace = NoColorSpace` (default).
 		 *
 		 * @type {?Texture}
 		 * @default null
@@ -94,6 +108,9 @@ class MeshMatcapMaterial extends Material {
 		 * case the material has a normal map authored using the left handed
 		 * convention, the `y` component of `normalScale` should be negated to compensate
 		 * for the different handedness.
+		 *
+		 * `normalMap` represents non-color data. Any texture assigned must have
+		 * `texture.colorSpace = NoColorSpace` (default).
 		 *
 		 * @type {?Texture}
 		 * @default null
@@ -122,7 +139,12 @@ class MeshMatcapMaterial extends Material {
 		 * displaced vertices can cast shadows, block other objects, and otherwise
 		 * act as real geometry. The displacement texture is an image where the value
 		 * of each pixel (white being the highest) is mapped against, and
-		 * repositions, the vertices of the mesh.
+		 * repositions, the vertices of the mesh. For best results, pair a
+		 * displacement map with a matching normal map, since the renderer can
+		 * not recompute surface normals from the displaced vertices.
+		 *
+		 * `displacementMap` represents non-color data. Any texture assigned must have
+		 * `texture.colorSpace = NoColorSpace` (default).
 		 *
 		 * @type {?Texture}
 		 * @default null
@@ -159,10 +181,31 @@ class MeshMatcapMaterial extends Material {
 		 * green in DXT-compressed and uncompressed RGB 565 formats. Luminance-only and
 		 * luminance/alpha textures will also still work as expected.
 		 *
+		 * `alphaMap` represents non-color data. Any texture assigned must have
+		 * `texture.colorSpace = NoColorSpace` (default).
+		 *
 		 * @type {?Texture}
 		 * @default null
 		 */
 		this.alphaMap = null;
+
+		/**
+		 * Renders the geometry as a wireframe.
+		 *
+		 * @type {boolean}
+		 * @default false
+		 */
+		this.wireframe = false;
+
+		/**
+		 * Controls the thickness of the wireframe.
+		 *
+		 * Can only be used with {@link SVGRenderer}.
+		 *
+		 * @type {number}
+		 * @default 1
+		 */
+		this.wireframeLinewidth = 1;
 
 		/**
 		 * Whether the material is rendered with flat shading or not.
@@ -209,6 +252,9 @@ class MeshMatcapMaterial extends Material {
 		this.displacementBias = source.displacementBias;
 
 		this.alphaMap = source.alphaMap;
+
+		this.wireframe = source.wireframe;
+		this.wireframeLinewidth = source.wireframeLinewidth;
 
 		this.flatShading = source.flatShading;
 

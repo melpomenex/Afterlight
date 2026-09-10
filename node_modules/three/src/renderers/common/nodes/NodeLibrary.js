@@ -1,3 +1,5 @@
+import { warn } from '../../../utils.js';
+
 /**
  * The purpose of a node library is to assign node implementations
  * to existing library features. In `WebGPURenderer` lights, materials
@@ -154,13 +156,13 @@ class NodeLibrary {
 
 		if ( library.has( type ) ) {
 
-			console.warn( `Redefinition of node ${ type }` );
+			warn( `Redefinition of node ${ type }` );
 			return;
 
 		}
 
-		if ( typeof nodeClass !== 'function' ) throw new Error( `Node class ${ nodeClass.name } is not a class.` );
-		if ( typeof type === 'function' || typeof type === 'object' ) throw new Error( `Base class ${ type } is not a class.` );
+		if ( typeof nodeClass !== 'function' ) throw new Error( `THREE.NodeLibrary: Node class ${ nodeClass.name } is not a class.` );
+		if ( typeof type === 'function' || typeof type === 'object' ) throw new Error( `THREE.NodeLibrary: Base class ${ type } is not a class.` );
 
 		library.set( type, nodeClass );
 
@@ -177,13 +179,13 @@ class NodeLibrary {
 
 		if ( library.has( baseClass ) ) {
 
-			console.warn( `Redefinition of node ${ baseClass.name }` );
+			warn( `Redefinition of node ${ baseClass.name }` );
 			return;
 
 		}
 
-		if ( typeof nodeClass !== 'function' ) throw new Error( `Node class ${ nodeClass.name } is not a class.` );
-		if ( typeof baseClass !== 'function' ) throw new Error( `Base class ${ baseClass.name } is not a class.` );
+		if ( typeof nodeClass !== 'function' ) throw new Error( `THREE.NodeLibrary: Node class ${ nodeClass.name } is not a class.` );
+		if ( typeof baseClass !== 'function' ) throw new Error( `THREE.NodeLibrary: Base class ${ baseClass.name } is not a class.` );
 
 		library.set( baseClass, nodeClass );
 

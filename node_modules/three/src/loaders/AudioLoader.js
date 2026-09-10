@@ -1,6 +1,7 @@
 import { AudioContext } from '../audio/AudioContext.js';
 import { FileLoader } from './FileLoader.js';
 import { Loader } from './Loader.js';
+import { error } from '../utils.js';
 
 /**
  * Class for loading audio buffers. Audios are internally
@@ -59,11 +60,21 @@ class AudioLoader extends Loader {
 				const bufferCopy = buffer.slice( 0 );
 
 				const context = AudioContext.getContext();
+
+				const decodeUrl = url + '#decode';
+				scope.manager.itemStart( decodeUrl ); // prevent loading manager from completing too early, see #33378
+
 				context.decodeAudioData( bufferCopy, function ( audioBuffer ) {
 
 					onLoad( audioBuffer );
+					scope.manager.itemEnd( decodeUrl );
 
-				} ).catch( handleError );
+				} ).catch( function ( e ) {
+
+					handleError( e );
+					scope.manager.itemEnd( decodeUrl );
+
+				} );
 
 			} catch ( e ) {
 
@@ -81,7 +92,7 @@ class AudioLoader extends Loader {
 
 			} else {
 
-				console.error( e );
+				error( e );
 
 			}
 

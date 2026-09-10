@@ -1,9 +1,9 @@
 import { attribute } from '../core/AttributeNode.js';
-import { cameraViewMatrix } from './Camera.js';
+import { cameraWorldMatrix } from './Camera.js';
 import { modelViewMatrix } from './ModelNode.js';
 import { Fn, vec4 } from '../tsl/TSLBase.js';
 import { tangentViewFrame } from './TangentUtils.js';
-import { directionToFaceDirection } from '../display/FrontFacingNode.js';
+import { negateOnBackSide } from '../display/FrontFacingNode.js';
 
 /**
  * TSL object that represents the tangent attribute of the current rendered object.
@@ -11,17 +11,7 @@ import { directionToFaceDirection } from '../display/FrontFacingNode.js';
  * @tsl
  * @type {Node<vec4>}
  */
-export const tangentGeometry = /*@__PURE__*/ Fn( ( builder ) => {
-
-	if ( builder.geometry.hasAttribute( 'tangent' ) === false ) {
-
-		builder.geometry.computeTangents();
-
-	}
-
-	return attribute( 'tangent', 'vec4' );
-
-} )();
+export const tangentGeometry = /*@__PURE__*/ attribute( 'tangent', 'vec4' );
 
 /**
  * TSL object that represents the vertex tangent in local space of the current rendered object.
@@ -37,11 +27,11 @@ export const tangentLocal = /*@__PURE__*/ tangentGeometry.xyz.toVar( 'tangentLoc
  * @tsl
  * @type {Node<vec3>}
  */
-export const tangentView = /*@__PURE__*/ ( Fn( ( { subBuildFn, geometry, material } ) => {
+export const tangentView = /*@__PURE__*/ ( Fn( ( builder ) => {
 
 	let node;
 
-	if ( subBuildFn === 'VERTEX' || geometry.hasAttribute( 'tangent' ) ) {
+	if ( builder.subBuildFn === 'VERTEX' || builder.geometry.hasAttribute( 'tangent' ) ) {
 
 		node = modelViewMatrix.mul( vec4( tangentLocal, 0 ) ).xyz.toVarying( 'v_tangentView' ).normalize();
 
@@ -51,9 +41,9 @@ export const tangentView = /*@__PURE__*/ ( Fn( ( { subBuildFn, geometry, materia
 
 	}
 
-	if ( material.flatShading !== true ) {
+	if ( builder.isFlatShading() !== true ) {
 
-		node = directionToFaceDirection( node );
+		node = negateOnBackSide( node );
 
 	}
 
@@ -67,4 +57,4 @@ export const tangentView = /*@__PURE__*/ ( Fn( ( { subBuildFn, geometry, materia
  * @tsl
  * @type {Node<vec3>}
  */
-export const tangentWorld = /*@__PURE__*/ tangentView.transformDirection( cameraViewMatrix ).toVarying( 'v_tangentWorld' ).normalize().toVar( 'tangentWorld' );
+export const tangentWorld = /*@__PURE__*/ tangentView.transformDirection( cameraWorldMatrix ).toVarying( 'v_tangentWorld' ).normalize().toVar( 'tangentWorld' );
