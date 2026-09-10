@@ -1297,8 +1297,8 @@
           "environmentPolicy": "none"
         },
         {
-          "id": "orpheum-sporefall",
-          "type": "sporefall",
+          "id": "orpheum-kart-royale",
+          "type": "kart-royale",
           "rulesVersion": 1,
           "transform": {
             "position": [

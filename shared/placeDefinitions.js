@@ -45,6 +45,7 @@ export const ACTIVITY_TYPES = Object.freeze([
   'rain-runner',
   'signal-lost',
   'sporefall',
+  'kart-royale',
   'snowboard-race',
   'pool',
   'billiards',
@@ -130,6 +131,26 @@ const SPOREFALL_CABINET = Object.freeze({
   screen: Object.freeze({ type: 'canvas' }),
 });
 
+// Kart Royale (integrate-kart-royale-arcade): the repurposed fourth machine.
+// The real game lives in games/kart-royale and is lazily loaded on entry —
+// this block only describes the physical machine. Golden-hour racing palette
+// over deep warm base; the amber LED is distinct from every other machine
+// (Sporefall's retired #ffb24d is close, but Sporefall no longer stands on
+// the row and arcade-cabinet.test.js enforces distinctness among the PLACED
+// cabinets only).
+const KART_ROYALE_CABINET = Object.freeze({
+  model: 'upright',
+  skin: Object.freeze({
+    title: 'KART ROYALE',
+    tagline: 'DRIFT • BOOST • WIN',
+    motif: 'kart',
+    palette: Object.freeze({ base: '#241408', ink: '#f6ead2', accent: '#ffb347', glow: '#ff7a3c' }),
+  }),
+  led: Object.freeze({ color: '#ffb347', intensity: 1.4 }),
+  controls: Object.freeze({ player1: '#ffd166', player2: '#ff7a3c' }),
+  screen: Object.freeze({ type: 'canvas' }),
+});
+
 // The Orpheum arcade row: machines line the east wall of the auditorium,
 // fronts facing west onto the runner carpet (rotationY -PI/2). Footprints are
 // axis-aligned world extents of the rotated canonical cabinet (~0.74m deep ×
@@ -195,6 +216,9 @@ export const SIGNAL_LOST_ACTIVITY_DEFINITION = Object.freeze({
   controllerKey: 'signal-lost',
 });
 
+// Dormant since integrate-kart-royale-arcade: its Theater slot is the Kart
+// Royale machine. Kept exported so the game can be re-placed by a manifest
+// edit without reconstructing it; sporefall code remains registered.
 export const SPOREFALL_ACTIVITY_DEFINITION = Object.freeze({
   id: 'orpheum-sporefall',
   type: 'sporefall',
@@ -213,6 +237,32 @@ export const SPOREFALL_ACTIVITY_DEFINITION = Object.freeze({
   spectatorPolicy: 'world',
   rendererKey: 'sporefallCabinet',
   controllerKey: 'sporefall',
+});
+
+// Kart Royale: single-player race against the game's own 8-kart AI field.
+// Admission runs through the standard Phoenix session (seat/queue/anchors/
+// reap) with NO authoritative race simulation — the race itself is the
+// client-local game from games/kart-royale, presence stays anchored at the
+// cabinet. Geometry is deliberately Sporefall's: the repurposed machine
+// stands in the same bay, so the Theater scenery needs no change.
+export const KART_ROYALE_ACTIVITY_DEFINITION = Object.freeze({
+  id: 'orpheum-kart-royale',
+  type: 'kart-royale',
+  title: 'Kart Royale',
+  sub: 'Press E to race · Drift · Boost · Win',
+  rulesVersion: 1,
+  cabinet: KART_ROYALE_CABINET,
+  transform: Object.freeze({ position: Object.freeze([10.42, 0, -1.8]), rotationY: -Math.PI / 2 }),
+  footprint: Object.freeze({ width: 0.85, depth: 0.9 }),
+  interactionRadius: 2.2,
+  participantAnchors: Object.freeze([
+    Object.freeze({ slot: 0, position: Object.freeze([9.3, 0, -1.8]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -1.8 })]) }),
+  ]),
+  capacities: Object.freeze({ players: 1, spectators: 16, queue: 8 }),
+  environmentPolicy: 'none',
+  spectatorPolicy: 'world',
+  rendererKey: 'kartRoyaleCabinet',
+  controllerKey: 'kart-royale',
 });
 
 // Summit Run (multiplayer snowboard arcade): fifth Orpheum machine, standing
@@ -789,7 +839,7 @@ export const ORPHEUM_ACTIVITIES = Object.freeze([
   PONG_ACTIVITY_DEFINITION,
   RAIN_RUNNER_ACTIVITY_DEFINITION,
   SIGNAL_LOST_ACTIVITY_DEFINITION,
-  SPOREFALL_ACTIVITY_DEFINITION,
+  KART_ROYALE_ACTIVITY_DEFINITION,
   SUMMIT_RUN_ACTIVITY_DEFINITION,
 ]);
 

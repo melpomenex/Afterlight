@@ -2033,6 +2033,32 @@ body.theater-watching .mill-panel,
 body.theater-watching #toast,
 body.theater-watching .vignette { display: none !important; }
 
+/*
+   Kart Royale racing presentation (integrate-kart-royale-arcade 4.6).
+   While the game holds the activity view lease, the world HUD stands down:
+   the game's own HUD/menus (scoped `.kr*` inside `.kr-activity`) carry the
+   UI, exactly like cinema view but keeping chat reachable at the side.
+   Fully reversible — the controller removes the class on every release.
+*/
+body.kr-racing header,
+body.kr-racing .map,
+body.kr-racing .companion,
+body.kr-racing footer,
+body.kr-racing #interact,
+body.kr-racing .nearby-activities,
+body.kr-racing .challenge-invite,
+body.kr-racing .mill-panel,
+body.kr-racing .vignette { display: none !important; }
+
+/* The lifecycle-owned game root floats above the canvas; the game's own
+   ui.css styles its children (.kr*). Chat stays available by design. */
+.kr-activity {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
 /* Dock the town chat full-height beside the stage (chat owns its own
    styles; these overrides only apply while watching). */
 body.theater-watching #chat-panel {

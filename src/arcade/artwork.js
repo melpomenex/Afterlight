@@ -360,6 +360,112 @@ const MOTIFS = {
     },
   },
 
+  // Kart Royale: golden-hour circuit — low sun, checkered ribbon, a drifting
+  // kart silhouette trailing sparks and speed lines (integrate-kart-royale-arcade).
+  kart: {
+    bg: (ctx, w, h, s) => fillVerticalGradient(ctx, w, h, s.skin.palette.base, '#3d1f0a'),
+    side: (ctx, w, h, s) => {
+      // Low golden sun with a warm haze band over a dusk track.
+      const sunY = h * 0.34;
+      ctx.save();
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = s.skin.palette.glow;
+      ctx.fillRect(0, sunY - h * 0.05, w, h * 0.1);
+      ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.arc(w * 0.68, sunY, w * 0.11, 0, Math.PI * 2); ctx.fill();
+      // Speed lines fanning back from the sun-side corner.
+      ctx.strokeStyle = s.skin.palette.accent;
+      for (let i = 0; i < 5; i++) {
+        ctx.globalAlpha = 0.25 + i * 0.1;
+        ctx.lineWidth = Math.max(1.5, w * 0.008);
+        ctx.beginPath();
+        ctx.moveTo(w * (0.06 + i * 0.045), h * 0.06);
+        ctx.lineTo(w * (0.3 + i * 0.05), h * 0.62);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      // Road plane with a dashed centerline running into the distance.
+      ctx.fillStyle = '#1c0f06';
+      ctx.beginPath();
+      ctx.moveTo(w * 0.42, h * 0.52); ctx.lineTo(w * 1.08, h); ctx.lineTo(-w * 0.08, h); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = s.skin.palette.ink;
+      ctx.setLineDash([h * 0.045, h * 0.05]);
+      ctx.lineWidth = w * 0.018;
+      ctx.beginPath(); ctx.moveTo(w * 0.47, h * 0.54); ctx.lineTo(w * 0.5, h); ctx.stroke();
+      ctx.setLineDash([]);
+      // Kart silhouette mid-drift: nose swung wide, tires biting.
+      const kx = w * 0.4, ky = h * 0.72;
+      ctx.save();
+      ctx.translate(kx, ky);
+      ctx.rotate(-0.14);
+      ctx.fillStyle = s.skin.palette.accent;
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.16, 0);
+      ctx.quadraticCurveTo(-w * 0.05, -h * 0.09, w * 0.13, -h * 0.02);
+      ctx.lineTo(w * 0.16, h * 0.02); ctx.lineTo(-w * 0.12, h * 0.04);
+      ctx.closePath(); ctx.fill();
+      // Driver helmet.
+      ctx.fillStyle = s.skin.palette.ink;
+      ctx.beginPath(); ctx.arc(-w * 0.02, -h * 0.075, w * 0.028, 0, Math.PI * 2); ctx.fill();
+      // Wheels.
+      ctx.fillStyle = '#120a04';
+      for (const [wx, wy] of [[-0.13, 0.03], [0.12, 0.02]]) {
+        ctx.beginPath(); ctx.arc(w * wx, h * wy, w * 0.03, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+      // Drift sparks kicking off the rear wheel.
+      for (let i = 0; i < 7; i++) {
+        const t = i / 7;
+        ctx.globalAlpha = 0.85 - t * 0.55;
+        ctx.fillStyle = i % 2 ? s.skin.palette.glow : s.skin.palette.ink;
+        ctx.beginPath();
+        ctx.arc(kx - w * (0.2 + t * 0.18), ky + h * (0.03 + Math.sin(i * 2.1) * 0.02), w * 0.008 * (1 + t), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    },
+    marquee: (ctx, w, h, s) => {
+      const px = fitTitleFont(ctx, s.skin.title, w * 0.74, h * 0.56);
+      glowText(ctx, s.skin.title, w / 2, h * 0.54, `italic bold ${px}px monospace`, s.skin.palette.ink, s.skin.palette.glow, 18);
+      // Checkered ribbon under the title.
+      const cw = w * 0.05, ch = h * 0.07, y0 = h * 0.72;
+      for (let i = 0; i < 20; i++) {
+        for (let j = 0; j < 2; j++) {
+          if ((i + j) % 2) continue;
+          ctx.fillStyle = s.skin.palette.ink;
+          ctx.globalAlpha = 0.9;
+          ctx.fillRect(w * 0.02 + i * cw, y0 + j * ch, cw, ch);
+        }
+      }
+      ctx.globalAlpha = 1;
+    },
+    front: (ctx, w, h, s) => {
+      // Twin racing stripes converging toward the player.
+      ctx.strokeStyle = s.skin.palette.accent;
+      ctx.lineWidth = w * 0.03;
+      ctx.beginPath(); ctx.moveTo(w * 0.3, h * 0.2); ctx.lineTo(w * 0.42, h * 0.85); ctx.stroke();
+      ctx.strokeStyle = s.skin.palette.glow;
+      ctx.beginPath(); ctx.moveTo(w * 0.72, h * 0.2); ctx.lineTo(w * 0.58, h * 0.85); ctx.stroke();
+      ctx.fillStyle = s.skin.palette.ink;
+      ctx.font = `bold ${w * 0.09}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillText('1st', w * 0.5, h * 0.4);
+      ctx.textAlign = 'left';
+    },
+    controlPanel: (ctx, w, h, s) => {
+      // Checkered pinstripe only — the deck carries the real wheel controls.
+      ctx.save();
+      const s2 = Math.max(3, w * 0.012);
+      for (let i = 0; i * s2 * 2 < w * 0.88; i++) {
+        ctx.fillStyle = i % 2 ? s.skin.palette.accent : 'transparent';
+        ctx.globalAlpha = 0.4;
+        if (i % 2) ctx.fillRect(w * 0.06 + i * s2 * 2, h * 0.84, s2, s2 * 2);
+      }
+      ctx.restore();
+    },
+  },
+
   // Default Afterlight treatment: warm amber over wet slate.
   afterlight: {
     bg: (ctx, w, h, s) => fillVerticalGradient(ctx, w, h, s.skin.palette.base, '#141518'),

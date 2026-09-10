@@ -21,7 +21,9 @@ export function createActivityRuntime({
   net = null,
   getActiveCamera = null,
   getCanvas = null,
+  getRenderer = null,
   getPlayer = null,
+  audioMixer = null,
   participation: injectedParticipation = null,
   applyAnchor = null,
   applyDismount = null,
@@ -129,7 +131,14 @@ export function createActivityRuntime({
             roomId,
             getActiveCamera: seam.getActiveCamera || getActiveCamera,
             getCanvas: seam.getCanvas || getCanvas,
+            // integrate-kart-royale-arcade D3: the shared WebGLRenderer for
+            // hosted games that present through their own composer.
+            getRenderer: seam.getRenderer || getRenderer,
             getPlayer: seam.getPlayer || getPlayer,
+            // integrate-kart-royale-arcade D7: optional host audio mixer
+            // accessor handed to activity modules so a hosted game can ride
+            // the host's AudioContext/buses instead of creating its own.
+            audioMixer: seam.audioMixer || audioMixer,
             setActivityCamera: seam.setActivityCamera || setActivityCamera,
             clearActivityCamera: seam.clearActivityCamera || clearActivityCamera,
             getParticipation: () => participation,

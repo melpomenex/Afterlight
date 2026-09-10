@@ -30,8 +30,24 @@ export function createActivityViewLease({
     /**
      * Borrow the render view. Returns `{ ok, lease }` or
      * `{ ok: false, reason }` with 'stale_generation' | 'already_owned'.
+     *
+     * `present` (integrate-kart-royale-arcade D3): optional presenter for an
+     * activity whose rendering cannot go through the host composer — e.g. a
+     * game with its own `postprocessing`-package effect chain. While the lease
+     * is held the host frame loop calls `lease.present()` instead of its own
+     * composer. Omitted by every existing lessee (Summit Run renders through
+     * the host composer's swapped render pass).
      */
-    acquireView({ owner, generation: requestedGeneration, scene, camera, resize = null, onRelease: releaseHook = null }) {
+    acquireView({
+      owner,
+      generation: requestedGeneration,
+      scene,
+      camera,
+      resize = null,
+      onRelease: releaseHook = null,
+      present = null,
+      toneMappingExposure = null,
+    }) {
       if (lease) return { ok: false, reason: 'already_owned', owner: lease.owner };
       if (typeof requestedGeneration === 'number' && requestedGeneration < generation()) {
         return { ok: false, reason: 'stale_generation' };
@@ -44,6 +60,8 @@ export function createActivityViewLease({
         camera,
         resize,
         onRelease: releaseHook,
+        present: typeof present === 'function' ? present : null,
+        toneMappingExposure,
         acquiredAt: now(),
       };
 
@@ -51,7 +69,7 @@ export function createActivityViewLease({
       // sizes a freshly borrowed camera to the CURRENT window immediately —
       // scenes construct with a placeholder aspect and a portrait window
       // would otherwise render squeezed until the next window resize.
-      apply({ scene, camera, owner, resize, onRelease: releaseHook });
+      apply({ scene, camera, owner, resize, onRelease: releaseHook, present: lease.present, toneMappingExposure });
       return { ok: true, lease: this.lease };
     },
 

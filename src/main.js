@@ -40,6 +40,7 @@ import './activities/rainRunner.js';
 import './activities/signalLost.js';
 import './activities/sporefall.js';
 import './activities/snowboard.js';
+import './activities/kart-royale.js';
 import './activities/pool.js';
 import './activities/airHockey.js';
 import './activities/foosball.js';
@@ -127,7 +128,7 @@ composer.addPass(renderPass);
 // changes; on release the existing camera seam restores the saved mode.
 const activityView = createActivityViewLease({
   generation: () => activityRuntime.activeGeneration ?? 0,
-  apply: ({ scene: leasedScene, camera: leasedCamera, resize: leasedResize }) => {
+  apply: ({ scene: leasedScene, camera: leasedCamera, resize: leasedResize, toneMappingExposure }) => {
     renderPass.scene = leasedScene;
     activeCamera = leasedCamera;
     renderPass.camera = activeCamera;
@@ -135,11 +136,30 @@ const activityView = createActivityViewLease({
     // construct with a placeholder aspect and must never wait for the next
     // window resize (portrait panes stayed squeezed at 1:1 otherwise).
     leasedResize?.(innerWidth, innerHeight);
+    // integrate-kart-royale-arcade D3: a leased activity may drive the shared
+    // renderer harder than the exposure the snowboard needed — snapshot the
+    // whole host presentation (tone mapping, color space, shadows, clear
+    // policy, pixel ratio, drawing-buffer size) and re-assert it on release,
+    // so the Theater is pixel-identical after every exit path.
+    leasedRendererState = {
+      toneMappingExposure: renderer.toneMappingExposure,
+      toneMapping: renderer.toneMapping,
+      outputColorSpace: renderer.outputColorSpace,
+      autoClear: renderer.autoClear,
+      shadowEnabled: renderer.shadowMap.enabled,
+      shadowType: renderer.shadowMap.type,
+      shadowAutoUpdate: renderer.shadowMap.autoUpdate,
+      pixelRatio: renderer.getPixelRatio(),
+      width: renderer.domElement?.width ?? null,
+      height: renderer.domElement?.height ?? null,
+    };
     // The leased race scene is authored for the source's daylight exposure
     // (integrate-ssxtricky-snowboard 2.3): borrow the renderer briefly and
-    // restore the exact host presentation on release.
-    leasedRendererExposure = renderer.toneMappingExposure;
-    renderer.toneMappingExposure = 1.25;
+    // restore the exact host presentation on release. A lessee may state its
+    // own exposure (kart: 1.05); the default stays the snowboard's 1.25.
+    renderer.toneMappingExposure = typeof toneMappingExposure === 'number'
+      ? toneMappingExposure
+      : 1.25;
     // The Alpine Rush source renders WITHOUT bloom (engine.js calls
     // renderer.render directly); the host bloom tuned for the dark evening
     // world hazes over its sun-lit snow and sky. Suspend it for the leased
@@ -155,9 +175,20 @@ const activityView = createActivityViewLease({
     renderPass.scene = scene;
     activeCamera = cameraSeam.resolveActiveCamera({ isoCamera: camera, fpCamera });
     renderPass.camera = activeCamera;
-    if (leasedRendererExposure !== null) {
-      renderer.toneMappingExposure = leasedRendererExposure;
-      leasedRendererExposure = null;
+    if (leasedRendererState) {
+      const s = leasedRendererState;
+      renderer.toneMappingExposure = s.toneMappingExposure;
+      renderer.toneMapping = s.toneMapping;
+      renderer.outputColorSpace = s.outputColorSpace;
+      renderer.autoClear = s.autoClear;
+      renderer.shadowMap.enabled = s.shadowEnabled;
+      renderer.shadowMap.type = s.shadowType;
+      renderer.shadowMap.autoUpdate = s.shadowAutoUpdate;
+      if (s.width !== null && s.height !== null) {
+        renderer.setPixelRatio(s.pixelRatio);
+        renderer.setSize(s.width / s.pixelRatio, s.height / s.pixelRatio, false);
+      }
+      leasedRendererState = null;
     }
     if (leasedBloomEnabled !== null) {
       bloom.enabled = leasedBloomEnabled;
@@ -165,7 +196,7 @@ const activityView = createActivityViewLease({
     }
   },
 });
-let leasedRendererExposure = null;
+let leasedRendererState = null;
 let leasedBloomEnabled = null;
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.25, 0.65, 1.05);
 composer.addPass(bloom);
@@ -545,7 +576,9 @@ const activityRuntime = createActivityRuntime({
   net,
   getActiveCamera: () => activeCamera,
   getCanvas: () => renderer.domElement,
+  getRenderer: () => renderer,
   getPlayer: () => player,
+  audioMixer: () => audioMixer,
   setActivityCamera: (cam) => setActivityCamera(cam),
   clearActivityCamera: () => clearActivityCamera(),
   acquireView: (request) => activityView.acquireView(request),
@@ -2025,7 +2058,15 @@ function frame(now) {
     activeCamera = lease.camera;
     renderPass.camera = activeCamera;
     activityRuntime.update(now / 1000, dt);
-    composer.render();
+    // The update above may have exited the activity (menu exit, ejection,
+    // failure) and released the lease mid-frame; never present a stale lease.
+    if (!activityView.held) return;
+    // integrate-kart-royale-arcade D3: an activity owning a foreign
+    // post-processing chain (the `postprocessing` package) presents through
+    // its own composer on the shared renderer; every other lessee keeps the
+    // host composer with its swapped render pass.
+    if (typeof lease.present === 'function') lease.present();
+    else composer.render();
     theaterUI.updateScreenQuad(null);
     return;
   }

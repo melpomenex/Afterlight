@@ -28,7 +28,9 @@ test('view lease: acquire applies scene+camera together and only once', () => {
   assert.equal(result.ok, true);
   // The full request (resize hook included) is forwarded so the host can
   // size a freshly borrowed camera immediately.
-  assert.deepEqual(applied, [{ scene: 'mountain', camera: 'chase', owner: 'summit', resize: null, onRelease: null }]);
+  // integrate-kart-royale-arcade D3 added the additive `present` and
+  // `toneMappingExposure` lease fields (null for Summit Run).
+  assert.deepEqual(applied, [{ scene: 'mountain', camera: 'chase', owner: 'summit', resize: null, onRelease: null, present: null, toneMappingExposure: null }]);
 
   const second = leaseSystem.acquireView({ owner: 'other', generation: 3, scene: 'x', camera: 'y' });
   assert.equal(second.ok, false);

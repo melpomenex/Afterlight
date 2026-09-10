@@ -67,7 +67,8 @@ cabinet: Object.freeze({
     title: 'METEOR COMMAND',              // marquee/side art text (≤ 24 chars)
     tagline: 'INSERT COIN',               // small control-panel line
     motif: 'signal',                      // painter preset: 'pong' | 'rain' |
-                                          // 'signal' | 'spore' | 'afterlight'
+                                          // 'signal' | 'spore' | 'kart' | 'summit' |
+                                          // 'afterlight'
     palette: Object.freeze({
       base: '#14102a',                    // background
       ink: '#e9e6f7',                     // primary art color
@@ -167,3 +168,30 @@ machine never frees a texture a sibling still uses).
   player materials by design.
 - Cabinet audio uses each game's positional synth; `INT_AudioSource` is exposed but
   not yet wired to sample playback.
+
+
+## Kart Royale (the hosted-game cabinet)
+
+`orpheum-kart-royale` (fourth row slot, Sporefall's former position) is the
+first cabinet whose game is a full external application hosted through the
+activity stack rather than a small in-repo game:
+
+- The game lives in `games/kart-royale` (TypeScript, own standalone dev
+  server) and is loaded as ONE lazy chunk only when a player presses E —
+  bystanders never download it (`src/activities/kart-royale.js` bystander +
+  `src/activities/kart-royale/controller.js` lazy host adapter; the
+  bystander-economy audit in `tests/kart-royale-cabinet.test.js` enforces the
+  import boundary).
+- The host application keeps its single WebGL renderer and frame loop; the
+  game borrows presentation through the activity view lease's optional
+  `present` hook (its `postprocessing`-package composer renders through the
+  shared renderer) with a renderer-state snapshot/restore bracketing the
+  lease. See `openspec/changes/integrate-kart-royale-arcade/design.md` D3.
+- The cabinet screen shows the animated attract mode (title, drifting kart,
+  sparks, `PRESS E TO RACE`) when idle and an occupied state while someone
+  races — derived only from session occupancy; there is no live race
+  telemetry on the wire in v1.
+- WebGL context loss during a race exits the session with an honest toast;
+  the host world has no context-loss recovery (pre-existing gap, unchanged).
+- Browser gate: `scripts/kart-royale-gate-browser.mjs` (phases entry, race,
+  exit, reentry, bystander) against the running dev stack.

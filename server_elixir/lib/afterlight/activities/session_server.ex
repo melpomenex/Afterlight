@@ -2221,9 +2221,18 @@ defmodule Afterlight.Activities.SessionServer do
   end
 
   defp tick_interval_for("snowboard-race"), do: Snowboard.SessionPolicy.tick_interval_ms()
+  # Kart Royale (integrate-kart-royale-arcade 4.7): admission-only session —
+  # the race is client-local, so the server runs no authoritative simulation.
+  # The generic tick would just count ticks 60x a second for nobody; 1s keeps
+  # the idle session effectively asleep while join/leave occupancy frames
+  # (broadcast immediately) stay instant.
+  defp tick_interval_for("kart-royale"), do: 1_000
   defp tick_interval_for(_other), do: 16
 
   defp snapshot_interval_for("snowboard-race"), do: Snowboard.SessionPolicy.snapshot_interval_ms()
+  # Occupancy heartbeat for the cabinet display; occupancy changes themselves
+  # are broadcast on the join/leave path, not waited for.
+  defp snapshot_interval_for("kart-royale"), do: 1_000
   defp snapshot_interval_for(_other), do: 50
 
   # D7: the load handshake must name the exact server course.

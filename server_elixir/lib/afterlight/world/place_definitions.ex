@@ -33,7 +33,7 @@ defmodule Afterlight.World.PlaceDefinitions do
 
   @max_activities 16
   @activity_types ~w(
-    pong rain-runner signal-lost sporefall snowboard-race pool billiards
+    pong rain-runner signal-lost sporefall kart-royale snowboard-race pool billiards
     air-hockey foosball drones paper-airplanes gutter-boats rc-boats chess
     checkers tile-puzzle horseshoes telescope curling hammer-strike
     forge-challenge fishing skipping-stones light-music-puzzle darts piano

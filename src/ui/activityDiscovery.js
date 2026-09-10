@@ -83,6 +83,7 @@ export function labelForType(type) {
     case 'air-hockey': return 'Air hockey';
     case 'foosball': return 'Foosball';
     case 'pong': return 'Pong';
+    case 'kart-royale': return 'Kart Royale';
     default: return type ? String(type).replace(/-/g, ' ') : 'Table';
   }
 }
