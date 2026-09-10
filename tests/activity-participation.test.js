@@ -430,3 +430,26 @@ test('pool command rejections retain the seat and credentials; stale sessions st
   assert.equal(controller.state, 'idle');
   assert.equal(dismounts, 1);
 });
+
+test('a rejected input keeps the seat instead of ejecting the rider', () => {
+  let dismounts = 0;
+  const messages = [];
+  const controller = createParticipationController({
+    applyDismount: () => { dismounts++; },
+    toast: (_title, message) => messages.push(message),
+    getRoomId: () => 'theater',
+  });
+  controller.join({ id: 'orpheum-downhill-mayhem', type: 'downhill-mayhem' });
+  controller.handleResult({ activityId: 'orpheum-downhill-mayhem', status: 'seated', slot: 0,
+    sessionId: 'race-session', lease: 'race-lease' });
+
+  // Server-side input rejections are command errors, not seat errors: the
+  // rider must stay seated and see the reason (regression: invalid_input from
+  // a null trick value ejected every racing human).
+  for (const error of ['invalid_input', 'invalid_request', 'not_loaded', 'stale_sequence']) {
+    assert.equal(controller.handleError({ activityId: 'orpheum-downhill-mayhem', error }), true);
+    assert.equal(controller.state, 'participating', error);
+    assert.equal(controller.lease, 'race-lease');
+    assert.equal(dismounts, 0);
+  }
+});

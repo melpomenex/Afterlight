@@ -153,6 +153,18 @@ defmodule Afterlight.Activities.DownhillSessionTest do
     GenServer.call(session, {:command, "activity_input", payload, player})
   end
 
+  defp ride(session, player, slot_lease, controls) do
+    payload = %{
+      "sessionId" => Activities.session_id(session),
+      "lease" => elem(slot_lease, 1),
+      "seq" => System.unique_integer([:monotonic, :positive]),
+      "matchId" => Activities.session_info(session).match_id,
+      "controls" => controls
+    }
+
+    GenServer.call(session, {:command, "activity_input", payload, player})
+  end
+
   defp ready(session, player, ready?) do
     GenServer.call(
       session,
@@ -663,6 +675,42 @@ defmodule Afterlight.Activities.DownhillSessionTest do
     info = Activities.session_info(session)
     assert SessionPolicy.captain(info.players) == second.player_id
     assert map_size(info.players) == 1
+  end
+
+  test "a ride input carrying the canonical null trick is accepted", ctx do
+    session = start_session(ctx, countdown_ms: 5_000)
+
+    player = make_player("ride")
+    {slot, lease} = join(session, player)
+
+    # The client always serializes the optional trick, so `null` must pass the
+    # generic control validation (regression: null was rejected as
+    # invalid_input, which ejected every racing human).
+    assert {:ok, %{result: "input_accepted"}} =
+             ride(session, player, {slot, lease}, %{
+               "kind" => "ride",
+               "steer" => 0,
+               "pedal" => true,
+               "brake" => false,
+               "boost" => false,
+               "hopPressed" => false,
+               "punchPressed" => false,
+               "kickPressed" => false,
+               "trick" => nil
+             })
+
+    assert {:ok, %{result: "input_accepted"}} =
+             ride(session, player, {slot, lease}, %{
+               "kind" => "ride",
+               "steer" => 0.5,
+               "trick" => "heel"
+             })
+
+    assert {:error, :invalid_input} =
+             ride(session, player, {slot, lease}, %{"kind" => "ride", "steer" => 0, "trick" => "warp"})
+
+    assert {:error, :invalid_input} =
+             ride(session, player, {slot, lease}, %{"kind" => "ride", "steer" => 0, "score" => 10})
   end
 
   # --- helpers ---------------------------------------------------------------

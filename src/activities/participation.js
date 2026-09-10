@@ -422,6 +422,7 @@ export function createParticipationController({
       ].includes(frame?.error);
       const recoverable = poolCommandRejected || frame?.error === 'not_loaded'
         || frame?.error === 'invalid_request'
+        || frame?.error === 'invalid_input'
         || frame?.error === 'stale_match'
         || frame?.error === 'stale_sequence';
       if (recoverable && (state === 'participating' || state === 'joining')) {

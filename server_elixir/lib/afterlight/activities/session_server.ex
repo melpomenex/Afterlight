@@ -3429,6 +3429,9 @@ defmodule Afterlight.Activities.SessionServer do
 
   defp valid_downhill_controls?(_), do: false
 
+  # JSON `null` is a legitimate control value (e.g. downhill `trick: null`);
+  # the type-specific validators still constrain what each field may contain.
+  defp valid_control_val?(nil), do: true
   defp valid_control_val?(v) when is_boolean(v), do: true
   defp valid_control_val?(v) when is_binary(v), do: byte_size(v) <= 1024
   defp valid_control_val?(v) when is_integer(v), do: abs(v) <= 1_000_000_000
