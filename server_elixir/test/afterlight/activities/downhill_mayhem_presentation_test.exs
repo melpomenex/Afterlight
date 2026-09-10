@@ -129,7 +129,9 @@ defmodule Afterlight.Activities.DownhillMayhem.PresentationTest do
     assert length(snapshot["riders"]) == 6
 
     for row <- snapshot["riders"] do
-      assert Map.keys(row) |> Enum.sort() == Enum.sort(@rider_keys), "row keys: #{inspect(Map.keys(row))}"
+      assert Map.keys(row) |> Enum.sort() == Enum.sort(@rider_keys),
+             "row keys: #{inspect(Map.keys(row))}"
+
       assert row["grounded"] in [true, false]
       assert is_integer(row["racePos"])
     end

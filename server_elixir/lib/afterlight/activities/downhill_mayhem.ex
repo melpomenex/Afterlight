@@ -76,17 +76,94 @@ defmodule Afterlight.Activities.DownhillMayhem do
 
   @rider_defs [
     %{name: "YOU", color: 0xFF7F27, top: 1.00, corner: 1.00, aggr: 0.0, trick: 0.0, crashy: 0.0},
-    %{name: "BLAZE", color: 0xE0392B, top: 1.03, corner: 0.94, aggr: 0.85, trick: 0.45, crashy: 0.35},
-    %{name: "RHONDA", color: 0xE259B5, top: 1.00, corner: 1.02, aggr: 0.40, trick: 0.85, crashy: 0.30},
-    %{name: "DIESEL", color: 0x4A7D2B, top: 1.02, corner: 0.87, aggr: 1.00, trick: 0.20, crashy: 0.40},
-    %{name: "KAZU", color: 0x2F66D0, top: 0.99, corner: 1.06, aggr: 0.30, trick: 0.95, crashy: 0.22},
-    %{name: "SIERRA", color: 0xEAC435, top: 1.01, corner: 0.98, aggr: 0.55, trick: 0.60, crashy: 0.28}
+    %{
+      name: "BLAZE",
+      color: 0xE0392B,
+      top: 1.03,
+      corner: 0.94,
+      aggr: 0.85,
+      trick: 0.45,
+      crashy: 0.35
+    },
+    %{
+      name: "RHONDA",
+      color: 0xE259B5,
+      top: 1.00,
+      corner: 1.02,
+      aggr: 0.40,
+      trick: 0.85,
+      crashy: 0.30
+    },
+    %{
+      name: "DIESEL",
+      color: 0x4A7D2B,
+      top: 1.02,
+      corner: 0.87,
+      aggr: 1.00,
+      trick: 0.20,
+      crashy: 0.40
+    },
+    %{
+      name: "KAZU",
+      color: 0x2F66D0,
+      top: 0.99,
+      corner: 1.06,
+      aggr: 0.30,
+      trick: 0.95,
+      crashy: 0.22
+    },
+    %{
+      name: "SIERRA",
+      color: 0xEAC435,
+      top: 1.01,
+      corner: 0.98,
+      aggr: 0.55,
+      trick: 0.60,
+      crashy: 0.28
+    }
   ]
 
   @diffs %{
-    "chill" => %{label: "CHILL", pace: 1.0, rub_p: 0.26, rub_sat: 60, leash: 0.09, corner: 4.9, aggr: 0.5, cd: 1.4, meter0: {5, 18}, rev: 0.8, company: true},
-    "mayhem" => %{label: "MAYHEM", pace: 1.035, rub_p: 0.42, rub_sat: 45, leash: 0.075, corner: 5.2, aggr: 1, cd: 1, meter0: {15, 35}, rev: 1, company: true},
-    "brutal" => %{label: "BRUTAL", pace: 1.145, rub_p: 0.62, rub_sat: 30, leash: 0.02, corner: 5.95, aggr: 2.9, cd: 0.45, meter0: {50, 85}, rev: 3, company: false, hunt_race: true}
+    "chill" => %{
+      label: "CHILL",
+      pace: 1.0,
+      rub_p: 0.26,
+      rub_sat: 60,
+      leash: 0.09,
+      corner: 4.9,
+      aggr: 0.5,
+      cd: 1.4,
+      meter0: {5, 18},
+      rev: 0.8,
+      company: true
+    },
+    "mayhem" => %{
+      label: "MAYHEM",
+      pace: 1.035,
+      rub_p: 0.42,
+      rub_sat: 45,
+      leash: 0.075,
+      corner: 5.2,
+      aggr: 1,
+      cd: 1,
+      meter0: {15, 35},
+      rev: 1,
+      company: true
+    },
+    "brutal" => %{
+      label: "BRUTAL",
+      pace: 1.145,
+      rub_p: 0.62,
+      rub_sat: 30,
+      leash: 0.02,
+      corner: 5.95,
+      aggr: 2.9,
+      cd: 0.45,
+      meter0: {50, 85},
+      rev: 3,
+      company: false,
+      hunt_race: true
+    }
   }
 
   # --- accessors -------------------------------------------------------------
@@ -107,7 +184,16 @@ defmodule Afterlight.Activities.DownhillMayhem do
   # --- control normalisation -------------------------------------------------
 
   def neutral_controls do
-    %{pedal: 0, brake: 0, steer: 0.0, hop: false, boost: false, punch: false, kick: false, trick: nil}
+    %{
+      pedal: 0,
+      brake: 0,
+      steer: 0.0,
+      hop: false,
+      boost: false,
+      punch: false,
+      kick: false,
+      trick: nil
+    }
   end
 
   def normalize_controls(raw) when is_map(raw) do
@@ -135,8 +221,18 @@ defmodule Afterlight.Activities.DownhillMayhem do
     is_ai = Keyword.get(opts, :is_ai, false)
     seed = Keyword.get(opts, :seed, 1)
     diff = diff(difficulty)
-    def0 = if is_ai, do: Enum.at(@rider_defs, rem(slot, length(@rider_defs))), else: %{name: "RIDER", color: 0xFFFFFF, top: 1, corner: 1, aggr: 0, trick: 0, crashy: 0}
-    meter0 = if is_ai, do: elem(diff.meter0, 0) + rand01(seed, slot, 0) * (elem(diff.meter0, 1) - elem(diff.meter0, 0)), else: 0.0
+
+    def0 =
+      if is_ai,
+        do: Enum.at(@rider_defs, rem(slot, length(@rider_defs))),
+        else: %{name: "RIDER", color: 0xFFFFFF, top: 1, corner: 1, aggr: 0, trick: 0, crashy: 0}
+
+    meter0 =
+      if is_ai,
+        do:
+          elem(diff.meter0, 0) +
+            rand01(seed, slot, 0) * (elem(diff.meter0, 1) - elem(diff.meter0, 0)),
+        else: 0.0
 
     %{
       slot: slot,
@@ -217,6 +313,7 @@ defmodule Afterlight.Activities.DownhillMayhem do
   defp substep(course, rm, ctx) do
     sub = if @dt > 0.022, do: 2, else: 1
     h = @dt / sub
+
     Enum.reduce(1..sub, {rm, []}, fn _k, {acc, ev} ->
       {next, more} =
         Enum.reduce(Enum.sort_by(Map.keys(acc), & &1), {acc, []}, fn slot, {m, e} ->
@@ -270,14 +367,32 @@ defmodule Afterlight.Activities.DownhillMayhem do
     {rm, r, ev} = maybe_strike(rm, r, :punch, "punch", ctx, [])
     {rm, r, ev} = maybe_strike(rm, r, :kick, "kick", ctx, ev)
     r = if inp.trick, do: start_trick(r, inp.trick) |> elem(0), else: r
-    r = if r.finished, do: %{r | inp: %{inp | pedal: 0, steer: 0.0, brake: if(r.s > (r.finish_s || 1.0e9) + 25, do: 1, else: 0.25), boost: false}}, else: r
+
+    r =
+      if r.finished,
+        do: %{
+          r
+          | inp: %{
+              inp
+              | pedal: 0,
+                steer: 0.0,
+                brake: if(r.s > (r.finish_s || 1.0e9) + 25, do: 1, else: 0.25),
+                boost: false
+            }
+        },
+        else: r
+
     {rm, r, ev}
   end
 
   defp maybe_strike(rm, r, kind_atom, kind_str, ctx, ev) do
     cond do
-      not r.inp[kind_atom] -> {rm, r, ev}
-      r.punch_cd > 0 -> {rm, r, ev}
+      not r.inp[kind_atom] ->
+        {rm, r, ev}
+
+      r.punch_cd > 0 ->
+        {rm, r, ev}
+
       true ->
         r = %{r | punch_cd: @player_punch_cd}
         {r2, rm2, more} = try_strike(r, kind_str, rm, ctx)
@@ -289,7 +404,14 @@ defmodule Afterlight.Activities.DownhillMayhem do
 
   def step_rider(%Course{} = course, r, dt, ctx) do
     finish_s = Map.get(ctx, :finish_s) || course.finish_s
-    r = %{r | invuln: max(0.0, r.invuln - dt), punch_cd: max(0.0, r.punch_cd - dt), finish_s: finish_s}
+
+    r = %{
+      r
+      | invuln: max(0.0, r.invuln - dt),
+        punch_cd: max(0.0, r.punch_cd - dt),
+        finish_s: finish_s
+    }
+
     diff = diff(Map.get(ctx, :difficulty, "mayhem"))
     elapsed = Map.get(ctx, :elapsed, 0.0)
 
@@ -301,8 +423,18 @@ defmodule Afterlight.Activities.DownhillMayhem do
   end
 
   defp step_crashed(course, r, dt, finish_s, elapsed) do
-    r = %{r | crash_t: r.crash_t + dt, vs: max(0.0, r.vs - 6 * dt), vlat: r.vlat * :math.pow(0.05, dt)}
-    e1 = if not r.finished and r.s >= finish_s, do: [%{type: "finish", slot: r.slot, time: elapsed}], else: []
+    r = %{
+      r
+      | crash_t: r.crash_t + dt,
+        vs: max(0.0, r.vs - 6 * dt),
+        vlat: r.vlat * :math.pow(0.05, dt)
+    }
+
+    e1 =
+      if not r.finished and r.s >= finish_s,
+        do: [%{type: "finish", slot: r.slot, time: elapsed}],
+        else: []
+
     r = if not r.finished and r.s >= finish_s, do: finish_rider(r, elapsed), else: r
     r = %{r | s: r.s + r.vs * dt, lat: r.lat + r.vlat * dt}
     gnd = Course.height_at(course, r.s, r.lat)
@@ -318,7 +450,14 @@ defmodule Afterlight.Activities.DownhillMayhem do
 
     r =
       if r.crash_t >= @crash_time and not r.finished do
-        %{r | crashed: false, invuln: @invuln_time, vs: max(r.vs, 2.5), grounded: true, air_time: 0.0}
+        %{
+          r
+          | crashed: false,
+            invuln: @invuln_time,
+            vs: max(r.vs, 2.5),
+            grounded: true,
+            air_time: 0.0
+        }
       else
         r
       end
@@ -328,11 +467,13 @@ defmodule Afterlight.Activities.DownhillMayhem do
 
   defp step_alive(course, r, dt, diff, finish_s, elapsed) do
     inp = r.inp
-    zone = cond do
-      abs(r.lat) < @half_w + 0.4 -> 0
-      abs(r.lat) < @ride_w -> 1
-      true -> 2
-    end
+
+    zone =
+      cond do
+        abs(r.lat) < @half_w + 0.4 -> 0
+        abs(r.lat) < @ride_w -> 1
+        true -> 2
+      end
 
     ramph = Course.ramp_height_at(course, r.s, r.lat)
 
@@ -342,18 +483,24 @@ defmodule Afterlight.Activities.DownhillMayhem do
         a = -track.grade * 9.81 * @slope_k * (1 + r.rubber * 0.5)
         a = a + inp.pedal * @pedal_a * max(0.0, 1 - r.vs / @pedal_vmax) * (1 + r.rubber * 0.6)
         a = a - inp.brake * @brake_a
-        drag_mult = case zone do
-          0 -> 1.0
-          1 -> 1.55
-          2 -> 5.5
-        end
+
+        drag_mult =
+          case zone do
+            0 -> 1.0
+            1 -> 1.55
+            2 -> 5.5
+          end
+
         a = a - @drag * drag_mult * r.vs * r.vs * (1 - r.rubber * 0.55) * (1 - 0.32 * r.draft_t)
         a = a + 0.8 * r.draft_t
-        a = a - (case zone do
-          0 -> @roll_f
-          1 -> 1.1
-          2 -> 3.4
-        end)
+
+        a =
+          a -
+            case zone do
+              0 -> @roll_f
+              1 -> 1.1
+              2 -> 3.4
+            end
 
         {boost_latch, a} =
           cond do
@@ -363,43 +510,81 @@ defmodule Afterlight.Activities.DownhillMayhem do
           end
 
         boosting = boost_latch and inp.boost and r.meter > 0
+
         {meter, a} =
           if boosting do
             {max(0.0, r.meter - @boost_drain * dt), a + @boost_a}
           else
             if not r.finished and r.vs > 10 do
-              {min(100.0, r.meter + @meter_trickle * (if r.is_human, do: 1.0, else: 0.85 + r.rubber * 0.9) * dt), a}
+              {min(
+                 100.0,
+                 r.meter +
+                   @meter_trickle * if(r.is_human, do: 1.0, else: 0.85 + r.rubber * 0.9) * dt
+               ), a}
             else
               {r.meter, a}
             end
           end
 
-        cap = @softcap_v * r.def.top * (if r.is_human, do: 1.0, else: diff.pace) * (1 + r.rubber * 0.5) + (if boosting, do: 4.0, else: 0.0)
+        cap =
+          @softcap_v * r.def.top * if(r.is_human, do: 1.0, else: diff.pace) * (1 + r.rubber * 0.5) +
+            if boosting, do: 4.0, else: 0.0
+
         a = if r.vs > cap, do: a - (r.vs - cap) * 0.9, else: a
         vs = max(0.0, r.vs + a * dt)
 
         target = inp.steer
-        rate = if abs(target) > abs(r.steer_pos) and sign(target) == sign(if r.steer_pos == 0.0, do: target, else: r.steer_pos), do: 6, else: 8
+
+        rate =
+          if abs(target) > abs(r.steer_pos) and
+               sign(target) == sign(if r.steer_pos == 0.0, do: target, else: r.steer_pos),
+             do: 6,
+             else: 8
+
         steer_pos = r.steer_pos + clamp(target - r.steer_pos, -rate * dt, rate * dt)
         hard_turn = abs(steer_pos) > 0.82 and vs > 15
-        drift_t = clamp(r.drift_t + (if hard_turn, do: dt / 0.45, else: -dt / 0.3), 0.0, 1.0)
+        drift_t = clamp(r.drift_t + if(hard_turn, do: dt / 0.45, else: -dt / 0.3), 0.0, 1.0)
         centrif = track.curv * vs * vs * @centrif_k
-        target_vlat = steer_pos * (@steer_base + vs * @steer_vk) * (1 + @drift_auth * drift_t) + centrif
+
+        target_vlat =
+          steer_pos * (@steer_base + vs * @steer_vk) * (1 + @drift_auth * drift_t) + centrif
+
         vlat = r.vlat + (target_vlat - r.vlat) * min(1.0, @steer_resp * dt)
         vs = max(0.0, vs - @drift_scrub * drift_t * dt)
         vlat = if abs(r.lat) > @ride_w, do: vlat - sign(r.lat) * 5 * dt, else: vlat
 
-        base = %{r | meter: meter, boosting: boosting, boost_latch: boost_latch, vs: vs, steer_pos: steer_pos, drift_t: drift_t, vlat: vlat}
+        base = %{
+          r
+          | meter: meter,
+            boosting: boosting,
+            boost_latch: boost_latch,
+            vs: vs,
+            steer_pos: steer_pos,
+            drift_t: drift_t,
+            vlat: vlat
+        }
 
         if inp.hop do
           on_ramp_top = ramph > 0.05
-          %{base | grounded: false, vy: max(base.vy, 0.0) + @hop_vy + (if on_ramp_top, do: @ramp_hop_bonus, else: 0.0), y: base.y + 0.02, air_time: 0.001, was_on_ramp: on_ramp_top}
+
+          %{
+            base
+            | grounded: false,
+              vy: max(base.vy, 0.0) + @hop_vy + if(on_ramp_top, do: @ramp_hop_bonus, else: 0.0),
+              y: base.y + 0.02,
+              air_time: 0.001,
+              was_on_ramp: on_ramp_top
+          }
         else
           base
         end
       else
         air_time = r.air_time + dt
-        vlat = (r.vlat + inp.steer * (@steer_base + r.vs * @steer_vk) * @air_ctrl * dt * 3) * :math.pow(0.6, dt)
+
+        vlat =
+          (r.vlat + inp.steer * (@steer_base + r.vs * @steer_vk) * @air_ctrl * dt * 3) *
+            :math.pow(0.6, dt)
+
         vs = max(0.0, r.vs - @drag * 0.4 * r.vs * r.vs * dt)
         r = %{r | air_time: air_time, vlat: vlat, vs: vs, boosting: false}
         r = if inp.trick, do: start_trick(r, inp.trick) |> elem(0), else: r
@@ -439,7 +624,15 @@ defmodule Afterlight.Activities.DownhillMayhem do
         implied_vy = (gnd - prev_y) / dt
 
         if implied_vy - r.vy < -@g * @detach_g * dt do
-          r = %{r | grounded: false, air_time: 0.001, was_on_ramp: ramph > 0.05, y: prev_y + r.vy * dt, vy: r.vy - @g * dt}
+          r = %{
+            r
+            | grounded: false,
+              air_time: 0.001,
+              was_on_ramp: ramph > 0.05,
+              y: prev_y + r.vy * dt,
+              vy: r.vy - @g * dt
+          }
+
           {r, []}
         else
           {%{r | y: gnd, vy: implied_vy}, []}
@@ -469,7 +662,11 @@ defmodule Afterlight.Activities.DownhillMayhem do
         r
       end
 
-    ev = if r.finished and not Enum.any?(ev, &(&1.type == "finish")), do: ev ++ [%{type: "finish", slot: r.slot, time: elapsed}], else: ev
+    ev =
+      if r.finished and not Enum.any?(ev, &(&1.type == "finish")),
+        do: ev ++ [%{type: "finish", slot: r.slot, time: elapsed}],
+        else: ev
+
     {r, ev}
   end
 
@@ -478,6 +675,7 @@ defmodule Afterlight.Activities.DownhillMayhem do
       {r, []}
     else
       b = trunc(Float.floor(r.s / 10))
+
       Enum.reduce_while((b - 1)..(b + 1), {r, []}, fn bi, {rr, ev} ->
         list = Map.get(course.collider_buckets, bi, [])
 
@@ -486,7 +684,10 @@ defmodule Afterlight.Activities.DownhillMayhem do
             if t["kind"] == "tree" do
               if abs(t["s"] - rr.s) < 1.1 and abs(t["lat"] - rr.lat) < 0.9, do: "tree", else: nil
             else
-              if rr.y - gnd < 1.1 and abs(t["s"] - rr.s) < 1.0 and abs(t["lat"] - rr.lat) < t["r"], do: "rock", else: nil
+              if rr.y - gnd < 1.1 and abs(t["s"] - rr.s) < 1.0 and
+                   abs(t["lat"] - rr.lat) < t["r"],
+                 do: "rock",
+                 else: nil
             end
           end)
 
@@ -500,7 +701,10 @@ defmodule Afterlight.Activities.DownhillMayhem do
   end
 
   def ground_slope_vy(course, r) do
-    ds = (Course.height_at(course, r.s + 1.6, r.lat) - Course.height_at(course, r.s - 1.6, r.lat)) / 3.2
+    ds =
+      (Course.height_at(course, r.s + 1.6, r.lat) - Course.height_at(course, r.s - 1.6, r.lat)) /
+        3.2
+
     dl = Course.height_at(course, r.s, r.lat + 0.5) - Course.height_at(course, r.s, r.lat - 0.5)
     ds * r.vs + dl * r.vlat
   end
@@ -535,7 +739,15 @@ defmodule Afterlight.Activities.DownhillMayhem do
     def0 = @tricks[r.trick]
     bonus = if r.chain > 0, do: 0.5, else: 0.0
     pending = r.pending_meter + def0.meter * (1 + bonus * r.chain)
-    {%{r | pending_meter: pending, pending_names: r.pending_names ++ [def0.name], chain: r.chain + 1, trick: nil, trick_t: 0.0}, def0.name}
+
+    {%{
+       r
+       | pending_meter: pending,
+         pending_names: r.pending_names ++ [def0.name],
+         chain: r.chain + 1,
+         trick: nil,
+         trick_t: 0.0
+     }, def0.name}
   end
 
   defp handle_landing(r, impact) do
@@ -555,9 +767,20 @@ defmodule Afterlight.Activities.DownhillMayhem do
             done >= forgive ->
               {r1, _name} = complete_trick(r)
               {r1, [%{type: "landing", slot: r.slot, impact: impact, air: air}]}
+
             done >= save ->
-              r = %{r | trick: nil, trick_t: 0.0, pending_meter: 0.0, pending_names: [], chain: 0, vs: r.vs * 0.72}
+              r = %{
+                r
+                | trick: nil,
+                  trick_t: 0.0,
+                  pending_meter: 0.0,
+                  pending_names: [],
+                  chain: 0,
+                  vs: r.vs * 0.72
+              }
+
               {r, [%{type: "landing", slot: r.slot, impact: impact, air: air, saved: true}]}
+
             true ->
               {crash(r, "bail"), [%{type: "crash", slot: r.slot, cause: "bail"}]}
           end
@@ -567,7 +790,7 @@ defmodule Afterlight.Activities.DownhillMayhem do
             {crash(r, "hard"), [%{type: "crash", slot: r.slot, cause: "hard"}]}
           else
             r = if impact > @stumble_impact, do: %{r | vs: r.vs * 0.72}, else: r
-            gain = r.pending_meter + (if air > @bigair_t, do: @bigair_meter, else: 0.0)
+            gain = r.pending_meter + if air > @bigair_t, do: @bigair_meter, else: 0.0
             gain = if r.is_human and air > 0.45 and impact < 2.8, do: gain + 5, else: gain
             r = if gain > 0, do: %{r | meter: clamp(r.meter + gain, 0.0, 100.0)}, else: r
             r = %{r | pending_meter: 0.0, pending_names: [], chain: 0}
@@ -583,7 +806,9 @@ defmodule Afterlight.Activities.DownhillMayhem do
     best =
       rm
       |> Map.values()
-      |> Enum.reject(fn o -> o.slot == attacker.slot or o.crashed or o.invuln > 0 or o.finished end)
+      |> Enum.reject(fn o ->
+        o.slot == attacker.slot or o.crashed or o.invuln > 0 or o.finished
+      end)
       |> Enum.filter(fn o ->
         ds = abs(o.s - attacker.s)
         dl = abs(o.lat - attacker.lat)
@@ -600,16 +825,22 @@ defmodule Afterlight.Activities.DownhillMayhem do
       end
 
     attacker = %{attacker | strike_side: strike_side, strike_kind: kind}
-    attacker = if kind == "kick", do: %{attacker | kick_anim_t: 0}, else: %{attacker | punch_anim_t: 0}
+
+    attacker =
+      if kind == "kick", do: %{attacker | kick_anim_t: 0}, else: %{attacker | punch_anim_t: 0}
+
     diff = diff(Map.get(ctx, :difficulty, "mayhem"))
 
     if best do
-      best = %{best | vlat: best.vlat + strike_side * (if kind == "kick", do: 4.5, else: 3.0)}
+      best = %{best | vlat: best.vlat + strike_side * if(kind == "kick", do: 4.5, else: 3.0)}
       best = crash(best, if(kind == "kick", do: "kicked", else: "punched"))
 
       attacker =
         if attacker.is_human do
-          gain = @hit_meter + (if not attacker.grounded, do: @air_strike_meter, else: 0) + (if attacker.boosting, do: @boost_strike_meter, else: 0)
+          gain =
+            @hit_meter + if(not attacker.grounded, do: @air_strike_meter, else: 0) +
+              if attacker.boosting, do: @boost_strike_meter, else: 0
+
           %{attacker | meter: min(100.0, attacker.meter + gain)}
         else
           attacker
@@ -622,9 +853,15 @@ defmodule Afterlight.Activities.DownhillMayhem do
           best
         end
 
-      attacker = if best.is_human and attacker.revenge_t > 0, do: %{attacker | revenge_t: 0.0}, else: attacker
+      attacker =
+        if best.is_human and attacker.revenge_t > 0,
+          do: %{attacker | revenge_t: 0.0},
+          else: attacker
+
       rm = rm |> Map.put(attacker.slot, attacker) |> Map.put(best.slot, best)
-      {attacker, rm, [%{type: "strike", slot: attacker.slot, target_slot: best.slot, kind: kind, landed: true}]}
+
+      {attacker, rm,
+       [%{type: "strike", slot: attacker.slot, target_slot: best.slot, kind: kind, landed: true}]}
     else
       rm = Map.put(rm, attacker.slot, attacker)
       {attacker, rm, [%{type: "strike", slot: attacker.slot, kind: kind, landed: false}]}
@@ -635,18 +872,19 @@ defmodule Afterlight.Activities.DownhillMayhem do
     if r.crashed or r.invuln > 0 or r.finished do
       r
     else
-      %{r |
-        crashed: true,
-        crash_t: 0.0,
-        trick: nil,
-        pending_meter: 0.0,
-        pending_names: [],
-        chain: 0,
-        boosting: false,
-        windup_t: -1,
-        meter: r.meter * 0.4,
-        vs: r.vs * 0.35,
-        vy: min(r.vy, 1.5)
+      %{
+        r
+        | crashed: true,
+          crash_t: 0.0,
+          trick: nil,
+          pending_meter: 0.0,
+          pending_names: [],
+          chain: 0,
+          boosting: false,
+          windup_t: -1,
+          meter: r.meter * 0.4,
+          vs: r.vs * 0.35,
+          vy: min(r.vy, 1.5)
       }
     end
   end
@@ -711,20 +949,21 @@ defmodule Afterlight.Activities.DownhillMayhem do
           false
         end
 
-      draft = clamp(r.draft_t + (if tow, do: @dt / 0.5, else: -@dt / 0.4), 0.0, 1.0)
+      draft = clamp(r.draft_t + if(tow, do: @dt / 0.5, else: -@dt / 0.4), 0.0, 1.0)
       Map.put(acc, r.slot, %{r | draft_t: draft})
     end)
   end
 
   def finish_rider(r, elapsed) do
-    %{r |
-      finished: true,
-      finish_time: elapsed,
-      revenge_t: 0.0,
-      crashed: false,
-      trick: nil,
-      pending_meter: 0.0,
-      pending_names: []
+    %{
+      r
+      | finished: true,
+        finish_time: elapsed,
+        revenge_t: 0.0,
+        crashed: false,
+        trick: nil,
+        pending_meter: 0.0,
+        pending_names: []
     }
   end
 
@@ -736,5 +975,5 @@ defmodule Afterlight.Activities.DownhillMayhem do
   defp truthy(_), do: true
 
   defp clamp(v, a, b), do: if(v < a, do: a, else: if(v > b, do: b, else: v))
-  defp sign(v), do: if(v < 0, do: -1, else: (if(v > 0, do: 1, else: 0)))
+  defp sign(v), do: if(v < 0, do: -1, else: if(v > 0, do: 1, else: 0))
 end
