@@ -81,7 +81,7 @@ function installBrowserStubs() {
 
 function makeHostModule(record) {
   return {
-    createDownhillMayhemHost(options) {
+    async createDownhillMayhemHost(options) {
       record.created += 1;
       record.options = options;
       return {
@@ -208,12 +208,16 @@ test('seat acceptance binds the lease to the attempt token and generation with p
   try {
     const { controller, acquisitions, record } = await bootToView(stubs);
     assert.equal(record.created, 1, 'host created exactly once');
+    assert.equal(record.options.hudHost, null, 'standalone menu does not overlap the multiplayer HUD');
+    assert.equal(record.prepared, 1, 'resolved host prepared before entry');
     assert.equal(record.entered, 1, 'host entered');
     assert.equal(acquisitions.length, 1, 'view acquired once');
     const request = acquisitions[0];
     assert.equal(request.owner, controller.attemptToken, 'lease owner is the attempt token');
     assert.equal(request.generation, 7, 'lease carries the place generation');
     assert.equal(typeof request.present, 'function', 'foreign-composer present hook supplied');
+    request.present();
+    assert.equal(record.presents, 1, 'lease actually renders through the resolved host');
     assert.equal(controller.viewHeld, true);
     assert.equal(stubs.classList.contains('dm-racing'), true, 'body presentation class applied');
     controller.dispose();
@@ -253,6 +257,46 @@ test('a cancelled attempt discards a late host load and never takes the view', a
     await flush();
     await flush();
     assert.equal(record.created, 0, 'the stale load never creates a host');
+    assert.equal(acquisitions.length, 0, 'the stale load never takes the lease');
+    assert.equal(controller.viewHeld, false);
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('a cancelled attempt disposes an asynchronously created host before preparation', async () => {
+  const stubs = installBrowserStubs();
+  try {
+    const state = makeState();
+    const calls = [];
+    const acquisitions = [];
+    const record = { created: 0, disposed: 0, prepared: 0 };
+    const module = makeHostModule(record);
+    let releaseLoad;
+    const deferred = new Promise((resolve) => { releaseLoad = resolve; });
+    const controller = createDownhillController({
+      activityDef: ACTIVITY_DEF,
+      net: makeNet(calls),
+      getParticipation: makeParticipation(state),
+      acquireView: (request) => { acquisitions.push(request); return { ok: true }; },
+      releaseView: () => {},
+      getRenderer: () => ({ domElement: stubs.canvas }),
+      generation: 2,
+      getHudHost: () => null,
+      loadHostModule: async () => ({ createDownhillMayhemHost: () => deferred }),
+    });
+    await controller.beginParticipation();
+    state.participating = true;
+    state.state = 'participating';
+    state.currentActivity = ACTIVITY_DEF;
+    controller.update(0, 1 / 60);
+    await flush(); // factory is now pending
+    controller.exit('cancel');    // fences the attempt
+    releaseLoad(await module.createDownhillMayhemHost({}));
+    await flush();
+    await flush();
+    assert.equal(record.disposed, 1, 'the late host is disposed');
+    assert.equal(record.prepared, 0, 'cancelled host is never prepared');
     assert.equal(acquisitions.length, 0, 'the stale load never takes the lease');
     assert.equal(controller.viewHeld, false);
   } finally {

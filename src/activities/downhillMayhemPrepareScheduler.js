@@ -81,9 +81,13 @@ export function createDownhillMayhemPrepareScheduler({
             : null;
           if (!doc || signal?.aborted || disposed) return { host: null, ready: false };
 
-          const host = createBackgroundHost?.(mod, { signal, courseDocument: doc }) ?? null;
+          const host = await createBackgroundHost?.(mod, { signal, courseDocument: doc }) ?? null;
           if (!host) return { host: null, ready: false };
 
+          if (signal?.aborted || disposed) {
+            host.dispose();
+            return { host: null, ready: false };
+          }
           const result = await host.prepare({ signal, runTransaction });
           if (signal?.aborted || disposed || result?.ok === false) {
             try { host.dispose(); } catch { /* best effort */ }

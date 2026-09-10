@@ -128,7 +128,6 @@ export function createDownhillController({
   let bootPromise = null;
   let booted = false;
   let presentationReady = false;
-  let hudRoot = null;
   let hud = null;
   let attached = false;
   let pendingActivation = false;
@@ -213,20 +212,8 @@ export function createDownhillController({
 
   // --- lifecycle-owned DOM -----------------------------------------------------
 
-  function ensureHudRoot() {
-    if (hudRoot || typeof document === 'undefined') return hudRoot;
-    hudRoot = document.createElement('div');
-    hudRoot.className = 'dm-activity';
-    document.body.appendChild(hudRoot);
-    return hudRoot;
-  }
-
   function removeHudRoot() {
-    if (typeof document !== 'undefined') {
-      hudRoot?.remove();
-      document.body.classList.remove('dm-racing');
-    }
-    hudRoot = null;
+    if (typeof document !== 'undefined') document.body.classList.remove('dm-racing');
   }
 
   function buildHud() {
@@ -660,13 +647,15 @@ export function createDownhillController({
         predictor = createPredictor(course);
         audio = createDownhillAudio({ mixer: typeof audioMixer === 'function' ? audioMixer() : audioMixer });
 
-        const nextHost = module?.createDownhillMayhemHost?.({
+        const nextHost = await module?.createDownhillMayhemHost?.({
           renderer: getRenderer?.() ?? null,
           viewport: () => ({
             width: typeof window !== 'undefined' ? window.innerWidth : 1280,
             height: typeof window !== 'undefined' ? window.innerHeight : 720,
           }),
-          hudHost: ensureHudRoot(),
+          // The multiplayer controller owns the HUD, including Ready and
+          // results. Match retained hosts: do not mount the standalone menu.
+          hudHost: null,
           audio: mixerAudioOptions(),
           params: {
             mountain: courseDoc.mountain ?? activityDef.course?.id ?? 'classic',

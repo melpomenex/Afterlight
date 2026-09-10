@@ -88,7 +88,7 @@ test('budget is 2 ms idle / 4 ms near with 8/10-unit hysteresis', () => {
 test('tick refuses while a view lease is held, under frame pressure, or off-place', () => {
   const scheduler = createDownhillMayhemPrepareScheduler({
     preparation: makeFakePreparation(),
-    createBackgroundHost: () => makeHost(),
+    createBackgroundHost: async () => makeHost(),
   });
   scheduler.enableAfterModulePrefetch();
 
@@ -98,7 +98,7 @@ test('tick refuses while a view lease is held, under frame pressure, or off-plac
   const offPlace = createDownhillMayhemPrepareScheduler({
     preparation: makeFakePreparation(),
     shouldRun: () => false,
-    createBackgroundHost: () => makeHost(),
+    createBackgroundHost: async () => makeHost(),
   });
   offPlace.enableAfterModulePrefetch();
   assert.equal(offPlace.tick({ maxMs: 4 }).reason, 'place-inactive');
@@ -112,7 +112,7 @@ test('tick imports once then prepares one hidden host and retains it', async () 
     preparation,
     importModule: async () => { imports += 1; return { createDownhillMayhemHost: () => makeHost({ disposeCounter }) }; },
     resolveCourseDocument: async () => ({ id: 'classic', mountain: 'classic', hash: 'h' }),
-    createBackgroundHost: () => makeHost({ disposeCounter }),
+    createBackgroundHost: async () => makeHost({ disposeCounter }),
   });
   scheduler.enableAfterModulePrefetch();
 
@@ -147,10 +147,44 @@ test('cancelled preparation attaches to nothing and disposes its host exactly on
     preparation,
     importModule: async () => ({ createDownhillMayhemHost: () => makeHost() }),
     resolveCourseDocument: async () => ({ id: 'classic', mountain: 'classic', hash: 'h' }),
-    createBackgroundHost: () => makeHost({
+    createBackgroundHost: async () => makeHost({
       onPrepare: () => gate,
       disposeCounter,
     }),
+  });
+  scheduler.enableAfterModulePrefetch();
+  scheduler.tick({ maxMs: 4 });
+  await flush();
+  scheduler.tick({ maxMs: 4 });
+  await flush();
+  await flush();
+
+  scheduler.disable();
+  releasePrepare();
+  await flush();
+  await flush();
+
+  assert.equal(disposeCounter.count, 1, 'the aborted host is disposed exactly once');
+  assert.equal(scheduler.prepared, false, 'nothing is retained after cancellation');
+});
+
+test('cancelling while host creation is pending disposes the late host', async () => {
+  const preparation = makeFakePreparation();
+  const disposeCounter = { count: 0 };
+  let releasePrepare;
+  const gate = new Promise((resolve) => { releasePrepare = resolve; });
+
+  const scheduler = createDownhillMayhemPrepareScheduler({
+    preparation,
+    importModule: async () => ({ createDownhillMayhemHost: () => makeHost() }),
+    resolveCourseDocument: async () => ({ id: 'classic', mountain: 'classic', hash: 'h' }),
+    createBackgroundHost: async () => {
+      await gate;
+      return makeHost({
+        onPrepare: () => assert.fail('cancelled host must not prepare'),
+        disposeCounter,
+      });
+    },
   });
   scheduler.enableAfterModulePrefetch();
   scheduler.tick({ maxMs: 4 });
@@ -174,7 +208,7 @@ test('a preparation failure retains nothing and does not throw from tick', async
     preparation,
     importModule: async () => ({ createDownhillMayhemHost: () => makeHost() }),
     resolveCourseDocument: async () => { throw new Error('course unavailable'); },
-    createBackgroundHost: () => makeHost(),
+    createBackgroundHost: async () => makeHost(),
   });
   scheduler.enableAfterModulePrefetch();
   scheduler.tick({ maxMs: 4 });
