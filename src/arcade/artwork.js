@@ -466,6 +466,126 @@ const MOTIFS = {
     },
   },
 
+  // Downhill Mayhem: alpine descent — a frost-lit ridgeline, a descending
+  // trail with a rider silhouette mid-air, and impact sparks over deep pine
+  // green with a warm amber accent (integrate-multiplayer-downhill-mayhem-arcade).
+  downhill: {
+    bg: (ctx, w, h, s) => fillVerticalGradient(ctx, w, h, s.skin.palette.base, '#081712'),
+    side: (ctx, w, h, s) => {
+      // Layered ridgelines receding into the distance.
+      const ridges = [
+        { y: h * 0.3, amp: h * 0.12, color: 'rgba(255,255,255,0.10)', step: w * 0.16 },
+        { y: h * 0.4, amp: h * 0.16, color: 'rgba(255,255,255,0.18)', step: w * 0.2 },
+        { y: h * 0.52, amp: h * 0.2, color: 'rgba(0,0,0,0.35)', step: w * 0.24 },
+      ];
+      for (const ridge of ridges) {
+        ctx.fillStyle = ridge.color;
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        for (let x = 0; x <= w; x += ridge.step) {
+          ctx.lineTo(x, ridge.y + Math.sin(x * 0.02) * ridge.amp * 0.4 + (x / w) * ridge.amp * 0.5);
+        }
+        ctx.lineTo(w, h);
+        ctx.closePath();
+        ctx.fill();
+      }
+      // Descending trail.
+      ctx.strokeStyle = s.skin.palette.ink;
+      ctx.globalAlpha = 0.65;
+      ctx.lineWidth = Math.max(2, w * 0.02);
+      ctx.beginPath();
+      ctx.moveTo(w * 0.2, h * 0.3);
+      ctx.quadraticCurveTo(w * 0.5, h * 0.52, w * 0.74, h * 0.88);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      // Rider silhouette mid-air over the trail.
+      const rx = w * 0.46, ry = h * 0.46;
+      ctx.save();
+      ctx.translate(rx, ry);
+      ctx.rotate(0.18);
+      ctx.fillStyle = s.skin.palette.accent;
+      // Frame.
+      ctx.lineWidth = Math.max(1.5, w * 0.012);
+      ctx.strokeStyle = s.skin.palette.accent;
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.07, 0); ctx.lineTo(w * 0.05, 0);
+      ctx.moveTo(-w * 0.04, -h * 0.005); ctx.lineTo(-w * 0.01, h * 0.03);
+      ctx.moveTo(w * 0.02, -h * 0.005); ctx.lineTo(w * 0.04, h * 0.03);
+      ctx.stroke();
+      // Wheels.
+      ctx.fillStyle = '#0b1512';
+      for (const [wx, wy] of [[-0.06, 0.01], [0.04, 0.01]]) {
+        ctx.beginPath(); ctx.arc(w * wx, h * wy, w * 0.022, 0, Math.PI * 2); ctx.fill();
+      }
+      // Rider body.
+      ctx.fillStyle = s.skin.palette.ink;
+      ctx.beginPath(); ctx.arc(-w * 0.005, -h * 0.06, w * 0.02, 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(-w * 0.012, -h * 0.05, w * 0.028, h * 0.06);
+      ctx.restore();
+      // Impact sparks trailing the rear wheel.
+      for (let i = 0; i < 7; i++) {
+        const t = i / 7;
+        ctx.globalAlpha = 0.85 - t * 0.55;
+        ctx.fillStyle = i % 2 ? s.skin.palette.glow : s.skin.palette.ink;
+        ctx.beginPath();
+        ctx.arc(w * (0.3 + t * 0.14), h * (0.52 + Math.sin(i * 2.1) * 0.02) + t * h * 0.05, w * 0.008 * (1 + t), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    },
+    marquee: (ctx, w, h, s) => {
+      const px = fitTitleFont(ctx, s.skin.title, w * 0.8, h * 0.5);
+      glowText(ctx, s.skin.title, w / 2, h * 0.46, `bold ${px}px monospace`, s.skin.palette.ink, s.skin.palette.glow, 18);
+      // Trail chevrons under the title.
+      ctx.strokeStyle = s.skin.palette.accent;
+      for (let i = 0; i < 5; i++) {
+        ctx.globalAlpha = 0.4 + i * 0.12;
+        ctx.lineWidth = Math.max(2, h * 0.03);
+        const y = h * 0.7 + i * h * 0.045;
+        ctx.beginPath();
+        ctx.moveTo(w * (0.36 - i * 0.015), y);
+        ctx.lineTo(w * 0.5, y + h * 0.03);
+        ctx.lineTo(w * (0.64 + i * 0.015), y);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    },
+    front: (ctx, w, h, s) => {
+      // Downhill grade stripes with a wheel roundel.
+      ctx.strokeStyle = s.skin.palette.accent;
+      ctx.lineWidth = w * 0.03;
+      for (let i = 0; i < 3; i++) {
+        ctx.globalAlpha = 0.8 - i * 0.2;
+        ctx.beginPath();
+        ctx.moveTo(w * (0.24 + i * 0.14), h * 0.16);
+        ctx.lineTo(w * (0.4 + i * 0.14), h * 0.86);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = s.skin.palette.glow;
+      ctx.lineWidth = Math.max(2, w * 0.014);
+      ctx.beginPath(); ctx.arc(w * 0.5, h * 0.46, w * 0.1, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = s.skin.palette.ink;
+      ctx.beginPath(); ctx.arc(w * 0.5, h * 0.46, w * 0.03, 0, Math.PI * 2); ctx.fill();
+    },
+    controlPanel: (ctx, w, h, s) => {
+      // Chevron grade pinstripe only — the deck carries the real controls.
+      ctx.save();
+      ctx.strokeStyle = s.skin.palette.accent;
+      ctx.globalAlpha = 0.4;
+      ctx.lineWidth = Math.max(2, w * 0.004);
+      ctx.beginPath();
+      for (let i = 0; i * w * 0.03 < w * 0.88; i++) {
+        const x = w * 0.06 + i * w * 0.03;
+        ctx.moveTo(x, h * 0.82);
+        ctx.lineTo(x + w * 0.012, h * 0.78);
+        ctx.lineTo(x + w * 0.024, h * 0.82);
+      }
+      ctx.stroke();
+      ctx.restore();
+    },
+  },
+
   // Default Afterlight treatment: warm amber over wet slate.
   afterlight: {
     bg: (ctx, w, h, s) => fillVerticalGradient(ctx, w, h, s.skin.palette.base, '#141518'),

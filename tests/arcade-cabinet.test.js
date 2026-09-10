@@ -28,6 +28,7 @@ import {
 import {
   ORPHEUM_ACTIVITIES,
   PONG_ACTIVITY_DEFINITION,
+  SIGNAL_LOST_ACTIVITY_DEFINITION,
   validateActivityDefinition,
   getPlaceDefinition,
   LEGACY_URBAN_BOUNDS,
@@ -261,7 +262,7 @@ test('two cabinets clone per-instance materials and share immutable ones', () =>
   assert.equal(cabinetA.usingModel, true, 'injected template builds the GLB path');
   assert.equal(cabinetB.usingModel, true);
   assert.equal(cabinetA.gameId, 'orpheum-pong');
-  assert.equal(cabinetB.gameId, 'orpheum-signal-lost');
+  assert.equal(cabinetB.gameId, 'orpheum-downhill-mayhem');
 
   // Per-cabinet clones: LED and screen materials are distinct instances...
   const ledA = materialOf(cabinetA, 'Trim_ControlDeck');
@@ -277,7 +278,7 @@ test('two cabinets clone per-instance materials and share immutable ones', () =>
   // Skins applied from the definitions.
   assert.equal(ledA.emissiveIntensity, ORPHEUM_ACTIVITIES[0].cabinet.led.intensity);
   assert.equal(ledB.emissiveIntensity, ORPHEUM_ACTIVITIES[2].cabinet.led.intensity);
-  assert.equal(ledB.emissive.getHexString(), 'a78bfa', 'Signal Lost LED comes from its definition');
+  assert.equal(ledB.emissive.getHexString(), 'ff7a3c', 'Downhill Mayhem LED comes from its definition');
 
   // Shared immutable materials stay shared.
   assert.equal(materialOf(cabinetA, 'Screen_Glass'), materialOf(cabinetB, 'Screen_Glass'),
@@ -397,6 +398,83 @@ test('a disposed summit-run cabinet leaves siblings and the shared template inta
   summit.dispose();
   assert.equal(summit.group.parent, null);
   assert.equal(pong.group.parent, world.group, 'sibling survives the summit disposal');
+  pong.dispose();
+  assert.equal(world.group.children.length, 0, 'world left clean');
+});
+
+// --- downhill-mayhem (integrate-multiplayer-downhill-mayhem-arcade 1.1/1.5) -----
+
+test('downhill-mayhem repurposes the Signal Lost slot with a distinct machine', () => {
+  const downhill = ORPHEUM_ACTIVITIES.find(a => a.id === 'orpheum-downhill-mayhem');
+  assert.ok(downhill, 'downhill-mayhem present in the Orpheum row');
+  assert.equal(downhill.type, 'downhill-mayhem');
+  assert.equal(downhill.cabinet.model, 'upright', 'reuses the canonical GLB — no new geometry');
+  assert.equal(downhill.cabinet.skin.title, 'DOWNHILL MAYHEM');
+  assert.equal(downhill.cabinet.skin.tagline, 'RIDE • TRICK • FIGHT');
+  assert.equal(downhill.cabinet.skin.motif, 'downhill');
+
+  // Reuses the former Signal Lost transform exactly.
+  const signalLost = ORPHEUM_ACTIVITIES.find(a => a.id === 'orpheum-signal-lost');
+  assert.equal(signalLost, undefined, 'Signal Lost no longer placed in the active row');
+  assert.deepEqual(downhill.transform.position, [10.42, 0, -3.85]);
+  assert.equal(downhill.transform.rotationY, -Math.PI / 2);
+
+  // Six-rider field and explicit-readiness race contract.
+  assert.equal(downhill.capacities.players, 6);
+  assert.equal(downhill.capacities.spectators, 32);
+  assert.equal(downhill.capacities.queue, 16);
+  assert.equal(downhill.minPlayers, 1);
+  assert.equal(downhill.readyPolicy, 'explicit');
+  assert.equal(downhill.course.id, 'classic');
+  assert.equal(downhill.participantAnchors.length, 6);
+  assert.deepEqual(downhill.participantAnchors.map(a => a.slot), [0, 1, 2, 3, 4, 5]);
+  for (const anchor of downhill.participantAnchors) {
+    assert.ok(anchor.dismount.length >= 1, `slot ${anchor.slot} has a dismount`);
+  }
+
+  const motifs = ORPHEUM_ACTIVITIES.map(a => a.cabinet.skin.motif);
+  assert.equal(new Set(motifs).size, motifs.length, 'every machine keeps a distinct motif');
+  const leds = ORPHEUM_ACTIVITIES.map(a => normalizeCabinetSkin(a.cabinet, []).led.color);
+  assert.equal(new Set(leds).size, leds.length, 'LED colors differ between all five machines');
+
+  // The dormant Signal Lost definition and cabinet still exist for re-placement.
+  assert.ok(SIGNAL_LOST_ACTIVITY_DEFINITION, 'Signal Lost definition remains exported');
+  assert.equal(SIGNAL_LOST_ACTIVITY_DEFINITION.id, 'orpheum-signal-lost');
+  assert.ok(SIGNAL_LOST_ACTIVITY_DEFINITION.cabinet, 'Signal Lost cabinet block remains');
+});
+
+test('downhill motif paints every artwork channel without runtime errors', async () => {
+  const { paintSkinChannel } = await import('../src/arcade/artwork.js');
+  const downhill = ORPHEUM_ACTIVITIES.find(a => a.id === 'orpheum-downhill-mayhem');
+  const spec = normalizeCabinetSkin(downhill.cabinet, []);
+
+  globalThis.document = makeStubCanvasFactory();
+  try {
+    for (const channel of Object.keys(SKIN_CHANNELS)) {
+      const canvas = paintSkinChannel(channel, spec);
+      assert.ok(canvas && canvas.width > 0, `${channel} channel paints a canvas`);
+    }
+  } finally {
+    delete globalThis.document;
+  }
+});
+
+test('a disposed downhill-mayhem cabinet leaves siblings and the shared template intact', () => {
+  injectArcadeCabinetTemplate(makeFakeTemplate());
+  const world = { group: new THREE.Group() };
+  const downhill = createArcadeCabinet({ activityDef: ORPHEUM_ACTIVITIES[2], world });
+  const pong = createArcadeCabinet({ activityDef: ORPHEUM_ACTIVITIES[0], world });
+
+  assert.equal(downhill.gameId, 'orpheum-downhill-mayhem');
+  assert.equal(downhill.usingModel, true);
+  assert.notEqual(materialOf(downhill, 'Trim_ControlDeck'), materialOf(pong, 'Trim_ControlDeck'),
+    'downhill clones its own LED material');
+  assert.equal(materialOf(downhill, 'Cabinet_Body'), materialOf(pong, 'Cabinet_Body'),
+    'downhill shares the immutable body material');
+
+  downhill.dispose();
+  assert.equal(downhill.group.parent, null);
+  assert.equal(pong.group.parent, world.group, 'sibling survives the downhill disposal');
   pong.dispose();
   assert.equal(world.group.children.length, 0, 'world left clean');
 });

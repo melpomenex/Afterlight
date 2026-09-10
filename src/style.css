@@ -2050,9 +2050,36 @@ body.kr-racing .challenge-invite,
 body.kr-racing .mill-panel,
 body.kr-racing .vignette { display: none !important; }
 
+/*
+   Downhill Mayhem racing presentation
+   (integrate-multiplayer-downhill-mayhem-arcade 1.6). Same stand-down as
+   cinema/Kart: the activity's own scoped HUD carries the UI while the game
+   holds the view lease, chat stays reachable, and the controller removes the
+   class on every release path.
+*/
+body.dm-racing header,
+body.dm-racing .map,
+body.dm-racing .companion,
+body.dm-racing footer,
+body.dm-racing #interact,
+body.dm-racing .nearby-activities,
+body.dm-racing .challenge-invite,
+body.dm-racing .mill-panel,
+body.dm-racing .vignette { display: none !important; }
+
 /* The lifecycle-owned game root floats above the canvas; the game's own
    ui.css styles its children (.kr*). Chat stays available by design. */
 .kr-activity {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+/* Downhill Mayhem's lifecycle-owned root (integrate-multiplayer-downhill-
+   mayhem-arcade 6.6): the scoped `.dm` HUD lives inside; pointer events are
+   opt-in per control so the world stays visible but not blocked. */
+.dm-activity {
   position: fixed;
   inset: 0;
   z-index: 40;

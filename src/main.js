@@ -47,6 +47,7 @@ import './activities/signalLost.js';
 import './activities/sporefall.js';
 import './activities/snowboard.js';
 import './activities/kart-royale.js';
+import './activities/downhill-mayhem.js';
 import {
   getRecords as getKartPerfRecords,
   clearRecords as clearKartPerfRecords,

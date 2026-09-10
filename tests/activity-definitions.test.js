@@ -48,7 +48,7 @@ test('place definitions remain valid; P5 places declare remaining activities whi
     theater: [
       ['orpheum-pong', 'pong'],
       ['orpheum-rain-runner', 'rain-runner'],
-      ['orpheum-signal-lost', 'signal-lost'],
+      ['orpheum-downhill-mayhem', 'downhill-mayhem'],
       ['orpheum-kart-royale', 'kart-royale'],
       ['summit-run', 'snowboard-race'],
       ['orpheum-pool', 'pool'],

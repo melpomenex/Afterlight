@@ -33,7 +33,7 @@ defmodule Afterlight.World.PlaceDefinitions do
 
   @max_activities 16
   @activity_types ~w(
-    pong rain-runner signal-lost sporefall kart-royale snowboard-race pool billiards
+    pong rain-runner signal-lost sporefall kart-royale downhill-mayhem snowboard-race pool billiards
     air-hockey foosball drones paper-airplanes gutter-boats rc-boats chess
     checkers tile-puzzle horseshoes telescope curling hammer-strike
     forge-challenge fishing skipping-stones light-music-puzzle darts piano
@@ -590,7 +590,7 @@ defmodule Afterlight.World.PlaceDefinitions do
   # (add-multiplayer-snowboard-arcade): additive optional fields for every
   # type, required complete for snowboard-race so the authoritative server
   # projection carries everything admission and the session policy need.
-  defp activity_race_problems(problems, %{"id" => id, "type" => type} = act) when type in ~w(snowboard-race drones gutter-boats rc-boats) do
+  defp activity_race_problems(problems, %{"id" => id, "type" => type} = act) when type in ~w(snowboard-race downhill-mayhem drones gutter-boats rc-boats) do
     problems
     |> activity_min_players_problems(act, required?: true)
     |> activity_ready_policy_problems(act, required?: true)

@@ -1262,8 +1262,8 @@
           "environmentPolicy": "none"
         },
         {
-          "id": "orpheum-signal-lost",
-          "type": "signal-lost",
+          "id": "orpheum-downhill-mayhem",
+          "type": "downhill-mayhem",
           "rulesVersion": 1,
           "transform": {
             "position": [
@@ -1277,24 +1277,75 @@
             "width": 0.85,
             "depth": 0.9
           },
-          "interactionRadius": 2.2,
+          "interactionRadius": 3,
           "participantAnchors": [
             {
               "facing": 1.5707963267948966,
               "position": [
                 9.3,
                 0,
-                -3.85
+                -5.2
               ],
               "slot": 0
+            },
+            {
+              "facing": 1.5707963267948966,
+              "position": [
+                8.45,
+                0,
+                -4.8
+              ],
+              "slot": 1
+            },
+            {
+              "facing": 1.5707963267948966,
+              "position": [
+                9.3,
+                0,
+                -4.3
+              ],
+              "slot": 2
+            },
+            {
+              "facing": 1.5707963267948966,
+              "position": [
+                8.45,
+                0,
+                -3.8
+              ],
+              "slot": 3
+            },
+            {
+              "facing": 1.5707963267948966,
+              "position": [
+                9.3,
+                0,
+                -3.3
+              ],
+              "slot": 4
+            },
+            {
+              "facing": 1.5707963267948966,
+              "position": [
+                8.45,
+                0,
+                -2.8
+              ],
+              "slot": 5
             }
           ],
           "capacities": {
-            "players": 1,
-            "spectators": 16,
-            "queue": 8
+            "players": 6,
+            "spectators": 32,
+            "queue": 16
           },
-          "environmentPolicy": "none"
+          "environmentPolicy": "none",
+          "minPlayers": 1,
+          "readyPolicy": "explicit",
+          "course": {
+            "id": "classic",
+            "version": 1
+          }
         },
         {
           "id": "orpheum-kart-royale",

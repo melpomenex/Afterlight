@@ -46,6 +46,7 @@ export const ACTIVITY_TYPES = Object.freeze([
   'signal-lost',
   'sporefall',
   'kart-royale',
+  'downhill-mayhem',
   'snowboard-race',
   'pool',
   'billiards',
@@ -115,6 +116,24 @@ const SIGNAL_LOST_CABINET = Object.freeze({
   }),
   led: Object.freeze({ color: '#a78bfa', intensity: 1.8 }),
   controls: Object.freeze({ player1: '#a78bfa', player2: '#31d2c8' }),
+  screen: Object.freeze({ type: 'canvas' }),
+});
+
+// Downhill Mayhem (integrate-multiplayer-downhill-mayhem-arcade): the
+// repurposed third machine, reusing the Signal Lost transform. The real game
+// lives in games/downhill-mayhem and is lazily loaded on entry — this block
+// only describes the physical machine. Alpine green over a warm amber accent,
+// distinct from every placed machine's LED.
+const DOWNHILL_MAYHEM_CABINET = Object.freeze({
+  model: 'upright',
+  skin: Object.freeze({
+    title: 'DOWNHILL MAYHEM',
+    tagline: 'RIDE • TRICK • FIGHT',
+    motif: 'downhill',
+    palette: Object.freeze({ base: '#10241d', ink: '#f2ecd9', accent: '#ff7a3c', glow: '#ffd166' }),
+  }),
+  led: Object.freeze({ color: '#ff7a3c', intensity: 1.6 }),
+  controls: Object.freeze({ player1: '#ff7a3c', player2: '#ffd166' }),
   screen: Object.freeze({ type: 'canvas' }),
 });
 
@@ -214,6 +233,48 @@ export const SIGNAL_LOST_ACTIVITY_DEFINITION = Object.freeze({
   spectatorPolicy: 'world',
   rendererKey: 'signalLostCabinet',
   controllerKey: 'signal-lost',
+});
+
+// Downhill Mayhem (integrate-multiplayer-downhill-mayhem-arcade): six-rider
+// multiplayer mountain-bike racing, hosted from games/downhill-mayhem. It
+// repurposes the Signal Lost machine and its exact transform; the row's stud
+// already exists, so theater scenery is unchanged. Six anchors queue along the
+// east-wall promenade between Rain Runner (z -5.9) and the travel gate — two
+// staggered columns (wall x 9.30, aisle x 8.45) so six riders fit without
+// blocking the aisle. interactionRadius 3.0 covers the farthest queue anchor.
+const downhillAnchor = (slot, x, z) => Object.freeze({
+  slot,
+  position: Object.freeze([x, 0, z]),
+  facing: Math.PI / 2,
+  dismount: Object.freeze([Object.freeze({ x: x < 9 ? 7.95 : 8.55, z })]),
+});
+
+export const DOWNHILL_MAYHEM_ACTIVITY_DEFINITION = Object.freeze({
+  id: 'orpheum-downhill-mayhem',
+  type: 'downhill-mayhem',
+  title: 'Downhill Mayhem',
+  sub: 'Press E to ride · Ride · Trick · Fight',
+  rulesVersion: 1,
+  minPlayers: 1,
+  readyPolicy: 'explicit',
+  course: Object.freeze({ id: 'classic', version: 1 }),
+  cabinet: DOWNHILL_MAYHEM_CABINET,
+  transform: Object.freeze({ position: Object.freeze([10.42, 0, -3.85]), rotationY: -Math.PI / 2 }),
+  footprint: Object.freeze({ width: 0.85, depth: 0.9 }),
+  interactionRadius: 3.0,
+  participantAnchors: Object.freeze([
+    downhillAnchor(0, 9.30, -5.20),
+    downhillAnchor(1, 8.45, -4.80),
+    downhillAnchor(2, 9.30, -4.30),
+    downhillAnchor(3, 8.45, -3.80),
+    downhillAnchor(4, 9.30, -3.30),
+    downhillAnchor(5, 8.45, -2.80),
+  ]),
+  capacities: Object.freeze({ players: 6, spectators: 32, queue: 16 }),
+  environmentPolicy: 'none',
+  spectatorPolicy: 'world',
+  rendererKey: 'downhillMayhemCabinet',
+  controllerKey: 'downhill-mayhem',
 });
 
 // Dormant since integrate-kart-royale-arcade: its Theater slot is the Kart
@@ -838,7 +899,9 @@ export const ROOFTOPS_ACTIVITIES = Object.freeze([
 export const ORPHEUM_ACTIVITIES = Object.freeze([
   PONG_ACTIVITY_DEFINITION,
   RAIN_RUNNER_ACTIVITY_DEFINITION,
-  SIGNAL_LOST_ACTIVITY_DEFINITION,
+  // Signal Lost is dormant (kept exported/registered): this slot is now the
+  // Downhill Mayhem machine (integrate-multiplayer-downhill-mayhem-arcade).
+  DOWNHILL_MAYHEM_ACTIVITY_DEFINITION,
   KART_ROYALE_ACTIVITY_DEFINITION,
   SUMMIT_RUN_ACTIVITY_DEFINITION,
 ]);
@@ -1284,7 +1347,7 @@ export function validateActivityDefinition(activity, { placeBounds = null } = {}
       at(Number.isInteger(course.version) && course.version >= 1, 'course.version must be an integer >= 1');
     }
   }
-  if (['snowboard-race', 'drones', 'rc-boats'].includes(activity.type)) {
+  if (['snowboard-race', 'downhill-mayhem', 'drones', 'rc-boats'].includes(activity.type)) {
     at(activity.minPlayers !== undefined, `${activity.type} requires minPlayers`);
     at(activity.readyPolicy === 'explicit', `${activity.type} uses explicit readiness (readyPolicy "explicit")`);
     at(activity.course !== undefined, `${activity.type} requires course metadata`);

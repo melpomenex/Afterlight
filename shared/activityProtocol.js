@@ -17,6 +17,7 @@ export const ACTIVITY_COMMANDS = Object.freeze({
   READY: 'activity_ready',
   INPUT: 'activity_input',
   RESNAPSHOT: 'activity_resnapshot',
+  CONFIG: 'activity_config',
   // Direct challenges (phase 6 social layer) — additive.
   CHALLENGE: 'activity_challenge',
   CHALLENGE_RESPOND: 'activity_challenge_respond',
@@ -44,6 +45,112 @@ export const SNOWBOARD_ROLES = Object.freeze(['play', 'watch', 'queue']);
 export const SNOWBOARD_LEAVE_REASONS = Object.freeze(['exit', 'travel', 'load_failed']);
 export const SNOWBOARD_COURSE_ID = 'alpine-rush';
 export const SNOWBOARD_COURSE_VERSION = 2;
+
+// Downhill Mayhem (integrate-multiplayer-downhill-mayhem-arcade, design D7):
+// six-rider human/AI race with a captain-selected mountain/difficulty. Wire
+// roles normalize play→player, watch→spectator, queue→queue.
+export const DOWNHILL_MAYHEM_ACTIVITY_TYPE = 'downhill-mayhem';
+export const DOWNHILL_MAYHEM_ROLES = Object.freeze(['play', 'watch', 'queue']);
+export const DOWNHILL_MAYHEM_LEAVE_REASONS = Object.freeze(['exit', 'travel', 'load_failed']);
+export const DOWNHILL_COURSE_IDS = Object.freeze(['classic', 'timber', 'rock', 'daily']);
+export const DOWNHILL_MOUNTAINS = DOWNHILL_COURSE_IDS;
+export const DOWNHILL_DIFFICULTIES = Object.freeze(['chill', 'mayhem', 'brutal']);
+export const DOWNHILL_TRICKS = Object.freeze([null, 'nohander', 'superman', 'heel', 'backflip']);
+
+/**
+ * Strict controls validation for downhill-mayhem. Returns `{valid, error?,
+ * sanitized?}`. Kinds:
+ *   neutral  — no fields
+ *   ride     — held steer/pedal/brake/boost + action edges hop/punch/kick +
+ *              an optional trick id
+ *   loaded   — course handshake (id/version/hash)
+ * Unknown fields are rejected.
+ */
+export function validateDownhillControls(controls, { courseHash = null } = {}) {
+  if (!controls || typeof controls !== 'object' || Array.isArray(controls)) {
+    return { valid: false, error: 'controls must be an object' };
+  }
+  const kind = controls.kind;
+  if (kind === 'neutral') {
+    return Object.keys(controls).length > 1
+      ? { valid: false, error: 'neutral controls take no fields' }
+      : { valid: true, sanitized: { kind: 'neutral' } };
+  }
+  if (kind === 'ride') {
+    const allowed = ['kind', 'steer', 'pedal', 'brake', 'boost', 'hopPressed', 'punchPressed', 'kickPressed', 'trick'];
+    for (const key of Object.keys(controls)) {
+      if (!allowed.includes(key)) return { valid: false, error: `unknown ride control field: ${key}` };
+    }
+    if (!Number.isFinite(controls.steer) || controls.steer < -1 || controls.steer > 1) {
+      return { valid: false, error: 'steer must be a finite number in [-1, 1]' };
+    }
+    for (const name of ['pedal', 'brake', 'boost', 'hopPressed', 'punchPressed', 'kickPressed']) {
+      const value = controls[name];
+      if (value !== undefined && typeof value !== 'boolean') return { valid: false, error: `${name} must be a boolean` };
+    }
+    if (controls.trick !== undefined && controls.trick !== null && !DOWNHILL_TRICKS.includes(controls.trick)) {
+      return { valid: false, error: `trick must be one of ${DOWNHILL_TRICKS.filter(Boolean).join(', ')} or null` };
+    }
+    return {
+      valid: true,
+      sanitized: {
+        kind: 'ride',
+        steer: controls.steer,
+        pedal: controls.pedal === true,
+        brake: controls.brake === true,
+        boost: controls.boost === true,
+        hopPressed: controls.hopPressed === true,
+        punchPressed: controls.punchPressed === true,
+        kickPressed: controls.kickPressed === true,
+        trick: controls.trick ?? null,
+      },
+    };
+  }
+  if (kind === 'loaded') {
+    const allowed = ['kind', 'courseId', 'courseVersion', 'courseHash'];
+    for (const key of Object.keys(controls)) {
+      if (!allowed.includes(key)) return { valid: false, error: `unknown loaded control field: ${key}` };
+    }
+    if (!DOWNHILL_COURSE_IDS.includes(controls.courseId)) {
+      return { valid: false, error: `courseId must be one of ${DOWNHILL_COURSE_IDS.join(', ')}` };
+    }
+    if (!Number.isInteger(controls.courseVersion) || controls.courseVersion < 1) {
+      return { valid: false, error: 'courseVersion must be an integer >= 1' };
+    }
+    if (typeof controls.courseHash !== 'string' || !/^[0-9a-f]{64}$/.test(controls.courseHash)) {
+      return { valid: false, error: 'courseHash must be sha256 hex' };
+    }
+    if (courseHash !== null && controls.courseHash !== courseHash) {
+      return { valid: false, error: 'courseHash does not match the authoritative course' };
+    }
+    return {
+      valid: true,
+      sanitized: { kind: 'loaded', courseId: controls.courseId, courseVersion: controls.courseVersion, courseHash: controls.courseHash },
+    };
+  }
+  return { valid: false, error: 'controls.kind must be ride, neutral or loaded' };
+}
+
+/** Captain-only lobby settings for downhill-mayhem. */
+export function validateDownhillConfig(config) {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) {
+    return { valid: false, error: 'config must be an object' };
+  }
+  const allowed = ['mountain', 'difficulty'];
+  for (const key of Object.keys(config)) {
+    if (!allowed.includes(key)) return { valid: false, error: `unknown config field: ${key}` };
+  }
+  if (config.mountain !== undefined && !DOWNHILL_COURSE_IDS.includes(config.mountain)) {
+    return { valid: false, error: 'mountain must be a known course id' };
+  }
+  if (config.difficulty !== undefined && !DOWNHILL_DIFFICULTIES.includes(config.difficulty)) {
+    return { valid: false, error: 'difficulty must be chill, mayhem or brutal' };
+  }
+  return { valid: true, sanitized: { ...(config.mountain !== undefined ? { mountain: config.mountain } : {}), ...(config.difficulty !== undefined ? { difficulty: config.difficulty } : {}) } };
+}
+
+/** The snowboard mutation fence shape is reused verbatim for downhill. */
+export const validateDownhillFence = validateSnowboardFence;
 
 /**
  * Strict D7 controls validation for snowboard-race inputs. Returns
@@ -187,6 +294,18 @@ export const ACTIVITY_ERRORS = Object.freeze({
   PAYLOAD_TOO_LARGE: 'payload_too_large',
   INPUT_DROPPED: 'input_dropped',
   STALE_MATCH: 'stale_match',
+  NOT_LOADED: 'not_loaded',
+  COURSE_MISMATCH: 'course_mismatch',
+  NOT_CAPTAIN: 'not_captain',
+  INVALID_SETTING: 'invalid_setting',
+  RACE_IN_PROGRESS: 'race_in_progress',
+  RACE_UNAVAILABLE: 'race_unavailable',
+  SERVER_BUSY: 'server_busy',
+  NOT_SEATED: 'not_seated',
+  INVALID_PARTICIPANT_LEASE: 'invalid_participant_lease',
+  INVALID_SEQUENCE: 'invalid_sequence',
+  INVALID_INPUT: 'invalid_input',
+  INVALID_ROLE: 'invalid_role',
   CHALLENGES_UNAVAILABLE: 'challenges_unavailable',
   CHALLENGE_EXPIRED: 'challenge_expired',
   TARGET_UNAVAILABLE: 'target_unavailable',

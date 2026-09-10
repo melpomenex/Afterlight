@@ -21,10 +21,10 @@ test('Orpheum arcade wing builds with all 5 cabinets and preserved theater items
   assert.equal(arcadeItems.length, 5, '5 arcade activity items registered');
   const arcadeIds = arcadeItems.map(it => it.id || it.activityId).sort();
   assert.deepEqual(arcadeIds, [
+    'orpheum-downhill-mayhem',
     'orpheum-kart-royale',
     'orpheum-pong',
     'orpheum-rain-runner',
-    'orpheum-signal-lost',
     'summit-run',
   ]);
   const poolItem = world.items.find(it => it.id === 'orpheum-pool');

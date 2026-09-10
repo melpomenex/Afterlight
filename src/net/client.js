@@ -11,6 +11,8 @@ import {
   validateActivityReady,
   validateActivityInput,
   validateSnowboardControls,
+  validateDownhillControls,
+  validateDownhillConfig,
   validateActivityResnapshot,
 } from '../../shared/activityProtocol.js';
 
@@ -545,9 +547,40 @@ export class NetworkClient {
   }
 
   /**
+   * Send an activity_config command (Downhill Mayhem captain settings).
+   */
+  sendActivityConfig({ activityId, requestId = null, matchId = null, config } = {}) {
+    const reqId = requestId || generateActivityRequestId('act_cfg');
+    if (!this.supportsActivities) {
+      this.dispatchLocalActivityError({
+        requestId: reqId, activityId,
+        error: ACTIVITY_ERRORS.ACTIVITIES_UNAVAILABLE,
+        message: 'Activities are not supported on this transport',
+      });
+      return { ok: false, error: ACTIVITY_ERRORS.ACTIVITIES_UNAVAILABLE, requestId: reqId };
+    }
+    const validation = validateDownhillConfig(config);
+    if (!validation.valid) {
+      this.dispatchLocalActivityError({
+        requestId: reqId, activityId,
+        error: ACTIVITY_ERRORS.INVALID_SETTING,
+        message: validation.error,
+      });
+      return { ok: false, error: ACTIVITY_ERRORS.INVALID_SETTING, details: validation.error, requestId: reqId };
+    }
+    this.send('activity_config', {
+      activityId,
+      requestId: reqId,
+      ...(matchId ? { matchId } : {}),
+      config: validation.sanitized,
+    });
+    return { ok: true, requestId: reqId };
+  }
+
+  /**
    * Send an activity_input command.
    */
-  sendActivityInput({ activityId, sessionId, lease, seq, matchId = null, controls } = {}) {
+  sendActivityInput({ activityId, activityType = null, sessionId, lease, seq, matchId = null, controls } = {}) {
     if (!this.supportsActivities) {
       this.dispatchLocalActivityError({
         activityId,
@@ -556,16 +589,18 @@ export class NetworkClient {
       });
       return { ok: false, error: ACTIVITY_ERRORS.ACTIVITIES_UNAVAILABLE };
     }
-    // Summit Run (D7): ride/neutral/loaded controls get the strict type-
-    // scoped allowlist on top of the generic input validation.
+    // Type-scoped strict allowlists: kind-carrying controls are validated by
+    // their game type before the generic input validation.
     let controlsError = null;
     let sanitizedControls = controls;
     if (controls && typeof controls === 'object' && 'kind' in controls) {
-      const snowboardValidation = validateSnowboardControls(controls);
-      if (!snowboardValidation.valid) {
-        controlsError = snowboardValidation.error;
+      const scoped = activityType === 'downhill-mayhem'
+        ? validateDownhillControls(controls)
+        : validateSnowboardControls(controls);
+      if (!scoped.valid) {
+        controlsError = scoped.error;
       } else {
-        sanitizedControls = snowboardValidation.sanitized;
+        sanitizedControls = scoped.sanitized;
       }
     }
 

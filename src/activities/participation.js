@@ -340,10 +340,12 @@ export function createParticipationController({
         // only when every seated player is ready (design D2/D4), and AFK
         // readiness still expires server-side after 60 seconds. Rematches
         // stay explicit (R on the cabinet screen). EXCEPTION
-        // (add-multiplayer-snowboard-arcade 6.4): the snowboard race uses
-        // EXPLICIT readiness only — and only after the course handshake.
-        const isSnowboard = currentActivity.type === 'snowboard-race';
-        if (!isSnowboard) {
+        // (add-multiplayer-snowboard-arcade 6.4, extended by
+        // integrate-multiplayer-downhill-mayhem-arcade D7): the alpine races
+        // use EXPLICIT readiness only — and only after the course handshake.
+        const explicitReadiness = currentActivity.type === 'snowboard-race'
+          || currentActivity.type === 'downhill-mayhem';
+        if (!explicitReadiness) {
           try {
             net?.sendActivityReady?.({ activityId: currentActivity.id, ready: true });
           } catch {}

@@ -219,7 +219,7 @@ test('the Orpheum row places Kart Royale in Sporefall\'s former slot', () => {
   assert.deepEqual(ids, [
     'orpheum-pong',
     'orpheum-rain-runner',
-    'orpheum-signal-lost',
+    'orpheum-downhill-mayhem',
     'orpheum-kart-royale',
     'summit-run',
   ]);
