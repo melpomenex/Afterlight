@@ -544,8 +544,9 @@ export function buildTheaterScenery(ctx) {
   for (let i = 0; i < 5; i++) box(4.6 + i * .03, 1.41 + i * .025, 9.15, .52, .018, .3, '#dac9a1');
 
   // --- Arcade wall (east): the canonical cabinets (activity runtime) line
-  // this wall at x = 10.42, fronts facing west, z = -7.95 / -5.9 / -3.85 /
-  // -1.8 (north end clears the east gate arch at z -1.2..+1.2). The inset runner carpet, brass borders and emissive floor studs
+  // this wall at x = 10.42, fronts facing west, z = -7.4 / -5.7 / -3.85 /
+  // -1.8 (north end clears the proscenium side drape and the east gate arch
+  // at z -1.2..+1.2). The inset runner carpet, brass borders and emissive floor studs
   // frame that row; positions are clear of all 45 seat sightlines to the
   // movie screen, the east travel gate at (10.7, 0), and leave >= 1.2m
   // accessible routes on the stand side.
@@ -557,7 +558,7 @@ export function buildTheaterScenery(ctx) {
 
   const arcadeStuds = [];
   for (const x of [7.6, 9.7]) {
-    for (const z of [-7.95, -5.9, -3.85, -1.8]) {
+    for (const z of [-7.4, -5.7, -3.85, -1.8]) {
       arcadeStuds.push(glow(x, .18, z, .14, .06, .14, '#ffca7a', .6));
     }
   }

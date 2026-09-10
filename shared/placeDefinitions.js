@@ -174,6 +174,8 @@ const KART_ROYALE_CABINET = Object.freeze({
 // fronts facing west onto the runner carpet (rotationY -PI/2). Footprints are
 // axis-aligned world extents of the rotated canonical cabinet (~0.74m deep ×
 // ~0.78m wide plus clearance); anchors put players at the stand markers.
+// The northmost machine sits at z -7.4: the proscenium side drape reaches to
+// x ~9.94 at z -7.85, so -7.95 clipped the Pong cabinet.
 export const PONG_ACTIVITY_DEFINITION = Object.freeze({
   id: 'orpheum-pong',
   type: 'pong',
@@ -181,12 +183,12 @@ export const PONG_ACTIVITY_DEFINITION = Object.freeze({
   sub: 'Press E to play · Spectate / Queue',
   rulesVersion: 1,
   cabinet: PONG_CABINET,
-  transform: Object.freeze({ position: Object.freeze([10.42, 0, -7.95]), rotationY: -Math.PI / 2 }),
+  transform: Object.freeze({ position: Object.freeze([10.42, 0, -7.4]), rotationY: -Math.PI / 2 }),
   footprint: Object.freeze({ width: 0.85, depth: 0.9 }),
   interactionRadius: 2.2,
   participantAnchors: Object.freeze([
-    Object.freeze({ slot: 0, position: Object.freeze([9.3, 0, -7.9]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -7.9 })]) }),
-    Object.freeze({ slot: 1, position: Object.freeze([9.3, 0, -7.2]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -7.2 })]) }),
+    Object.freeze({ slot: 0, position: Object.freeze([9.3, 0, -7.35]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -7.35 })]) }),
+    Object.freeze({ slot: 1, position: Object.freeze([9.3, 0, -6.65]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -6.65 })]) }),
   ]),
   capacities: Object.freeze({ players: 2, spectators: 32, queue: 16 }),
   environmentPolicy: 'none',
@@ -202,11 +204,11 @@ export const RAIN_RUNNER_ACTIVITY_DEFINITION = Object.freeze({
   sub: 'Press E to drive · High score run',
   rulesVersion: 1,
   cabinet: RAIN_RUNNER_CABINET,
-  transform: Object.freeze({ position: Object.freeze([10.42, 0, -5.9]), rotationY: -Math.PI / 2 }),
+  transform: Object.freeze({ position: Object.freeze([10.42, 0, -5.7]), rotationY: -Math.PI / 2 }),
   footprint: Object.freeze({ width: 0.85, depth: 0.9 }),
   interactionRadius: 2.2,
   participantAnchors: Object.freeze([
-    Object.freeze({ slot: 0, position: Object.freeze([9.3, 0, -5.9]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -5.9 })]) }),
+    Object.freeze({ slot: 0, position: Object.freeze([9.3, 0, -5.7]), facing: Math.PI / 2, dismount: Object.freeze([Object.freeze({ x: 8.55, z: -5.7 })]) }),
   ]),
   capacities: Object.freeze({ players: 1, spectators: 16, queue: 8 }),
   environmentPolicy: 'none',
@@ -239,7 +241,7 @@ export const SIGNAL_LOST_ACTIVITY_DEFINITION = Object.freeze({
 // multiplayer mountain-bike racing, hosted from games/downhill-mayhem. It
 // repurposes the Signal Lost machine and its exact transform; the row's stud
 // already exists, so theater scenery is unchanged. Six anchors queue along the
-// east-wall promenade between Rain Runner (z -5.9) and the travel gate — two
+// east-wall promenade between Rain Runner (z -5.7) and the travel gate — two
 // staggered columns (wall x 9.30, aisle x 8.45) so six riders fit without
 // blocking the aisle. interactionRadius 3.0 covers the farthest queue anchor.
 const downhillAnchor = (slot, x, z) => Object.freeze({

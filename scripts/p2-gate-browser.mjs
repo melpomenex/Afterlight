@@ -417,7 +417,7 @@ async function arcadeCrawl() {
     const ANCHORS = [
       { name: 'Sporefall', x: 9.9, z: -1.8 },
       { name: 'Signal Lost', x: 9.3, z: -3.85 },
-      { name: 'Rain Runner', x: 9.3, z: -5.9 },
+      { name: 'Rain Runner', x: 9.3, z: -5.7 },
     ];
 
     for (const anchor of ANCHORS) {
