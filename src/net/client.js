@@ -360,6 +360,35 @@ export class NetworkClient {
     return payload;
   }
 
+  /**
+   * Fetch the canonical Daily course document from the gateway
+   * (integrate-multiplayer-downhill-mayhem-arcade 4.3, design D5). The server
+   * is the sole runtime Daily generator, so the client never bakes it locally:
+   * it races exactly the server's bytes and hash. Throws a readable error on
+   * any non-document response so the activity can fail closed.
+   */
+  async fetchDownhillDailyCourse({ date = null } = {}) {
+    const qs = date ? `?date=${encodeURIComponent(date)}` : '';
+    let res;
+    try {
+      res = await fetch(`${this.apiBase.replace(/\/+$/, '')}/api/downhill/course/daily${qs}`, {
+        method: 'GET',
+      });
+    } catch {
+      throw new Error('Could not reach the mountain service — is the game server running?');
+    }
+    let payload = null;
+    try {
+      payload = await res.json();
+    } catch {
+      payload = null;
+    }
+    if (!res.ok || !payload || typeof payload !== 'object' || typeof payload.hash !== 'string') {
+      throw new Error(payload?.error || `The Daily course is unavailable (HTTP ${res.status}).`);
+    }
+    return payload;
+  }
+
   uploadPlaylistText(text, name, by) {
     return this.postToTheater('/api/theater/playlists', { name, by }, text, 'text/plain');
   }

@@ -1,7 +1,7 @@
 defmodule AfterlightWeb.Plugs.TheaterCors do
   @moduledoc """
   CORS preflight + Origin echo + `Vary: Origin` for browser-facing gateway
-  HTTP routes (`/api/theater/*`, `/api/auth/*`).
+  HTTP routes (`/api/theater/*`, `/api/auth/*`, `/api/downhill/*`).
   """
 
   @behaviour Plug
@@ -15,6 +15,10 @@ defmodule AfterlightWeb.Plugs.TheaterCors do
   end
 
   def call(%Plug.Conn{path_info: ["api", "auth" | _]} = conn, _opts) do
+    cors(conn)
+  end
+
+  def call(%Plug.Conn{path_info: ["api", "downhill" | _]} = conn, _opts) do
     cors(conn)
   end
 

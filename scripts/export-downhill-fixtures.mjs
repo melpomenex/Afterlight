@@ -7,6 +7,10 @@
  * so the Elixir reducer can be replayed against it. No AI generation is used:
  * every rider's controls are scripted, isolating the shared physics.
  *
+ * Also writes the Daily course parity fixtures: the server is the sole runtime
+ * Daily generator (design D5), so the Elixir port must reproduce the JS
+ * authoring oracle bit-for-bit for representative date seeds.
+ *
  * Usage:
  *   node scripts/export-downhill-fixtures.mjs
  */
@@ -23,6 +27,9 @@ const OUT_DIR = path.join(REPO_ROOT, 'server_elixir', 'test', 'fixtures', 'downh
 
 const TICKS = 180;
 const RECORD_EVERY = 1;
+
+/** Representative Daily seeds: a plain date plus two crafted-seed quirks. */
+export const DAILY_FIXTURE_SEEDS = Object.freeze([20260910, 19930211]);
 
 function controlsFor(tick, slot) {
   return {
@@ -85,10 +92,50 @@ export function buildRulesFixture() {
   };
 }
 
+export function buildDailyFixture(seed) {
+  const doc = generateCourseDocument({ mountain: 'daily', dailySeed: seed });
+  return {
+    seed: doc.seed,
+    id: doc.id,
+    version: doc.version,
+    rulesVersion: doc.rulesVersion,
+    mountain: doc.mountain,
+    ds: doc.ds,
+    sMin: doc.sMin,
+    sMax: doc.sMax,
+    finishS: doc.finishS,
+    halfW: doc.halfW,
+    rideW: doc.rideW,
+    latClamp: doc.latClamp,
+    knobs: doc.knobs,
+    startLats: doc.startLats,
+    cgrade: doc.cgrade,
+    ccurv: doc.ccurv,
+    cy: doc.cy,
+    cx: doc.cx,
+    cz: doc.cz,
+    ch: doc.ch,
+    ramps: doc.ramps,
+    drops: doc.drops,
+    colliders: doc.colliders,
+  };
+}
+
+export function exportDailyFixtures() {
+  const written = [];
+  for (const seed of DAILY_FIXTURE_SEEDS) {
+    const file = path.join(OUT_DIR, `daily_${seed}.json`);
+    writeFileSync(file, `${JSON.stringify(buildDailyFixture(seed))}\n`);
+    written.push(file);
+  }
+  return written;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const fixture = buildRulesFixture();
   mkdirSync(OUT_DIR, { recursive: true });
   const out = path.join(OUT_DIR, 'rules_parity.json');
   writeFileSync(out, `${JSON.stringify(fixture)}\n`);
   console.log(`wrote ${out} (${TICKS} ticks, ${fixture.controls.length} control rows)`);
+  for (const file of exportDailyFixtures()) console.log(`wrote ${file}`);
 }

@@ -12,6 +12,7 @@ defmodule AfterlightWeb.Router do
     post("/api/auth/guest", AuthController, :create)
     get("/api/activities/leaderboard/:game", LeaderboardController, :show)
     get("/api/activities/profile/:playerId", LeaderboardController, :profile)
+    get("/api/downhill/course/daily", DownhillCourseController, :daily)
     post("/internal/irc/adapter/event", IrcAdapterController, :create)
   end
 end
