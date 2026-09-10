@@ -768,6 +768,23 @@ if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
       const v = new THREE.Vector3(x, 0, z).project(activeCamera);
       return [((v.x + 1) / 2) * innerWidth, ((1 - v.y) / 2) * innerHeight];
     },
+    // Screen-space pick used by visual-verification tooling to identify which
+    // mesh is rendering at a pixel (read-only; no gameplay effect).
+    pick: (sx, sy) => {
+      const ndc = new THREE.Vector2((sx / innerWidth) * 2 - 1, -(sy / innerHeight) * 2 + 1);
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(ndc, activeCamera);
+      return raycaster.intersectObjects(scene.children, true).slice(0, 5).map(hit => ({
+        d: +hit.distance.toFixed(2),
+        type: hit.object.type,
+        geo: hit.object.geometry?.type ?? null,
+        pos: hit.object.position.toArray().map(v => +v.toFixed(2)),
+        scale: hit.object.scale.toArray().map(v => +v.toFixed(2)),
+        color: hit.object.material?.color?.getHexString?.() ?? null,
+        mapped: !!hit.object.material?.map,
+        emissive: hit.object.material?.emissive?.getHexString?.() ?? null,
+      }));
+    },
   };
 }
 
