@@ -1,0 +1,19 @@
+{
+  "name": "downhill-mayhem",
+  "version": "1.0.0",
+  "description": "Downhill Mayhem — a fan-made downhill mountain-bike racer. Playable standalone and hosted inside Afterlight through the shared runtime.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "vite": "^7.1.0"
+  }
+}
