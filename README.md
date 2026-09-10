@@ -155,7 +155,7 @@ The market garden, the economy and the restoration landmarks live on unchanged f
 
 **First person.** The fourth camera view puts you at street level. Your own avatar steps out of sight (Kiln and everyone else stay put), WASD moves relative to where you look, and dragging on the world turns your view — a plain click still walks, and a drag never does. Sit in a theater seat in first person to watch the shared screen from your own chair; your view choice is local and resets to the default angle on reload.
 
-**Sound.** The **♫ Sound** footer toggle starts the ambience and effects (everything is synthesized in the browser — no audio downloads). Footsteps follow your walking and running cadence; their volume lives in **Settings** (<kbd>Esc</kbd> → Footsteps) and is remembered per browser.
+**Sound.** The world starts **quiet**: sound is off until you press the **♫ Sound** footer toggle, which starts the ambience and effects (everything is synthesized in the browser — no audio downloads). The switch is the master volume for the whole game — with sound off, screens in The Orpheum stay silent too, and pressing it brings their picture's audio back at your chosen theater volume. Footsteps follow your walking and running cadence; their volume lives in **Settings** (<kbd>Esc</kbd> → Footsteps) and is remembered per browser.
 
 **Bunny hopping.** Landing while <kbd>Space</kbd> is still held relaunches you instantly, preserving the speed you carried into the air and adding a little more each clean hop, up to a cap. Break the chain — release Space, stop moving, sit, travel, or pause — and you're back to normal walk/run speed. Kiln keeps pattering along on the ground and catches up when you stop.
 

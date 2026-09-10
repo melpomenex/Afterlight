@@ -1310,6 +1310,11 @@ $('sound').onclick = async () => {
     // Autoplay denial: report honestly and let the next Sound gesture retry.
     if (!muted && audioMixer.status() !== 'running') muted = true;
   }
+  // The master switch gates every local source, theater media included:
+  // sound off (the default) keeps queued videos silent; sound on restores
+  // the user's own theater volume on the live engine.
+  audioMixer.setSoundEnabled(!muted);
+  theaterUI.setMasterSound(!muted);
   $('sound').textContent = muted ? '♫  Sound off' : '♫  Sound on';
 };
 

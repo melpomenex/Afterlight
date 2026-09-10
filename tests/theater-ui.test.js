@@ -273,7 +273,9 @@ test('a fully groupless list keeps the flat fallback (no country facets)', () =>
 
 async function createSeamUi() {
   const stubNet = { on() {}, send() {} };
-  return new mod.TheaterScreenUI(stubNet);
+  const ui = new mod.TheaterScreenUI(stubNet);
+  ui.setMasterSound(true); // mix-seam tests run under sound-on; the off default is covered below
+  return ui;
 }
 
 test('setMixGain: effective volume multiplies user volume by mix gain without overwriting it', async () => {
@@ -319,6 +321,45 @@ test('setMixGain: a provider without volume control reports ducking as unavailab
   assert.equal(ui.mixGain, 0.5, 'the factor is still recorded for engines that CAN take it');
   ui.engine = null;
   assert.equal(ui.applyEffectiveVolume(), false, 'no engine: nothing to apply');
+});
+
+// --- master sound gate (the game defaults to sound off; media must be silent) ---
+
+test('setMasterSound: media is silent until the Sound gesture, then the user volume applies live', async () => {
+  const stubNet = { on() {}, send() {} };
+  const ui = new mod.TheaterScreenUI(stubNet); // raw construction: the real default
+  ui.volume = 0.8;
+  assert.equal(ui.masterSound, false, 'sound starts off');
+  assert.equal(ui.effectiveVolume(), 0, 'no audio before the master gesture, whatever the slider says');
+
+  const engine = { volumes: [], setVolume(v) { this.volumes.push(v); } };
+  ui.engine = engine;
+  assert.equal(ui.applyEffectiveVolume(), true);
+  assert.deepEqual(engine.volumes, [0], 'fresh engines (new media items) start silent');
+
+  assert.equal(ui.setMasterSound(true), true);
+  assert.deepEqual(engine.volumes, [0, 0.8], 'turning sound on restores the user volume on the live engine');
+  assert.equal(ui.effectiveVolume(), 0.8);
+
+  assert.equal(ui.setMasterSound(false), true);
+  assert.deepEqual(engine.volumes, [0, 0.8, 0], 'muting silences the live engine again');
+  assert.equal(ui.effectiveVolume(), 0);
+
+  ui.setMasterSound('nonsense'); // only an explicit true enables audio
+  assert.equal(ui.masterSound, false, 'garbage input keeps the gate closed');
+  assert.equal(ui.setMasterSound(true), true, '...and a later real toggle still works');
+});
+
+test('setMasterSound: the gate multiplies with mix gain, it does not overwrite it', async () => {
+  const ui = await createSeamUi(); // sound on, neutral mix
+  ui.volume = 0.5;
+  ui.setMixGain(0.4); // e.g. a call is ducking the mix
+  assert.equal(ui.effectiveVolume(), 0.2);
+  ui.setMasterSound(false);
+  assert.equal(ui.effectiveVolume(), 0, 'sound off wins over any mix state');
+  ui.setMasterSound(true);
+  assert.equal(ui.effectiveVolume(), 0.2, 'sound on restores user x mix');
+  assert.equal(ui.mixGain, 0.4, 'the duck factor was never touched by the gate');
 });
 
 test('fitOverlaySize: tiny far quad floors at the 100px base', async () => {

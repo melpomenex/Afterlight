@@ -423,6 +423,7 @@ export class TheaterScreenUI {
     this.loadToken = 0; // guards async engine loads against races
     this.volume = 1; // 0..1, local only — never part of shared state
     this.mixGain = 1; // local atmosphere/voice mix factor (task 4.1 D7); user volume stays untouched
+    this.masterSound = false; // the game's Sound toggle (main.js): media stays silent until sound is on
     this.watching = false; // cinema view: big stage + docked chat, HUD hidden
     // Set by the game: standing up from a seat is the game's business
     // (pose, movement flag); the watch bar only requests it.
@@ -526,14 +527,28 @@ export class TheaterScreenUI {
   }
 
   /**
-   * Effective LOCAL volume: the user's own slider multiplied by the game's
-   * mix gain (atmosphere duck / future voice duck). The slider preference
-   * itself is never overwritten (task 4.1, design D7).
+   * Effective LOCAL volume: the master sound gate (sound off — the game's
+   * default — means silence) multiplied by the user's own slider and the
+   * game's mix gain (atmosphere duck / future voice duck). The slider
+   * preference itself is never overwritten (task 4.1, design D7).
    */
   effectiveVolume() {
+    if (!this.masterSound) return 0;
     const user = Number.isFinite(this.volume) ? Math.min(1, Math.max(0, this.volume)) : 1;
     const mix = Number.isFinite(this.mixGain) ? Math.min(1, Math.max(0, this.mixGain)) : 1;
     return user * mix;
+  }
+
+  /**
+   * The game's master Sound toggle (default OFF) gates ALL local audio,
+   * including this screen: with sound off the effective volume is 0 — media
+   * keeps loading and stays in sync, just silently. Turning sound on
+   * restores the user's own volume on the live engine. Returns the
+   * applyEffectiveVolume() result (false when no controlled engine exists).
+   */
+  setMasterSound(enabled) {
+    this.masterSound = enabled === true;
+    return this.applyEffectiveVolume();
   }
 
   /**
@@ -930,6 +945,9 @@ export class TheaterScreenUI {
     video.setAttribute('playsinline', '');
     video.preload = 'auto';
     video.volume = this.effectiveVolume(); // user volume x mix gain (task 4.1)
+    // Sound off (the default) means SILENT, not just quiet: the muted
+    // property — not volume 0 — is what lets autoplay proceed unblocked.
+    video.muted = this.effectiveVolume() <= 0;
     // Deliberately NO crossOrigin attribute: most stream/file hosts send no
     // CORS headers and setting it would make playback fail outright.
     this.dom.mediaHost.append(video);
@@ -954,6 +972,7 @@ export class TheaterScreenUI {
       },
       setVolume: (v) => {
         video.volume = v;
+        video.muted = v <= 0; // master gate restores real audio, not just level
       },
       destroy: () => {
         if (engine.hls) {
@@ -1062,6 +1081,17 @@ export class TheaterScreenUI {
     };
 
     let player;
+    // Volume and mute travel together: setVolume(0) alone neither silences
+    // YouTube's output nor satisfies browser autoplay policy.
+    const applyVolume = (v) => {
+      try {
+        player.setVolume(Math.round(v * 100));
+      } catch {}
+      try {
+        if (v <= 0) player.mute();
+        else player.unMute();
+      } catch {}
+    };
     try {
       player = new YT.Player(mount, {
         width: '100%',
@@ -1080,7 +1110,7 @@ export class TheaterScreenUI {
               if (data?.title) this.rememberYouTubeTitle(item.videoId, data.title);
             } catch {}
             try {
-              player.setVolume(Math.round(this.effectiveVolume() * 100));
+              applyVolume(this.effectiveVolume());
             } catch {}
             const target = this.targetPosition();
             if (target > 0.5) {
@@ -1151,9 +1181,7 @@ export class TheaterScreenUI {
       } catch {}
     };
     engine.setVolume = (v) => {
-      try {
-        player.setVolume(Math.round(v * 100));
-      } catch {}
+      applyVolume(v);
     };
     engine.destroy = () => {
       if (engine.unstartedTimer) {
@@ -1168,7 +1196,13 @@ export class TheaterScreenUI {
 
   async startVimeoEngine(item, token) {
     const iframe = document.createElement('iframe');
-    iframe.src = buildEmbedUrl('vimeo', item.videoId) || item.url;
+    // Degraded iframes cannot be volume-controlled later, so when sound is
+    // off (the default) the embed itself starts muted instead of autoplaying
+    // audibly; sound on keeps the old unmuted embed.
+    const embed = buildEmbedUrl('vimeo', item.videoId);
+    iframe.src = this.masterSound
+      ? (embed || item.url)
+      : (embed ? `${embed}&muted=1` : item.url);
     iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture');
     iframe.setAttribute('allowfullscreen', '');
     this.dom.mediaHost.append(iframe);
@@ -1201,6 +1235,9 @@ export class TheaterScreenUI {
       setVolume: (v) => {
         try {
           engine.player?.setVolume?.(v);
+        } catch {}
+        try {
+          engine.player?.setMuted?.(v <= 0); // master gate restores real audio
         } catch {}
       },
       destroy: () => {
@@ -1239,6 +1276,9 @@ export class TheaterScreenUI {
       }
       try {
         await player.setVolume(this.effectiveVolume());
+      } catch {}
+      try {
+        await player.setMuted(this.effectiveVolume() <= 0);
       } catch {}
       try {
         await player.play();

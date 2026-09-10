@@ -16,6 +16,11 @@
  *   - Preferences live in the additive key `afterlight-audio-v1`, clamped
  *     to 0..1; malformed or unavailable storage falls back to session-only
  *     defaults without pretending anything was persisted.
+ *   - Master sound gate: the game's Sound toggle (owned by main.js) starts
+ *     OFF and gates `mediaGain()` to 0 — media provider engines keep their
+ *     own playback path, so this factor is the only seam that can silence
+ *     them. Synth buses need no gate: the Sound gesture creates/resumes the
+ *     context, so they are silent until it runs anyway.
  *   - The optional P8 hook is exactly `setVoiceActive(boolean)`: while a
  *     call is active the environment bus ducks to 0.35x (attack 150ms,
  *     release 600ms) and the media factor to 0.6x. The user's own voice
@@ -99,6 +104,7 @@ export function createAudioMixer({
 
   let context = null;
   let disposed = false;
+  let soundEnabled = false; // the game's Sound toggle; media stays silent until it is on
   let voiceActive = false;
   let mediaFactor = 1;
   let mediaRampTimer = null;
@@ -289,9 +295,26 @@ export function createAudioMixer({
     return voiceActive;
   }
 
-  /** Effective local media multiplier: user preference x duck factor. The
-   * Theater seam multiplies its own stored user volume by this. */
+  /** Master sound gate (main.js owns the toggle; the default is off so a
+   * fresh page load is silent, theater media included). Idempotent; the
+   * change reaches media listeners so live engines re-apply volume. */
+  function setSoundEnabled(enabled) {
+    const next = enabled === true;
+    if (next === soundEnabled) return soundEnabled;
+    soundEnabled = next;
+    notifyMedia();
+    return soundEnabled;
+  }
+
+  function isSoundEnabled() {
+    return soundEnabled;
+  }
+
+  /** Effective local media multiplier: the master sound gate x user
+   * preference x duck factor. The Theater seam multiplies its own stored
+   * user volume by this. */
   function mediaGain() {
+    if (!soundEnabled) return 0;
     return clamp01(prefs.media) * clamp01(mediaFactor);
   }
 
@@ -329,6 +352,8 @@ export function createAudioMixer({
     setVoiceActive,
     clearDuck,
     isVoiceActive,
+    setSoundEnabled,
+    isSoundEnabled,
     mediaGain,
     onMediaGainChange,
     dispose,

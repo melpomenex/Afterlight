@@ -170,7 +170,25 @@ test('mixer: unavailable audio reports honestly and never throws', async () => {
   assert.equal(mixer.ensure(), null);
   assert.equal(mixer.status(), 'unavailable');
   assert.equal(await mixer.resume(), false, 'resume without a context reports false');
-  assert.equal(mixer.mediaGain(), 1, 'media factor stays neutral');
+  assert.equal(mixer.mediaGain(), 0, 'media stays silent until sound is enabled (the default)');
+});
+
+test('mixer: the master sound gate silences media until the Sound gesture turns it on', () => {
+  const mixer = createAudioMixer({ contextClass: FakeAudioContext, storage: null });
+  assert.equal(mixer.isSoundEnabled(), false, 'sound starts off');
+  mixer.setPreference('media', 1);
+  assert.equal(mixer.mediaGain(), 0, 'media factor gated to silence despite the preference');
+
+  const seen = [];
+  mixer.onMediaGainChange((g) => seen.push(g));
+  assert.equal(mixer.setSoundEnabled(true), true);
+  assert.equal(mixer.mediaGain(), 1, 'enabling sound restores the media factor');
+  assert.ok(seen.includes(1), 'listeners learn media became audible');
+
+  assert.equal(mixer.setSoundEnabled(false), false);
+  assert.equal(mixer.mediaGain(), 0, 'muting gates the media factor again');
+  assert.equal(mixer.setSoundEnabled(false), false, 'idempotent: no state churn');
+  assert.equal(mixer.setPreference('media', 0.5), 0.5, 'the preference itself is never overwritten');
 });
 
 test('mixer: independent logical gains — weather changes alone', () => {
@@ -241,6 +259,7 @@ test('mixer: voice duck ramps the environment bus and media factor; clearDuck re
   });
   mixer.ensure();
   mixer.setPreference('media', 1);
+  mixer.setSoundEnabled(true); // the master gate defaults off; duck math runs under sound-on
 
   const seen = [];
   mixer.onMediaGainChange((g) => seen.push(g));
@@ -271,6 +290,7 @@ test('mixer: clearDuck on adapter removal never leaves stuck ducking', () => {
     cancelDelay: scheduler.cancelDelay,
   });
   mixer.ensure();
+  mixer.setSoundEnabled(true);
   mixer.setVoiceActive(true);
   mixer.clearDuck();
   nowMs += DUCK_RELEASE_MS + 100;
