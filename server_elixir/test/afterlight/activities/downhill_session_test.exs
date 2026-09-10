@@ -12,6 +12,7 @@ defmodule Afterlight.Activities.DownhillSessionTest do
 
   alias Afterlight.Activities
   alias Afterlight.Activities.DownhillMayhem
+  alias Afterlight.Activities.DownhillMayhem.SessionPolicy
   alias Afterlight.World.Lease
 
   @course DownhillMayhem.Course.load_crafted("classic")
@@ -144,7 +145,7 @@ defmodule Afterlight.Activities.DownhillSessionTest do
     payload = %{
       "sessionId" => Activities.session_id(session),
       "lease" => elem(slot_lease, 1),
-      "seq" => System.unique_integer([:positive]),
+      "seq" => System.unique_integer([:monotonic, :positive]),
       "matchId" => Activities.session_info(session).match_id,
       "controls" => controls
     }
@@ -165,8 +166,11 @@ defmodule Afterlight.Activities.DownhillSessionTest do
   end
 
   defp config(session, player, payload) do
-    GenServer.call(session, {:command, "activity_config",
-       Map.put(payload, "matchId", Activities.session_info(session).match_id), player})
+    GenServer.call(
+      session,
+      {:command, "activity_config",
+       Map.put(payload, "matchId", Activities.session_info(session).match_id), player}
+    )
   end
 
   defp status(session), do: Activities.session_info(session).status
@@ -213,7 +217,12 @@ defmodule Afterlight.Activities.DownhillSessionTest do
     assert info.match_id != match_before
 
     # Every AI identity is deterministic and published.
-    ai_names = info.sim_state["riders"] |> Map.values() |> Enum.filter(& &1.is_ai) |> Enum.map(& &1.nickname)
+    ai_names =
+      info.sim_state["riders"]
+      |> Map.values()
+      |> Enum.filter(& &1.is_ai)
+      |> Enum.map(& &1.nickname)
+
     assert Enum.all?(ai_names, &is_binary/1)
   end
 
@@ -243,7 +252,10 @@ defmodule Afterlight.Activities.DownhillSessionTest do
     assert rider_count(info, & &1.is_ai) == 4
 
     human_slots =
-      info.sim_state["riders"] |> Map.values() |> Enum.filter(&(not &1.is_ai)) |> Enum.map(& &1.slot)
+      info.sim_state["riders"]
+      |> Map.values()
+      |> Enum.filter(&(not &1.is_ai))
+      |> Enum.map(& &1.slot)
 
     assert human_slots == [0, 1]
   end
@@ -314,6 +326,7 @@ defmodule Afterlight.Activities.DownhillSessionTest do
 
     # During the locked countdown a new human is refused a racing slot.
     late = make_player("late")
+
     assert {:error, :race_in_progress} =
              GenServer.call(session, {:command, "activity_join", %{"role" => "play"}, late})
 
@@ -321,6 +334,84 @@ defmodule Afterlight.Activities.DownhillSessionTest do
     assert {:ok, _} = ready(session, player, false)
     assert status(session) == :lobby
     assert Enum.all?(Map.values(Activities.session_info(session).players), &(&1.ready == false))
+  end
+
+  test "a wrong course identity (id, version or hash) is rejected before readiness", ctx do
+    session = start_session(ctx, countdown_ms: 5_000)
+
+    player = make_player("stale")
+    {slot, lease} = join(session, player)
+    assert {:error, :not_loaded} = ready(session, player, true)
+
+    for bad <- [
+          %{"courseId" => "timber"},
+          %{"courseVersion" => 2},
+          %{"courseHash" => String.duplicate("f", 64)}
+        ] do
+      assert {:error, :course_mismatch} = load(session, player, {slot, lease}, bad)
+      assert {:error, :not_loaded} = ready(session, player, true)
+    end
+
+    assert {:ok, %{result: "loaded"}} = load(session, player, {slot, lease})
+    assert {:ok, _} = ready(session, player, true)
+    assert status(session) == :countdown
+  end
+
+  test "a captain mountain change invalidates loads and readiness", ctx do
+    session = start_session(ctx, countdown_ms: 5_000)
+
+    captain = make_player("captain")
+    {slot, lease} = join(session, captain)
+    assert {:ok, %{result: "loaded"}} = load(session, captain, {slot, lease})
+
+    assert {:ok, %{result: "config", mountain: "timber"}} =
+             config(session, captain, %{"mountain" => "timber"})
+
+    info = Activities.session_info(session)
+    assert status(session) == :lobby
+    assert info.players[slot].ready == false
+    assert info.players[slot].loaded == false
+
+    # The old mountain's hash is now refused; the new one loads and relocks.
+    assert {:error, :course_mismatch} = load(session, captain, {slot, lease})
+
+    timber = DownhillMayhem.Course.load_crafted("timber")
+
+    assert {:ok, %{result: "loaded"}} =
+             load(session, captain, {slot, lease}, %{
+               "courseId" => "timber",
+               "courseVersion" => timber.version,
+               "courseHash" => DownhillMayhem.Course.hash(timber)
+             })
+
+    assert {:ok, _} = ready(session, captain, true)
+    assert status(session) == :countdown
+  end
+
+  test "the Daily is server-generated and the load gate matches its published hash", ctx do
+    session = start_session(ctx, countdown_ms: 5_000)
+
+    captain = make_player("dailycap")
+    {slot, lease} = join(session, captain)
+
+    assert {:ok, %{result: "config", mountain: "daily"}} =
+             config(session, captain, %{"mountain" => "daily"})
+
+    # The committed classic identity is now stale.
+    assert {:error, :course_mismatch} = load(session, captain, {slot, lease})
+
+    daily = Afterlight.Activities.DownhillMayhem.Daily.daily()
+    assert daily.id == "daily"
+
+    assert {:ok, %{result: "loaded"}} =
+             load(session, captain, {slot, lease}, %{
+               "courseId" => "daily",
+               "courseVersion" => daily.version,
+               "courseHash" => DownhillMayhem.Course.hash(daily)
+             })
+
+    assert {:ok, _} = ready(session, captain, true)
+    assert status(session) == :countdown
   end
 
   test "late joiners queue during a race instead of taking a slot", ctx do
@@ -342,7 +433,8 @@ defmodule Afterlight.Activities.DownhillSessionTest do
   end
 
   test "a finished race rematches with a fresh identity and reset riders", ctx do
-    session = start_session(ctx, countdown_ms: 80, race_deadline_ms: 250, results_retention_ms: 60_000)
+    session =
+      start_session(ctx, countdown_ms: 80, race_deadline_ms: 250, results_retention_ms: 60_000)
 
     player = make_player("rematch")
     {slot, lease} = join(session, player)
@@ -370,7 +462,9 @@ defmodule Afterlight.Activities.DownhillSessionTest do
 
   test "disconnect never pauses the race; grace expiry marks DNF(disconnect)", ctx do
     test_pid = self()
-    session = start_session(ctx, countdown_ms: 120, race_deadline_ms: 10_000, reconnect_grace_ms: 200)
+
+    session =
+      start_session(ctx, countdown_ms: 120, race_deadline_ms: 10_000, reconnect_grace_ms: 200)
 
     leaver = make_player("gone")
     leaver_chan = spawn(fn -> fake_channel_loop(test_pid) end)
@@ -403,7 +497,12 @@ defmodule Afterlight.Activities.DownhillSessionTest do
 
   describe "stale match fence (D7)" do
     test "a leave signed for an old match never DNFs the new race", ctx do
-      session = start_session(ctx, countdown_ms: 80, race_deadline_ms: 5_000, results_retention_ms: 60_000)
+      session =
+        start_session(ctx,
+          countdown_ms: 80,
+          race_deadline_ms: 5_000,
+          results_retention_ms: 60_000
+        )
 
       player = make_player("s1")
       {slot, lease} = join(session, player)
@@ -412,7 +511,10 @@ defmodule Afterlight.Activities.DownhillSessionTest do
       wait_until(2_000, fn -> status(session) == :in_progress end)
 
       assert {:error, :stale_match} =
-               GenServer.call(session, {:command, "activity_leave", %{"matchId" => "match_stale"}, player})
+               GenServer.call(
+                 session,
+                 {:command, "activity_leave", %{"matchId" => "match_stale"}, player}
+               )
 
       info = Activities.session_info(session)
       assert map_size(info.players) == 1
@@ -431,14 +533,22 @@ defmodule Afterlight.Activities.DownhillSessionTest do
       info = Activities.session_info(session)
 
       assert {:error, :stale_match} =
-               GenServer.call(session, {:command, "activity_input",
-                 %{
-                   "sessionId" => info.session_id,
-                   "lease" => info.players[slot].lease_id,
-                   "seq" => info.players[slot].last_seq + 1,
-                   "matchId" => "match_stale",
-                   "controls" => %{"kind" => "ride", "steer" => 0.0, "pedal" => true, "brake" => false}
-                 }, player})
+               GenServer.call(
+                 session,
+                 {:command, "activity_input",
+                  %{
+                    "sessionId" => info.session_id,
+                    "lease" => info.players[slot].lease_id,
+                    "seq" => info.players[slot].last_seq + 1,
+                    "matchId" => "match_stale",
+                    "controls" => %{
+                      "kind" => "ride",
+                      "steer" => 0.0,
+                      "pedal" => true,
+                      "brake" => false
+                    }
+                  }, player}
+               )
 
       assert Activities.session_info(session).status == :in_progress
     end
@@ -455,15 +565,104 @@ defmodule Afterlight.Activities.DownhillSessionTest do
       info = Activities.session_info(session)
 
       assert {:error, :invalid_input} =
-               GenServer.call(session, {:command, "activity_input",
-                 %{
-                   "sessionId" => info.session_id,
-                   "lease" => info.players[slot].lease_id,
-                   "seq" => info.players[slot].last_seq + 1,
-                   "matchId" => info.match_id,
-                   "controls" => %{"kind" => "ride", "steer" => "NaN"}
-                 }, player})
+               GenServer.call(
+                 session,
+                 {:command, "activity_input",
+                  %{
+                    "sessionId" => info.session_id,
+                    "lease" => info.players[slot].lease_id,
+                    "seq" => info.players[slot].last_seq + 1,
+                    "matchId" => info.match_id,
+                    "controls" => %{"kind" => "ride", "steer" => "NaN"}
+                  }, player}
+               )
     end
+  end
+
+  test "a queued rider is offered a vacated seat and can accept it", ctx do
+    session = start_session(ctx, countdown_ms: 5_000)
+
+    seated = make_player("seated")
+    queued = make_player("queued")
+    {_slot, _lease} = join(session, seated)
+    assert {:ok, %{result: "queued", position: 1}} = join_queue(session, queued)
+
+    # The seated rider leaves: the vacated slot is offered to the queue head.
+    assert {:ok, _} = GenServer.call(session, {:command, "activity_leave", %{}, seated})
+
+    assert_receive {:activity_event, %{"eventType" => "slot_offered"} = offer}, 1_000
+    assert offer["slot"] == 0
+    assert offer["timeoutMs"] == 30_000
+
+    # Acceptance seats the promoted rider with the current session identity.
+    assert {:ok, %{result: "accepted_offer", slot: 0, sessionId: session_id}} =
+             ready(session, queued, true)
+
+    assert session_id == Activities.session_id(session)
+    info = Activities.session_info(session)
+    assert info.players[0].player_id == queued.player_id
+    assert info.players[0].ready == false, "a promoted downhill rider begins unready"
+    assert info.queue == []
+  end
+
+  test "declining an offer advances the FIFO queue", ctx do
+    session = start_session(ctx, countdown_ms: 5_000)
+
+    seated = make_player("seated")
+    first = make_player("first")
+    second = make_player("second")
+    {_slot, _lease} = join(session, seated)
+    assert {:ok, %{result: "queued", position: 1}} = join_queue(session, first)
+    assert {:ok, %{result: "queued", position: 2}} = join_queue(session, second)
+
+    assert {:ok, _} = GenServer.call(session, {:command, "activity_leave", %{}, seated})
+    assert_receive {:activity_event, %{"eventType" => "slot_offered", "slot" => 0}}, 1_000
+
+    # The head declines; the offer advances to the next queued rider.
+    assert {:ok, %{result: "declined_offer", slot: 0}} = ready(session, first, false)
+
+    assert_receive {:activity_event, %{"eventType" => "slot_offered", "slot" => 0}}, 1_000
+    assert length(Activities.session_info(session).queue) == 1
+    assert Enum.at(Activities.session_info(session).queue, 0).player_id == second.player_id
+  end
+
+  test "a downhill resnapshot carries the projected six-rider field and self", ctx do
+    session = start_session(ctx, countdown_ms: 5_000)
+
+    player = make_player("snap")
+    {slot, lease} = join(session, player)
+    assert {:ok, %{result: "loaded"}} = load(session, player, {slot, lease})
+
+    assert {:ok, snapshot} =
+             GenServer.call(
+               session,
+               {:command, "activity_resnapshot", %{"sessionId" => Activities.session_id(session)},
+                player}
+             )
+
+    assert snapshot["type"] == "activity_state"
+    assert snapshot["audience"] == "participants"
+    assert length(snapshot["riders"]) == 6
+    assert Enum.count(snapshot["riders"], & &1["isAI"]) == 5
+    assert snapshot["self"]["slot"] == slot
+  end
+
+  test "captain departure transfers to the longest-seated remaining human", ctx do
+    session = start_session(ctx, countdown_ms: 5_000)
+
+    first = make_player("capfirst")
+    second = make_player("capsecond")
+    {_s1, _l1} = join(session, first)
+    Process.sleep(5)
+    {_s2, _l2} = join(session, second)
+
+    assert SessionPolicy.captain(Activities.session_info(session).players) == first.player_id
+
+    assert {:ok, _} = GenServer.call(session, {:command, "activity_leave", %{}, first})
+
+    info = Activities.session_info(session)
+    assert SessionPolicy.captain(info.players) == second.player_id
+    assert map_size(info.players) == 1
   end
 
   # --- helpers ---------------------------------------------------------------

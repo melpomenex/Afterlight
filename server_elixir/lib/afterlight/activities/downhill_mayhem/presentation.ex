@@ -19,6 +19,8 @@ defmodule Afterlight.Activities.DownhillMayhem.Presentation do
   @progress_segment_meters 225.0
   @course_length 2_460.0
 
+  alias Afterlight.Activities.DownhillMayhem.SessionPolicy
+
   def wire_status(state) do
     Afterlight.Activities.DownhillMayhem.SessionPolicy.phase(Map.get(state, :status))
   end
@@ -33,7 +35,7 @@ defmodule Afterlight.Activities.DownhillMayhem.Presentation do
   @doc "Selected mountain (lobby config wins over the manifest course)."
   def mountain(state) do
     (Map.get(state, :lobby_config) || %{})["mountain"] ||
-      (sim(state)["courseId"]) ||
+      sim(state)["courseId"] ||
       get_in(Map.get(state, :activity_def) || %{}, ["course", "id"]) || "classic"
   end
 
@@ -65,6 +67,7 @@ defmodule Afterlight.Activities.DownhillMayhem.Presentation do
       "rulesVersion" => Map.get(s, "rulesVersion"),
       "mountain" => mountain(state),
       "difficulty" => difficulty(state),
+      "captainPlayerId" => SessionPolicy.captain(Map.get(state, :players) || %{}),
       "queueLength" => length(Map.get(state, :queue) || []),
       "spectatorCount" => map_size(Map.get(state, :spectators) || %{})
     }
@@ -79,7 +82,9 @@ defmodule Afterlight.Activities.DownhillMayhem.Presentation do
     |> Map.put("result", current_result(state))
     |> Map.put(
       "lastAcceptedSeqs",
-      Map.new(Map.get(state, :players) || %{}, fn {_s, p} -> {p.player_id, Map.get(p, :last_seq, 0)} end)
+      Map.new(Map.get(state, :players) || %{}, fn {_s, p} ->
+        {p.player_id, Map.get(p, :last_seq, 0)}
+      end)
     )
   end
 
@@ -93,7 +98,9 @@ defmodule Afterlight.Activities.DownhillMayhem.Presentation do
     held =
       case Map.get(player, :input_state) do
         controls when is_map(controls) and map_size(controls) > 0 ->
-          if Map.get(controls, "kind") in ["ride", "loaded"], do: controls, else: %{"kind" => "neutral"}
+          if Map.get(controls, "kind") in ["ride", "loaded"],
+            do: controls,
+            else: %{"kind" => "neutral"}
 
         _ ->
           %{"kind" => "neutral"}
@@ -113,35 +120,77 @@ defmodule Afterlight.Activities.DownhillMayhem.Presentation do
   @doc "Every rider row (six by construction), sorted by slot."
   def rider_rows(state) do
     riders = sim(state)["riders"] || %{}
+
+    rows =
+      if map_size(riders) > 0 do
+        riders
+        |> Map.values()
+        |> Enum.sort_by(& &1.slot)
+        |> Enum.map(&race_rider_row(state, &1))
+      else
+        # Before the roster lock the six-rider race field does not exist yet,
+        # but the lobby still presents the projected field (seated humans plus
+        # deterministic AI fillers) so every client sees the same six slots.
+        lobby_rider_rows(state)
+      end
+
+    rows
+  end
+
+  defp race_rider_row(state, r) do
     players = Map.get(state, :players) || %{}
+    player = Map.get(players, r.slot)
 
-    riders
-    |> Map.values()
-    |> Enum.sort_by(& &1.slot)
-    |> Enum.map(fn r ->
-      player = Map.get(players, r.slot)
+    %{
+      "slot" => r.slot,
+      "playerId" => r[:player_id] || (player && player.player_id),
+      "nickname" => r[:nickname] || (player && Map.get(player, :nickname)) || def_name(r),
+      "isAI" => r.is_ai,
+      "s" => num(r.s),
+      "lat" => num(r.lat),
+      "y" => num(r.y),
+      "vs" => num(r.vs),
+      "vlat" => num(r.vlat),
+      "vy" => num(r.vy),
+      "grounded" => r.grounded,
+      "steerPos" => num(r.steer_pos),
+      "meter" => num(r.meter),
+      "trick" => r.trick,
+      "crashed" => r.crashed,
+      "invuln" => num(r.invuln),
+      "finishMs" => if(r.finished, do: trunc(round((r.finish_time || 0.0) * 1000)), else: nil),
+      "racePos" => r.race_pos,
+      "resetSeq" => Map.get(r, :reset_seq, 0),
+      "dnfReason" => r[:dnf_reason]
+    }
+  end
 
+  defp lobby_rider_rows(state) do
+    players = Map.get(state, :players) || %{}
+    field = SessionPolicy.lock_field(players)
+
+    Enum.map(field, fn f ->
       %{
-        "slot" => r.slot,
-        "playerId" => r[:player_id] || (player && player.player_id),
-        "nickname" => r[:nickname] || (player && Map.get(player, :nickname)) || def_name(r),
-        "isAI" => r.is_ai,
-        "s" => num(r.s),
-        "lat" => num(r.lat),
-        "y" => num(r.y),
-        "vs" => num(r.vs),
-        "vlat" => num(r.vlat),
-        "vy" => num(r.vy),
-        "grounded" => r.grounded,
-        "steerPos" => num(r.steer_pos),
-        "meter" => num(r.meter),
-        "trick" => r.trick,
-        "crashed" => r.crashed,
-        "invuln" => num(r.invuln),
-        "finishMs" => if(r.finished, do: trunc(round((r.finish_time || 0.0) * 1000)), else: nil),
-        "racePos" => r.race_pos,
-        "resetSeq" => Map.get(r, :reset_seq, 0),
-        "dnfReason" => r[:dnf_reason]
+        "slot" => f.slot,
+        "playerId" => Map.get(f, :player_id),
+        "nickname" => Map.get(f, :nickname) || "RIDER",
+        "isAI" => Map.get(f, :is_ai, false),
+        "s" => 0.0,
+        "lat" => 0.0,
+        "y" => 0.0,
+        "vs" => 0.0,
+        "vlat" => 0.0,
+        "vy" => 0.0,
+        "grounded" => true,
+        "steerPos" => 0.0,
+        "meter" => 0.0,
+        "trick" => nil,
+        "crashed" => false,
+        "invuln" => 0.0,
+        "finishMs" => nil,
+        "racePos" => nil,
+        "resetSeq" => 0,
+        "dnfReason" => nil
       }
     end)
   end
@@ -151,28 +200,21 @@ defmodule Afterlight.Activities.DownhillMayhem.Presentation do
     riders = sim(state)["riders"] || %{}
 
     progress =
-      riders
-      |> Map.values()
-      |> Enum.sort_by(& &1.s, :desc)
-      |> Enum.map(fn r ->
-        %{
-          "slot" => r.slot,
-          "playerId" => r[:player_id],
-          "nickname" => r[:nickname] || def_name(r),
-          "isAI" => r.is_ai,
-          "nextCheckpoint" => min(8, trunc((r.s || 0) * 1.0 / @progress_segment_meters) + 1),
-          "normalizedProgress" => max(0.0, min(1.0, (r.s || 0) * 1.0 / @course_length)),
-          "status" => rider_status(r),
-          "dnfReason" => r[:dnf_reason]
-        }
-      end)
+      if map_size(riders) > 0 do
+        riders
+        |> Map.values()
+        |> Enum.sort_by(& &1.s, :desc)
+        |> Enum.map(&race_progress_row/1)
+      else
+        lobby_progress_rows(state)
+      end
 
     common_fields(state)
     |> Map.put("audience", "summary")
     |> Map.drop(["startAt", "deadlineAt", "lastAcceptedSeqs", "riders", "result"])
     |> Map.put("summary", %{
-      "riderCount" => map_size(riders),
-      "aiCount" => Enum.count(riders, fn {_s, r} -> r.is_ai end),
+      "riderCount" => length(progress),
+      "aiCount" => Enum.count(progress, & &1["isAI"]),
       "readyCount" => Enum.count(Map.get(state, :players) || %{}, fn {_s, p} -> p.ready end),
       "capacity" => Map.get(state, :max_players),
       "mountain" => mountain(state),
@@ -180,6 +222,31 @@ defmodule Afterlight.Activities.DownhillMayhem.Presentation do
       "progress" => progress,
       "result" => current_result(state)
     })
+  end
+
+  defp race_progress_row(r) do
+    %{
+      "slot" => r.slot,
+      "playerId" => r[:player_id],
+      "nickname" => r[:nickname] || def_name(r),
+      "isAI" => r.is_ai,
+      "nextCheckpoint" => min(8, trunc((r.s || 0) * 1.0 / @progress_segment_meters) + 1),
+      "normalizedProgress" => max(0.0, min(1.0, (r.s || 0) * 1.0 / @course_length)),
+      "status" => rider_status(r),
+      "dnfReason" => r[:dnf_reason]
+    }
+  end
+
+  defp lobby_progress_rows(state) do
+    state
+    |> lobby_rider_rows()
+    |> Enum.map(fn row ->
+      Map.merge(row, %{
+        "nextCheckpoint" => 1,
+        "normalizedProgress" => 0.0,
+        "status" => "racing"
+      })
+    end)
   end
 
   defp rider_status(%{finished: true}), do: "finished"

@@ -100,6 +100,16 @@ defmodule Afterlight.Activities.DownhillMayhem.SessionPolicy do
     seated != [] and length(seated) >= min and Enum.all?(seated, &ready?/1)
   end
 
+  @doc """
+  Downhill lock gate (D12): every connected seated human must be explicitly
+  ready AND have completed the matching course-hash load handshake. A captain's
+  mountain change clears both, so a stale course can never start a race.
+  """
+  def start_locked?(players, %{} = act_def) do
+    seated = players |> normalize_players() |> Enum.filter(&seated_connected?/1)
+    start_ready?(players, act_def) and Enum.all?(seated, &loaded?/1)
+  end
+
   @doc "Deterministic AI roster for a list of open slots (name + def from the source roster)."
   def ai_roster(slots) when is_list(slots) do
     defs = DownhillMayhem.rider_defs()
@@ -179,7 +189,8 @@ defmodule Afterlight.Activities.DownhillMayhem.SessionPolicy do
     riders =
       field
       |> Enum.map(fn f ->
-        r = DownhillMayhem.initial_state(f.slot, difficulty: difficulty, is_ai: f.is_ai, seed: seed)
+        r =
+          DownhillMayhem.initial_state(f.slot, difficulty: difficulty, is_ai: f.is_ai, seed: seed)
 
         r
         |> Map.put(:y, Course.height_at(course, r.s, r.lat))
@@ -223,7 +234,7 @@ defmodule Afterlight.Activities.DownhillMayhem.SessionPolicy do
       |> Map.values()
       |> Enum.filter(& &1.is_human)
       |> Enum.sort_by(& &1.s, :desc)
-      |> List.first() || (riders |> Map.values() |> Enum.sort_by(& &1.s, :desc) |> List.first())
+      |> List.first() || riders |> Map.values() |> Enum.sort_by(& &1.s, :desc) |> List.first()
 
     ctx = %{
       difficulty: sim["difficulty"],
@@ -388,4 +399,6 @@ defmodule Afterlight.Activities.DownhillMayhem.SessionPolicy do
   defp connected?(_), do: false
 
   defp ready?(p), do: pget(p, "ready", :ready, false) == true
+
+  defp loaded?(p), do: pget(p, "loaded", :loaded, false) == true
 end

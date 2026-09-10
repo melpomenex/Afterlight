@@ -170,6 +170,7 @@ defmodule Afterlight.Activities.SessionServer do
 
         nonready_inactivity_ms =
           Map.get(args, :nonready_inactivity_ms, @default_nonready_inactivity_ms)
+
         session_id = Map.get(args, :session_id) || generate_session_id()
         wire_room_id = Map.get(args, :wire_room_id) || room_key
         # D7: the initial lobby carries a nonempty matchId; every locked
@@ -329,10 +330,21 @@ defmodule Afterlight.Activities.SessionServer do
           Afterlight.Activities.Pool.Rules.step(state.sim_state, steps_to_run * (1.0 / 60.0))
 
         [slot] = Map.keys(state.players)
-        sim = if sim["status"] == "game_over", do: Afterlight.Activities.Pool.Rules.init_game(), else: sim
+
+        sim =
+          if sim["status"] == "game_over",
+            do: Afterlight.Activities.Pool.Rules.init_game(),
+            else: sim
+
         sim = if sim["status"] == "shooting", do: sim, else: Map.put(sim, "turn", slot)
 
-        state = %{state | sim_state: sim, last_tick_at: now, sim_tick_count: state.sim_tick_count + steps_to_run}
+        state = %{
+          state
+          | sim_state: sim,
+            last_tick_at: now,
+            sim_tick_count: state.sim_tick_count + steps_to_run
+        }
+
         shooting? = sim["status"] == "shooting"
 
         # Publish at the shared 20 Hz snapshot cadence (generic_sim_tick):
@@ -373,7 +385,9 @@ defmodule Afterlight.Activities.SessionServer do
       {:noreply, abort_snowboard_race(%{state | tick_timer_ref: nil}, "server_overload")}
     else
       steps_to_run = min(max(div(elapsed, state.tick_interval_ms), 1), 4)
-      {sim_state, race_events, outcome} = Snowboard.SessionPolicy.step(state.sim_state, state.players, steps_to_run)
+
+      {sim_state, race_events, outcome} =
+        Snowboard.SessionPolicy.step(state.sim_state, state.players, steps_to_run)
 
       state = %{
         state
@@ -382,7 +396,10 @@ defmodule Afterlight.Activities.SessionServer do
           last_tick_at: now
       }
 
-      state = Enum.reduce(race_events, state, fn {slot, event}, acc -> broadcast_race_event(acc, slot, event) end)
+      state =
+        Enum.reduce(race_events, state, fn {slot, event}, acc ->
+          broadcast_race_event(acc, slot, event)
+        end)
 
       case outcome do
         {:race_complete, _sim} ->
@@ -425,7 +442,14 @@ defmodule Afterlight.Activities.SessionServer do
       frozen = downhill_frozen_slots(state)
 
       {sim_state, race_events, outcome} =
-        DownhillMayhem.SessionPolicy.step_many(course, state.sim_state, race_elapsed, steps, controls, frozen)
+        DownhillMayhem.SessionPolicy.step_many(
+          course,
+          state.sim_state,
+          race_elapsed,
+          steps,
+          controls,
+          frozen
+        )
 
       state = %{
         state
@@ -435,7 +459,8 @@ defmodule Afterlight.Activities.SessionServer do
           last_tick_at: now
       }
 
-      state = Enum.reduce(race_events, state, fn event, acc -> broadcast_downhill_event(acc, event) end)
+      state =
+        Enum.reduce(race_events, state, fn event, acc -> broadcast_downhill_event(acc, event) end)
 
       case outcome do
         {:race_complete, _sim} ->
@@ -501,7 +526,12 @@ defmodule Afterlight.Activities.SessionServer do
           %{"playerId" => player_id, "index" => index, "elapsedMs" => round(key)}
 
         %{type: :finish, finishMs: finish_ms, score: score, bestCombo: best_combo} ->
-          %{"playerId" => player_id, "elapsedMs" => finish_ms, "score" => score, "bestCombo" => best_combo}
+          %{
+            "playerId" => player_id,
+            "elapsedMs" => finish_ms,
+            "score" => score,
+            "bestCombo" => best_combo
+          }
 
         _other ->
           nil
@@ -548,105 +578,107 @@ defmodule Afterlight.Activities.SessionServer do
     {sim_state, maybe_ended} =
       step_simulation(act_type, sim_in, state.players, steps_to_run)
 
-      sim_tick_count = state.sim_tick_count + steps_to_run
+    sim_tick_count = state.sim_tick_count + steps_to_run
 
-      state = %{
-        state
-        | sim_state: sim_state,
-          sim_tick_count: sim_tick_count,
-          last_tick_at: now
-      }
+    state = %{
+      state
+      | sim_state: sim_state,
+        sim_tick_count: sim_tick_count,
+        last_tick_at: now
+    }
 
-      state =
-        case maybe_ended do
-          {:match_ended, winner_slot, details} ->
-            winner_player = Map.get(state.players, winner_slot)
-            max_players = state.max_players || 2
-            is_single_player = max_players == 1
+    state =
+      case maybe_ended do
+        {:match_ended, winner_slot, details} ->
+          winner_player = Map.get(state.players, winner_slot)
+          max_players = state.max_players || 2
+          is_single_player = max_players == 1
 
-            loser_slot = if is_single_player, do: nil, else: 1 - winner_slot
-            loser_player = if loser_slot, do: Map.get(state.players, loser_slot), else: nil
+          loser_slot = if is_single_player, do: nil, else: 1 - winner_slot
+          loser_player = if loser_slot, do: Map.get(state.players, loser_slot), else: nil
 
-            winner_id = if winner_player, do: winner_player.player_id, else: "slot_#{winner_slot}"
-            loser_id = if loser_player, do: loser_player.player_id, else: nil
+          winner_id = if winner_player, do: winner_player.player_id, else: "slot_#{winner_slot}"
+          loser_id = if loser_player, do: loser_player.player_id, else: nil
 
-            details_map =
-              if is_map(details),
-                do: details,
-                else: if(is_list(details), do: Map.new(details), else: %{})
+          details_map =
+            if is_map(details),
+              do: details,
+              else: if(is_list(details), do: Map.new(details), else: %{})
 
-            reason = Map.get(details_map, :reason, Map.get(details_map, "reason", "score"))
+          reason = Map.get(details_map, :reason, Map.get(details_map, "reason", "score"))
 
-            outcome = %{
-              "winner" => winner_id,
-              "winnerSlot" => winner_slot,
-              "reason" => to_string(reason),
-              "score" => Map.get(sim_state, "score", %{}),
-              "matchId" => state.match_id
-            }
+          outcome = %{
+            "winner" => winner_id,
+            "winnerSlot" => winner_slot,
+            "reason" => to_string(reason),
+            "score" => Map.get(sim_state, "score", %{}),
+            "matchId" => state.match_id
+          }
 
-            outcome =
-              if loser_id do
-                outcome
-                |> Map.put("loser", loser_id)
-                |> Map.put("loserSlot", loser_slot)
-              else
-                outcome
-              end
-
-            outcome = Map.merge(outcome, Map.take(sim_state, ["distance", "level", "lives"]))
-
-            if state.tick_timer_ref, do: Process.cancel_timer(state.tick_timer_ref)
-
-            players =
-              Map.new(state.players, fn {slot, p} ->
-                {slot, %{p | ready: false}}
-              end)
-
-            state = %{
-              state
-              | status: :ended,
-                tick_timer_ref: nil,
-                players: players,
-                match_outcome: outcome,
-                revision: state.revision + 1
-            }
-
-            state = record_and_broadcast_event(state, "match_ended", outcome)
-            broadcast_activity_state(state)
-            state
-
-          nil ->
-            # Broadcast 20 Hz snapshot if interval elapsed
-            last_snap = state.last_snapshot_at || 0
-
-            if now - last_snap >= state.snapshot_interval_ms do
-              broadcast_activity_state(state)
-              %{state | last_snapshot_at: now}
+          outcome =
+            if loser_id do
+              outcome
+              |> Map.put("loser", loser_id)
+              |> Map.put("loserSlot", loser_slot)
             else
-              state
+              outcome
             end
-        end
 
-      if state.status == :in_progress do
-        tick_ref = Process.send_after(self(), :sim_tick, state.tick_interval_ms)
-        {:noreply, %{state | tick_timer_ref: tick_ref}}
-      else
-        {:noreply, %{state | tick_timer_ref: nil}}
+          outcome = Map.merge(outcome, Map.take(sim_state, ["distance", "level", "lives"]))
+
+          if state.tick_timer_ref, do: Process.cancel_timer(state.tick_timer_ref)
+
+          players =
+            Map.new(state.players, fn {slot, p} ->
+              {slot, %{p | ready: false}}
+            end)
+
+          state = %{
+            state
+            | status: :ended,
+              tick_timer_ref: nil,
+              players: players,
+              match_outcome: outcome,
+              revision: state.revision + 1
+          }
+
+          state = record_and_broadcast_event(state, "match_ended", outcome)
+          broadcast_activity_state(state)
+          state
+
+        nil ->
+          # Broadcast 20 Hz snapshot if interval elapsed
+          last_snap = state.last_snapshot_at || 0
+
+          if now - last_snap >= state.snapshot_interval_ms do
+            broadcast_activity_state(state)
+            %{state | last_snapshot_at: now}
+          else
+            state
+          end
       end
+
+    if state.status == :in_progress do
+      tick_ref = Process.send_after(self(), :sim_tick, state.tick_interval_ms)
+      {:noreply, %{state | tick_timer_ref: tick_ref}}
+    else
+      {:noreply, %{state | tick_timer_ref: nil}}
+    end
   end
 
   # Locked countdown completed at its scheduled monotonic instant (D4).
   def handle_info(:countdown_done, %{status: :countdown} = state) do
     cond do
-      snowboard?(state) and Snowboard.SessionPolicy.start_ready?(state.players, state.activity_def) ->
+      snowboard?(state) and
+          Snowboard.SessionPolicy.start_ready?(state.players, state.activity_def) ->
         {:noreply, begin_snowboard_race(state)}
 
       snowboard?(state) ->
         # Roster changed mid-countdown: cancel back to the lobby.
         {:noreply, cancel_snowboard_countdown(state)}
 
-      downhill?(state) and DownhillMayhem.SessionPolicy.start_ready?(state.players, state.activity_def) ->
+      downhill?(state) and
+          DownhillMayhem.SessionPolicy.start_locked?(state.players, state.activity_def) ->
         {:noreply, begin_downhill_race(state)}
 
       downhill?(state) ->
@@ -685,7 +717,11 @@ defmodule Afterlight.Activities.SessionServer do
               end
           end)
 
-        {:noreply, finish_downhill_race(%{state | sim_state: %{state.sim_state | "riders" => riders}}, "deadline")}
+        {:noreply,
+         finish_downhill_race(
+           %{state | sim_state: %{state.sim_state | "riders" => riders}},
+           "deadline"
+         )}
 
       true ->
         {:noreply, state}
@@ -783,12 +819,16 @@ defmodule Afterlight.Activities.SessionServer do
             if sim["status"] == "complete" do
               winner_slot = sim["winner"]
               winner_player = Map.get(players, winner_slot)
-              winner_id = if winner_player, do: winner_player.player_id, else: "slot_#{winner_slot}"
+
+              winner_id =
+                if winner_player, do: winner_player.player_id, else: "slot_#{winner_slot}"
+
               outcome = %{
                 "winner" => winner_id,
                 "winnerSlot" => winner_slot,
                 "reason" => "finish"
               }
+
               state = record_and_broadcast_event(state, "match_ended", outcome)
               state = %{state | status: :ended, match_outcome: outcome}
               broadcast_activity_state(state)
@@ -825,6 +865,7 @@ defmodule Afterlight.Activities.SessionServer do
 
               true ->
                 broadcast_activity_state(state)
+
                 record_and_broadcast_event(state, "rider_dnf", %{
                   "playerId" => player_id,
                   "reason" => "disconnect"
@@ -838,7 +879,13 @@ defmodule Afterlight.Activities.SessionServer do
             # D14: grace expiry marks DNF(disconnect) ONCE; the race continues
             # for everyone else — no forfeit victory is ever invented. With no
             # rider left able to race, the race aborts instead.
-            riders = DownhillMayhem.SessionPolicy.dnf(state.sim_state["riders"] || %{}, slot, "disconnect")
+            riders =
+              DownhillMayhem.SessionPolicy.dnf(
+                state.sim_state["riders"] || %{},
+                slot,
+                "disconnect"
+              )
+
             sim = %{state.sim_state | "riders" => riders}
 
             state = %{
@@ -1049,7 +1096,7 @@ defmodule Afterlight.Activities.SessionServer do
         for {_slot, p} <- state.players,
             p.ready == false,
             not Map.has_key?(state.disconnects, p.player_id),
-            (now - Map.get(p, :last_active_at, p.joined_at)) >= state.nonready_inactivity_ms do
+            now - Map.get(p, :last_active_at, p.joined_at) >= state.nonready_inactivity_ms do
           p.player_id
         end
 
@@ -1168,7 +1215,15 @@ defmodule Afterlight.Activities.SessionServer do
         player = Map.get(state.players, slot)
 
         if player do
-          %{state | players: Map.put(state.players, slot, Map.put(player, :last_active_at, System.system_time(:millisecond)))}
+          %{
+            state
+            | players:
+                Map.put(
+                  state.players,
+                  slot,
+                  Map.put(player, :last_active_at, System.system_time(:millisecond))
+                )
+          }
         else
           state
         end
@@ -1199,7 +1254,11 @@ defmodule Afterlight.Activities.SessionServer do
   defp handle_command("activity_join", payload, ctx, state) do
     state = maybe_cancel_idle_timer(state)
     role = Map.get(payload, "role", "player")
-    Logger.info("activity join enter player=#{ctx[:player_id]} role=#{inspect(role)} act=#{state.activity_id}")
+
+    Logger.info(
+      "activity join enter player=#{ctx[:player_id]} role=#{inspect(role)} act=#{state.activity_id}"
+    )
+
     # The wire protocol (shared/activityProtocol.js) uses play/watch/queue;
     # internal callers and older clients use player/spectator/queue.
     normalized_role =
@@ -1238,7 +1297,7 @@ defmodule Afterlight.Activities.SessionServer do
     do_input(payload, player_id, ctx, state)
   end
 
-  defp handle_command("activity_resnapshot", payload, _ctx, state) do
+  defp handle_command("activity_resnapshot", payload, ctx, state) do
     client_sess = Map.get(payload, "sessionId")
 
     cond do
@@ -1246,7 +1305,23 @@ defmodule Afterlight.Activities.SessionServer do
         {:reply, {:error, :stale_session}, state}
 
       true ->
-        snapshot = build_full_snapshot(state)
+        # Downhill delivers its own participant snapshots (projected six-rider
+        # field + private self attachment); the generic builder would drop the
+        # AI filler slots. Other games keep the historical shape.
+        snapshot =
+          if downhill?(state) do
+            full = DownhillMayhem.Presentation.full_snapshot(state)
+
+            with slot when is_integer(slot) <- Map.get(state.player_to_slot, ctx[:player_id]),
+                 %{} = player <- Map.get(state.players, slot) do
+              DownhillMayhem.Presentation.attach_self(full, state, player)
+            else
+              _ -> full
+            end
+          else
+            build_full_snapshot(state)
+          end
+
         {:reply, {:ok, snapshot}, state}
     end
   end
@@ -1335,17 +1410,17 @@ defmodule Afterlight.Activities.SessionServer do
 
         state = %{state | players: players, disconnects: disconnects, status: status}
 
-                    result = %{
-                      result: "seated",
-                      role: "player",
-                      slot: slot,
-                      leaseId: new_lease,
-                      lease: new_lease,
-                      sessionId: state.session_id,
-                      revision: state.revision,
-                      status: state.status,
-                      matchId: state.match_id
-                    }
+        result = %{
+          result: "seated",
+          role: "player",
+          slot: slot,
+          leaseId: new_lease,
+          lease: new_lease,
+          sessionId: state.session_id,
+          revision: state.revision,
+          status: state.status,
+          matchId: state.match_id
+        }
 
         {:reply, {:ok, result}, state}
 
@@ -1414,7 +1489,10 @@ defmodule Afterlight.Activities.SessionServer do
 
                     broadcast_activity_state(state)
                     if snowboard?(state), do: snowboard_telemetry(state, :join)
-                    Logger.info("activity join seated player=#{player_id} slot=#{free_slot} act=#{state.activity_id}")
+
+                    Logger.info(
+                      "activity join seated player=#{player_id} slot=#{free_slot} act=#{state.activity_id}"
+                    )
 
                     result = %{
                       result: "seated",
@@ -1547,15 +1625,20 @@ defmodule Afterlight.Activities.SessionServer do
                 else
                   RcBoat.mark_dnf(state.sim_state, slot)
                 end
+
               if sim["status"] == "complete" do
                 winner_slot = sim["winner"]
                 winner_player = Map.get(players, winner_slot)
-                winner_id = if winner_player, do: winner_player.player_id, else: "slot_#{winner_slot}"
+
+                winner_id =
+                  if winner_player, do: winner_player.player_id, else: "slot_#{winner_slot}"
+
                 outcome = %{
                   "winner" => winner_id,
                   "winnerSlot" => winner_slot,
                   "reason" => "finish"
                 }
+
                 broadcast_activity_event(state, "match_ended", outcome)
                 %{state | sim_state: sim, status: :ended, match_outcome: outcome}
               else
@@ -1627,13 +1710,13 @@ defmodule Afterlight.Activities.SessionServer do
     end
   end
 
-
   # D4: an active racer leaving marks DNF(leave) once and releases the lease
   # immediately; results remain for the others. A lone rider may still finish
   # validly; nobody left -> abort.
   defp leave_racing_snowboard(state, slot, player_id) do
     sim = Snowboard.SessionPolicy.dnf(state.sim_state, slot, "leave")
     state = %{state | sim_state: sim}
+
     record_and_broadcast_event(state, "rider_dnf", %{"playerId" => player_id, "reason" => "leave"})
 
     cond do
@@ -1656,6 +1739,7 @@ defmodule Afterlight.Activities.SessionServer do
     riders = DownhillMayhem.SessionPolicy.dnf(state.sim_state["riders"] || %{}, slot, "leave")
     sim = %{state.sim_state | "riders" => riders}
     state = %{state | sim_state: sim}
+
     record_and_broadcast_event(state, "rider_dnf", %{"playerId" => player_id, "reason" => "leave"})
 
     cond do
@@ -1709,80 +1793,86 @@ defmodule Afterlight.Activities.SessionServer do
   end
 
   defp promote_queued_rider(player_id, ctx, state, slot, offer) do
-          case recheck_member_and_proximity(state, player_id, ctx.conn_ref) do
-            :ok ->
-              if offer[:timer_ref], do: Process.cancel_timer(offer.timer_ref)
-              offers = Map.delete(state.offers, slot)
+    case recheck_member_and_proximity(state, player_id, ctx.conn_ref) do
+      :ok ->
+        if offer[:timer_ref], do: Process.cancel_timer(offer.timer_ref)
+        offers = Map.delete(state.offers, slot)
 
-              metadata = %{
-                room_key: state.room_key,
-                activity_id: state.activity_id,
-                session_id: state.session_id,
-                slot: slot
-              }
+        metadata = %{
+          room_key: state.room_key,
+          activity_id: state.activity_id,
+          session_id: state.session_id,
+          slot: slot
+        }
 
-              case Admission.acquire(player_id, metadata) do
-                {:ok, _} ->
-                  now = System.system_time(:millisecond)
-                  mref = if ctx.channel_pid, do: Process.monitor(ctx.channel_pid), else: nil
-                  lease_id = generate_lease_id()
+        case Admission.acquire(player_id, metadata) do
+          {:ok, _} ->
+            now = System.system_time(:millisecond)
+            mref = if ctx.channel_pid, do: Process.monitor(ctx.channel_pid), else: nil
+            lease_id = generate_lease_id()
 
-                  player = %{
-                    player_id: player_id,
-                    conn_ref: ctx.conn_ref,
-                    channel_pid: ctx.channel_pid,
-                    channel_monitor: mref,
-                    slot: slot,
-                    lease_id: lease_id,
-                    last_seq: 0,
-                    # D13: a promoted downhill rider replaces an AI slot and
-                    # begins unready; snowboard keeps its auto-ready promotion.
-                    ready: not downhill?(state),
-                    loaded: false,
-                    ready_timer_ref: nil,
-                    watchdog_timer_ref: nil,
-                    input_state: %{},
-                    nickname: Map.get(ctx, :nickname),
-                    joined_at: now
-                  }
+            player = %{
+              player_id: player_id,
+              conn_ref: ctx.conn_ref,
+              channel_pid: ctx.channel_pid,
+              channel_monitor: mref,
+              slot: slot,
+              lease_id: lease_id,
+              last_seq: 0,
+              # D13: a promoted downhill rider replaces an AI slot and
+              # begins unready; snowboard keeps its auto-ready promotion.
+              ready: not downhill?(state),
+              loaded: false,
+              ready_timer_ref: nil,
+              watchdog_timer_ref: nil,
+              input_state: %{},
+              nickname: Map.get(ctx, :nickname),
+              joined_at: now
+            }
 
-                  players = Map.put(state.players, slot, player)
-                  player_to_slot = Map.put(state.player_to_slot, player_id, slot)
+            players = Map.put(state.players, slot, player)
+            player_to_slot = Map.put(state.player_to_slot, player_id, slot)
 
-                  state = %{
-                    state
-                    | players: players,
-                      player_to_slot: player_to_slot,
-                      offers: offers,
-                      revision: state.revision + 1
-                  }
+            state = %{
+              state
+              | players: players,
+                player_to_slot: player_to_slot,
+                offers: offers,
+                revision: state.revision + 1
+            }
 
-                  state = maybe_start_match(state)
-                  broadcast_activity_state(state)
+            state = maybe_start_match(state)
+            broadcast_activity_state(state)
 
-                  reply = %{
-                    result: "accepted_offer",
-                    slot: slot,
-                    ready: not downhill?(state),
-                    leaseId: lease_id,
-                    lease: lease_id,
-                    status: state.status,
-                    revision: state.revision
-                  }
+            reply = %{
+              result: "accepted_offer",
+              slot: slot,
+              ready: not downhill?(state),
+              leaseId: lease_id,
+              lease: lease_id,
+              sessionId: state.session_id,
+              status: state.status,
+              revision: state.revision
+            }
 
-                  {:reply, {:ok, reply}, state}
+            {:reply, {:ok, reply}, state}
 
-                {:error, :already_playing} ->
-                  expire_offer(state, slot, offer, {:reply, {:error, :already_playing}, state})
+          {:error, :already_playing} ->
+            expire_offer(state, slot, offer, {:reply, {:error, :already_playing}, state})
 
-              {:error, reason} ->
-                expire_offer(state, slot, offer, {:reply, {:error, reason}, state})
-          end
+          {:error, reason} ->
+            expire_offer(state, slot, offer, {:reply, {:error, reason}, state})
+        end
     end
   end
 
   defp decline_queued_offer(state, slot, offer) do
-    expire_offer(state, slot, offer, {:reply, {:ok, %{result: "declined_offer", slot: slot, revision: state.revision}}, state})
+    expire_offer(
+      state,
+      slot,
+      offer,
+      {:reply, {:ok, %{result: "declined_offer", slot: slot, revision: state.revision}}, state}
+    )
   end
 
   # Cancels the offer timer, drops the offer and advances the FIFO queue.
@@ -1817,11 +1907,29 @@ defmodule Afterlight.Activities.SessionServer do
 
           snowboard?(state) and state.status == :countdown and not ready ->
             state = cancel_snowboard_countdown(state)
-            {:reply, {:ok, %{result: "ready", slot: slot, ready: false, status: state.status, revision: state.revision}}, state}
+
+            {:reply,
+             {:ok,
+              %{
+                result: "ready",
+                slot: slot,
+                ready: false,
+                status: state.status,
+                revision: state.revision
+              }}, state}
 
           downhill?(state) and state.status == :countdown and not ready ->
             state = cancel_downhill_countdown(state)
-            {:reply, {:ok, %{result: "ready", slot: slot, ready: false, status: state.status, revision: state.revision}}, state}
+
+            {:reply,
+             {:ok,
+              %{
+                result: "ready",
+                slot: slot,
+                ready: false,
+                status: state.status,
+                revision: state.revision
+              }}, state}
 
           true ->
             state = update_lobby_config(state, payload)
@@ -1851,6 +1959,7 @@ defmodule Afterlight.Activities.SessionServer do
       state
     end
   end
+
   defp update_lobby_config(state, _), do: state
 
   # Seated ready transition shared by the generic and snowboard flows.
@@ -1966,13 +2075,15 @@ defmodule Afterlight.Activities.SessionServer do
                         snowboard?(state) and Map.get(controls, "kind") == "loaded" ->
                           accept_snowboard_loaded(state, player, slot, seq, controls)
 
-                        snowboard?(state) and Map.get(controls, "kind") not in [nil, "ride", "neutral"] ->
+                        snowboard?(state) and
+                            Map.get(controls, "kind") not in [nil, "ride", "neutral"] ->
                           {:reply, {:error, :invalid_input}, state}
 
                         downhill?(state) and Map.get(controls, "kind") == "loaded" ->
                           accept_downhill_loaded(state, player, slot, seq, controls)
 
-                        downhill?(state) and Map.get(controls, "kind") not in [nil, "ride", "neutral"] ->
+                        downhill?(state) and
+                            Map.get(controls, "kind") not in [nil, "ride", "neutral"] ->
                           {:reply, {:error, :invalid_input}, state}
 
                         pool?(state) ->
@@ -2063,7 +2174,7 @@ defmodule Afterlight.Activities.SessionServer do
         snowboard?(state) and state.status == :countdown ->
           {:lobby, cancel_snowboard_countdown(state)}
 
-          snowboard?(state) ->
+        snowboard?(state) ->
           {state.status, state}
 
         downhill?(state) and state.status == :countdown ->
@@ -2181,7 +2292,10 @@ defmodule Afterlight.Activities.SessionServer do
         ref = Process.send_after(self(), :countdown_done, state.countdown_ms)
         start_at = System.system_time(:millisecond) + state.countdown_ms
 
-        players = Map.new(state.players, fn {s, p} -> {s, %{p | ready_timer_ref: clear_ready_timer(p)}} end)
+        players =
+          Map.new(state.players, fn {s, p} ->
+            {s, %{p | ready_timer_ref: clear_ready_timer(p)}}
+          end)
 
         state = %{
           state
@@ -2195,7 +2309,7 @@ defmodule Afterlight.Activities.SessionServer do
         state
 
       downhill?(state) and state.status in [:lobby, :ended] and
-          DownhillMayhem.SessionPolicy.start_ready?(state.players, state.activity_def) ->
+          DownhillMayhem.SessionPolicy.start_locked?(state.players, state.activity_def) ->
         # D12: all seated connected humans ready with at least one locks a
         # frozen six-rider field (humans + deterministic AI) and schedules ONE
         # three-second countdown. In results this is the rematch vote. The
@@ -2207,7 +2321,10 @@ defmodule Afterlight.Activities.SessionServer do
         start_at = System.system_time(:millisecond) + state.countdown_ms
         field = DownhillMayhem.SessionPolicy.lock_field(state.players)
 
-        players = Map.new(state.players, fn {s, p} -> {s, %{p | ready_timer_ref: clear_ready_timer(p)}} end)
+        players =
+          Map.new(state.players, fn {s, p} ->
+            {s, %{p | ready_timer_ref: clear_ready_timer(p)}}
+          end)
 
         state = %{
           state
@@ -2230,7 +2347,7 @@ defmodule Afterlight.Activities.SessionServer do
         state
 
       not race?(state) and map_size(state.players) == state.max_players and
-          Enum.all?(state.players, fn {_slot, p} -> p.ready end) and
+        Enum.all?(state.players, fn {_slot, p} -> p.ready end) and
           state.status != :in_progress ->
         start_race(state)
 
@@ -2268,6 +2385,7 @@ defmodule Afterlight.Activities.SessionServer do
     sim_state = init_simulation(act_type, sim_opts)
 
     env_policy = (state.activity_def && state.activity_def["environmentPolicy"]) || "none"
+
     environment =
       if env_policy in ["frozen", :frozen] do
         Environment.resolve(wire_room_id(state), "frozen", System.system_time(:millisecond))
@@ -2312,6 +2430,7 @@ defmodule Afterlight.Activities.SessionServer do
     deadline_ref = Process.send_after(self(), :race_deadline, state.race_deadline_ms)
 
     env_policy = (state.activity_def && state.activity_def["environmentPolicy"]) || "none"
+
     environment =
       if env_policy in ["frozen", :frozen] do
         Environment.resolve(wire_room_id(state), "frozen", System.system_time(:millisecond))
@@ -2385,7 +2504,11 @@ defmodule Afterlight.Activities.SessionServer do
     if state.deadline_ref, do: Process.cancel_timer(state.deadline_ref)
     if state.countdown_ref, do: Process.cancel_timer(state.countdown_ref)
 
-    outcome = %{"reason" => reason, "kind" => "snowboard_race", "recordingStatus" => "session_only"}
+    outcome = %{
+      "reason" => reason,
+      "kind" => "snowboard_race",
+      "recordingStatus" => "session_only"
+    }
 
     players = Map.new(state.players, fn {s, p} -> {s, %{p | ready: false}} end)
 
@@ -2410,12 +2533,20 @@ defmodule Afterlight.Activities.SessionServer do
   defp cancel_snowboard_countdown(%__MODULE__{} = state) do
     if state.countdown_ref, do: Process.cancel_timer(state.countdown_ref)
 
-    players = Map.new(state.players, fn {s, p} ->
-      if p[:ready_timer_ref], do: Process.cancel_timer(p.ready_timer_ref)
-      {s, %{p | ready: false, ready_timer_ref: nil}}
-    end)
+    players =
+      Map.new(state.players, fn {s, p} ->
+        if p[:ready_timer_ref], do: Process.cancel_timer(p.ready_timer_ref)
+        {s, %{p | ready: false, ready_timer_ref: nil}}
+      end)
 
-    state = %{state | status: :lobby, countdown_ref: nil, players: players, revision: state.revision + 1}
+    state = %{
+      state
+      | status: :lobby,
+        countdown_ref: nil,
+        players: players,
+        revision: state.revision + 1
+    }
+
     broadcast_activity_state(state)
     state
   end
@@ -2534,7 +2665,12 @@ defmodule Afterlight.Activities.SessionServer do
     if state.deadline_ref, do: Process.cancel_timer(state.deadline_ref)
     if state.countdown_ref, do: Process.cancel_timer(state.countdown_ref)
 
-    outcome = %{"reason" => reason, "kind" => "downhill_race", "recordingStatus" => "session_only"}
+    outcome = %{
+      "reason" => reason,
+      "kind" => "downhill_race",
+      "recordingStatus" => "session_only"
+    }
+
     players = Map.new(state.players, fn {s, p} -> {s, %{p | ready: false}} end)
 
     state = %{
@@ -2593,13 +2729,36 @@ defmodule Afterlight.Activities.SessionServer do
 
       true ->
         cfg = state.lobby_config || %{}
-        mountain = Map.get(payload, "mountain", Map.get(payload, :mountain)) || cfg["mountain"] || downhill_mountain(state)
-        difficulty = Map.get(payload, "difficulty", Map.get(payload, :difficulty)) || cfg["difficulty"] || "mayhem"
+
+        mountain =
+          Map.get(payload, "mountain", Map.get(payload, :mountain)) || cfg["mountain"] ||
+            downhill_mountain(state)
+
+        difficulty =
+          Map.get(payload, "difficulty", Map.get(payload, :difficulty)) || cfg["difficulty"] ||
+            "mayhem"
 
         with {:ok, mountain} <- validate_downhill_mountain(mountain),
              {:ok, difficulty} <- validate_downhill_difficulty(difficulty) do
+          previous_mountain = downhill_mountain(state)
           cfg = cfg |> Map.put("mountain", mountain) |> Map.put("difficulty", difficulty)
           state = %{state | lobby_config: cfg, revision: state.revision + 1}
+
+          # D12: a mountain change invalidates every client's loaded course and
+          # readiness; each rider must re-load the selected document before the
+          # roster can lock, so a stale course never starts a race.
+          state =
+            if mountain != previous_mountain do
+              players =
+                Map.new(state.players, fn {s, p} ->
+                  if p[:ready_timer_ref], do: Process.cancel_timer(p.ready_timer_ref)
+                  {s, %{p | loaded: false, ready: false, ready_timer_ref: nil}}
+                end)
+
+              %{state | players: players}
+            else
+              state
+            end
 
           state =
             record_and_broadcast_event(state, "lobby_config", %{
@@ -2624,11 +2783,15 @@ defmodule Afterlight.Activities.SessionServer do
   end
 
   defp validate_downhill_mountain(m) do
-    if m in DownhillMayhem.SessionPolicy.mountains(), do: {:ok, m}, else: {:error, :invalid_setting}
+    if m in DownhillMayhem.SessionPolicy.mountains(),
+      do: {:ok, m},
+      else: {:error, :invalid_setting}
   end
 
   defp validate_downhill_difficulty(d) do
-    if d in DownhillMayhem.SessionPolicy.difficulties(), do: {:ok, d}, else: {:error, :invalid_setting}
+    if d in DownhillMayhem.SessionPolicy.difficulties(),
+      do: {:ok, d},
+      else: {:error, :invalid_setting}
   end
 
   defp downhill_mountain(state) do
@@ -2641,23 +2804,37 @@ defmodule Afterlight.Activities.SessionServer do
   end
 
   # Canonical course cache by mountain (the documents are ~128 KiB; never
-  # re-read per tick). Daily has no committed document yet and fails closed.
+  # re-read per tick). Daily is generated server-side (D5: the server is the
+  # sole runtime Daily generator) and cached per UTC date inside
+  # DownhillMayhem.Daily.
   defp downhill_course(state) do
     mountain = downhill_mountain(state)
-    key = {__MODULE__, :downhill_course, mountain}
 
-    case :persistent_term.get(key, :missing) do
-      :missing ->
-        try do
-          course = DownhillMayhem.Course.load_crafted(mountain)
-          :persistent_term.put(key, course)
+    # Daily is generated server-side and cached per UTC date inside
+    # DownhillMayhem.Daily; it is deliberately NOT cached here, so crossing
+    # UTC midnight always serves the new day's document.
+    if mountain == "daily" do
+      try do
+        {:ok, DownhillMayhem.Daily.daily()}
+      rescue
+        e -> {:error, Exception.message(e)}
+      end
+    else
+      key = {__MODULE__, :downhill_course, mountain}
+
+      case :persistent_term.get(key, :missing) do
+        :missing ->
+          try do
+            course = DownhillMayhem.Course.load_crafted(mountain)
+            :persistent_term.put(key, course)
+            {:ok, course}
+          rescue
+            e -> {:error, Exception.message(e)}
+          end
+
+        course ->
           {:ok, course}
-        rescue
-          e -> {:error, Exception.message(e)}
-        end
-
-      course ->
-        {:ok, course}
+      end
     end
   end
 
@@ -2710,7 +2887,13 @@ defmodule Afterlight.Activities.SessionServer do
     })
   end
 
-  defp broadcast_downhill_event(state, %{type: "strike", landed: true, slot: attacker, target_slot: target, kind: kind}) do
+  defp broadcast_downhill_event(state, %{
+         type: "strike",
+         landed: true,
+         slot: attacker,
+         target_slot: target,
+         kind: kind
+       }) do
     record_and_broadcast_event(state, "strike", %{
       "attackerSlot" => attacker,
       "targetSlot" => target,
@@ -2730,8 +2913,9 @@ defmodule Afterlight.Activities.SessionServer do
   defp extract_sim_opts(state) do
     series_len =
       (state.lobby_config && state.lobby_config["seriesLength"]) ||
-      (state.activity_def && (state.activity_def["seriesLength"] || state.activity_def["series_length"])) ||
-      1
+        (state.activity_def &&
+           (state.activity_def["seriesLength"] || state.activity_def["series_length"])) ||
+        1
 
     [
       series_length: series_len,
@@ -2828,7 +3012,10 @@ defmodule Afterlight.Activities.SessionServer do
   defp tick_interval_for(_other), do: 16
 
   defp snapshot_interval_for("snowboard-race"), do: Snowboard.SessionPolicy.snapshot_interval_ms()
-  defp snapshot_interval_for("downhill-mayhem"), do: DownhillMayhem.SessionPolicy.snapshot_interval_ms()
+
+  defp snapshot_interval_for("downhill-mayhem"),
+    do: DownhillMayhem.SessionPolicy.snapshot_interval_ms()
+
   # Occupancy heartbeat for the cabinet display; occupancy changes themselves
   # are broadcast on the join/leave path, not waited for.
   defp snapshot_interval_for("kart-royale"), do: 1_000
@@ -2875,8 +3062,7 @@ defmodule Afterlight.Activities.SessionServer do
           seq: seq,
           revision: state.revision,
           serverNow: System.system_time(:millisecond)
-        }},
-       %{state | players: Map.put(state.players, slot, player)}}
+        }}, %{state | players: Map.put(state.players, slot, player)}}
     else
       {:reply, {:error, :course_mismatch}, state}
     end
@@ -3043,7 +3229,9 @@ defmodule Afterlight.Activities.SessionServer do
         action in ["shoot", "place_cue_ball", "call_pocket"] and turn != slot ->
           {:reply, {:error, :out_of_turn}, state}
 
-        action == "shoot" and (state.sim_state["status"] == "shooting" or not get_in(state.sim_state, ["physics", "settled"])) ->
+        action == "shoot" and
+            (state.sim_state["status"] == "shooting" or
+               not get_in(state.sim_state, ["physics", "settled"])) ->
           {:reply, {:error, :balls_in_motion}, state}
 
         action == "shoot" ->
@@ -3052,7 +3240,14 @@ defmodule Afterlight.Activities.SessionServer do
           spin_x = float_or(Map.get(controls, "spinX") || Map.get(controls, "spin_x"), 0.0)
           spin_y = float_or(Map.get(controls, "spinY") || Map.get(controls, "spin_y"), 0.0)
 
-          case Afterlight.Activities.Pool.Rules.shoot(state.sim_state, slot, angle, power, spin_x, spin_y) do
+          case Afterlight.Activities.Pool.Rules.shoot(
+                 state.sim_state,
+                 slot,
+                 angle,
+                 power,
+                 spin_x,
+                 spin_y
+               ) do
             {:ok, new_sim} ->
               accept_pool_input(state, player, slot, seq, controls, new_sim)
 
@@ -3113,7 +3308,11 @@ defmodule Afterlight.Activities.SessionServer do
 
     watchdog_ref =
       if state.input_watchdog_ms > 0 do
-        Process.send_after(self(), {:input_watchdog_timeout, player.player_id}, state.input_watchdog_ms)
+        Process.send_after(
+          self(),
+          {:input_watchdog_timeout, player.player_id},
+          state.input_watchdog_ms
+        )
       else
         nil
       end
@@ -3204,7 +3403,8 @@ defmodule Afterlight.Activities.SessionServer do
 
   defp valid_downhill_controls?(%{"kind" => "ride"} = controls) do
     pressed =
-      for name <- ~w(pedal brake boost hopPressed punchPressed kickPressed), do: Map.get(controls, name)
+      for name <- ~w(pedal brake boost hopPressed punchPressed kickPressed),
+          do: Map.get(controls, name)
 
     Enum.all?(Map.keys(controls), &(&1 in @downhill_ride_keys)) and
       is_number(Map.get(controls, "steer")) and
@@ -3788,7 +3988,13 @@ defmodule Afterlight.Activities.SessionServer do
             state.status
           end
 
-        state = %{state | status: status, winner_stays_applied: true, revision: state.revision + 1}
+        state = %{
+          state
+          | status: status,
+            winner_stays_applied: true,
+            revision: state.revision + 1
+        }
+
         broadcast_activity_state(state)
         state
     end
@@ -3827,7 +4033,10 @@ defmodule Afterlight.Activities.SessionServer do
           maybe_offer_next_slot(acc, slot)
         end)
 
-      %{state | status: if(state.queue == [] and state.offers == %{}, do: :lobby, else: state.status)}
+      %{
+        state
+        | status: if(state.queue == [] and state.offers == %{}, do: :lobby, else: state.status)
+      }
     else
       state
     end
