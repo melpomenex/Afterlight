@@ -139,7 +139,13 @@ interface ClaimableSource {
   __budgetClaimed?: boolean;
 }
 
+function markKartOwned(t: THREE.Texture): void {
+  if (!t.userData) t.userData = {};
+  (t.userData as { kartOwned?: boolean }).kartOwned = true;
+}
+
 function enqueueForBudget(t: THREE.Texture): void {
+  if (!(t.userData as { kartOwned?: boolean })?.kartOwned) return;
   const src = t.source as unknown as ClaimableSource | undefined;
   if (!src || src.__budgetClaimed) return;
   src.__budgetClaimed = true;
@@ -534,6 +540,7 @@ export function canvasTexture(canvas: AnyCanvas, o: UploadOpts): THREE.Texture {
   t.generateMipmaps = true;
   t.minFilter = THREE.LinearMipmapLinearFilter;
   t.magFilter = THREE.LinearFilter;
+  markKartOwned(t);
   t.needsUpdate = true;
   return t;
 }

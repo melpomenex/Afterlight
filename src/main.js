@@ -745,6 +745,8 @@ if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
     kartPerformance: () => getKartPerfRecords(),
     clearKartPerformance: () => clearKartPerfRecords(),
     exportKartPerformance: () => exportKartPerfJson(),
+    kartReadinessMetrics: () => globalThis.__kartReadinessMetrics?.summarizeReadinessMetrics?.() ?? null,
+    kartAllocationLedger: () => globalThis.__kartAllocationLedger?.summary?.() ?? null,
     // Dev/test teleport (behind ?debug=1 only): places the avatar and
     // broadcasts one movement frame so server-side proximity checks see the
     // new pose. Used by automated browser gates; never a player feature.

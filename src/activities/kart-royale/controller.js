@@ -14,9 +14,8 @@
  *   exit paths (all funnel into exit()): pause "Leave cabinet", results
  *     "Back to the arcade" (both via the host's onExitRequest), travel
  *     (lease revoke → onRelease), seat loss/disconnect, fatal error,
- *     WebGL context loss. Exit releases the lease, tears the game down
- *     (dispose walks every system dispose — v1 does not warm-retain the
- *     world) and leaves the session with a safe dismount.
+ *     WebGL context loss. Exit releases the lease; when retention is enabled
+ *     the prepared host is suspended and retained for fast re-entry.
  */
 
 export function createKartRoyaleController({
@@ -35,6 +34,8 @@ export function createKartRoyaleController({
   runGraphicsTransaction = null,
   cancelGraphicsJobs = null,
   preparation = null,
+  retentionEnabled = false,
+  getDistance = null,
 } = {}) {
   if (!activityDef || activityDef.type !== 'kart-royale') {
     throw new Error('kart-royale controller requires a kart-royale activity definition');
@@ -261,6 +262,34 @@ export function createKartRoyaleController({
 
     bootPromise = (async () => {
       try {
+        const retained = retentionEnabled ? preparation?.getRetainedHost?.() : null;
+        if (retained?.host && retained.ready && !retained.disposed) {
+          host = retained.host;
+          perfSpan('boot', 'start');
+          perfSpan('boot', 'end', { retained: true });
+          if (!isAttemptCurrent(localAttempt) || localGen !== resourceGeneration) return;
+          if (!coldPreparationEnabled && !acquireTheView()) return;
+          const ready = host.prepareSelectionReadiness();
+          if (!ready) {
+            preparation?.releaseRetainedHost?.();
+            host = null;
+            loadFailed = true;
+            exit('load-failed');
+            return;
+          }
+          if (coldPreparationEnabled && !acquireTheView()) return;
+          booted = true;
+          presentationReady = true;
+          perfMark('ready');
+          preparation?.activate?.();
+          host.beginSession();
+          attachControls();
+          consumeEntryKeyUp = true;
+          perfMark('input-ready');
+          recordEntryReadiness(true, { retained: true });
+          return;
+        }
+
         perfSpan('host-import', 'start');
         const module = await import('../../../games/kart-royale/src/host/index.ts');
         perfSpan('host-import', 'end');
@@ -348,15 +377,20 @@ export function createKartRoyaleController({
         booted = true;
         presentationReady = true;
         perfMark('ready');
+        await preparation?.prepare?.({
+          factory: async () => ({ host, ready: true }),
+        });
         preparation?.activate?.();
         host.beginSession();
         attachControls();
         consumeEntryKeyUp = true;
         perfMark('input-ready');
+        recordEntryReadiness(true);
       } catch (error) {
         if (!isAttemptCurrent(localAttempt)) return;
         console.error('[KartRoyale] load/boot failed:', error);
         loadFailed = true;
+        recordEntryReadiness(false);
         pushToast('Kart Royale Failed to Start', 'The cabinet could not load the game. Please try again.');
         exit('load-failed');
       } finally {
@@ -402,7 +436,21 @@ export function createKartRoyaleController({
     return false;
   }
 
+  function recordEntryReadiness(ready, { retained = false } = {}) {
+    const record = globalThis.__kartReadinessMetrics?.recordArrivalSample;
+    if (!record) return;
+    const distance = typeof getDistance === 'function' ? getDistance() : 0;
+    const prepSeconds = retained ? 0 : (preparation?.prepLeadSeconds ?? 0);
+    record({
+      ready: Boolean(ready),
+      mode: 'walk',
+      prepSeconds,
+      distance,
+    });
+  }
+
   function handleViewRelease(reason) {
+    const wasPresenting = presentationReady;
     viewHeld = false;
     presentationReady = false;
     detachControls();
@@ -411,15 +459,31 @@ export function createKartRoyaleController({
       document.body.classList.remove('kr-racing');
     }
     const localHost = host;
+    const retain = retentionEnabled
+      && preparation
+      && booted
+      && wasPresenting
+      && reason !== 'travel'
+      && reason !== 'dispose'
+      && reason !== 'context-lost'
+      && reason !== 'fatal'
+      && reason !== 'load-failed';
     if (localHost) {
       localHost.endSession();
-      localHost.dispose();
-      host = null;
+      if (retain) {
+        preparation.suspend();
+        preparation.retainHost(localHost, { ready: true });
+        host = null;
+      } else {
+        preparation?.releaseRetainedHost?.();
+        localHost.dispose();
+        host = null;
+      }
     }
     booted = false;
     bootPromise = null;
     hadAdmission = false;
-    removeHudRoot();
+    if (!retain) removeHudRoot();
     if (reason === 'travel' || reason === 'dispose') {
       dispose();
     }
@@ -523,9 +587,11 @@ export function createKartRoyaleController({
     if (viewHeld && releaseView) {
       releaseView(attempt.token, 'dispose');
     } else if (host) {
+      preparation?.releaseRetainedHost?.();
       host.dispose();
       host = null;
     }
+    preparation?.releaseRetainedHost?.();
     booted = false;
     presentationReady = false;
     bootPromise = null;

@@ -141,6 +141,41 @@
   7. **`game/Race.ts` & `kart/Kart.ts`** (`race:grid`, `race:corner-table` lookup generation): ~20 - 45 ms.
   8. **`controller-import` + `admission`**: ~72 ms.
 
+## Phases 5–8 (post-implementation)
 
+### 5.5 Rollout and READY hit-rate instrumentation
 
+- **Rollout policy** (`src/activities/kartRoyaleRollout.js`): default **on** when frame-bound graphics transactions exist; session override `?kartPrep=0|1`; persisted override `localStorage afterlight-kart-prep-v1`.
+- **Metrics seam** (`src/activities/kartReadinessMetrics.js`): records arrival samples (ready/mode/prepSeconds/distance) on successful or failed cabinet entry; summarized via `globalThis.__kartReadinessMetrics` and `main.js` debug exports.
+- **Theater TTI gate**: idle module prefetch and proximity scheduler remain disabled until Theater interactivity (existing `scheduleKartRoyaleModulePrefetch` contract); preparation pauses on hidden tab, view lease, and frame pressure (5.4).
+- **Remaining cost work** (not relaxed): shader prewarm still dominates (~25–30 s on software GPU); normal walking arrival (~3.75 s) exceeds cold boot — background slices + retention address repeat entry, not first cold load on slow devices.
+
+### 6. Suspension, retention, memory
+
+- **Retention**: one-slot host suspend on normal exit (`retainHost` / `getRetainedHost`); 60 s idle eviction via `resourceCache`; travel/dispose/context-loss/fatal paths dispose fully.
+- **Controller fix**: retention gate uses pre-release `wasPresenting` so suspend actually fires.
+- **Allocation ledger** (`src/activities/kartAllocationLedger.js`): debug seam for owned-resource byte estimates; host `dispose()` releases `kart-host` ledger entries.
+- **Automated soak**: 20 retain/release cycles + 20 eviction/rebuild cycles (`tests/kart-royale-retention-cycles.test.js`). Browser forced-GC heap not measured in CI.
+
+### 7. Measured optimizations (no regressions claimed)
+
+- **7.1 Texture budget**: global `needsUpdate` cap scoped to textures tagged `userData.kartOwned` in `Textures.ts`; root Theater textures unaffected. Vite Three dedupe **not applied** — no measured bundle win with regression evidence.
+- **7.2 Batched generation**: resumable `prepareWorldSlice` batches (5.3) are the measured CPU win; no worker extraction (no quantified benefit).
+- **7.3 Cache headers**: Vercel hashed assets use immutable caching by default; no Cache-Control change.
+- **7.4 Deferral**: UI/audio/FX deferral **no-change** — first-frame costs dominated by prewarm/GPU, not HUD paint.
+
+### 8. Verification and rollout
+
+| Gate | Result |
+| --- | --- |
+| `npm test` | 1162+ tests pass (includes rollout, retention, readiness-metrics, retention-cycles) |
+| `npm run build` | Production build succeeds |
+| Kart `tsc`/host build | Typecheck via project build |
+| Browser D11 matrix | Not fully automated in CI; prior gate script + manual Theater checks remain authoritative |
+| D10 thresholds | Retained re-entry path instrumented; warm ≤500 ms / input ≤1 s require reference-hardware browser cohort — not re-measured this session |
+| Ripwire quality-delta | Encouraged; not blocking this handoff |
+
+**Rollback**: `?kartPrep=0` or `localStorage afterlight-kart-prep-v1 = 0` disables prefetch, proximity scheduler, and retention while preserving cold-entry correctness fixes (Phases 2–4).
+
+**Docs**: `README.md` and `docs/arcade.md` updated for staged entry, pending cancellation, retention window, and rollout toggle.
 

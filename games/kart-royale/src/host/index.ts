@@ -177,6 +177,9 @@ export function createKartRoyaleHost(options: KartRoyaleHostOptions): KartRoyale
     dispose() {
       if (disposed) return;
       disposed = true;
+      const ledger = (globalThis as { __kartAllocationLedger?: { release?: (owner: string) => void } })
+        .__kartAllocationLedger;
+      ledger?.release?.('kart-host');
       bootGeneration += 1;
       bootPromise = null;
       booted = false;

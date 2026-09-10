@@ -195,3 +195,14 @@ activity stack rather than a small in-repo game:
   the host world has no context-loss recovery (pre-existing gap, unchanged).
 - Browser gate: `scripts/kart-royale-gate-browser.mjs` (phases entry, race,
   exit, reentry, bystander) against the running dev stack.
+- **Staged entry (fix-kart-royale-instant-entry):** the bystander module may
+  idle-prefetch the controller chunk after Theater interactivity, then warm
+  track/scenery/materials in 2–4 ms frame slices as you approach the cabinet.
+  Boot waits for grid/camera readiness before the view lease presents; cancel
+  with <kbd>Esc</kbd> during the loading toast. Exiting via **Leave cabinet**
+  or results **Back to the arcade** suspends the prepared host in a one-slot
+  cache (~60 s idle eviction) for fast re-entry; travel and dispose paths
+  invalidate it. Rollout: on by default when frame-bound graphics jobs are
+  available; `?kartPrep=0` or `localStorage afterlight-kart-prep-v1 = 0`
+  disables speculative preparation/retention. Debug: `?debug=1` exposes
+  `window.__afterlight.kartPerformance()` and readiness metrics.

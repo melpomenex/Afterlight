@@ -37,6 +37,8 @@ export function createKartRoyalePreparation({
   let ownerToken = { id: 'kart-prep', generation: placeGeneration };
   /** @type {{ release: () => void, value: object } | null} */
   let cacheHandle = null;
+  let quarantined = false;
+  let prepStartedAt = 0;
 
   function releaseCacheHandle() {
     if (cacheHandle) {
@@ -101,10 +103,21 @@ export function createKartRoyalePreparation({
     async prepare({ signal = null, factory = null } = {}) {
       if (typeof factory !== 'function') return { ok: false, reason: 'no_factory' };
       if (signal?.aborted) return { ok: false, reason: 'aborted' };
+      if (quarantined) return { ok: false, reason: 'quarantined' };
 
       const gen = resourceGeneration;
+      if (cacheHandle) {
+        const held = cache.refCount(cacheHandle.key) > 0;
+        if (!held || cache.get(cacheHandle.key) == null) {
+          cacheHandle = null;
+          preparePromise = null;
+        }
+      } else {
+        preparePromise = null;
+      }
       if (preparePromise) return preparePromise;
 
+      prepStartedAt = Date.now();
       readiness = PrepReadiness.warming;
       preparePromise = (async () => {
         const handle = cache.acquire(ownerToken, `${cacheKey}:${gen}`, () => ({
@@ -150,10 +163,64 @@ export function createKartRoyalePreparation({
     },
 
     suspend() {
-      if (readiness === PrepReadiness.active) {
+      if (readiness === PrepReadiness.active || readiness === PrepReadiness.ready) {
         readiness = PrepReadiness.suspended;
       }
       return { ok: true, readiness };
+    },
+
+    retainHost(hostRef, { ready = true } = {}) {
+      if (!hostRef) return { ok: false, reason: 'no_host' };
+      if (!cacheHandle) {
+        const handle = cache.acquire(ownerToken, `${cacheKey}:${resourceGeneration}`, () => ({
+          generation: resourceGeneration,
+          host: hostRef,
+          ready,
+          disposed: false,
+        }));
+        cacheHandle = handle;
+      } else {
+        cacheHandle.value.host = hostRef;
+        cacheHandle.value.ready = ready;
+        cacheHandle.value.disposed = false;
+      }
+      readiness = PrepReadiness.suspended;
+      return { ok: true, readiness };
+    },
+
+    getRetainedHost() {
+      const slot = cacheHandle?.value;
+      if (!slot || slot.disposed || !slot.host) return null;
+      return slot;
+    },
+
+    releaseRetainedHost() {
+      const slot = cacheHandle?.value;
+      if (slot?.host && typeof slot.host.dispose === 'function') {
+        try { slot.host.dispose(); } catch { /* best effort */ }
+      }
+      if (slot) {
+        slot.host = null;
+        slot.disposed = true;
+      }
+      releaseCacheHandle();
+      preparePromise = null;
+      readiness = PrepReadiness.unloaded;
+      return { ok: true };
+    },
+
+    quarantine(reason = 'compile-timeout') {
+      quarantined = true;
+      return { ok: true, reason };
+    },
+
+    clearQuarantine() {
+      quarantined = false;
+    },
+
+    get prepLeadSeconds() {
+      if (!prepStartedAt) return 0;
+      return Math.max(0, (Date.now() - prepStartedAt) / 1000);
     },
 
     invalidate(reason = 'invalidated') {
@@ -163,10 +230,22 @@ export function createKartRoyalePreparation({
     },
 
     dispose() {
+      const slot = cacheHandle?.value;
+      if (slot?.host && typeof slot.host.dispose === 'function') {
+        try { slot.host.dispose(); } catch { /* best effort */ }
+      }
+      if (slot) {
+        slot.host = null;
+        slot.disposed = true;
+      }
+      releaseCacheHandle();
+      preparePromise = null;
       bumpGeneration();
       prefetchPromise = null;
       prefetchedModule = null;
       ownerToken = { id: 'kart-prep', generation: placeGeneration };
+      quarantined = false;
+      prepStartedAt = 0;
       readiness = PrepReadiness.unloaded;
     },
   };

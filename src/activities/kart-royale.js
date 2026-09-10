@@ -32,6 +32,9 @@ import { createResourceCache } from './resourceCache.js';
 import { createKartRoyalePreparation } from './kartRoyalePreparation.js';
 import { scheduleKartRoyaleModulePrefetch } from './kartRoyalePrefetch.js';
 import { createKartRoyalePrepareScheduler } from './kartRoyalePrepareScheduler.js';
+import { readKartPrepRollout } from './kartRoyaleRollout.js';
+import './kartReadinessMetrics.js';
+import './kartAllocationLedger.js';
 
 const CANVAS_WIDTH = 512;
 const CANVAS_HEIGHT = 384;
@@ -136,7 +139,16 @@ export function createKartRoyaleInstance({
   let controller = null;
   let activationEpoch = 0;
   let pendingActivation = false;
-  const resourceCache = createResourceCache();
+  const prepRolloutEnabled = readKartPrepRollout({
+    hasGraphicsTransactions: typeof runGraphicsTransaction === 'function',
+  });
+  const resourceCache = createResourceCache({
+    idleEvictMs: 60_000,
+    schedule: typeof setTimeout !== 'undefined' ? {
+      after: (ms, fn) => setTimeout(fn, ms),
+      cancel: (id) => clearTimeout(id),
+    } : null,
+  });
   const preparation = createKartRoyalePreparation({
     cache: resourceCache,
     placeGeneration: generation,
@@ -154,7 +166,7 @@ export function createKartRoyaleInstance({
   const prepareScheduler = createKartRoyalePrepareScheduler({
     preparation,
     getDistance: () => throttler.getDistance(),
-    shouldRun: () => !disposed && roomId === 'theater',
+    shouldRun: () => prepRolloutEnabled && !disposed && roomId === 'theater',
     isInputPending: () => pendingActivation,
     createBackgroundHost: (mod) => {
       const renderer = getRenderer?.();
@@ -198,6 +210,8 @@ export function createKartRoyaleInstance({
             runGraphicsTransaction,
             cancelGraphicsJobs,
             preparation,
+            retentionEnabled: prepRolloutEnabled,
+            getDistance: () => throttler.getDistance(),
           });
           if (disposed) {
             instance.dispose();
@@ -385,7 +399,9 @@ export function createKartRoyaleInstance({
 
     /** One idle controller-module prefetch after Theater interactivity (5.1). */
     scheduleIdleModulePrefetch({ roomId: prefetchRoomId = roomId } = {}) {
-      if (disposed) return { scheduled: false, reason: 'disposed' };
+      if (disposed || !prepRolloutEnabled) {
+        return { scheduled: false, reason: disposed ? 'disposed' : 'rollout-disabled' };
+      }
       return scheduleKartRoyaleModulePrefetch({
         preparation,
         roomId: prefetchRoomId,
