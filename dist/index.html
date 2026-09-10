@@ -24,8 +24,8 @@
   <link rel="manifest" href="/site.webmanifest">
   <meta name="msapplication-TileColor" content="#141B18">
   <meta name="msapplication-config" content="/browserconfig.xml">
-  <script type="module" crossorigin src="/assets/index-DdZrm-9g.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-uu7nMWd1.css">
+  <script type="module" crossorigin src="/assets/index-D0uGvstY.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-B_HeH4E2.css">
 </head>
 <body>
   <canvas id="world" aria-label="Interactive isometric market-gardening world"></canvas>
@@ -230,6 +230,16 @@
       <span>always show tools, coins &amp; exchange buttons</span>
     </label>
     <button id="resume">Return to game →</button>
+  </dialog>
+
+  <!-- Stale-deployment recovery: a redeploy erased the lazy chunks this
+       session still references; reloading picks up the new build. -->
+  <dialog id="update-dialog" aria-labelledby="update-title">
+    <div class="micro">AFTERLIGHT UPDATE</div>
+    <h2 id="update-title">The city changed while you explored</h2>
+    <p class="dialog-sub">A new version of the game arrived, and parts of it could not load in this window. Reload to continue — your progress, place and company are kept.</p>
+    <button id="update-reload">Reload now →</button>
+    <button id="update-later">Stay in this window →</button>
   </dialog>
 
   <dialog id="district-dialog">
