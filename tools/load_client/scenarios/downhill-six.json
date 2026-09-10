@@ -1,0 +1,27 @@
+{
+  "version": "1",
+  "description": "Downhill Mayhem race shape — six riders × six concurrent tables (36 sessions) in the Theater. The load client currently drives presence/transport only (channel join, movement, durable commands, reconnect); it does not yet speak activity_join/activity_ready/activity_input, so this measures Theater-room presence and snapshot load, not the authoritative 30 Hz race tick. See docs/downhill-mayhem.md §Load characterization.",
+  "sessions": 36,
+  "rooms": ["theater"],
+  "rampMs": 30000,
+  "soakMs": 900000,
+  "moverRatio": 0.15,
+  "movementBursts": 3,
+  "consumeHz": 10,
+  "maxUnread": 32,
+  "downhillMayhem": {
+    "ridersPerRace": 6,
+    "concurrentRaces": 6,
+    "activityType": "downhill-mayhem",
+    "tickHz": 30,
+    "measures": [
+      "session tick cost",
+      "snapshot serialization",
+      "message rate",
+      "memory per session",
+      "social-room impact"
+    ],
+    "driverSupport": "pending"
+  },
+  "stopConditions": ["900s soak complete", "server p99 tick < 50ms evaluated"]
+}
