@@ -26,6 +26,7 @@ import { createRaceClock } from './clock.js';
 import { createDownhillAudio } from './audio.js';
 import { createDownhillHud } from './hud.js';
 import { createDownhillSceneAdapter } from './scene.js';
+import { recordEntrySample } from '../downhillReadinessMetrics.js';
 
 const HEARTBEAT_MS = 33;
 const LOADED_RETRY_MS = 1500;
@@ -51,9 +52,10 @@ function defaultLoadHostModule() {
 }
 
 function defaultLoadCourseDocument() {
-  // Vite bundles the committed JSON documents. The Daily path is server-owned
-  // and not wired yet; callers inject `activityDef.courseDocument` or
-  // `loadCourseDocument` for tests, and crafted mountains fall back to classic.
+  // Vite bundles the committed JSON documents. The Daily document is
+  // server-owned (design D5): the controller fetches it from the gateway and
+  // never generates it locally. Tests inject `activityDef.courseDocument` or
+  // `loadCourseDocument`.
   return import('../../../shared/downhill/courseDocument.js');
 }
 
@@ -95,6 +97,8 @@ export function createDownhillController({
   toast = null,
   onExit = null,
   retentionEnabled = false,
+  runGraphicsTransaction = null,
+  getDistance = null,
   loadHostModule = defaultLoadHostModule,
   loadCourseDocument = defaultLoadCourseDocument,
 } = {}) {
@@ -137,6 +141,12 @@ export function createDownhillController({
   let courseDoc = null;
   let course = null;
   let predictor = null;
+  // The lobby-selected mountain (design D12/D5). The captain may change it
+  // while the lobby is unlocked; a change invalidates the loaded course and
+  // forces a reload of the matching document before readiness can lock.
+  let desiredMountain = activityDef.course?.id ?? 'classic';
+  let desiredDifficulty = activityDef.course?.difficulty ?? 'mayhem';
+  let reloadPending = false;
   const interpolator = createRemoteInterpolator();
   const clock = createRaceClock();
   let audio = null;
@@ -157,6 +167,16 @@ export function createDownhillController({
   let captainName = null;
   let toastState = { text: '', untilMs: 0 };
   let lastCountdownWhole = null;
+  // Queue/spectator/slot-offer state (11.5). The server is authoritative; the
+  // client only mirrors the offer window for display.
+  let offerState = null;
+  let queuePosition = null;
+  // Entry-readiness metrics (17.2): anonymous timing only.
+  let entryStartedAtMs = null;
+  let entryRetained = false;
+  let entryRecorded = false;
+  const strikeLog = [];
+  let lastFrameInfo = null;
 
   // Load handshake (D7): follows the seat identity; the server resets `loaded`
   // on every new seat record, so a page-lifetime flag would go stale.
@@ -218,6 +238,10 @@ export function createDownhillController({
       onReady: () => sendReady(true),
       onExit: () => exit('exit'),
       onSoundToggle: (muted) => audio?.setMuted?.(muted),
+      onConfig: (config) => sendConfig(config),
+      onJoinRole: (role) => joinAsRole(role),
+      onLeaveRole: () => exit('leave-role'),
+      onOffer: (accept) => respondOffer(accept),
     });
     if (hud) {
       hud.setTouchSink(touchInput);
@@ -262,6 +286,10 @@ export function createDownhillController({
     }
     if (event.code === 'KeyR') {
       consume(event);
+      if (offerState) {
+        respondOffer(true);
+        return;
+      }
       if (lastStatus === 'lobby' || lastStatus === 'results' || lastStatus === 'ended' || lastStatus === null) {
         sendReady(true);
       }
@@ -438,6 +466,52 @@ export function createDownhillController({
     return true;
   }
 
+  /**
+   * Captain lobby settings (11.2). Only the server decides; the client waits
+   * for the authoritative `lobby_config` event/snapshot before reloading.
+   */
+  function sendConfig(config) {
+    const matchId = resolveMatchId();
+    if (!matchId) return false;
+    try {
+      net?.sendActivityConfig?.({ activityId: activityDef.id, matchId, config });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Queue/watch entry used when the cabinet is already racing (11.5). */
+  function joinAsRole(role) {
+    const p = participation();
+    if (!p) return false;
+    try {
+      if (p.isOccupied) p.leave?.();
+      p.join?.(activityDef, { role });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Accept/decline a queued slot offer. The server resolves acceptance from
+   * authoritative membership/proximity; the client only sends the readiness
+   * edge its offer window expects.
+   */
+  function respondOffer(accept) {
+    if (!offerState) return false;
+    const matchId = resolveMatchId();
+    try {
+      net?.sendActivityReady?.({ activityId: activityDef.id, ready: accept === true, matchId });
+    } catch {
+      return false;
+    }
+    if (accept) offerState = { ...offerState, pending: true };
+    else offerState = null;
+    return true;
+  }
+
   function sendReady(ready) {
     const p = participation();
     if (!p) return;
@@ -447,6 +521,10 @@ export function createDownhillController({
       return;
     }
     if (ready) {
+      if (!courseDoc || courseDoc.mountain !== desiredMountain) {
+        report('Loading the selected mountain — try Ready again in a moment.');
+        return;
+      }
       const sent = sendLoaded({ force: true });
       if (!loadedConfirmed && !sent) {
         report('Still loading the mountain — try Ready again in a moment.');
@@ -519,16 +597,25 @@ export function createDownhillController({
     if (ctx && ctx.state !== 'running') ctx.resume?.().catch?.(() => {});
   }
 
-  async function resolveCourseDocument() {
-    if (activityDef.courseDocument) return activityDef.courseDocument;
+  async function resolveCourseDocument({ mountain = desiredMountain } = {}) {
+    if (activityDef.courseDocument && mountain === (activityDef.course?.id ?? 'classic')) {
+      return activityDef.courseDocument;
+    }
     const docs = await loadCourseDocument();
-    const mountain = activityDef.course?.id ?? 'classic';
-    const pick = docs?.craftedCourseDocument?.(mountain)
-      ?? docs?.craftedCourseDocument?.('classic')
+    const crafted = docs?.craftedCourseDocument?.(mountain)
       ?? docs?.default?.craftedCourseDocument?.(mountain)
+      ?? null;
+    if (crafted) return crafted;
+    if (mountain === 'daily') {
+      const daily = await net?.fetchDownhillDailyCourse?.();
+      if (!daily || typeof daily !== 'object' || typeof daily.hash !== 'string') {
+        throw new Error('daily_course_unavailable');
+      }
+      return daily;
+    }
+    return docs?.craftedCourseDocument?.('classic')
       ?? docs?.default?.craftedCourseDocument?.('classic')
       ?? null;
-    return pick;
   }
 
   async function bootHost() {
@@ -538,7 +625,33 @@ export function createDownhillController({
 
     bootPromise = (async () => {
       try {
-        const [module, doc] = await Promise.all([loadHostModule(), resolveCourseDocument()]);
+        // Fast path (7.2/7.4): adopt a hidden host prepared by the background
+        // scheduler when it matches the selected mountain. Adopting a stale
+        // document is never allowed; an unmatched retained host is released.
+        const retained = retentionEnabled ? preparation?.getRetainedHost?.() : null;
+        if (retained?.host && retained.ready !== false && !retained.disposed && !retained.host.disposed) {
+          const retainedDoc = retained.host.runtime?.course?.doc ?? null;
+          const retainedMountain = retainedDoc?.mountain ?? retainedDoc?.id ?? null;
+          if (retainedDoc && retainedDoc.hash && retainedMountain === desiredMountain) {
+            courseDoc = retainedDoc;
+            course = loadCourse(courseDoc);
+            predictor = createPredictor(course);
+            audio = createDownhillAudio({
+              mixer: typeof audioMixer === 'function' ? audioMixer() : audioMixer,
+            });
+            host = retained.host;
+            sceneAdapter = createDownhillSceneAdapter(host);
+            presentationReady = true;
+            loadFailed = false;
+            entryRetained = true;
+            booted = true;
+            if (mine()) acquireTheView();
+            return host;
+          }
+          preparation.releaseRetainedHost();
+        }
+
+        const [module, doc] = await Promise.all([loadHostModule(), resolveCourseDocument({ mountain: desiredMountain })]);
         if (!isAttemptCurrent(local)) return null;
         if (!doc) throw new Error('no_course_document');
 
@@ -577,7 +690,9 @@ export function createDownhillController({
         host = nextHost;
         sceneAdapter = createDownhillSceneAdapter(host);
 
-        if (typeof host.prepare === 'function') await host.prepare({ signal: local.signal });
+        if (typeof host.prepare === 'function') {
+          await host.prepare({ signal: local.signal, runTransaction: runGraphicsTransaction });
+        }
         if (!isAttemptCurrent(local)) {
           host.dispose?.();
           host = null;
@@ -604,9 +719,37 @@ export function createDownhillController({
     return bootPromise;
   }
 
+  /**
+   * D12: tear the current host down so the normal loop rebuilds it from the
+   * newly selected mountain document. Only called while the lobby is unlocked
+   * (never mid-race), so no rider sees an unfinished world.
+   */
+  function reloadCourseForMountain() {
+    if (!host && !bootPromise) {
+      loadFailed = false;
+      return false;
+    }
+    presentationReady = false;
+    loadFailed = false;
+    loadedConfirmed = false;
+    loadedLastAttemptMs = -Infinity;
+    lastRoster = [];
+    raceStarted = false;
+    if (viewHeld && releaseView) {
+      releaseView(attempt.token, 'mountain-change');
+    } else {
+      const localHost = host;
+      host = null;
+      sceneAdapter = null;
+      predictor = null;
+      booted = false;
+      localHost?.dispose?.();
+    }
+    return true;
+  }
+
   function acquireTheView() {
-    if (viewHeld || !host || !presentationReady || !acquireView) return false;
-    const local = attempt;
+    if (viewHeld || !host || !presentationReady || !acquireView) return false;    const local = attempt;
     const result = acquireView({
       owner: local.token,
       generation,
@@ -629,6 +772,15 @@ export function createDownhillController({
     host.enter?.();
     sendLoaded();
     sendResnapshot();
+    if (!entryRecorded) {
+      entryRecorded = true;
+      recordEntrySample({
+        ready: true,
+        retained: entryRetained,
+        prepSeconds: entryStartedAtMs != null ? (nowPerf() - entryStartedAtMs) / 1000 : 0,
+        distance: typeof getDistance === 'function' ? (getDistance() ?? 0) : 0,
+      });
+    }
     return true;
   }
 
@@ -642,7 +794,8 @@ export function createDownhillController({
     const localHost = host;
     const retain = retentionEnabled && preparation && booted
       && reason !== 'travel' && reason !== 'dispose'
-      && reason !== 'context-lost' && reason !== 'fatal' && reason !== 'load-failed';
+      && reason !== 'context-lost' && reason !== 'fatal' && reason !== 'load-failed'
+      && reason !== 'mountain-change';
     if (localHost) {
       localHost.session?.requestExit?.();
       if (retain) {
@@ -689,23 +842,57 @@ export function createDownhillController({
     if (frame.audience === 'summary') return; // the cabinet display owns summaries
     if (frame.activityId && frame.activityId !== activityDef.id) return;
     if (typeof frame.matchId === 'string' && frame.matchId) currentMatchId = frame.matchId;
+    lastFrameInfo = {
+      audience: typeof frame.audience === 'string' ? frame.audience : null,
+      hasRiders: Array.isArray(frame.riders),
+      riders: Array.isArray(frame.riders) ? frame.riders.length : null,
+      players: Array.isArray(frame.state?.players) ? frame.state.players.length : null,
+      hasSim: !!frame.state?.sim,
+    };
 
-    // Lobby roster (humans + AI filler slots) for the HUD. Server-authored.
+    // Lobby roster (humans + projected AI filler slots) for the HUD. The
+    // presentation snapshot carries the projected six-rider field with
+    // nicknames; readiness/captain identity ride the generic player rows.
     const playerRows = Array.isArray(frame.state?.players)
       ? frame.state.players
       : Array.isArray(frame.players) ? frame.players : null;
-    if (playerRows) {
+    const fieldRows = Array.isArray(frame.riders) ? frame.riders : null;
+    if (fieldRows) {
       const mySlot = participation()?.currentSlot;
-      lastRoster = playerRows.map((row, index) => ({
+      const readyBySlot = new Map((playerRows ?? []).map((row) => [row?.slot, row?.ready === true]));
+      lastRoster = fieldRows.map((row, index) => ({
         slot: Number.isInteger(row?.slot) ? row.slot : index,
         playerId: typeof row?.playerId === 'string' ? row.playerId : null,
-        nickname: row?.nickname,
+        nickname: row?.nickname ?? row?.name,
         isAI: row?.isAI === true,
-        ready: row?.ready === true,
+        ready: readyBySlot.size > 0 ? readyBySlot.get(row?.slot) === true : row?.ready === true,
         status: row?.status,
         self: row?.slot === mySlot,
-        normalizedProgress: 0,
+        normalizedProgress: Number.isFinite(row?.normalizedProgress) ? row.normalizedProgress : 0,
       }));
+    } else if (playerRows) {
+      // Generic fallback (no projected field): keep the presentation roster
+      // (names + AI fillers) and update readiness/self from the player rows so
+      // a generic resnapshot can never erase the six-rider lobby.
+      const mySlot = participation()?.currentSlot;
+      const bySlot = new Map(lastRoster.map((row) => [row.slot, row]));
+      for (const row of playerRows) {
+        if (!Number.isInteger(row?.slot)) continue;
+        const prev = bySlot.get(row.slot);
+        bySlot.set(row.slot, {
+          slot: row.slot,
+          playerId: row?.playerId ?? prev?.playerId ?? null,
+          nickname: row?.nickname ?? prev?.nickname ?? null,
+          isAI: false,
+          ready: row?.ready === true,
+          status: row?.status ?? prev?.status ?? null,
+          self: row.slot === mySlot,
+          normalizedProgress: prev?.normalizedProgress ?? 0,
+        });
+      }
+      lastRoster = [...bySlot.values()].sort((a, b) => a.slot - b.slot);
+    }
+    if (playerRows || fieldRows) {
       const captainId = frame.state?.captainPlayerId ?? frame.captainPlayerId ?? null;
       if (captainId) {
         captainName = lastRoster.find((row) => row.playerId === captainId)?.nickname ?? captainName;
@@ -717,6 +904,15 @@ export function createDownhillController({
     if (typeof frame.serverTick === 'number') lastServerTick = frame.serverTick;
     if (Number.isFinite(frame.serverNow)) clock.seedFromSnapshot(frame.serverNow, nowPerf());
     if (Number.isFinite(frame.startAt)) countdownStartAt = frame.startAt;
+
+    // D12/D5: the captain may change the mountain while the lobby is unlocked;
+    // the server then invalidates every rider's loaded course. Reload the
+    // matching document (Daily included) before readiness can lock.
+    if (typeof frame.mountain === 'string' && frame.mountain && frame.mountain !== desiredMountain) {
+      desiredMountain = frame.mountain;
+      if (!raceStarted && lastStatus === 'lobby') reloadPending = true;
+    }
+    if (typeof frame.difficulty === 'string' && frame.difficulty) desiredDifficulty = frame.difficulty;
 
     if (lastStatus === 'racing' && !raceStarted) {
       raceStarted = true;
@@ -735,6 +931,10 @@ export function createDownhillController({
         nickname: r?.nickname ?? r?.def?.name,
         isAI: r?.isAI === true,
         finished: r?.finished === true,
+        grounded: r?.grounded === true,
+        crashed: r?.crashed === true,
+        trick: r?.trick ?? null,
+        boosting: r?.boosting === true,
         status: r?.finished ? 'finished' : r?.crashed ? 'crashed' : 'racing',
         place: r?.racePos ?? null,
         timeMs: Number.isFinite(r?.finishTime) ? r.finishTime * 1000 : null,
@@ -806,11 +1006,48 @@ export function createDownhillController({
         clock.seedFromSnapshot(frame.serverNow ?? 0, nowPerf());
         audio?.event?.('countdown');
         break;
+      case 'lobby_config':
+        if (typeof frame.payload?.mountain === 'string' && frame.payload.mountain
+          && frame.payload.mountain !== desiredMountain) {
+          desiredMountain = frame.payload.mountain;
+          if (!raceStarted && lastStatus === 'lobby') reloadPending = true;
+        }
+        if (typeof frame.payload?.difficulty === 'string' && frame.payload.difficulty) {
+          desiredDifficulty = frame.payload.difficulty;
+        }
+        break;
+      case 'slot_offered': {
+        // Addressed to the queued rider only (11.5). The server owns the
+        // window; the client mirrors it for display and sends the accept edge.
+        const data = frame.payload ?? frame.data ?? {};
+        offerState = {
+          slot: data.slot ?? null,
+          timeoutMs: Number.isFinite(data.timeoutMs) ? data.timeoutMs : 30_000,
+          receivedAt: nowPerf(),
+          pending: false,
+        };
+        pushToast('SLOT OPEN — PRESS ACCEPT TO RIDE');
+        break;
+      }
+      case 'offer_expired': {
+        const data = frame.payload ?? frame.data ?? {};
+        if (offerState && (data.slot == null || data.slot === offerState.slot)) offerState = null;
+        pushToast('THE SLOT WENT TO THE NEXT RIDER');
+        break;
+      }
       case 'match_started':
         pushToast('GO!');
         break;
       case 'strike':
         audio?.event?.('strike');
+        if (frame.payload) {
+          strikeLog.push({
+            attacker: frame.payload.attackerSlot ?? null,
+            victim: frame.payload.targetSlot ?? null,
+            kind: frame.payload.kind ?? null,
+          });
+          if (strikeLog.length > 32) strikeLog.shift();
+        }
         break;
       case 'rider_finished': {
         const rider = frame.payload?.nickname;
@@ -836,8 +1073,20 @@ export function createDownhillController({
     if (controllerDisposed || !frame) return;
     if (frame.activityId && frame.activityId !== activityDef.id) return;
     if (typeof frame.matchId === 'string' && frame.matchId) currentMatchId = frame.matchId;
+    if (typeof frame.queuePosition === 'number') queuePosition = frame.queuePosition;
+    if (frame.result === 'seated' || frame.result === 'accepted_offer') queuePosition = null;
     if (frame.result === 'loaded') {
       loadedConfirmed = true;
+      return;
+    }
+    if (frame.result === 'accepted_offer') {
+      offerState = null;
+      pushToast('SEAT TAKEN — PRESS R WHEN READY');
+      return;
+    }
+    if (frame.result === 'declined_offer') {
+      offerState = null;
+      pushToast('OFFER DECLINED — YOU ARE STILL QUEUED');
       return;
     }
     if (frame.result?.kind === 'downhill-mayhem' || frame.result?.kind === 'downhill_mayhem') {
@@ -853,12 +1102,27 @@ export function createDownhillController({
 
   function acceptError(frame) {
     if (controllerDisposed || !frame) return;
+    if (frame.error === 'race_in_progress') {
+      // D13/11.5: a cabinet already racing offers watch/queue instead of a
+      // seat. Auto-queue (the HUD then offers "watch live" or "leave queue");
+      // no rider is ever inserted mid-race.
+      const p = participation();
+      if (!p?.isOccupied && !mine()) {
+        joinAsRole('queue');
+        report('Race In Progress', 'Queued for the next race — watch live or leave from the panel.');
+      }
+      return;
+    }
     if (frame.error === 'not_loaded') {
       loadedConfirmed = false;
       sendLoaded({ force: true });
       report('Course still loading — wait a moment, then press Ready again.');
     } else if (frame.error === 'course_mismatch') {
+      // The loaded document no longer matches the session's course (for
+      // example, the captain selected another mountain). Clear the handshake
+      // so the throttled loop re-sends once the matching document is loaded.
       loadedConfirmed = false;
+      loadedLastAttemptMs = -Infinity;
       report('Course Mismatch', 'Reload the mountain and try again.');
     }
   }
@@ -874,7 +1138,10 @@ export function createDownhillController({
     if (!hud) return;
     const p = participation();
     let phase = 'lobby';
-    if (!viewHeld) phase = 'loading';
+    if (offerState) phase = 'offer';
+    else if (p?.isWatching) phase = 'watching';
+    else if (p?.isQueued) phase = 'queued';
+    else if (!viewHeld) phase = 'loading';
     else if (lastStatus === 'countdown') phase = 'countdown';
     else if (lastStatus === 'racing') phase = raceStarted ? 'racing' : 'syncing';
     else if (lastStatus === 'results') phase = 'results';
@@ -898,9 +1165,20 @@ export function createDownhillController({
       riderCount: riders.length,
       readyCount: riders.filter((r) => r.ready).length,
       capacity: activityDef.capacities?.players ?? 6,
-      mountain: courseDoc?.mountain ?? activityDef.course?.id ?? 'classic',
-      difficulty: activityDef.course?.difficulty ?? 'mayhem',
+      mountain: desiredMountain ?? courseDoc?.mountain ?? activityDef.course?.id ?? 'classic',
+      difficulty: desiredDifficulty,
       captainName: captainName ?? p?.captainName ?? null,
+      isCaptain: !!(captainName && lastRoster.find((r) => r.self)?.nickname === captainName),
+      queued: p?.isQueued === true,
+      queuePosition,
+      watching: p?.isWatching === true,
+      offer: offerState
+        ? {
+          slot: offerState.slot,
+          remainingMs: Math.max(0, offerState.timeoutMs - (nowPerf() - offerState.receivedAt)),
+          pending: offerState.pending === true,
+        }
+        : null,
       countdownLeft: countdown?.ready ? countdown.remainingMs / 1000 : (countdown?.remainingMs != null ? countdown.remainingMs / 1000 : null),
       place: myState ? provisionalPlace() : null,
       field: Math.max(1, fieldSize()),
@@ -915,6 +1193,30 @@ export function createDownhillController({
       toastTime: Math.max(0, (toastState.untilMs - nowPerf()) / 1000),
     };
     hud.update(snapshot);
+  }
+
+  /** Debug/gate countdown projection (bounded; local clock only). */
+  function debugCountdown() {
+    if (countdownStartAt == null) return null;
+    const c = clock.countdown(countdownStartAt, nowPerf());
+    return {
+      startAt: countdownStartAt,
+      remainingMs: c?.remainingMs ?? null,
+      number: c?.ready ? Math.max(1, Math.ceil(c.remainingMs / 1000)) : null,
+    };
+  }
+
+  /** Debug/gate projection: bounded, additive aliases only (15.1). */
+  function debugRiderRow(r) {
+    return {
+      ...r,
+      name: r.nickname ?? r.name ?? null,
+      airborne: r.airborne ?? r.grounded === false,
+      boost: r.boost ?? r.boosting === true,
+      downed: r.downed ?? r.crashed === true,
+      dnf: r.dnf ?? (r.status === 'dnf' || r.dnfReason != null),
+      time: r.time ?? r.timeMs ?? null,
+    };
   }
 
   function provisionalPlace() {
@@ -951,8 +1253,24 @@ export function createDownhillController({
     }
 
     if (p?.isParticipating && p.currentActivity?.id === activityDef.id) {
+      if (reloadPending && !raceStarted && lastStatus === 'lobby') {
+        reloadPending = false;
+        reloadCourseForMountain();
+      }
       if (!host && !bootPromise && !loadFailed) void bootHost();
       if (host && presentationReady && !viewHeld) acquireTheView();
+    }
+
+    // Queue/watch/slot-offer UX (11.5): the HUD is lifecycle-owned and lives
+    // without a view while waiting for the next race.
+    if (!viewHeld) {
+      const audience = p?.isQueued || p?.isWatching || offerState != null;
+      if (audience) {
+        showHud();
+        hudUpdate();
+      } else if (hud && !p?.isJoining && !p?.isParticipating && !pendingActivation) {
+        hideHud();
+      }
     }
 
     if (!viewHeld || !host) return;
@@ -1039,9 +1357,11 @@ export function createDownhillController({
     if (controllerDisposed && !viewHeld && !pendingActivation && !bootPromise) return;
     invalidateAttempt();
     pendingActivation = false;
-    const shouldLeave = mine() || exiting || hadAdmission;
+    const p = participation();
+    const shouldLeave = mine() || exiting || hadAdmission || p?.isQueued || p?.isWatching;
     exiting = false;
     hadAdmission = false;
+    offerState = null;
     if (shouldLeave) {
       try { participation()?.leave?.(); } catch {}
     }
@@ -1049,6 +1369,16 @@ export function createDownhillController({
       releaseView(attempt.token, reason);
     } else {
       handleViewRelease(reason);
+    }
+    if (!entryRecorded && entryStartedAtMs != null) {
+      entryRecorded = true;
+      recordEntrySample({
+        ready: false,
+        retained: entryRetained,
+        cancelled: true,
+        prepSeconds: (nowPerf() - entryStartedAtMs) / 1000,
+        distance: typeof getDistance === 'function' ? (getDistance() ?? 0) : 0,
+      });
     }
     if (typeof onExit === 'function') onExit(reason);
   }
@@ -1095,6 +1425,9 @@ export function createDownhillController({
     activationEpoch += 1;
     attempt = createAttempt(activationEpoch);
     pendingActivation = true;
+    entryStartedAtMs = nowPerf();
+    entryRetained = false;
+    entryRecorded = false;
     unlockAudioFromGesture();
     preparation?.prefetch?.().catch?.(() => {});
     report('Loading the mountain… Press Escape to cancel.');
@@ -1119,8 +1452,56 @@ export function createDownhillController({
     },
     exit,
     dispose,
+    configure: (config) => sendConfig(config),
+    respondOffer: (accept) => respondOffer(accept),
+    joinAsRole: (role) => joinAsRole(role),
     get attemptToken() { return attempt.token; },
     get viewHeld() { return viewHeld; },
     get pendingActivation() { return pendingActivation; },
+    /**
+     * Read-only projection for the automated browser gate (`?debug=1` only).
+     * Bounded, local, and never used by gameplay code.
+     */
+    debugState() {
+      const p = participation();
+      const racing = lastStatus === 'racing' || lastStatus === 'countdown';
+      const rows = racing ? lastRiderRows : lastRoster;
+      let phase = lastStatus === 'ended' ? 'results' : (lastStatus ?? (viewHeld ? 'lobby' : 'idle'));
+      if (!lastStatus && p?.isWatching) phase = 'watching';
+      else if (!lastStatus && p?.isQueued) phase = 'queued';
+      return {
+        phase,
+        matchId: currentMatchId,
+        courseHash: courseDoc?.hash ?? null,
+        mountain: desiredMountain,
+        difficulty: desiredDifficulty,
+        humans: lastRoster.filter((r) => !r.isAI).map((r) => ({
+          ...r,
+          name: r.nickname ?? null,
+          captain: captainName != null && r.nickname === captainName,
+          connected: true,
+        })),
+        field: rows.map(debugRiderRow),
+        riders: rows.map(debugRiderRow),
+        standings: (resultsStandings ?? []).map((row) => ({
+          slot: row.slot,
+          place: row.place,
+          name: row.nickname ?? row.name ?? null,
+          time: row.timeMs != null ? row.timeMs : (row.time ?? null),
+          dnf: row.status === 'dnf' || row.dnfReason != null,
+          isAI: row.isAI === true,
+          status: row.status,
+          dnfReason: row.dnfReason,
+        })),
+        selfSlot: p?.currentSlot ?? 0,
+        countdown: debugCountdown(),
+        strikes: [...strikeLog],
+        lastStrike: strikeLog[strikeLog.length - 1] ?? null,
+        queued: p?.isQueued === true,
+        watching: p?.isWatching === true,
+        offer: offerState ? { slot: offerState.slot, timeoutMs: offerState.timeoutMs } : null,
+        frameInfo: lastFrameInfo,
+      };
+    },
   };
 }

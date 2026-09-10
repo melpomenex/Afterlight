@@ -326,7 +326,7 @@ export function createParticipationController({
 
       const status = frame?.status;
 
-      if (status === 'seated' || frame?.result === 'seated' || frame?.role === 'player') {
+      if (status === 'seated' || frame?.result === 'seated' || frame?.result === 'accepted_offer' || frame?.role === 'player') {
         state = 'participating';
         currentSlot = frame?.slot ?? null;
         lease = frame?.lease ?? frame?.leaseId ?? null;

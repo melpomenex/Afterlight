@@ -67,6 +67,47 @@
   color: #cfe6dc;
 }
 .dm-lobby-meta b { color: #ffd166; }
+.dm-lobby-meta .dm-setting { display: inline-flex; align-items: center; gap: 5px; }
+
+/* Captain-only mountain/difficulty cyclers (11.2). */
+.dm-cycle {
+  display: none;
+  pointer-events: auto;
+  background: transparent;
+  border: 1px solid rgba(255, 122, 60, 0.45);
+  border-radius: 3px;
+  color: #ffd166;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 5px;
+  cursor: pointer;
+}
+.dm.dm-captain .dm-cycle { display: inline-block; }
+.dm-cycle:focus-visible { outline: 2px solid #ffd166; outline-offset: 1px; }
+
+/* --- queue / watching / slot offer (11.5) --------------------------------- */
+.dm-audience {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, 86vw);
+  display: none;
+  text-align: center;
+}
+.dm.dm-phase-queued .dm-audience,
+.dm.dm-phase-watching .dm-audience,
+.dm.dm-phase-offer .dm-audience { display: block; }
+.dm-audience p { color: #cfe6dc; font-size: 13px; margin: 6px 0 0; }
+.dm-audience-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 12px;
+}
+.dm.dm-phase-queued .dm-action-ready,
+.dm.dm-phase-watching .dm-action-ready,
+.dm.dm-phase-offer .dm-action-ready { display: none; }
 
 .dm-roster {
   display: grid;

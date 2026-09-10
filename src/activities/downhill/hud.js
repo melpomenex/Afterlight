@@ -50,8 +50,21 @@ export function resultRenderKey(snap, rows) {
  * @param {() => void} options.onReady Ready/Rematch
  * @param {() => void} options.onExit  safe exit
  * @param {(muted: boolean) => void} [options.onSoundToggle]
+ * @param {(config: {mountain?: string, difficulty?: string}) => void} [options.onConfig]
+ * @param {(role: 'watch'|'queue') => void} [options.onJoinRole]
+ * @param {() => void} [options.onLeaveRole]
+ * @param {(accept: boolean) => void} [options.onOffer]
  */
-export function createDownhillHud({ host = null, onReady, onExit, onSoundToggle = null } = {}) {
+export function createDownhillHud({
+  host = null,
+  onReady,
+  onExit,
+  onSoundToggle = null,
+  onConfig = null,
+  onJoinRole = null,
+  onLeaveRole = null,
+  onOffer = null,
+} = {}) {
   const mount = host ?? (typeof document !== 'undefined' ? document.body : null);
   if (!mount) return null;
 
@@ -64,15 +77,34 @@ export function createDownhillHud({ host = null, onReady, onExit, onSoundToggle 
   lobby.innerHTML = `
     <span class="dm-overline">THE ORPHEUM · MOUNTAIN CABINET</span>
     <h1>DOWNHILL <em>MAYHEM</em></h1>
-    <div class="dm-lobby-meta">
-      <span>MOUNTAIN <b data-role="mountain">CLASSIC</b></span>
-      <span>DIFFICULTY <b data-role="difficulty">MAYHEM</b></span>
+    <div class="dm-lobby-meta" data-downhill-config>
+      <span class="dm-setting">MOUNTAIN
+        <button type="button" class="dm-cycle" data-role="mountain-prev" aria-label="Previous mountain">‹</button>
+        <b data-role="mountain">CLASSIC</b>
+        <button type="button" class="dm-cycle" data-role="mountain-next" aria-label="Next mountain">›</button>
+      </span>
+      <span class="dm-setting">DIFFICULTY
+        <button type="button" class="dm-cycle" data-role="difficulty-prev" aria-label="Easier difficulty">‹</button>
+        <b data-role="difficulty">MAYHEM</b>
+        <button type="button" class="dm-cycle" data-role="difficulty-next" aria-label="Harder difficulty">›</button>
+      </span>
       <span>CAPTAIN <b data-role="captain">—</b></span>
     </div>
     <span class="dm-overline">RIDERS <b data-role="ready-count">0</b> READY</span>
     <div class="dm-roster" data-role="roster"></div>
     <p>Six riders. One mountain. Ride, trick, fight.</p>`;
   root.appendChild(lobby);
+
+  // --- queue / watching / slot offer ----------------------------------------
+  const audience = el('div', 'dm-panel dm-audience');
+  audience.innerHTML = `
+    <span class="dm-overline" data-role="audience-title">RACE IN PROGRESS</span>
+    <p data-role="audience-line">The mountain is busy.</p>
+    <div class="dm-audience-actions">
+      <button type="button" class="dm-action-button dm-action-primary" data-role="audience-primary"></button>
+      <button type="button" class="dm-action-button" data-role="audience-secondary"></button>
+    </div>`;
+  root.appendChild(audience);
 
   // --- countdown ------------------------------------------------------------
   const countdown = el('div', 'dm-countdown');
@@ -134,6 +166,45 @@ export function createDownhillHud({ host = null, onReady, onExit, onSoundToggle 
     soundButton.textContent = muted ? 'SOUND OFF' : 'SOUND ON';
     onSoundToggle?.(muted);
   });
+
+  const MOUNTAINS = ['classic', 'timber', 'rock', 'daily'];
+  const DIFFICULTY_ORDER = ['chill', 'mayhem', 'brutal'];
+  function cycleValue(list, current, dir) {
+    const index = Math.max(0, list.indexOf(String(current ?? '').toLowerCase()));
+    return list[(index + dir + list.length) % list.length];
+  }
+
+  let lastSnap = {};
+  const audiencePrimary = audience.querySelector('[data-role="audience-primary"]');
+  const audienceSecondary = audience.querySelector('[data-role="audience-secondary"]');
+  const audienceTitle = audience.querySelector('[data-role="audience-title"]');
+  const audienceLine = audience.querySelector('[data-role="audience-line"]');
+
+  audiencePrimary?.addEventListener('click', () => {
+    if (lastSnap.offer) onOffer?.(true);
+    else onJoinRole?.('queue');
+  });
+  audienceSecondary?.addEventListener('click', () => {
+    if (lastSnap.offer) onOffer?.(false);
+    else onLeaveRole?.();
+  });
+
+  const mountainPrev = lobby.querySelector('[data-role="mountain-prev"]');
+  const mountainNext = lobby.querySelector('[data-role="mountain-next"]');
+  const difficultyPrev = lobby.querySelector('[data-role="difficulty-prev"]');
+  const difficultyNext = lobby.querySelector('[data-role="difficulty-next"]');
+  mountainPrev?.addEventListener('click', () => onConfig?.({
+    mountain: cycleValue(MOUNTAINS, lastSnap.mountain, -1),
+  }));
+  mountainNext?.addEventListener('click', () => onConfig?.({
+    mountain: cycleValue(MOUNTAINS, lastSnap.mountain, 1),
+  }));
+  difficultyPrev?.addEventListener('click', () => onConfig?.({
+    difficulty: cycleValue(DIFFICULTY_ORDER, lastSnap.difficulty, -1),
+  }));
+  difficultyNext?.addEventListener('click', () => onConfig?.({
+    difficulty: cycleValue(DIFFICULTY_ORDER, lastSnap.difficulty, 1),
+  }));
 
   const touchHandlers = [];
   const touchButtons = new Map();
@@ -247,8 +318,11 @@ export function createDownhillHud({ host = null, onReady, onExit, onSoundToggle 
 
   function update(snap) {
     if (!snap) return;
+    lastSnap = snap;
     const phase = snap.phase ?? 'lobby';
-    root.className = `dm dm-visible dm-phase-${phase}${snap.reconnecting ? ' dm-reconnecting' : ''}`;
+    root.className = `dm dm-visible dm-phase-${phase}`
+      + `${snap.reconnecting ? ' dm-reconnecting' : ''}`
+      + `${snap.isCaptain && phase === 'lobby' ? ' dm-captain' : ''}`;
 
     if (refs.mountain) refs.mountain.textContent = String(snap.mountain ?? 'CLASSIC').toUpperCase();
     if (refs.difficulty) refs.difficulty.textContent = String(snap.difficulty ?? 'MAYHEM').toUpperCase();
@@ -266,6 +340,40 @@ export function createDownhillHud({ host = null, onReady, onExit, onSoundToggle 
     if (refs.boost) refs.boost.style.width = `${Math.max(0, Math.min(100, snap.boost ?? 0))}%`;
     renderProgress(snap);
 
+    // Queue / watch / slot-offer panel (11.5).
+    if (audienceTitle && audienceLine && audiencePrimary && audienceSecondary) {
+      let title = null;
+      let line = '';
+      let primary = '';
+      let secondary = '';
+      if (snap.offer) {
+        title = 'SLOT OPEN — YOUR CALL';
+        line = `A seat opened for the next race. Accept within ${Math.max(0, Math.ceil((snap.offer.remainingMs ?? 0) / 1000))}s.`;
+        primary = 'ACCEPT (R)';
+        secondary = 'DECLINE';
+      } else if (snap.queued) {
+        title = 'IN QUEUE';
+        line = snap.queuePosition
+          ? `Position ${snap.queuePosition}. You will be offered a slot between races.`
+          : 'You will be offered a slot between races.';
+        primary = 'WATCH LIVE';
+        secondary = 'LEAVE QUEUE';
+      } else if (snap.watching) {
+        title = 'WATCHING LIVE';
+        line = 'The race is in progress. Queue for the next one or leave.';
+        primary = 'QUEUE NEXT RACE';
+        secondary = 'STOP WATCHING';
+      }
+      const show = title != null && phase !== 'racing';
+      audiencePrimary.textContent = primary;
+      audienceSecondary.textContent = secondary;
+      audienceTitle.textContent = title ?? '';
+      audienceLine.textContent = line;
+      audiencePrimary.hidden = !show;
+      audienceSecondary.hidden = !show;
+      audienceTitle.hidden = !show;
+      audienceLine.hidden = !show;
+    }
     if (refs.abortedReason) refs.abortedReason.textContent = snap.abortedReason ?? 'THE MOUNTAIN WILL WAIT';
 
     const toastOn = (snap.toastTime ?? 0) > 0 && !!snap.toast;

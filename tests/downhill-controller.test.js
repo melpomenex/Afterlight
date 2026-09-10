@@ -141,6 +141,7 @@ function makeNet(calls) {
     nextActivitySeq: () => calls.length + 1,
     sendActivityInput: (frame) => { calls.push({ type: 'input', frame }); return { ok: true }; },
     sendActivityReady: (frame) => { calls.push({ type: 'ready', frame }); return { ok: true }; },
+    sendActivityConfig: (frame) => { calls.push({ type: 'config', frame }); return { ok: true }; },
   };
 }
 
@@ -305,8 +306,7 @@ test('the controller never creates a renderer, canvas or RAF loop', () => {
   ], 'only the game host and the crafted-course documents are dynamically imported');
 });
 
-test('the controller speaks the downhill protocol: loaded handshake then ride heartbeat', async () => {
-  const stubs = installBrowserStubs();
+test('the controller speaks the downhill protocol: loaded handshake then ride heartbeat', async () => {  const stubs = installBrowserStubs();
   try {
     const { controller, calls } = await bootToView(stubs);
 
@@ -342,6 +342,249 @@ test('the controller speaks the downhill protocol: loaded handshake then ride he
     }
     assert.deepEqual([...new Set(calls.map((c) => c.frame?.activityType ?? c.frame?.activityId))],
       ['downhill-mayhem']);
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('the Daily course document is fetched from the server and its published hash is loaded', async () => {
+  const stubs = installBrowserStubs();
+  try {
+    const state = makeState();
+    const calls = [];
+    const net = makeNet(calls);
+    const dailyDoc = Object.freeze({
+      ...generateCourseDocument({ mountain: 'daily', dailySeed: 20260910 }),
+      hash: 'b'.repeat(64),
+    });
+    net.fetchDownhillDailyCourse = async () => dailyDoc;
+    const record = { created: 0, prepared: 0, entered: 0 };
+    const controller = createDownhillController({
+      activityDef: {
+        ...DOWNHILL_MAYHEM_ACTIVITY_DEFINITION,
+        course: { id: 'daily', version: 1 },
+      },
+      net,
+      getParticipation: makeParticipation(state),
+      acquireView: () => ({ ok: true }),
+      releaseView: () => {},
+      getRenderer: () => ({ domElement: stubs.canvas }),
+      generation: 2,
+      getHudHost: () => null,
+      loadHostModule: async () => makeHostModule(record),
+      loadCourseDocument: async () => ({ craftedCourseDocument: () => null }),
+    });
+    await controller.beginParticipation();
+    state.participating = true;
+    state.state = 'participating';
+    state.currentActivity = { id: 'orpheum-downhill-mayhem' };
+    controller.update(0, 1 / 60);
+    await flush();
+    await flush();
+    controller.update(1 / 60, 1 / 60);
+
+    const loaded = calls.find((c) => c.type === 'input' && c.frame.controls?.kind === 'loaded');
+    assert.ok(loaded, 'loaded handshake sent after the server document was fetched');
+    assert.equal(loaded.frame.controls.courseId, 'daily');
+    assert.equal(loaded.frame.controls.courseHash, 'b'.repeat(64));
+    assert.equal(controller.debugState().courseHash, 'b'.repeat(64));
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('a captain mountain change reloads the matching document before enabling ready', async () => {
+  const stubs = installBrowserStubs();
+  try {
+    const state = makeState();
+    const calls = [];
+    const net = makeNet(calls);
+    const timberDoc = Object.freeze({
+      ...generateCourseDocument({ mountain: 'timber' }),
+      hash: 'c'.repeat(64),
+    });
+    const record = { created: 0, prepared: 0, entered: 0 };
+    const module = makeHostModule(record);
+    let lastRequest = null;
+    const controller = createDownhillController({
+      activityDef: ACTIVITY_DEF,
+      net,
+      getParticipation: makeParticipation(state),
+      acquireView: (request) => { lastRequest = request; return { ok: true, lease: { ...request } }; },
+      releaseView: (_owner, reason) => { lastRequest?.onRelease?.(reason); },
+      getRenderer: () => ({ domElement: stubs.canvas }),
+      generation: 3,
+      getHudHost: () => null,
+      loadHostModule: async () => module,
+      loadCourseDocument: async () => ({
+        craftedCourseDocument: (m) => (m === 'timber' ? timberDoc : null),
+      }),
+    });
+    await controller.beginParticipation();
+    state.participating = true;
+    state.state = 'participating';
+    state.currentActivity = ACTIVITY_DEF;
+    controller.update(0, 1 / 60);
+    await flush();
+    await flush();
+    controller.update(1 / 60, 1 / 60);
+    assert.equal(record.created, 1);
+
+    // The captain selects TIMBERLINE: the lobby snapshot carries the new
+    // mountain and the server has invalidated the previous load.
+    controller.acceptSnapshot({
+      activityId: 'orpheum-downhill-mayhem',
+      status: 'lobby',
+      mountain: 'timber',
+      difficulty: 'brutal',
+      state: { players: [{ slot: 0, playerId: 'me', nickname: 'me', ready: false }] },
+    });
+    controller.update(2 / 60, 1 / 60);
+    await flush();
+    await flush();
+    controller.update(3 / 60, 1 / 60);
+    await flush();
+    await flush();
+
+    assert.equal(record.created, 2, 'the host rebuilt for the selected mountain');
+    const loaded = [...calls].reverse().find((c) => c.type === 'input' && c.frame.controls?.kind === 'loaded');
+    assert.equal(loaded.frame.controls.courseId, 'timber');
+    assert.equal(loaded.frame.controls.courseHash, 'c'.repeat(64));
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('a course_mismatch error re-arms the load handshake without throwing', async () => {
+  const stubs = installBrowserStubs();
+  try {
+    const { controller, calls } = await bootToView(stubs);
+    const before = calls.filter((c) => c.type === 'input' && c.frame.controls?.kind === 'loaded').length;
+    controller.acceptError({ activityId: 'orpheum-downhill-mayhem', error: 'course_mismatch' });
+    controller.update(3 / 60, 1 / 60);
+    const after = calls.filter((c) => c.type === 'input' && c.frame.controls?.kind === 'loaded').length;
+    assert.ok(after > before, 'the controller retries the load handshake');
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('captain settings travel as activity_config for the current match', async () => {
+  const stubs = installBrowserStubs();
+  try {
+    const { controller, calls } = await bootToView(stubs);
+    assert.equal(controller.configure({ mountain: 'timber' }), true);
+    assert.equal(controller.configure({ difficulty: 'brutal' }), true);
+    const configs = calls.filter((c) => c.type === 'config');
+    assert.equal(configs.length, 2);
+    assert.equal(configs[0].frame.activityId, 'orpheum-downhill-mayhem');
+    assert.equal(configs[0].frame.matchId, 'match-1');
+    assert.deepEqual(configs[0].frame.config, { mountain: 'timber' });
+    assert.deepEqual(configs[1].frame.config, { difficulty: 'brutal' });
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('a busy cabinet queues the rider instead of inserting them mid-race', async () => {
+  const stubs = installBrowserStubs();
+  try {
+    const state = makeState();
+    const controller = createDownhillController({
+      activityDef: ACTIVITY_DEF,
+      net: makeNet([]),
+      getParticipation: makeParticipation(state),
+      getHudHost: () => null,
+    });
+    controller.acceptError({ activityId: 'orpheum-downhill-mayhem', error: 'race_in_progress' });
+    assert.equal(state.joined.opts.role, 'queue');
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('slot offers mirror the server window and accept through activity_ready', async () => {
+  const stubs = installBrowserStubs();
+  try {
+    const { controller, calls } = await bootToView(stubs);
+    controller.acceptEvent({
+      activityId: 'orpheum-downhill-mayhem',
+      eventType: 'slot_offered',
+      data: { slot: 3, timeoutMs: 25000 },
+      serverNow: Date.now(),
+    });
+    const offer = controller.debugState().offer;
+    assert.equal(offer.slot, 3);
+    assert.equal(offer.timeoutMs, 25000);
+
+    assert.equal(controller.respondOffer(true), true);
+    const ready = [...calls].reverse().find((c) => c.type === 'ready');
+    assert.equal(ready.frame.ready, true);
+
+    controller.acceptResult({ activityId: 'orpheum-downhill-mayhem', result: 'accepted_offer', slot: 3 });
+    assert.equal(controller.debugState().offer, null);
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('offer_expired clears the mirrored offer without seating anyone', async () => {
+  const stubs = installBrowserStubs();
+  try {
+    const { controller } = await bootToView(stubs);
+    controller.acceptEvent({
+      activityId: 'orpheum-downhill-mayhem',
+      eventType: 'slot_offered',
+      data: { slot: 1, timeoutMs: 1000 },
+    });
+    controller.acceptEvent({
+      activityId: 'orpheum-downhill-mayhem',
+      eventType: 'offer_expired',
+      data: { slot: 1 },
+    });
+    assert.equal(controller.debugState().offer, null);
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('lobby snapshots track the captain and handle leadership transfer', async () => {
+  const stubs = installBrowserStubs();
+  try {
+    const { controller } = await bootToView(stubs);
+    const frame = (captainPlayerId, players) => ({
+      activityId: 'orpheum-downhill-mayhem',
+      status: 'lobby',
+      audience: 'participants',
+      mountain: 'classic',
+      difficulty: 'mayhem',
+      captainPlayerId,
+      state: { players },
+      riders: players.map((p, i) => ({
+        slot: i, playerId: p.playerId, nickname: p.nickname, isAI: false,
+      })),
+    });
+    const a = { slot: 0, playerId: 'guest-a', nickname: 'Alpha', ready: false };
+    const b = { slot: 1, playerId: 'guest-b', nickname: 'Bravo', ready: false };
+
+    controller.acceptSnapshot(frame('guest-a', [a, b]));
+    let humans = controller.debugState().humans;
+    assert.deepEqual(humans.map((h) => h.captain), [true, false]);
+    assert.equal(humans[0].name, 'Alpha');
+
+    // Alpha leaves: the server recomputes the captain to Bravo.
+    controller.acceptSnapshot(frame('guest-b', [b]));
+    humans = controller.debugState().humans;
+    assert.deepEqual(humans.map((h) => h.name), ['Bravo']);
+    assert.equal(humans[0].captain, true);
     controller.dispose();
   } finally {
     stubs.restore();
