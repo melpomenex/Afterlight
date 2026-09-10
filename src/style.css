@@ -809,6 +809,69 @@ details.place-group > summary.place-group-label:focus-visible,
   background: #cdbc8e;
 }
 
+/* --- STALE-DEPLOYMENT UPDATE PROMPT (#update-dialog) --- */
+#update-dialog {
+  width: min(420px, calc(100vw - 32px));
+  background: #17292b;
+  color: #e2e4d6;
+  border: 1px solid #a99c6f75;
+  border-radius: 4px 4px 18px 4px;
+  padding: 22px 24px;
+  box-shadow: 0 20px 90px rgba(0, 0, 0, 0.7);
+}
+#update-dialog::backdrop {
+  background: rgba(7, 19, 16, 0.75);
+  backdrop-filter: blur(5px);
+}
+#update-dialog h2 {
+  font-size: 22px;
+  margin: 8px 0 4px;
+  color: #f0e6cf;
+}
+#update-dialog p.dialog-sub {
+  font-size: 12px;
+  color: #adc0b8;
+  margin-bottom: 16px;
+}
+#update-reload {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 14px;
+  background: #b8a87c;
+  color: #182827;
+  font-weight: 600;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+#update-reload:hover {
+  background: #cdbc8e;
+}
+#update-later {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 14px;
+  background: transparent;
+  color: #adc0b8;
+  font-weight: 400;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+  text-decoration: underline;
+}
+#update-later:hover {
+  color: #e2e4d6;
+}
+#update-reload:focus-visible,
+#update-later:focus-visible {
+  outline: 2px solid #c9a86a;
+  outline-offset: 2px;
+}
+
 /* --- RECORDS & VERIFIED LEADERBOARDS (#leaderboard-dialog) --- */
 #leaderboard-dialog {
   width: min(560px, calc(100vw - 32px));

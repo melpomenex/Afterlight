@@ -19,6 +19,7 @@ import { CallClient } from './net/calls.js';
 import { CallPanel } from './ui/callPanel.js';
 import { TheaterScreenUI } from './ui/theaterScreen.js';
 import { createPlaceSelector } from './ui/placeSelector.js';
+import { createUpdatePrompt } from './ui/updatePrompt.js';
 import { createLeaderboardDialog } from './ui/leaderboard.js';
 import { initChallenges } from './ui/challenges.js';
 import { initNearbyActivities } from './ui/nearbyActivities.js';
@@ -500,6 +501,33 @@ function clearJumpMomentum() {
   resetJump(jumpState);
   jumpQueued = false;
 }
+
+// Stale-deployment recovery: a redeploy erases the content-hashed chunks a
+// long-lived tab still references, so lazy imports (arcade controllers,
+// hls.js, the realtime wire) fail with a generic module-load TypeError and
+// the feature silently does nothing. Vite surfaces those failures as a
+// cancelable `vite:preloadError` event; this listener verifies the session
+// really is stale (re-fetching the page and comparing entry modules) and
+// only then offers a reload. Never preventDefault(): the original rejection
+// still reaches the per-feature catch blocks.
+createUpdatePrompt({
+  dialog: $('update-dialog'),
+  reloadButton: $('update-reload'),
+  laterButton: $('update-later'),
+  onOpen: () => {
+    paused = true;
+    keys.clear();
+    clearJumpMomentum();
+  },
+  onClose: () => {
+    // Dismissal hands the keyboard back with nothing held, like every other
+    // dialog.
+    paused = false;
+    keys.clear();
+    clearJumpMomentum();
+  },
+}).install();
+
 const ray = new THREE.Raycaster();
 const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const hit = new THREE.Vector3();
