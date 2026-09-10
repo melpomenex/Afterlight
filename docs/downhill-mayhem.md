@@ -12,13 +12,17 @@ your social avatar waits at the cabinet and chat keeps flowing. Architecture and
 decisions: `openspec/changes/integrate-multiplayer-downhill-mayhem-arcade/design.md`.
 Cabinet authoring reference: `docs/arcade.md`.
 
-> **Implementation status.** This document describes the target behavior frozen
-> in the change's specs. At the time of writing the cabinet manifest, shared
-> simulation core, protocol validators, Elixir reducer/course/AI and the browser
-> gate exist, while the hosted client runtime, lobby/queue UX, Phoenix session
-> policy wiring and feature-flag rollout are still landing (see `tasks.md`). The
-> verification gates listed at the end are the source of truth for what is
-> actually proven.
+> **Implementation status.** The cabinet manifest, shared simulation core,
+> protocol validators, authoritative Elixir session, hosted client runtime,
+> lobby/captain/queue UX, staged preparation, Daily delivery, telemetry and the
+> browser gate all exist. `npm test`, `mix test` and `npm run build` are green.
+> The two-browser gate phases that were run against the local stack pass
+> (`doctor`, `entry`, `solo`, `captain`, `exit`, `soak`); see
+> `openspec/changes/integrate-multiplayer-downhill-mayhem-arcade/evidence/`.
+> The long two-browser `race`/`rematch` phases and the server load
+> characterization remain open under `tasks.md` §15–16 because headless
+> Chromium sessions on this machine kept crashing/timing out during
+> multi-minute races; their status is reported honestly rather than claimed.
 
 ## The cabinet
 
@@ -100,9 +104,10 @@ continues for everyone else.
 - **ROCKGARDEN** — wide, steep, littered with rock gardens; read them early.
 - **DAILY** — a brand-new mountain from today's UTC date, identical for every
   player in the world. The **server** generates the Daily and publishes its
-  `courseHash`; clients use the server's bytes and never generate it
-  independently, so a stale client fails closed with `course_mismatch` instead of
-  racing a different hill.
+  `courseHash` at `GET /api/downhill/course/daily` (bounded `?date=YYYYMMDD`
+  accepted within ±366 days); clients fetch the document and never generate it
+  independently, so a stale client fails closed with `course_mismatch` instead
+  of racing a different hill.
 
 **Difficulties**: <kbd>R</kbd>… captain-selected in the lobby as
 **CHILL**, **MAYHEM** (the game as designed) or **BRUTAL** (faster rivals, boost
@@ -115,9 +120,12 @@ boost spending, swing cadence and revenge machine.
   current mountain, difficulty, ready count, queue/spectator counts, the captain
   marker and an explicit exit.
 - **Captain** — the first seated connected human is captain and may change
-  mountain/difficulty while in the lobby. On captain departure before lock,
-  leadership transfers to the longest-seated connected human. Non-captains get
-  `not_captain`.
+  mountain/difficulty while in the lobby (the captain-only `‹`/`›` cyclers in
+  the lobby panel). Every change is authoritative via `activity_config`;
+  non-captains get `not_captain`. On captain departure before lock, leadership
+  transfers to the longest-seated connected human. Changing the mountain
+  invalidates every rider's loaded course and readiness, and each client reloads
+  the selected document before it can ready again.
 - **Readiness** — explicit per rider; ready requires a matching course-hash load
   (`not_loaded` / `course_mismatch` otherwise) and expires after 60 s. All
   connected seated humans ready with at least one human locks the roster.
@@ -135,10 +143,23 @@ boost spending, swing cadence and revenge machine.
   scene rebuild.
 
 New participants after lock may **watch** public race progress and **queue**
-(FIFO) for the next race; a queue promotion during lobby/results offers an open
-human slot with a 30-second acceptance window and re-checks room membership and
-proximity. Watching never captures input, and no promotion teleports a user or
-hijacks a human slot.
+(FIFO) for the next race; pressing <kbd>E</kbd> at a busy cabinet queues you and
+the panel offers "watch live" / "leave queue". A queue promotion during
+lobby/results offers an open human slot with a 30-second acceptance window
+(<kbd>R</kbd> or the Accept button) and re-checks room membership and proximity.
+Watching never captures input, and no promotion teleports a user or hijacks a
+human slot.
+
+The mountain is prepared ahead of entry where the renderer supports it: after
+the controller module is prefetched, the host loop may build and pose one
+hidden game runtime in a graphics-job renderer transaction (2 ms idle / 4 ms
+near-cabinet budget, paused under a lease, frame pressure or a hidden tab). The
+prepared runtime is retained for a fast re-entry; if the captain selects another
+mountain the retained runtime is released and rebuilt. Entry readiness requires
+finite rider/grid state on valid course support, a posed lobby camera, prepared
+programs and one hidden full-aspect frame; until then the activity presenter is
+a strict no-op. Local entry-readiness samples are exposed read-only at
+`window.__afterlight.downhillReadinessMetrics()` behind `?debug=1`.
 
 ## Enabling and rollout (operations)
 
@@ -257,8 +278,22 @@ open work under `tasks.md` §16.
   agreement, jump/trick/boost, finishes, identical standings, rematch and exit
   using real controls. Additional phases cover one-human races, third-user queue,
   disconnect/reconnect, grace expiry, captain departure, failed course load and a
-  repeated enter/exit soak. Requires chromedriver on `:9515` and the dev stack.
-  Run `doctor` first if the debug hooks are missing.
+  repeated enter/exit soak. Requires chromedriver on `:9515` and the dev stack;
+  point `GATE_APP` at a production build (e.g. `vite preview`) to avoid dev-HMR
+  reloads during a multi-minute race. Run `doctor` first if the debug hooks are
+  missing.
+  **Verified on this machine:** `doctor`, `entry` (two-browser shared
+  2-human + 4-AI lobby, identical field/mountain/difficulty), `solo` (full
+  one-human race to results), `captain` (leadership transfer), `exit` (clean
+  teardown and restored world controls) and `soak` (3 cycles, one renderer/
+  context, no HUD/body-class growth). Screenshots:
+  `openspec/changes/integrate-multiplayer-downhill-mayhem-arcade/evidence/`.
+  The long two-browser `race`/`rematch` phases reached a synchronized countdown
+  and results with matching standings in one run, but repeated headless-browser
+  crashes under memory pressure prevented a full green run; they remain open
+  verification work, not claimed as passed.
 - **Lifecycle soak** — repeated enter/exit cycles assert no growth in listeners,
   canvases, contexts, animation loops, timers, DOM, audio nodes or scene
-  resources, and that renderer state returns to the pre-entry policy.
+  resources, and that renderer state returns to the pre-entry policy. Node-side
+  soak: `tests/downhill-lifecycle-soak.test.js`; browser-side: the `soak` gate
+  phase.

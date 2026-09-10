@@ -108,10 +108,10 @@ Can run in parallel with Phases 2–8 after 0.
   commit Classic/Timberline/Rockgarden documents to
   `shared/downhill/courses/*.json` with byte-identical copies in
   `server_elixir/priv/downhill_courses/` and a `--check` mode.
-- [ ] 4.3 Implement the server Daily generator and the
+- [x] 4.3 Implement the server Daily generator and the
   `GET /api/downhill/course/daily` delivery (or join-baseline delivery) with a
   UTC-midnight cache; ensure clients never generate the Daily independently.
-- [ ] 4.4 Add `course_mismatch` gating on the `loaded` handshake and tests for
+- [x] 4.4 Add `course_mismatch` gating on the `loaded` handshake and tests for
   authored and Daily identity.
 
 ## 5. Hosted game runtime and rendering
@@ -131,7 +131,7 @@ Can run in parallel with Phases 2–8 after 0.
   countdown, racing, results) and touch controls; consume no global IDs.
 - [x] 5.6 Port AudioSys (`src/game/audio.js`) to accept an injected context/
   destination with `ownsContext`, voice cap, music start/stop and mute.
-- [ ] 5.7 Implement readiness barrier (posed camera, valid grid/support,
+- [x] 5.7 Implement readiness barrier (posed camera, valid grid/support,
   prepared programs, one hidden full frame) and no-op pre-readiness present.
 - [x] 5.8 Implement `dispose()` walking all systems; idempotent.
 
@@ -158,11 +158,11 @@ Can run in parallel with Phases 2–8 after 0.
 
 - [x] 7.1 Add `src/activities/downhillMayhemPreparation.js` (prefetch/prepare/
   readiness/retain/evict) using the existing `resourceCache`.
-- [ ] 7.2 Add a proximity scheduler (Kart pattern; budget 2 ms idle / 4 ms
+- [x] 7.2 Add a proximity scheduler (Kart pattern; budget 2 ms idle / 4 ms
   near) and idle module prefetch after the Theater is interactive.
-- [ ] 7.3 Use `graphicsJobs` renderer transactions for hidden preparation and
+- [x] 7.3 Use `graphicsJobs` renderer transactions for hidden preparation and
   restore host state in `finally`.
-- [ ] 7.4 Ensure canceled/stale preparation attaches to nothing and is disposed
+- [x] 7.4 Ensure canceled/stale preparation attaches to nothing and is disposed
   once; add fake-scheduler tests.
 
 ## 8. Authoritative Elixir rules, course, AI and session policy
@@ -210,11 +210,11 @@ Can run in parallel with Phases 2–8 after 0.
 
 - [x] 11.1 Lobby HUD: human roster, AI slots, mountain, difficulty, captain
   marker, ready count, queue/spectator counts, exit.
-- [ ] 11.2 Captain settings via `activity_config`; leadership transfer.
+- [x] 11.2 Captain settings via `activity_config`; leadership transfer.
 - [x] 11.3 Countdown HUD synced to server `startAt`.
 - [x] 11.4 Racing HUD (position, time, speed, boost, trick/combo, strikes) and
   results HUD (six riders, rematch/exit); authoritative events only.
-- [ ] 11.5 Queue/spectator UX and offer acceptance.
+- [x] 11.5 Queue/spectator UX and offer acceptance.
 - [x] 11.6 Cabinet screen display states driven by summary frames.
 
 ## 12. Lifecycle cleanup and failure handling
@@ -223,16 +223,16 @@ Can run in parallel with Phases 2–8 after 0.
   disconnect, ejection, context loss, exception, cancel) funnels to one release
   and does not double-dispose.
 - [x] 12.2 Restore renderer policy and body class on every path.
-- [ ] 12.3 Add N-cycle enter/exit and rematch leak tests (listeners, contexts,
+- [x] 12.3 Add N-cycle enter/exit and rematch leak tests (listeners, contexts,
   DOM, audio, scene, subscriptions, prediction buffers).
-- [ ] 12.4 Verify no world simulation/raycast/HUD/minimap runs while leased
+- [x] 12.4 Verify no world simulation/raycast/HUD/minimap runs while leased
   beyond what is required, and chat/theater sync continue.
 
 ## 13. Standalone compatibility
 
 - [x] 13.1 Standalone shell creates its own renderer/RAF, local authoritative
   sim/AI, PB/ghost/challenge and analytics; `npm run dev`/`npm run build` pass.
-- [ ] 13.2 Port/keep standalone harnesses or add an autoplay/full-race gate
+- [x] 13.2 Port/keep standalone harnesses or add an autoplay/full-race gate
   using `window.GAME.test`.
 - [ ] 13.3 Confirm standalone visual/mechanical parity with `standalone.html`.
 
@@ -246,7 +246,7 @@ Can run in parallel with Phases 2–8 after 0.
 
 ## 15. Browser end-to-end gate
 
-- [ ] 15.1 `scripts/downhill-mayhem-gate-browser.mjs` modeled on the Summit
+- [x] 15.1 `scripts/downhill-mayhem-gate-browser.mjs` modeled on the Summit
   Run/Kart gates: two clients, walk-up E, shared lobby, captain settings,
   readiness, synchronized countdown, racing, authoritative strike agreement,
   jump/trick/boost, finishes, identical standings, rematch, exit and Theater
@@ -254,12 +254,12 @@ Can run in parallel with Phases 2–8 after 0.
 - [ ] 15.2 Additional cases: one-human race, third-user queue, disconnect/
   reconnect, grace expiry, captain departure, failed course load, repeated
   enter/exit soak.
-- [ ] 15.3 Record screenshots/evidence in the change folder.
+- [x] 15.3 Record screenshots/evidence in the change folder.
 
 ## 16. Performance and load characterization
 
-- [ ] 16.1 Record frame budget, chunk sizes (raw/gzip) and entry timing.
-- [ ] 16.2 Soak budgets: memory/heap/texture after repeated entry/exit and
+- [x] 16.1 Record frame budget, chunk sizes (raw/gzip) and entry timing.
+- [x] 16.2 Soak budgets: memory/heap/texture after repeated entry/exit and
   eviction; renderer policy restored.
 - [ ] 16.3 Server load characterization (six simulated riders/session, 30 Hz
   tick cost, snapshot serialization, scheduler impact, memory/session, social
@@ -271,7 +271,7 @@ Can run in parallel with Phases 2–8 after 0.
 - [x] 17.1 Emit bounded low-cardinality `[:afterlight, :activity,
   :downhill_mayhem, …]` telemetry (sessions, phase, rider counts, tick debt,
   snapshot rate, aborts, reconnects, DNF, cleanup) with no ids/secrets.
-- [ ] 17.2 Add client readiness/prep metrics (Kart pattern) without identifiers.
+- [x] 17.2 Add client readiness/prep metrics (Kart pattern) without identifiers.
 
 ## 18. Documentation, rollout and final acceptance
 
@@ -288,21 +288,21 @@ Can run in parallel with Phases 2–8 after 0.
 
 ## Final acceptance criteria
 
-- [ ] A.1 A current Theater cabinet visibly reads `DOWNHILL MAYHEM`; cabinet
+- [x] A.1 A current Theater cabinet visibly reads `DOWNHILL MAYHEM`; cabinet
   count is five; the layout is unchanged.
-- [ ] A.2 E at the cabinet launches the real game through the canonical
+- [x] A.2 E at the cabinet launches the real game through the canonical
   activity path; no iframe, page navigation, second WebGL context/renderer/RAF
   or second socket.
-- [ ] A.3 One to six humans play the same race with server AI filling the field
+- [x] A.3 One to six humans play the same race with server AI filling the field
   to six; the field is always six.
 - [ ] A.4 Both clients see the same mountain, difficulty, field, combat
   outcomes and final standings.
 - [ ] A.5 Combat, tricks and boost work in multiplayer and are server-resolved.
 - [ ] A.6 Rematch starts a new race without reload or world rebuild.
-- [ ] A.7 Exit restores Theater controls, HUD, camera, renderer policy and
+- [x] A.7 Exit restores Theater controls, HUD, camera, renderer policy and
   audio on every path.
-- [ ] A.8 Standalone Downhill Mayhem still works.
-- [ ] A.9 Repeated races and exits leak no renderer/canvas/RAF/socket/listener/
+- [x] A.8 Standalone Downhill Mayhem still works.
+- [x] A.9 Repeated races and exits leak no renderer/canvas/RAF/socket/listener/
   DOM/audio/GPU growth beyond budgets.
 - [ ] A.10 All JS/Elixir suites, the production build, the two-browser gate and
   the load characterization pass; the feature ships behind
