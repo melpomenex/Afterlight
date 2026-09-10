@@ -141,11 +141,36 @@ export function createKartRoyaleInstance({
     cache: resourceCache,
     placeGeneration: generation,
   });
+  let backgroundHudRoot = null;
+  function ensureBackgroundHudRoot() {
+    if (backgroundHudRoot || typeof document === 'undefined') return backgroundHudRoot;
+    backgroundHudRoot = document.createElement('div');
+    backgroundHudRoot.className = 'kr-activity';
+    backgroundHudRoot.hidden = true;
+    document.body.appendChild(backgroundHudRoot);
+    return backgroundHudRoot;
+  }
+
   const prepareScheduler = createKartRoyalePrepareScheduler({
     preparation,
     getDistance: () => throttler.getDistance(),
     shouldRun: () => !disposed && roomId === 'theater',
     isInputPending: () => pendingActivation,
+    createBackgroundHost: (mod) => {
+      const renderer = getRenderer?.();
+      const hudHost = ensureBackgroundHudRoot();
+      if (!renderer || !hudHost || !mod?.createKartRoyaleHost) return null;
+      return mod.createKartRoyaleHost({
+        renderer,
+        viewport: () => ({
+          width: typeof window !== 'undefined' ? window.innerWidth : 1280,
+          height: typeof window !== 'undefined' ? window.innerHeight : 720,
+        }),
+        hudHost,
+        startScreen: 'select',
+        runGraphicsTransaction,
+      });
+    },
   });
 
   function loadController() {
@@ -482,6 +507,8 @@ export function createKartRoyaleInstance({
       controller = null;
       controllerPromise = null;
       prepareScheduler.disable();
+      backgroundHudRoot?.remove();
+      backgroundHudRoot = null;
       preparation.dispose();
       screenPipeline.dispose();
       cabinet.dispose();

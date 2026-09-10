@@ -94,6 +94,13 @@ export function createKartRoyaleHost(options: KartRoyaleHostOptions): KartRoyale
       handleKeyUp: (e) => runtime.input.handleKeyUp(e),
       neutralize: () => runtime.input.neutralize(),
     },
+    prepareWorldSlice(budgetMs, signal = null) {
+      if (disposed || dead) return { done: false, cancelled: false, stepsRun: 0, stepId: null };
+      return runtime.prepareWorldSlice(budgetMs, signal);
+    },
+    isWorldPrepared() {
+      return runtime.isWorldBatchesComplete();
+    },
     async boot() {
       if (disposed || dead) return;
       if (booted) return;

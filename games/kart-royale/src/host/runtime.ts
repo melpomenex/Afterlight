@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { RaceState, type Ctx, type System } from '../types';
+import { IncrementalBatchRunner, type BatchRunResult } from '../core/IncrementalBatch';
+import { RaceState, type BatchStep, type Ctx, type System } from '../types';
 import { Bus } from '../core/Bus';
 import { createSettings, device, type SettingsOverrides } from '../core/Settings';
 import { Input } from '../core/Input';
@@ -107,6 +108,9 @@ export interface KartRoyaleRuntime {
   /** Mount session listeners/HUD/audio; hosted only splits resource vs session. */
   beginSession(): void;
   endSession(): void;
+  /** Resumable CPU world-build slices for background preparation (5.3). */
+  prepareWorldSlice(budgetMs: number, signal?: AbortSignal | null): BatchRunResult;
+  isWorldBatchesComplete(): boolean;
   dispose(): void;
 }
 
@@ -213,6 +217,49 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
     'lighting the effects', 'mounting the camera', 'drawing the hud', 'tuning the engines',
     'balancing the frame',
   ];
+
+  const WORLD_BATCH_SYSTEMS: System[] = [materials, track, scenery, race];
+  let worldBatchRunner: IncrementalBatchRunner | null = null;
+  let worldBatchesComplete = false;
+  let cheapSystemsReady = false;
+
+  function ensureCheapSystemsInited(): void {
+    if (cheapSystemsReady) return;
+    pipeline.init?.(ctx);
+    input.init?.(ctx);
+    sky.init?.(ctx);
+    cheapSystemsReady = true;
+  }
+
+  function buildWorldBatchRunner(signal: AbortSignal | null = null): IncrementalBatchRunner {
+    ensureCheapSystemsInited();
+    const steps: BatchStep[] = [];
+    for (const sys of WORLD_BATCH_SYSTEMS) {
+      if (sys.initBatches) steps.push(...sys.initBatches(ctx));
+      else sys.init?.(ctx);
+    }
+    return new IncrementalBatchRunner(steps, signal);
+  }
+
+  function resetWorldPrepareState(): void {
+    worldBatchRunner = null;
+    worldBatchesComplete = false;
+    cheapSystemsReady = false;
+  }
+
+  function prepareWorldSlice(budgetMs: number, signal: AbortSignal | null = null): BatchRunResult {
+    if (worldBatchesComplete) {
+      return { done: true, cancelled: false, stepsRun: 0, stepId: null };
+    }
+    if (!worldBatchRunner) worldBatchRunner = buildWorldBatchRunner(signal);
+    const result = worldBatchRunner.runUntil(budgetMs);
+    if (result.done) worldBatchesComplete = true;
+    return result;
+  }
+
+  function isWorldBatchesComplete(): boolean {
+    return worldBatchesComplete || (worldBatchRunner?.done ?? false);
+  }
 
   // ---------------------------------------------------------------------------
   //  Render-loop watchdog (moved verbatim from main.ts)
@@ -351,16 +398,29 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
   async function boot(): Promise<void> {
     perfMark('boot:start');
     for (let i = 0; i < systems.length; i++) {
+      if (i > 3 && i <= 6) continue;
+
       const label = SYSTEM_LABELS[i] ?? `system_${i}`;
       reportProgress(i / (systems.length + 1), label);
-      // Yield to the compositor so a progress UI actually repaints between
-      // steps (the standalone curtain needs this; the host benefits too).
       perfSpan(`system-wait:${label}`, 'start');
       await new Promise((r) => requestAnimationFrame(r));
       perfSpan(`system-wait:${label}`, 'end');
 
       perfSpan(`system-init:${label}`, 'start');
-      await systems[i].init?.(ctx);
+      if (i === 3) {
+        if (!worldBatchesComplete) {
+          worldBatchRunner ??= buildWorldBatchRunner();
+          worldBatchRunner.runAll();
+          worldBatchesComplete = true;
+        }
+      } else {
+        const sys = systems[i];
+        if (sys.initBatches) {
+          new IncrementalBatchRunner(sys.initBatches(ctx)).runAll();
+        } else {
+          await sys.init?.(ctx);
+        }
+      }
       perfSpan(`system-init:${label}`, 'end');
     }
   // ---------------------------------------------------------------------------
@@ -678,6 +738,7 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
     if (disposed) return;
     disposed = true;
     endSession();
+    resetWorldPrepareState();
     // Reverse order: consumers before their dependencies (drawBudget first,
     // pipeline last — mirroring the init order's "load-bearing" list).
     for (let i = systems.length - 1; i >= 0; i--) {
@@ -687,6 +748,7 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
 
   return {
     ctx, systems, pipeline, race, input, audio, sky, hud, camera, drawBudget,
-    boot, update, present, resize, setMuted, loopHealth, beginSession, endSession, dispose,
+    boot, update, present, resize, setMuted, loopHealth, beginSession, endSession,
+    prepareWorldSlice, isWorldBatchesComplete, dispose,
   };
 }

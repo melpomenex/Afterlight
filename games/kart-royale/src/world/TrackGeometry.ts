@@ -1028,24 +1028,37 @@ function quad(b: Buf, v0: number, v1: number, v2: number, v3: number) {
 //  Entry point
 // ===========================================================================
 
-export function buildTrackGeometry(track: Track, ctx: Ctx) {
+export function createTrackGeometryBatch(track: Track, ctx: Ctx) {
   const lib = new MatLib(ctx);
   const g = track.group;
   g.name = 'circuit';
-  buildRoad(track, lib, g);
-  buildKerbs(track, lib, g);
-  buildMarkings(track, lib, g);
-  buildBoostPads(track, lib, g);
-  buildCornerBoards(track, lib, g);
-  buildSkirt(track, lib, g);
-  buildTerrain(track, lib, g);
-  buildSea(track, lib, g);
-  buildBarriers(track, lib, g);
-  buildTunnel(track, lib, g);
-  buildBridge(track, lib, g);
-  // anything we cloned out of the shared library is invisible to its own
-  // update(), so Track has to hand those copies the env map itself
-  track.registerEnvClones(lib.clones);
+  return [
+    { id: 'track:road', run: () => buildRoad(track, lib, g) },
+    { id: 'track:kerbs', run: () => buildKerbs(track, lib, g) },
+    { id: 'track:markings', run: () => buildMarkings(track, lib, g) },
+    { id: 'track:boost-pads', run: () => buildBoostPads(track, lib, g) },
+    { id: 'track:corner-boards', run: () => buildCornerBoards(track, lib, g) },
+    { id: 'track:skirt', run: () => buildSkirt(track, lib, g) },
+    { id: 'track:terrain', run: () => buildTerrain(track, lib, g) },
+    { id: 'track:sea', run: () => buildSea(track, lib, g) },
+    { id: 'track:barriers', run: () => buildBarriers(track, lib, g) },
+    { id: 'track:tunnel', run: () => buildTunnel(track, lib, g) },
+    { id: 'track:bridge', run: () => buildBridge(track, lib, g) },
+    {
+      id: 'track:env-clones',
+      run: () => {
+        // anything we cloned out of the shared library is invisible to its own
+        // update(), so Track has to hand those copies the env map itself
+        track.registerEnvClones(lib.clones);
+      },
+    },
+  ];
+}
+
+export function buildTrackGeometry(track: Track, ctx: Ctx) {
+  for (const step of createTrackGeometryBatch(track, ctx)) {
+    step.run();
+  }
 }
 
 // ---------------------------------------------------------------------------

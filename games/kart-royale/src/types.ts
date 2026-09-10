@@ -355,9 +355,16 @@ export interface Settings {
 // System lifecycle + the shared context
 // ---------------------------------------------------------------------------
 
+export interface BatchStep {
+  id: string;
+  run: () => void;
+}
+
 export interface System {
   /** called once, in dependency order, before the first frame */
   init?(ctx: Ctx): void | Promise<void>;
+  /** optional resumable init slices for background preparation (5.3) */
+  initBatches?(ctx: Ctx): BatchStep[];
   /** called every frame with a clamped delta */
   update?(ctx: Ctx, dt: number): void;
   /** called after all updates, before render — camera/UI sync lives here */

@@ -1,5 +1,5 @@
 /**
- * Idle/proximity background preparation scheduler (fix-kart-royale-instant-entry 5.2).
+ * Idle/proximity background preparation scheduler (fix-kart-royale-instant-entry 5.2/5.3).
  *
  * After controller module prefetch, continues low-priority incremental work using
  * the host frame loop budget (2 ms idle / 4 ms near the cabinet).
@@ -16,6 +16,7 @@ const HOST_MODULE_URL = '../../../games/kart-royale/src/host/index.ts';
  * @param {() => number} [options.getDistance]
  * @param {() => boolean} [options.shouldRun]
  * @param {() => boolean} [options.isInputPending]
+ * @param {(mod: object) => object|null} [options.createBackgroundHost]
  * @param {(url: string) => Promise<unknown>} [options.importModule]
  * @param {() => number} [options.now]
  */
@@ -24,6 +25,7 @@ export function createKartRoyalePrepareScheduler({
   getDistance = () => Infinity,
   shouldRun = () => true,
   isInputPending = () => false,
+  createBackgroundHost = null,
   importModule = (url) => import(url),
   now = () => performance.now(),
 } = {}) {
@@ -31,6 +33,10 @@ export function createKartRoyalePrepareScheduler({
   let warmingEnabled = false;
   let hostModulePromise = null;
   let hostModuleLoaded = false;
+  /** @type {object|null} */
+  let hostModuleRef = null;
+  /** @type {{ prepareWorldSlice?: Function, isWorldPrepared?: Function, dispose?: Function }|null} */
+  let backgroundHost = null;
 
   function canWarm() {
     if (!preparation || !warmingEnabled) return false;
@@ -43,6 +49,15 @@ export function createKartRoyalePrepareScheduler({
       || readiness === PrepReadiness.suspended;
   }
 
+  function disposeBackgroundHost() {
+    try {
+      backgroundHost?.dispose?.();
+    } catch {
+      // best-effort teardown
+    }
+    backgroundHost = null;
+  }
+
   return {
     get proximity() {
       return proximity;
@@ -50,6 +65,10 @@ export function createKartRoyalePrepareScheduler({
 
     get hostModuleLoaded() {
       return hostModuleLoaded;
+    },
+
+    get worldPrepared() {
+      return backgroundHost?.isWorldPrepared?.() ?? false;
     },
 
     enableAfterModulePrefetch() {
@@ -60,6 +79,8 @@ export function createKartRoyalePrepareScheduler({
       warmingEnabled = false;
       hostModulePromise = null;
       hostModuleLoaded = false;
+      hostModuleRef = null;
+      disposeBackgroundHost();
       proximity.reset();
     },
 
@@ -77,33 +98,41 @@ export function createKartRoyalePrepareScheduler({
         return { ran: false, reason: 'inactive' };
       }
 
-      const deadline = now() + maxMs;
       let ran = false;
+      let worldSteps = 0;
 
       if (!hostModuleLoaded && !hostModulePromise) {
         hostModulePromise = importModule(HOST_MODULE_URL)
           .then((mod) => {
             hostModuleLoaded = Boolean(mod);
+            hostModuleRef = mod ?? null;
             return mod;
           })
           .catch(() => {
             hostModulePromise = null;
+            hostModuleRef = null;
             return null;
           });
         ran = true;
       }
 
-      while (now() < deadline) {
-        if (hostModulePromise && !hostModuleLoaded) {
-          break;
+      if (hostModuleLoaded && hostModuleRef && typeof createBackgroundHost === 'function') {
+        if (!backgroundHost) {
+          backgroundHost = createBackgroundHost(hostModuleRef);
         }
-        break;
+        if (backgroundHost && !backgroundHost.isWorldPrepared?.()) {
+          const slice = backgroundHost.prepareWorldSlice(maxMs);
+          worldSteps = slice?.stepsRun ?? 0;
+          ran = ran || worldSteps > 0;
+        }
       }
 
       return {
         ran,
         near: proximity.near,
         hostModuleLoaded,
+        worldPrepared: backgroundHost?.isWorldPrepared?.() ?? false,
+        worldSteps,
         readiness: preparation?.readiness ?? PrepReadiness.unloaded,
         budgetMs: maxMs,
       };

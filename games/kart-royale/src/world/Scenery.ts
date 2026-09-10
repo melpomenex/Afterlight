@@ -16,7 +16,7 @@
  * ============================================================================
  */
 import * as THREE from 'three';
-import type { Ctx, System, TrackSample } from '../types';
+import type { BatchStep, Ctx, System, TrackSample } from '../types';
 import { Surface } from '../types';
 import { Water, type SeaField } from './Water';
 import { Foliage } from './Foliage';
@@ -312,59 +312,66 @@ export class Scenery implements System {
   // Lifecycle
   // ==========================================================================
 
+  initBatches(ctx: Ctx): BatchStep[] {
+    const perf = (ctx as any).perfSpan;
+    return [
+      {
+        id: 'scenery:setup',
+        run: () => {
+          this.ctx = ctx;
+          this.rng = mulberry32(0xbacafe);
+          this.group.name = 'scenery';
+          this.mats = new MatLib(ctx.renderer, this.u);
+          this.mats.setEnv(ctx.envMap);
+          this.surveyWorld();
+          this.foliage = new Foliage(this.mats, this.u, this.rng);
+          this.water = new Water(this.u);
+          this.water.build(ctx, this.seaLevel, this.bakeSeaField());
+          this.group.add(this.water.group);
+        },
+      },
+      { id: 'scenery:build:start', run: () => perf?.('scenery:build', 'start') },
+      { id: 'scenery:make-sets', run: () => this.makeSets() },
+      { id: 'scenery:dress-start', run: () => this.dressStartStraight() },
+      { id: 'scenery:dress-harbour', run: () => this.dressHarbour() },
+      { id: 'scenery:dress-village', run: () => this.dressVillage() },
+      { id: 'scenery:dress-cliff', run: () => this.dressCliff() },
+      { id: 'scenery:dress-beach', run: () => this.dressBeach() },
+      { id: 'scenery:dress-banked-curve', run: () => this.dressBankedCurve() },
+      { id: 'scenery:dress-bridge-headland', run: () => this.dressBridgeAndHeadland() },
+      { id: 'scenery:dress-open-water', run: () => this.dressOpenWater() },
+      { id: 'scenery:dress-land-bands', run: () => this.dressLandBands() },
+      { id: 'scenery:dress-midground', run: () => this.dressMidground() },
+      { id: 'scenery:backdrop', run: () => this.buildBackdrop() },
+      { id: 'scenery:dress-far-sails', run: () => this.dressFarSails() },
+      { id: 'scenery:dress-opposing-midground', run: () => this.dressOpposingMidground() },
+      { id: 'scenery:dress-outside-shoulder', run: () => this.dressOutsideShoulder() },
+      { id: 'scenery:dress-shoulders', run: () => this.dressShoulders() },
+      { id: 'scenery:dress-bank-crest', run: () => this.dressBankCrest() },
+      { id: 'scenery:dress-grass-band', run: () => this.dressGrassBand() },
+      { id: 'scenery:dress-verge-transition', run: () => this.dressVergeTransition() },
+      { id: 'scenery:dress-near-frame', run: () => this.dressNearFrame() },
+      { id: 'scenery:dress-gulls', run: () => this.dressGulls() },
+      { id: 'scenery:emit', run: () => this.emit() },
+      { id: 'scenery:build:end', run: () => perf?.('scenery:build', 'end') },
+      { id: 'scenery:scene-add', run: () => ctx.scene.add(this.group) },
+      {
+        id: 'scenery:bus',
+        run: () => {
+          this.busOff = ctx.bus.on((e) => {
+            if (e.type === 'lap' || e.type === 'finish') this.cheerTarget = 1;
+            else if (e.type === 'countdown' && e.n === 0) this.cheerTarget = 0.9;
+            else if (e.type === 'boost' && e.kart.isPlayer) {
+              this.cheerTarget = Math.max(this.cheerTarget, 0.45);
+            }
+          });
+        },
+      },
+    ];
+  }
+
   init(ctx: Ctx) {
-    this.ctx = ctx;
-    this.rng = mulberry32(0xbacafe);
-    this.group.name = 'scenery';
-    this.mats = new MatLib(ctx.renderer, this.u);
-    this.mats.setEnv(ctx.envMap);
-
-    this.surveyWorld();
-    this.foliage = new Foliage(this.mats, this.u, this.rng);
-
-    this.water = new Water(this.u);
-    this.water.build(ctx, this.seaLevel, this.bakeSeaField());
-    this.group.add(this.water.group);
-
-    (ctx as any).perfSpan?.('scenery:build', 'start');
-    this.makeSets();
-    this.dressStartStraight();
-    this.dressHarbour();
-    this.dressVillage();
-    this.dressCliff();
-    this.dressBeach();
-    this.dressBankedCurve();
-    this.dressBridgeAndHeadland();
-    this.dressOpenWater();
-    this.dressLandBands();
-    // Before the backdrop, so the coverage assertion and the balance pass both
-    // see what the midground has already put in the frame.
-    this.dressMidground();
-    // Backdrop before the balance pass: the balance pass asks "is this side of
-    // the frame empty?", and a landmark on the horizon is one of the answers.
-    this.buildBackdrop();
-    this.dressFarSails();
-    this.dressOpposingMidground();
-    // After the midground and the backdrop (so it can see what is already in
-    // the frame), before the grass: the 8-40 m outside-shoulder guarantee.
-    this.dressOutsideShoulder();
-    this.dressShoulders();
-    this.dressBankCrest();
-    this.dressGrassBand();
-    this.dressVergeTransition();
-    this.dressNearFrame();
-    this.dressGulls();
-    this.emit();
-    (ctx as any).perfSpan?.('scenery:build', 'end');
-
-    ctx.scene.add(this.group);
-
-    // The stand reacts to the race rather than looping a canned animation.
-    this.busOff = ctx.bus.on((e) => {
-      if (e.type === 'lap' || e.type === 'finish') this.cheerTarget = 1;
-      else if (e.type === 'countdown' && e.n === 0) this.cheerTarget = 0.9;
-      else if (e.type === 'boost' && e.kart.isPlayer) this.cheerTarget = Math.max(this.cheerTarget, 0.45);
-    });
+    for (const step of this.initBatches(ctx)) step.run();
   }
 
   update(ctx: Ctx, dt: number) {

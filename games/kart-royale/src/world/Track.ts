@@ -13,7 +13,7 @@
  * ============================================================================
  */
 import * as THREE from 'three';
-import type { Ctx, ITrack, SurfaceProbe, TrackSample } from '../types';
+import type { BatchStep, Ctx, ITrack, SurfaceProbe, TrackSample } from '../types';
 import { Surface } from '../types';
 import {
   buildCenterline, findCorners, terrainDetail, smoothstep as ss, gridSlot, BOOST_PADS, CHECKPOINTS,
@@ -22,7 +22,7 @@ import {
   SKIRT_W, WALL_HEIGHT, WALL_NONE, ZONES,
   type Centerline, type Corner,
 } from './TrackLayout';
-import { buildTrackGeometry } from './TrackGeometry';
+import { createTrackGeometryBatch } from './TrackGeometry';
 
 // --- module-scope scratch; nothing in the hot path allocates ---------------
 const _v = new THREE.Vector3();
@@ -107,11 +107,27 @@ export class Track implements ITrack {
     this.computeBounds();
   }
 
+  initBatches(ctx: Ctx): BatchStep[] {
+    const perf = (ctx as any).perfSpan;
+    return [
+      {
+        id: 'track:geometry:start',
+        run: () => perf?.('track:geometry', 'start'),
+      },
+      ...createTrackGeometryBatch(this, ctx),
+      {
+        id: 'track:geometry:end',
+        run: () => perf?.('track:geometry', 'end'),
+      },
+      {
+        id: 'track:scene-add',
+        run: () => ctx.scene.add(this.group),
+      },
+    ];
+  }
+
   init(ctx: Ctx) {
-    (ctx as any).perfSpan?.('track:geometry', 'start');
-    buildTrackGeometry(this, ctx);
-    (ctx as any).perfSpan?.('track:geometry', 'end');
-    ctx.scene.add(this.group);
+    for (const step of this.initBatches(ctx)) step.run();
   }
 
   update(ctx: Ctx) {

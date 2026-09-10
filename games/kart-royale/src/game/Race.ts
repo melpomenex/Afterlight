@@ -28,6 +28,7 @@ import {
   RACER_COUNT,
   RaceState,
   Surface,
+  type BatchStep,
   type Ctx,
   type IKart,
   type IRace,
@@ -208,33 +209,54 @@ export class Race implements IRace {
 
   // ---------------------------------------------------------------- lifecycle
 
-  init(ctx: Ctx) {
-    this.ctx = ctx;
+  initBatches(ctx: Ctx): BatchStep[] {
     const n = Math.min(RACER_COUNT, ROSTER.length);
+    const steps: BatchStep[] = [
+      {
+        id: 'race:reset',
+        run: () => {
+          this.ctx = ctx;
+          this.karts.length = 0;
+          this.prog.length = 0;
+          this.standings.length = 0;
+        },
+      },
+    ];
     for (let i = 0; i < n; i++) {
-      const k = new Kart(i, i === 0, ROSTER[i]);
-      ctx.scene.add(k.object);
-      this.karts.push(k);
-      this.prog.push({
-        lapIndex: -1, cp: 0, lapStart: 0, best: Infinity, finishOrder: 0, finishTime: 0,
-        wrongT: 0, badT: 0, stuckT: 0, respawnT: 0, hold: 0, effort: 0,
+      const roster = ROSTER[i];
+      steps.push({
+        id: `race:kart:${i}`,
+        run: () => {
+          const k = new Kart(i, i === 0, roster);
+          ctx.scene.add(k.object);
+          this.karts.push(k);
+          this.prog.push({
+            lapIndex: -1, cp: 0, lapStart: 0, best: Infinity, finishOrder: 0, finishTime: 0,
+            wrongT: 0, badT: 0, stuckT: 0, respawnT: 0, hold: 0, effort: 0,
+          });
+          this.standings.push(k);
+        },
       });
-      this.standings.push(k);
     }
-    this.player = this.karts[0];
-    this.selected = 0;
+    steps.push({
+      id: 'race:ai-and-grid',
+      run: () => {
+        this.player = this.karts[0];
+        this.selected = 0;
+        this.ai.init(ctx, this.karts);
+        if (ctx.items instanceof Items) {
+          this.items = ctx.items;
+          this.items.setRacingLine(this.ai.line);
+          this.ai.setHazards(this.items.hazards);
+        }
+        this.formGrid();
+      },
+    });
+    return steps;
+  }
 
-    // The line is solved once, here, and shared: the drivers steer along it and
-    // red shells chase along it, so a shell tracks exactly where its victim is
-    // trying to go.
-    this.ai.init(ctx, this.karts);
-    if (ctx.items instanceof Items) {
-      this.items = ctx.items;
-      this.items.setRacingLine(this.ai.line);
-      this.ai.setHazards(this.items.hazards);
-    }
-
-    this.formGrid();
+  init(ctx: Ctx) {
+    for (const step of this.initBatches(ctx)) step.run();
   }
 
   start() {

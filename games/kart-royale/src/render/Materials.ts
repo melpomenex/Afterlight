@@ -57,7 +57,7 @@
  * ============================================================================
  */
 import * as THREE from 'three';
-import { Quality, type Ctx, type System } from '../types';
+import { Quality, type BatchStep, type Ctx, type System } from '../types';
 import {
   brickField,
   clamp,
@@ -1699,6 +1699,15 @@ function injectFoliageSSS(mat: THREE.Material, color: THREE.Color, strength: num
 
 let active: Materials | null = null;
 
+/** Procedural materials touched during track/scenery boot (textures:build-maps). */
+const BOOT_WARM_MATERIALS: string[] = [
+  'tarmac', 'tarmac-racing-line', 'cobblestone', 'kerb', 'sand', 'grass', 'dirt',
+  'cliff-rock', 'tunnel-bore', 'stone-wall', 'stucco', 'roof-tile', 'wood-plank',
+  'wood-weathered', 'metal-painted', 'chrome', 'rubber', 'glass', 'canvas-awning',
+  'water-surface', 'concrete', 'marble', 'boost-pad', 'banner-fabric', 'palm-bark',
+  'foliage-leaf', 'palm-frond', 'crowd', 'tunnel-light', 'neon',
+];
+
 export class Materials implements System {
   private cache = new Map<string, Entry>();
   private variants = new Map<string, THREE.Material>();
@@ -1722,6 +1731,14 @@ export class Materials implements System {
     this.quality = ctx.settings.quality;
     const caps = ctx.renderer?.capabilities;
     this.aniso = caps ? Math.min(8, caps.getMaxAnisotropy()) : 8;
+  }
+
+  initBatches(ctx: Ctx): BatchStep[] {
+    this.init(ctx);
+    return BOOT_WARM_MATERIALS.map((name) => ({
+      id: `materials:${name}`,
+      run: () => { this.get(name); },
+    }));
   }
 
   // -- public API ----------------------------------------------------------

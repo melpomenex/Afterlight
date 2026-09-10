@@ -37,7 +37,7 @@
 
 - [x] 5.1 Schedule one module prefetch after actual Theater interactivity in `kart-royale.js`/activity runtime; honor visibility/save-data/network constraints and audit import-time CSS/global side effects. Keep other minigames lazy.
 - [x] 5.2 Continue incremental low-priority preparation after prefetch, with measured host frame headroom and initial 2 ms CPU slices; promote at 8-unit approach/10-unit exit hysteresis to initial 4 ms slices, using the interaction anchor coordinate system and existing host scheduler.
-- [ ] 5.3 Split baseline-ranked synchronous generation hotspots into resumable deterministic batches in the identified Material/Texture/Track/Scenery/Kart/Livery builders. Preserve ordered dependencies and cancel safety; outer-loop yields alone do not complete this task.
+- [x] 5.3 Split baseline-ranked synchronous generation hotspots into resumable deterministic batches in the identified Material/Texture/Track/Scenery/Kart/Livery builders. Preserve ordered dependencies and cancel safety; outer-loop yields alone do not complete this task.
 - [ ] 5.4 Pause preparation on hidden tab, place departure, competing lease or frame pressure; lower priority on departure from proximity without restarting work. Test rapid approach/departure, early E, refresh and concurrent cinema playback.
 - [ ] 5.5 Measure READY hit rate versus actual walking/running/bhop arrival and 0/2/5/10/30-second preparation windows. Verify Theater TTI and frame budgets before enabling speculative preparation by default; record remaining cost-reduction work rather than relaxing the normal-approach criterion.
 

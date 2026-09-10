@@ -92,6 +92,15 @@ export interface KartRoyaleHost {
    * its own world) BEFORE calling this — see design.md D3.
    */
   boot(): Promise<void>;
+  /** Incremental CPU world-build slice for idle background preparation (5.3). */
+  prepareWorldSlice(budgetMs: number, signal?: AbortSignal | null): {
+    done: boolean;
+    cancelled: boolean;
+    stepsRun: number;
+    stepId: string | null;
+  };
+  /** True once materials/track/scenery/race batches have finished. */
+  isWorldPrepared(): boolean;
   /** Pose the selection grid and camera without advancing simulation. */
   prepareSelectionReadiness(): boolean;
   /** True once grid support and menu camera pose have been validated. */
