@@ -542,6 +542,10 @@ export function createDownhillMayhemInstance({
       if (pendingActivation) {
         return controllerPromise
           ? controllerPromise.then((inst) => inst?.beginParticipation() ?? true)
+            .catch((error) => {
+              console.warn('[DownhillMayhem] beginParticipation failed:', error);
+              return false;
+            })
           : Promise.resolve(true);
       }
       const epoch = ++activationEpoch;
@@ -568,7 +572,18 @@ export function createDownhillMayhemInstance({
           pendingActivation = inst.pendingActivation ?? false;
           return ok;
         });
-      });
+      })
+        .catch((error) => {
+          // A start can fail mid-init (a graphics reset kills renderer work,
+          // a stale deploy kills the chunk import). It must never leak an
+          // unhandled rejection or leave this bystander stuck believing an
+          // activation is still pending.
+          console.warn('[DownhillMayhem] beginParticipation failed:', error);
+          pendingActivation = false;
+          cancelActivation();
+          toast?.('Downhill Mayhem', 'The cabinet could not start — try again in a moment.');
+          return false;
+        });
     },
 
     cancelActivation() {

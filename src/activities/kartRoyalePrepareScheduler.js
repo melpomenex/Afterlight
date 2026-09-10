@@ -8,7 +8,12 @@
 import { PrepReadiness } from './kartRoyalePreparation.js';
 import { createKartRoyaleProximityTracker } from './kartRoyaleProximity.js';
 
-const HOST_MODULE_URL = '../../../games/kart-royale/src/host/index.ts';
+// The host module must be imported through an inlined string literal: routing
+// it through a variable (or an `import(url)` parameter) makes the dynamic
+// import un-analyzable, so production keeps a runtime request to
+// /games/kart-royale/src/host/index.ts — a source path that only exists in
+// dev and breaks background preparation on every deployment.
+const loadHostModule = () => import('../../games/kart-royale/src/host/index.ts');
 
 /**
  * @param {object} [options]
@@ -26,7 +31,7 @@ export function createKartRoyalePrepareScheduler({
   shouldRun = () => true,
   isInputPending = () => false,
   createBackgroundHost = null,
-  importModule = (url) => import(url),
+  importModule = loadHostModule,
   now = () => performance.now(),
 } = {}) {
   const proximity = createKartRoyaleProximityTracker({ getDistance });
@@ -131,7 +136,7 @@ export function createKartRoyalePrepareScheduler({
       let worldSteps = 0;
 
       if (!hostModuleLoaded && !hostModulePromise) {
-        hostModulePromise = importModule(HOST_MODULE_URL)
+        hostModulePromise = importModule()
           .then((mod) => {
             hostModuleLoaded = Boolean(mod);
             hostModuleRef = mod ?? null;

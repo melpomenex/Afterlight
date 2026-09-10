@@ -402,7 +402,13 @@ export function createSnowboardInstance({
           );
         } catch {}
         return instance.beginParticipation();
-      });
+      })
+        .catch((error) => {
+          // A start can fail mid-init (graphics reset, stale chunk). Never
+          // leak an unhandled rejection to the page.
+          console.warn('[Snowboard] beginParticipation failed:', error);
+          return false;
+        });
     },
 
     /**

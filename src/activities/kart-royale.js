@@ -445,6 +445,10 @@ export function createKartRoyaleInstance({
       if (pendingActivation) {
         return controllerPromise
           ? controllerPromise.then((inst) => inst?.beginParticipation() ?? true)
+            .catch((error) => {
+              console.warn('[KartRoyale] beginParticipation failed:', error);
+              return false;
+            })
           : Promise.resolve(true);
       }
       const epoch = ++activationEpoch;
@@ -468,7 +472,18 @@ export function createKartRoyaleInstance({
           pendingActivation = inst.pendingActivation ?? false;
           return ok;
         });
-      });
+      })
+        .catch((error) => {
+          // A start can fail mid-init (a graphics reset kills PMREM inside the
+          // environment bake, a stale deploy kills the chunk import). It must
+          // never leak an unhandled rejection or leave this bystander stuck
+          // believing an activation is still pending.
+          console.warn('[KartRoyale] beginParticipation failed:', error);
+          pendingActivation = false;
+          cancelActivation();
+          toast?.('Kart Royale', 'The cabinet could not start — try again in a moment.');
+          return false;
+        });
     },
 
     cancelActivation() {

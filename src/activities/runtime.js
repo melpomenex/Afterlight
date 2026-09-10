@@ -322,7 +322,12 @@ export function createActivityRuntime({
       if (!id) return false;
       const instance = instances.get(id);
       if (!instance || typeof instance.beginParticipation !== 'function') return false;
-      instance.beginParticipation();
+      // Fire-and-forget by design, but a rejection (graphics reset mid-init,
+      // a stale-deploy chunk import) must never surface as an unhandled
+      // rejection: the activities report player-facing failure themselves.
+      Promise.resolve(instance.beginParticipation()).catch((error) => {
+        console.warn('[ActivityRuntime] beginParticipation rejected:', error);
+      });
       return true;
     },
 

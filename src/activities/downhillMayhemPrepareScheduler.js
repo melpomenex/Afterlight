@@ -15,7 +15,12 @@
 import { PrepReadiness } from './downhillMayhemPreparation.js';
 import { createKartRoyaleProximityTracker } from './kartRoyaleProximity.js';
 
-const HOST_MODULE_URL = '../../../games/downhill-mayhem/src/host/index.js';
+// The host module must be imported through an inlined string literal: routing
+// it through a variable (or an `import(url)` parameter) makes the dynamic
+// import un-analyzable, so production keeps a runtime request to
+// /games/downhill-mayhem/src/host/index.js — a source path that only exists
+// in dev and breaks background preparation on every deployment.
+const loadHostModule = () => import('../../games/downhill-mayhem/src/host/index.js');
 
 /**
  * Lazy crafted-document resolver for background preparation. Lives here (not
@@ -38,7 +43,7 @@ export function createDownhillMayhemPrepareScheduler({
   createBackgroundHost = null,
   resolveCourseDocument = () => resolveCraftedCourseDocument('classic'),
   runTransaction = null,
-  importModule = (url) => import(url),
+  importModule = loadHostModule,
 } = {}) {
   const proximity = createKartRoyaleProximityTracker({ getDistance });
   let warmingEnabled = false;
@@ -170,7 +175,7 @@ export function createDownhillMayhemPrepareScheduler({
       let ran = false;
 
       if (!hostModuleLoaded && !hostModulePromise) {
-        hostModulePromise = importModule(HOST_MODULE_URL)
+        hostModulePromise = importModule()
           .then((mod) => {
             hostModuleLoaded = Boolean(mod);
             hostModuleRef = mod ?? null;

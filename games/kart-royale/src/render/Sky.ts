@@ -1964,6 +1964,14 @@ export class Sky implements System {
     const renderer = ctx.renderer;
     if (!renderer) return;
 
+    // A lost WebGL context (GPU reset, tab suspension) cannot bake or upload
+    // the cubemap: three throws deep inside PMREM on the dead context and the
+    // rejection escapes as an unhandled error mid-init. Skip the bake and keep
+    // whatever environment the previous bake produced — a retune/quality
+    // change rebuilds it once a live context is back.
+    const gl = renderer.getContext?.();
+    if (gl?.isContextLost?.()) return;
+
     // 512 on High+: with the environment now at full authored intensity the
     // chrome actually resolves what it is reflecting, and a 256 face put the
     // sun disc (0.019 rad) on about three texels. One-time bake, no frame cost.
