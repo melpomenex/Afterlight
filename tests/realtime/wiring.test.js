@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { WebSocketServer } from 'ws';
 import { NetworkClient } from '../../src/net/client.js';
+import { wireRealtime } from '../../src/realtime/wire.js';
 
 
 function startServer() {
@@ -49,6 +50,44 @@ test('binary frames route to handleBinary; hello carries rt only when set', asyn
   net.handleBinary = null;
   detach(net);
   wss.close();
+});
+
+test('presence bridge maps walking/sitting/airborne flags, not the player object', () => {
+  const seen = [];
+  const remotePlayers = {
+    setPlayer: (p) => seen.push(p),
+    removePlayer: () => {},
+    update: () => {},
+    clear: () => {},
+  };
+  const net = { guestId: 'guest_me', on: () => {}, send: () => {} };
+  const wire = wireRealtime({
+    net,
+    remotePlayers,
+    guestId: 'guest_me',
+    flags: { realtime_binary: true, realtime_worker: false, renderer_webgpu_fastpath: false },
+  });
+
+  const consumed = wire.consumePresenceUpdate({
+    players: [
+      { id: 'guest_idle', x: 0, z: 0, rotY: 0, walking: false, sitting: false, airborne: false },
+      { id: 'guest_walk', x: 1, z: 0, rotY: 0, walking: true, sitting: false, airborne: false },
+      { id: 'guest_sit', x: 2, z: 0, rotY: 0, walking: false, sitting: true, airborne: false },
+      { id: 'guest_air', x: 3, z: 0, rotY: 0, walking: false, sitting: false, airborne: true },
+    ],
+  });
+  assert.equal(consumed, true);
+
+  const byId = Object.fromEntries(seen.map((p) => [p.id, p]));
+  assert.deepEqual(
+    { walking: byId.guest_idle.walking, sitting: byId.guest_idle.sitting, airborne: byId.guest_idle.airborne },
+    { walking: false, sitting: false, airborne: false },
+    'an idle remote must not be animated as walking',
+  );
+  assert.equal(byId.guest_walk.walking, true);
+  assert.equal(byId.guest_sit.sitting, true);
+  assert.equal(byId.guest_air.airborne, true);
+  wire.dispose();
 });
 
 test('legacy neutrality: without rtHello the hello is unchanged and binary is dropped', async () => {

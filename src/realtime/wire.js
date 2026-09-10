@@ -40,7 +40,7 @@ function presencePlayersToPack(players, guestIds, tick = 0) {
     pack.x[row] = p.x ?? 0;
     pack.z[row] = p.z ?? 0;
     pack.yaw[row] = p.rotY ?? 0;
-    pack.flags[row] = presenceToFlags(p);
+    pack.flags[row] = presenceToFlags(!!p.walking, !!p.sitting, !!p.airborne);
   }
   return pack;
 }

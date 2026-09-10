@@ -96,7 +96,7 @@ export function createLiveInstancedSession({
     pack.x[0] = player.x ?? 0;
     pack.z[0] = player.z ?? 0;
     pack.yaw[0] = player.rotY ?? 0;
-    pack.flags[0] = presenceToFlags(player);
+    pack.flags[0] = presenceToFlags(!!player.walking, !!player.sitting, !!player.airborne);
     pack.joined = [{
       entityId,
       guestId: player.id,
