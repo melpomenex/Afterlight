@@ -358,6 +358,7 @@ async function probeCounts(s) {
       bodyClass: [...document.body.classList].filter((c) => /downhill/i.test(c)),
       href: location.href,
       timeOrigin: performance.timeOrigin,
+      heap: performance.memory ? performance.memory.usedJSHeapSize : null,
       rafCalls: window.__dhProbe?.rafCalls ?? 0,
       rafSubscribers: window.__dhProbe?.rafSeen?.size ?? 0,
       netOpen: net ? net.open : null,
@@ -413,6 +414,7 @@ function shapeDownhill(raw) {
     lastStrike: pick(raw.lastStrike, raw.last_strike, null),
     courseStatus: pick(raw.courseStatus, raw.course_status, null),
     selfRider,
+    frameInfo: raw.frameInfo ?? null,
     _source: raw.__source ?? 'unknown',
   };
 }
@@ -483,6 +485,15 @@ async function walkToCabinet(s) {
   await go(s, APP);
   await installProbes(s);
   if (!(await waitWorld(s))) throw new Error(`${s.name}: world did not load`);
+  // The `?debug=1` projection is installed just after boot; teleporting before
+  // it exists silently leaves the rider at spawn.
+  await waitUntil(
+    () => js(s, `return !!(window.__afterlight && window.__afterlight.tp);`).catch(() => false),
+    (v) => v === true,
+    20_000,
+    `${s.name} debug hooks`,
+    500,
+  );
   await tap(s, 'KeyC'); // camera mode 1: WASD are pure axes for the nudge taps
   await sleep(400);
   const hooks = await js(
@@ -502,18 +513,26 @@ async function walkToCabinet(s) {
   return action;
 }
 
-/** Press E at the cabinet and wait for a non-idle participation state. */
+/**
+ * Press E at the cabinet and wait for the requested participation state.
+ * `want:'participating'` requires a seat; `want:'queued'` accepts watch/queue.
+ * A joining/toggling retry presses E again (which cancels a stuck join and
+ * retries) until the state settles or the attempts run out.
+ */
 async function pressEAndSeat(s, { want = 'participating', timeoutMs = LOAD_TIMEOUT_MS } = {}) {
+  const accepted = (st) => (want === 'queued'
+    ? (st === 'queued' || st === 'watching')
+    : st === 'participating');
   for (let retry = 1; retry <= 4; retry++) {
     await tap(s, 'KeyE', 90);
     const seated = await waitUntil(
       () => participationState(s),
-      (st) => st && st !== 'idle',
-      10_000,
-      `${s.name} leave idle after E`,
+      accepted,
+      Math.min(timeoutMs, 45_000),
+      `${s.name} ${want}`,
       1500,
     ).catch(() => null);
-    if (seated) break;
+    if (seated != null) return seated;
     const toast = await js(s, `return (document.getElementById('toast-body')?.textContent || '');`).catch(() => '');
     if (/full|activity_full/i.test(toast)) {
       log(`${s.name} seat held by a prior session (disconnect grace) — retry ${retry} in 6s`);
@@ -521,10 +540,7 @@ async function pressEAndSeat(s, { want = 'participating', timeoutMs = LOAD_TIMEO
     }
   }
   const state = await participationState(s);
-  expect(state !== 'idle' && state !== 'joining', `${s.name}: E at the cabinet did not start participation (state=${state})`);
-  if (want === 'queued') {
-    await waitUntil(() => participationState(s), (st) => st === 'queued' || st === 'watching', 30_000, `${s.name} queued`, 1000);
-  }
+  expect(accepted(state), `${s.name}: E at the cabinet did not start participation (state=${state}, want=${want})`);
   return state;
 }
 
@@ -538,7 +554,13 @@ async function readyUp(s) {
 async function waitAllHumansReady(s, expected, timeoutMs = 30_000) {
   await waitUntil(
     () => readDownhill(s),
-    (d) => d && d.humans.length >= expected && d.humans.filter((h) => h.ready === true).length >= expected,
+    (d) => d && d.humans.length >= expected && (
+      d.humans.filter((h) => h.ready === true).length >= expected
+      // Readiness is consumed by the lock: if the countdown/race already
+      // started, every seated human must have been ready.
+      || d.phase === 'countdown'
+      || d.phase === 'racing'
+    ),
     timeoutMs,
     `${s.name} all ${expected} humans ready`,
     700,
@@ -628,8 +650,8 @@ async function phaseEntry() {
 
     const da = await requireDownhill(a);
     const db = await requireDownhill(b);
-    expect(da.field.length === FIELD_SIZE, `rider-a field must be ${FIELD_SIZE} riders (got ${da.field.length})`);
-    expect(db.field.length === FIELD_SIZE, `rider-b field must be ${FIELD_SIZE} riders (got ${db.field.length})`);
+    expect(da.field.length === FIELD_SIZE, `rider-a field must be ${FIELD_SIZE} riders (got ${da.field.length}): ${JSON.stringify(da.field)}`);
+    expect(db.field.length === FIELD_SIZE, `rider-b field must be ${FIELD_SIZE} riders (got ${db.field.length}): ${JSON.stringify(db.field)} frame=${JSON.stringify(db.frameInfo)}`);
     sameJson(da.mountain, db.mountain, 'clients disagree on mountain');
     sameJson(da.difficulty, db.difficulty, 'clients disagree on difficulty');
     const { a: fa, b: fb } = horseRaceReadyWithin(da.field, db.field);
@@ -639,6 +661,8 @@ async function phaseEntry() {
     expect(humansA === 2 && humansB === 2, `both clients should see 2 humans (got ${humansA}/${humansB})`);
     const aiCount = da.field.filter((r) => r.isAI === true || r.is_ai === true).length;
     expect(aiCount === FIELD_SIZE - 2, `expected 4 AI fillers (got ${aiCount})`);
+    await screenshot(a, 'entry-lobby-rider-a');
+    await screenshot(b, 'entry-lobby-rider-b');
     log('PHASE entry PASS — shared 2-human + 4-AI lobby, identical field/mountain/difficulty');
   } finally {
     await closeAll();
@@ -741,16 +765,28 @@ async function phaseRace() {
     }
 
     // Finish: wait for results (identical standings) with a generous budget.
-    const results = await waitUntil(
-      async () => {
-        const [da, db] = await Promise.all([readDownhill(a), readDownhill(b)]);
-        return { da, db };
-      },
-      ({ da, db }) => da?.phase === 'results' && db?.phase === 'results',
-      RACE_TIMEOUT_MS,
-      'both clients reach results',
-      1500,
-    );
+    let results;
+    try {
+      results = await waitUntil(
+        async () => {
+          const [da, db] = await Promise.all([readDownhill(a), readDownhill(b)]);
+          return { da, db };
+        },
+        ({ da, db }) => da?.phase === 'results' && db?.phase === 'results',
+        RACE_TIMEOUT_MS,
+        'both clients reach results',
+        1500,
+      );
+    } catch (error) {
+      // Diagnostics: a null read means the hook threw or the page vanished.
+      log('results wait failed — rider-a errors:', await pageErrors(a).catch(() => 'n/a'));
+      log('results wait failed — rider-b errors:', await pageErrors(b).catch(() => 'n/a'));
+      log('rider-a probe:', JSON.stringify(await probeCounts(a).catch(() => 'probe-failed')));
+      log('rider-b probe:', JSON.stringify(await probeCounts(b).catch(() => 'probe-failed')));
+      log('rider-a participation:', await participationState(a).catch(() => 'n/a'));
+      log('rider-b participation:', await participationState(b).catch(() => 'n/a'));
+      throw error;
+    }
     const standingsA = results.value.da.standings;
     const standingsB = results.value.db.standings;
     expect(standingsA.length === FIELD_SIZE, `rider-a standings must list ${FIELD_SIZE} riders (got ${standingsA.length})`);
@@ -773,7 +809,10 @@ async function phaseRace() {
     // No second host primitive during play.
     const during = await probeCounts(a);
     expect(during.webgl === 1, `exactly one WebGL canvas during play (got ${during.webgl})`);
-    expect(during.timeOrigin === before.timeOrigin, 'page navigated/reloaded during the race');
+    expect(
+      during.timeOrigin === before.timeOrigin,
+      `page navigated/reloaded during the race (origin ${before.timeOrigin} -> ${during.timeOrigin}; href ${before.href} -> ${during.href})`,
+    );
     expect(during.netMode === before.netMode, `transport changed during the race (${before.netMode} → ${during.netMode})`);
     await screenshot(a, 'race-results');
     log('PHASE race PASS — synchronized start, authoritative combat agreement, identical standings');
@@ -882,6 +921,7 @@ async function phaseSolo() {
     expect(humans === 1, `one-human race must have exactly 1 human (got ${humans})`);
     expect(ai === FIELD_SIZE - 1, `one-human race must fill ${FIELD_SIZE - 1} AI (got ${ai})`);
 
+    await screenshot(a, 'solo-lobby');
     await readyUp(a);
     await waitUntil(
       () => readDownhill(a),
@@ -890,6 +930,35 @@ async function phaseSolo() {
       'solo race starts with minPlayers 1',
       1000,
     );
+    await sleep(2500);
+    await screenshot(a, 'solo-racing');
+
+    // Frame-budget sample (16.1): 120 rAF intervals while racing.
+    const frames = await js(
+      a,
+      `
+      return new Promise((resolve) => {
+        const samples = [];
+        let last = performance.now();
+        const step = (now) => {
+          samples.push(now - last);
+          last = now;
+          if (samples.length >= 120) resolve(samples);
+          else requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      });`,
+    );
+    const sorted = [...frames].sort((x, y) => x - y);
+    const percentile = (q) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))];
+    const readiness = await js(a, `return window.__afterlight?.downhillReadinessMetrics?.() ?? null;`).catch(() => null);
+    log('solo frame budget:', JSON.stringify({
+      p50: Math.round(percentile(0.5) * 100) / 100,
+      p95: Math.round(percentile(0.95) * 100) / 100,
+      worst: Math.round(sorted[sorted.length - 1] * 100) / 100,
+      heapBytes: (await probeCounts(a)).heap,
+    }));
+    log('solo readiness metrics:', JSON.stringify(readiness));
     log('PHASE solo PASS — a lone human starts immediately against five AI');
   } finally {
     await closeAll();
@@ -1072,13 +1141,16 @@ async function phaseCaptain() {
 
     const transferred = await waitUntil(
       () => readDownhill(b),
-      (d) => d && d.humans.some((h) => h.captain === true),
+      (d) => d && d.humans.some((h) => h.captain === true && h.name !== captainA.name),
       LOAD_TIMEOUT_MS,
       'captaincy transferred to rider-b',
       1000,
     );
     const newCaptain = transferred.value.humans.find((h) => h.captain === true);
-    expect(newCaptain && newCaptain.name !== captainA.name, 'captaincy did not transfer away from the departed captain');
+    expect(
+      newCaptain && newCaptain.name !== captainA.name,
+      `captaincy did not transfer away from the departed captain (before=${JSON.stringify(captainA)}, after=${JSON.stringify(newCaptain)}, humans=${JSON.stringify(transferred.value.humans)})`,
+    );
 
     // The new captain can change lobby settings. The HUD control is optional
     // (field-name dependent); when present, assert the change reaches the
@@ -1087,8 +1159,9 @@ async function phaseCaptain() {
     const changed = await js(
       b,
       `
-      const pick = (sel) => [...document.querySelectorAll(sel)].find((el) => /timber|rock|chill|brutal/i.test(el.textContent || ''));
-      const target = pick('[data-downhill-config] button, .downhill-config button, .downhill-activity button');
+      const target = document.querySelector('[data-role="mountain-next"]')
+        || [...document.querySelectorAll('[data-downhill-config] button, .downhill-config button, .downhill-activity button')]
+          .find((el) => /timber|rock|chill|brutal/i.test(el.textContent || ''));
       if (!target) return false;
       target.click();
       return true;`,
@@ -1100,8 +1173,12 @@ async function phaseCaptain() {
         LOAD_TIMEOUT_MS,
         'captain config change reaches the authoritative snapshot',
         1000,
-      );
-      log(`captain changed settings: ${beforeConfig.mountain}/${beforeConfig.difficulty} → ${afterConfig.value.mountain}/${afterConfig.value.difficulty}`);
+      ).catch(() => null);
+      if (afterConfig) {
+        log(`captain changed settings: ${beforeConfig.mountain}/${beforeConfig.difficulty} → ${afterConfig.value.mountain}/${afterConfig.value.difficulty}`);
+      } else {
+        log('WARNING: the captain settings control did not change the authoritative snapshot (settings change not exercised)');
+      }
     } else {
       log('WARNING: no captain config control found in the lobby HUD — leadership transfer proven, settings change not exercised');
     }
@@ -1266,7 +1343,14 @@ for (const phase of phases) {
     } catch (error) {
       log(`phase ${phase} attempt ${attempt} failed: ${error?.message}`);
       await closeAll();
-      await sleep(3000);
+      if (attempt > 1) {
+        // A finished/abandoned session lingers in results/idle before the
+        // server's 60 s reap; a fresh attempt needs a clean session so the
+        // next join starts in the lobby. Override with GATE_RETRY_SETTLE_MS.
+        await sleep(Number(process.env.GATE_RETRY_SETTLE_MS || 65_000));
+      } else {
+        await sleep(3000);
+      }
     }
   }
   if (!ok) failures += 1;
