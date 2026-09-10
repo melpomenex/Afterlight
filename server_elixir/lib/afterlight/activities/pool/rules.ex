@@ -185,7 +185,7 @@ defmodule Afterlight.Activities.Pool.Rules do
           "pocketed_balls" => [],
           "cue_scratched" => false,
           "eight_pocketed" => false,
-          "object_balls_hit_rails" => MapSet.new()
+          "object_balls_hit_rails" => []
         }
 
         updated_state = %{
@@ -240,7 +240,9 @@ defmodule Afterlight.Activities.Pool.Rules do
 
         "rail_collision" ->
           bid = evt["ballId"]
-          new_set = if bid != 0, do: MapSet.put(acc["object_balls_hit_rails"], bid), else: acc["object_balls_hit_rails"]
+          prev_rails = acc["object_balls_hit_rails"]
+          # Plain list (wire-safe JSON): distinct object balls, MapSet semantics
+          new_rails_list = if bid != 0 and bid not in prev_rails, do: [bid | prev_rails], else: prev_rails
 
           # If cue has already touched an object ball, count rail contact
           new_rails =
@@ -250,7 +252,7 @@ defmodule Afterlight.Activities.Pool.Rules do
               acc["rails_post_contact"]
             end
 
-          %{acc | "object_balls_hit_rails" => new_set, "rails_post_contact" => new_rails}
+          %{acc | "object_balls_hit_rails" => new_rails_list, "rails_post_contact" => new_rails}
 
         "pocketed" ->
           bid = evt["ballId"]
@@ -293,7 +295,7 @@ defmodule Afterlight.Activities.Pool.Rules do
     cue_scratched = tracker["cue_scratched"]
     eight_pocketed = tracker["eight_pocketed"]
     object_pockets = Enum.filter(tracker["pocketed_balls"], fn p -> p["ballId"] not in [0, 8] end)
-    object_rails_count = MapSet.size(tracker["object_balls_hit_rails"])
+    object_rails_count = tracker["object_balls_hit_rails"] |> Enum.uniq() |> length()
 
     # 8-ball on break is spotted
     state_after_spot =

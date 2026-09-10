@@ -129,6 +129,9 @@ defmodule Afterlight.Activities.PoolSessionTest do
     p0 = make_player("practice")
     assert {:ok, %{lease: lease}} = GenServer.call(session, {:command, "activity_join", %{"role" => "play"}, p0})
     assert {:ok, _} = GenServer.call(session, {:command, "activity_ready", %{"ready" => true}, p0})
+    # D7: the lobby carries a nonempty matchId from boot; practice must never
+    # rotate it or start a match.
+    lobby_match_id = :sys.get_state(session).match_id
     payload = %{"sessionId" => Activities.session_id(session), "lease" => lease, "seq" => 1,
       "controls" => %{"action" => "shoot", "angle" => 0.0, "power" => 0.5}}
     assert {:ok, %{result: "input_accepted"}} = GenServer.call(session, {:command, "activity_input", payload, p0})
@@ -137,7 +140,31 @@ defmodule Afterlight.Activities.PoolSessionTest do
     state = :sys.get_state(session)
     assert state.status == :lobby
     assert state.sim_state["physics"]["balls"]["0"]["x"] != before
-    assert state.match_id == nil
+    assert state.match_id == lobby_match_id
+    assert state.match_outcome == nil
+
+    # Wait for the shot to settle: the settle tick resolves the shot and
+    # snaps the turn back to the solo player, and the session must survive
+    # it (a settle crash here once killed practice mid-shot). The stored sim
+    # must also be JSON-encodable — it rides every activity_state broadcast.
+    settled =
+      Enum.reduce_while(1..80, nil, fn _i, acc ->
+        st = :sys.get_state(session)
+
+        if st.sim_state["physics"]["settled"] and st.sim_state["status"] != "shooting" do
+          {:halt, st}
+        else
+          Process.sleep(100)
+          {:cont, acc}
+        end
+      end)
+
+    assert settled
+    assert settled.status == :lobby
+    assert settled.match_outcome == nil
+    assert settled.sim_state["turn"] == 0
+    assert Jason.encode!(settled.sim_state)
+
     p1 = make_player("opponent")
     assert {:ok, _} = GenServer.call(session, {:command, "activity_join", %{"role" => "play"}, p1})
     assert {:ok, _} = GenServer.call(session, {:command, "activity_ready", %{"ready" => true}, p1})

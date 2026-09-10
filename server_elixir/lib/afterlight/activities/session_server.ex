@@ -303,14 +303,40 @@ defmodule Afterlight.Activities.SessionServer do
       end
     else
       if pool_practice?(state) do
-        {sim, _events} = Afterlight.Activities.Pool.Rules.step(state.sim_state, 1.0 / 60.0)
+        now = System.monotonic_time(:millisecond)
+        last_tick = state.last_tick_at || now
+        elapsed = max(now - last_tick, 0)
+        steps = div(elapsed, state.tick_interval_ms)
+        steps_to_run = min(max(steps, 1), 4)
+
+        {sim, _events} =
+          Afterlight.Activities.Pool.Rules.step(state.sim_state, steps_to_run * (1.0 / 60.0))
+
         [slot] = Map.keys(state.players)
         sim = if sim["status"] == "game_over", do: Afterlight.Activities.Pool.Rules.init_game(), else: sim
         sim = if sim["status"] == "shooting", do: sim, else: Map.put(sim, "turn", slot)
-        ref = if sim["status"] == "shooting", do: Process.send_after(self(), :sim_tick, state.tick_interval_ms), else: nil
-        state = %{state | sim_state: sim, tick_timer_ref: ref, revision: state.revision + 1}
-        broadcast_activity_state(state)
-        {:noreply, state}
+
+        state = %{state | sim_state: sim, last_tick_at: now, sim_tick_count: state.sim_tick_count + steps_to_run}
+        shooting? = sim["status"] == "shooting"
+
+        # Publish at the shared 20 Hz snapshot cadence (generic_sim_tick):
+        # stepping runs at 60 Hz, but matches publish snapshots at 20 Hz and
+        # the practice path must not flood the room at 3x that rate.
+        # broadcast_activity_state returns :ok — never bind it to state.
+        # A nil last_snapshot_at (fresh lobby) means DUE: System.monotonic_time
+        # has an arbitrary origin, so it must never be compared against 0.
+        state =
+          if not shooting? or is_nil(state.last_snapshot_at) or
+               now - state.last_snapshot_at >= state.snapshot_interval_ms do
+            new_state = %{state | last_snapshot_at: now}
+            broadcast_activity_state(new_state)
+            new_state
+          else
+            state
+          end
+
+        ref = if shooting?, do: Process.send_after(self(), :sim_tick, state.tick_interval_ms)
+        {:noreply, %{state | tick_timer_ref: ref}}
       else
         {:noreply, %{state | tick_timer_ref: nil}}
       end

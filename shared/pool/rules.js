@@ -271,7 +271,10 @@ function resolveBreakShot(state, tracker, shooter, opponent) {
   const cueScratched = tracker.cue_scratched;
   const eightPocketed = tracker.eight_pocketed;
   const objectPockets = tracker.pocketed_balls.filter((p) => p.ballId !== 0 && p.ballId !== 8);
-  const objectRailsCount = tracker.object_balls_hit_rails.size;
+  // The authoritative server tracker arrives as a JSON array; a locally
+  // stepped tracker is a Set. Accept both when counting distinct rail hitters.
+  const objectRailsSource = tracker.object_balls_hit_rails;
+  const objectRailsCount = objectRailsSource instanceof Set ? objectRailsSource.size : (objectRailsSource?.length ?? 0);
 
   let stateAfterSpot = state;
   if (eightPocketed) {
