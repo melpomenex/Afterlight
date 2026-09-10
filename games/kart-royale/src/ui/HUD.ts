@@ -143,6 +143,21 @@ type Pair = [HTMLElement, HTMLElement];
 function setPair(p: Pair, v: string) { setText(p[0], v); setText(p[1], v); }
 
 export class HUD implements System {
+  /**
+   * Hosted-mode options (integrate-kart-royale-arcade): `hostElement` mounts the
+   * HUD into a host-owned container instead of the standalone `#ui` root, and
+   * `onExitCabinet` turns the pause/results "leave" actions into a return to
+   * the host (arcade) instead of the standalone title screen.
+   */
+  constructor(
+    private readonly options: {
+      hostElement?: HTMLElement | null;
+      onExitCabinet?: (() => void) | null;
+      hosted?: boolean;
+      startScreen?: 'title' | 'select';
+    } = {},
+  ) {}
+
   private root!: HTMLDivElement;
   private hud!: HTMLDivElement;
   private minimap!: Minimap;
@@ -270,7 +285,7 @@ export class HUD implements System {
   // ---------------------------------------------------------------- lifecycle
 
   init(ctx: Ctx) {
-    const host = document.getElementById('ui') || document.body;
+    const host = this.options.hostElement ?? (document.getElementById('ui') || document.body);
     this.root = el('div', 'kr', host);
 
     this.vig = el('div', 'kr-vig', this.root);
@@ -312,7 +327,11 @@ export class HUD implements System {
     this.buildCountdown();
     this.flash = el('div', 'kr-flash', this.root);
 
-    this.menus = new Menus(this.root);
+    this.menus = new Menus(this.root, {
+      onExitCabinet: this.options.onExitCabinet ?? null,
+      hosted: this.options.hosted ?? false,
+      startScreen: this.options.startScreen,
+    });
     this.menus.init(ctx);
 
     ctx.bus.on(this.onEvent);

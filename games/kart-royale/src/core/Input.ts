@@ -159,6 +159,15 @@ export class Input implements IInput {
   };
   touch = false;
 
+  /**
+   * HOSTED mode (integrate-kart-royale-arcade): the game runs inside another
+   * application. The host installs its own capture-phase window listeners and
+   * routes real KeyboardEvents through `handleKeyDown`/`handleKeyUp`, so this
+   * class installs NO window listeners of its own and never blocks the host
+   * page's gestures. Standalone passes nothing and behaves exactly as before.
+   */
+  constructor(private readonly hosted = false) {}
+
   private keys = new Set<string>();
   /**
    * Keys that went down since the last `update`, whether or not they are still
@@ -214,12 +223,20 @@ export class Input implements IInput {
 
   init(ctx: Ctx) {
     this.ctx = ctx;
-    addEventListener('keydown', this.onDown);
-    addEventListener('keyup', this.onUp);
-    addEventListener('blur', this.onBlur);
-    addEventListener('gamepadconnected', this.onPad);
-    addEventListener('gamepaddisconnected', this.onPadOff);
-    addEventListener('keydown', this.onFirstKey, { once: true });
+    if (this.hosted) {
+      // Hosted: gamepad connect events are inert bookkeeping and safe to own
+      // for the session (removed in dispose); every key/pointer/blur event
+      // arrives through the host's capture-phase routing instead.
+      addEventListener('gamepadconnected', this.onPad);
+      addEventListener('gamepaddisconnected', this.onPadOff);
+    } else {
+      addEventListener('keydown', this.onDown);
+      addEventListener('keyup', this.onUp);
+      addEventListener('blur', this.onBlur);
+      addEventListener('gamepadconnected', this.onPad);
+      addEventListener('gamepaddisconnected', this.onPadOff);
+      addEventListener('keydown', this.onFirstKey, { once: true });
+    }
 
     // Two-stage detection, because one stage is not enough.
     //
@@ -235,14 +252,20 @@ export class Input implements IInput {
     // evidence that cannot be wrong.
     this.touch = (matchMedia?.('(pointer: coarse)')?.matches ?? false) ||
       navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
-    if (this.touch) this.pad.mount();
-    // Capture phase on window, so this runs BEFORE the pad's own bubble-phase
-    // listener is consulted. Mounting here means the very touch that revealed
-    // the controls still reaches them on the way back up, instead of being
-    // swallowed and forcing the player to tap twice.
-    else addEventListener('pointerdown', this.onFirstTouch, { capture: true });
-
-    this.blockPageGestures();
+    if (this.hosted) {
+      // The touch pad touches the HOST page's DOM; hosted, it mounts only for
+      // the racing session itself (see `enter`/`leave`), never during boot.
+    } else {
+      if (this.touch) this.pad.mount();
+      else {
+        // Capture phase on window, so this runs BEFORE the pad's own bubble-phase
+        // listener is consulted. Mounting here means the very touch that revealed
+        // the controls still reaches them on the way back up, instead of being
+        // swallowed and forcing the player to tap twice.
+        addEventListener('pointerdown', this.onFirstTouch, { capture: true });
+      }
+      this.blockPageGestures();
+    }
 
     // Give the pad the one haptics gate, so a control-level tick obeys the same
     // budget as a gameplay one rather than inventing a second path.
@@ -326,16 +349,51 @@ export class Input implements IInput {
   };
 
   dispose() {
-    removeEventListener('keydown', this.onDown);
-    removeEventListener('keyup', this.onUp);
-    removeEventListener('blur', this.onBlur);
+    if (!this.hosted) {
+      removeEventListener('keydown', this.onDown);
+      removeEventListener('keyup', this.onUp);
+      removeEventListener('blur', this.onBlur);
+      removeEventListener('keydown', this.onFirstKey);
+      removeEventListener('pointerdown', this.onFirstTouch, { capture: true } as any);
+    }
     removeEventListener('gamepadconnected', this.onPad);
     removeEventListener('gamepaddisconnected', this.onPadOff);
-    removeEventListener('keydown', this.onFirstKey);
-    removeEventListener('pointerdown', this.onFirstTouch, { capture: true } as any);
     this.offBus?.();
     this.offBus = null;
     this.pad.unmount();
+    this.releaseGestureBlocks();
+  }
+
+  // ---------------------------------------------------------------------------
+  //  Hosted-mode entry points (integrate-kart-royale-arcade)
+  // ---------------------------------------------------------------------------
+  /** Route a real KeyboardEvent the host captured. */
+  handleKeyDown(e: KeyboardEvent) {
+    this.onDown(e);
+  }
+
+  handleKeyUp(e: KeyboardEvent) {
+    this.onUp(e);
+  }
+
+  /** Drop every held/latched key (blur, pause, session exit). */
+  neutralize() {
+    this.onBlur();
+  }
+
+  /**
+   * Session start (hosted): mount the touch pad if this device is a touch
+   * device. The pad unmounts again on `leave`, so the host page never carries
+   * touch-chrome outside a live race.
+   */
+  enter() {
+    if (this.hosted && this.touch) this.pad.mount();
+  }
+
+  /** Session end (hosted): pad away, keys clear. */
+  leave() {
+    this.pad.unmount();
+    this.onBlur();
   }
 
   /**
@@ -358,30 +416,51 @@ export class Input implements IInput {
    * double-tap zoom, and Safari's proprietary `gesture*` events must be
    * cancelled explicitly on top of that. Installed at boot rather than at pad
    * mount, because a pinch can happen before the first single touch.
+   *
+   * Standalone-only, and every listener is stored so `dispose()` truly removes
+   * it (they used to be anonymous and leaked a re-loaded module — harmless for
+   * a page that never unloads, fatal for a hosted one).
    */
+  private gestureBlocks: { type: string; fn: EventListener }[] = [];
+
   private blockPageGestures() {
     const stop = (e: Event) => e.preventDefault();
     for (const t of ['gesturestart', 'gesturechange', 'gestureend']) {
       addEventListener(t, stop, { passive: false });
+      this.gestureBlocks.push({ type: t, fn: stop });
     }
     // Belt and braces for engines that honour neither of the above: cancel any
     // multi-finger move that is not aimed at an interactive control.
-    addEventListener('touchmove', (e: TouchEvent) => {
+    const multiTouch = (e: TouchEvent) => {
       if (e.touches.length > 1) e.preventDefault();
-    }, { passive: false });
+    };
+    addEventListener('touchmove', multiTouch, { passive: false });
+    this.gestureBlocks.push({ type: 'touchmove', fn: multiTouch as EventListener });
     // Double-tap-to-zoom fires as a second tap inside ~300ms.
     let lastTap = 0;
-    addEventListener('touchend', (e: TouchEvent) => {
+    const doubleTap = (e: TouchEvent) => {
       const now = e.timeStamp;
       if (now - lastTap < 320) e.preventDefault();
       lastTap = now;
-    }, { passive: false });
+    };
+    addEventListener('touchend', doubleTap, { passive: false });
+    this.gestureBlocks.push({ type: 'touchend', fn: doubleTap as EventListener });
+  }
+
+  private releaseGestureBlocks() {
+    for (const { type, fn } of this.gestureBlocks) {
+      removeEventListener(type, fn as any, { passive: false } as any);
+    }
+    this.gestureBlocks.length = 0;
   }
 
   private onDown = (e: KeyboardEvent) => {
     if (!e.repeat) this.latched.add(e.code);
     this.keys.add(e.code);
-    // Space and the arrows scroll the page; the game owns them.
+    // Space and the arrows scroll the page; the game owns them. Hosted, the
+    // host page is the page — the same keys must not scroll IT either while a
+    // race is live, and the host routes these events only while it has leased
+    // input to the game.
     if (SWALLOW.has(e.code)) e.preventDefault();
   };
   private onUp = (e: KeyboardEvent) => { this.keys.delete(e.code); };

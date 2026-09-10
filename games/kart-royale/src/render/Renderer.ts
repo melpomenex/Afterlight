@@ -193,7 +193,22 @@ export class RenderPipeline implements System {
   private notice: HTMLElement | null = null;
   private gl: WebGLRenderingContext | WebGL2RenderingContext | null = null;
 
-  constructor(private readonly canvasParent: HTMLElement) {}
+  /**
+   * HOSTED mode (integrate-kart-royale-arcade): adopt the host application's
+   * single WebGLRenderer instead of creating one. The pipeline then owns NO
+   * canvas, NO context-loss listeners (the host decides context-loss policy)
+   * and NO global (`__render`) — and `dispose()` must never dispose the host's
+   * renderer. All GL mutations it makes (tone mapping, shadow config, pixel
+   * ratio, autoClear) happen while the host has leased presentation to the
+   * game, bracketed by the host's renderer-state snapshot/restore.
+   */
+  constructor(
+    private readonly canvasParent: HTMLElement | null,
+    private readonly external: {
+      renderer: THREE.WebGLRenderer;
+      onFatal?: (title: string, detail: string) => void;
+    } | null = null,
+  ) {}
 
   init(ctx: Ctx) {
     this.ctx = ctx;
@@ -230,16 +245,24 @@ export class RenderPipeline implements System {
     this.usePost = caps.webgl2 && this.rung <= Rung.Ldr;
 
     let renderer: THREE.WebGLRenderer;
-    try {
-      renderer = this.createRenderer(ctx);
-    } catch (err) {
-      this.showFatal(
-        'Graphics could not start',
-        'The browser refused to create a WebGL context for this page. Updating the graphics driver, ' +
-        'or enabling hardware acceleration in the browser settings, usually fixes it.',
-      );
-      logPipeline('fatal', 'WebGLRenderer could not be constructed: ' + String(err));
-      throw err;
+    if (this.external) {
+      // Hosted: adopt the host renderer as-is. Its context attributes were the
+      // host's choice (typically antialias on); the composer targets govern
+      // the game's own AA, and the final blit may simply inherit the host's
+      // MSAA — harmless.
+      renderer = this.external.renderer;
+    } else {
+      try {
+        renderer = this.createRenderer(ctx);
+      } catch (err) {
+        this.showFatal(
+          'Graphics could not start',
+          'The browser refused to create a WebGL context for this page. Updating the graphics driver, ' +
+          'or enabling hardware acceleration in the browser settings, usually fixes it.',
+        );
+        logPipeline('fatal', 'WebGLRenderer could not be constructed: ' + String(err));
+        throw err;
+      }
     }
     this.finishInit(ctx, renderer);
   }
@@ -322,8 +345,11 @@ export class RenderPipeline implements System {
     ctx.renderer = renderer;
     // Same contract as `window.__drawBudget`: the capture and perf harnesses
     // need to read the device profile and reach into the effect chain (which
-    // is deliberately not on Ctx) to A/B a single pass.
-    (globalThis as unknown as { __render?: RenderPipeline }).__render = this;
+    // is deliberately not on Ctx) to A/B a single pass. Hosted mode publishes
+    // nothing — the host page owns its own globals.
+    if (!this.external) {
+      (globalThis as unknown as { __render?: RenderPipeline }).__render = this;
+    }
 
     // A LINK FAILURE IS THE LEADING THEORY AND THIS IS WHERE IT SURFACES.
     //
@@ -580,8 +606,8 @@ export class RenderPipeline implements System {
     } else {
       this.renderer.setRenderTarget(null);
       // Explicit, not left to `autoClear`: this path is reached both from a
-      // device that never had a composer (autoClear untouched, true) and from a
-      // composer that failed to build (autoClear turned off by postprocessing's
+      // device that never had a composer (autoClear untouched, true) and from
+      // a composer that failed to build (autoClear turned off by postprocessing's
       // constructor before it threw). One of those two clears the canvas and
       // the other does not, and the one that does not shows the previous frame
       // wherever the scene has no geometry — sky included, since the sky dome
@@ -645,11 +671,17 @@ export class RenderPipeline implements System {
   }
 
   dispose() {
-    const el = this.renderer?.domElement;
-    if (el !== undefined) {
-      el.removeEventListener('webglcontextlost', this.handleContextLost, false);
-      el.removeEventListener('webglcontextrestored', this.handleContextRestored, false);
+    if (!this.external) {
+      const el = this.renderer?.domElement;
+      if (el !== undefined) {
+        el.removeEventListener('webglcontextlost', this.handleContextLost, false);
+        el.removeEventListener('webglcontextrestored', this.handleContextRestored, false);
+      }
+      this.renderer?.dispose();
+      if (el !== undefined && el.parentNode !== null) el.parentNode.removeChild(el);
     }
+    // Hosted: the renderer and its canvas belong to the host application and
+    // survive us; only OUR composer/effects/materials are torn down.
     this.fx.dispose();
     if (this.composer !== null) {
       this.composer.dispose();
@@ -663,8 +695,6 @@ export class RenderPipeline implements System {
     this.samplePixels = null;
     this.notice?.remove();
     this.notice = null;
-    this.renderer?.dispose();
-    if (el !== undefined && el.parentNode !== null) el.parentNode.removeChild(el);
   }
 
   /**
@@ -915,6 +945,12 @@ export class RenderPipeline implements System {
    * sentence they can act on instead of a red monospace dump.
    */
   private showFatal(title: string, detail: string): void {
+    // Hosted: never paint panels onto the host page — hand the failure to the
+    // host, whose job it is to exit the session and tell the player.
+    if (this.external) {
+      this.external.onFatal?.(title, detail);
+      return;
+    }
     if (document.getElementById('gl-fatal') !== null) return;
     const el = document.createElement('div');
     el.id = 'gl-fatal';
@@ -943,6 +979,7 @@ export class RenderPipeline implements System {
    */
   announce(title: string | null, detail = ''): void {
     if (title === null) this.hideNotice();
+    else if (this.external) this.external.onFatal?.(title, detail);
     else this.showNotice(title, detail);
   }
 

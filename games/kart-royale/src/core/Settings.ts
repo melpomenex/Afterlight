@@ -660,17 +660,32 @@ export function device(): DeviceProfile {
   return (deviceProfile ??= profileDevice());
 }
 
-export function createSettings(): Settings {
+/**
+ * Host-side quality overrides (integrate-kart-royale-arcade). When present the
+ * game is HOSTED inside another application: `location.search` belongs to the
+ * host page and must never be read — `?quality=`/`?scale=`/`?mpx=`/`?texcap=`
+ * are standalone-harness knobs. Overrides may only tighten (never raise) what
+ * device detection chose, the same rule the pixel budget below already obeys.
+ */
+export interface SettingsOverrides {
+  quality?: Quality;
+  /** Ceiling on the tier's `maxPixelRatio` (a host DPR policy). */
+  maxPixelRatio?: number;
+  renderScale?: number;
+}
+
+export function createSettings(host?: SettingsOverrides): Settings {
   const dev = (deviceProfile = profileDevice());
-  const params = new URLSearchParams(location.search);
-  const forced = params.get('quality');
-  const q: Quality = forced
+  // Hosted mode passes overrides instead of reading the HOST page's URL.
+  const params = host ? null : new URLSearchParams(location.search);
+  const forced = params?.get('quality');
+  const q: Quality = host?.quality ?? (forced
     ? ({ low: Quality.Low, medium: Quality.Medium, high: Quality.High, ultra: Quality.Ultra }[forced] ??
        Quality.High)
-    : detectQuality(dev);
+    : detectQuality(dev));
   const s: Settings = { quality: q, masterVolume: 0.8, ...PRESETS[q] };
   // ?scale=0.75 etc. lets the screenshot harness trade resolution for time
-  const scale = parseFloat(params.get('scale') || '');
+  const scale = parseFloat(params?.get('scale') || (host?.renderScale != null ? String(host.renderScale) : ''));
   if (Number.isFinite(scale) && scale > 0) s.renderScale = scale;
 
   // ---- pixel-count ceiling ------------------------------------------------
@@ -685,7 +700,7 @@ export function createSettings(): Settings {
   // dpr 1 and a handheld is nowhere near the Low budget in any case.
   assertBackstopClearance();
   const cssPx = (globalThis.innerWidth || 0) * (globalThis.innerHeight || 0);
-  const budgetMpx = parseFloat(params.get('mpx') || '');
+  const budgetMpx = parseFloat(params?.get('mpx') || '');
   const budget = (Number.isFinite(budgetMpx) && budgetMpx > 0 ? budgetMpx : PIXEL_BUDGET_MPX[q]) * 1e6;
   if (cssPx > 0) {
     const ceiling = Math.sqrt(budget / (cssPx * s.renderScale * s.renderScale));
@@ -697,6 +712,11 @@ export function createSettings(): Settings {
         `(${globalThis.innerWidth}x${globalThis.innerHeight} CSS at dpr ${dev.dpr})`);
       s.maxPixelRatio = capped;
     }
+  }
+  // Host clamp LAST, so a host policy can only tighten what detection and the
+  // pixel budget already allowed.
+  if (host?.maxPixelRatio != null && host.maxPixelRatio > 0) {
+    s.maxPixelRatio = Math.min(s.maxPixelRatio, host.maxPixelRatio);
   }
 
   // ---- capability-driven degrade, before the first frame ------------------
@@ -754,8 +774,9 @@ export function createSettings(): Settings {
   else if (dev.touchPrimary) cap = Math.min(cap, TEXTURE_CAP[Quality.Medium]);
   // `?texcap=512`, or `?texcap=0` for uncapped. A diagnostic only — it is how
   // the before/after of this budget is measured on one tree — and it sits
-  // alongside `?quality=` and `?scale=` as harness-only overrides.
-  const forcedCap = parseFloat(params.get('texcap') || '');
+  // alongside `?quality=` and `?scale=` as harness-only overrides. Hosted mode
+  // takes the detection-derived cap untouched.
+  const forcedCap = parseFloat(params?.get('texcap') || '');
   if (Number.isFinite(forcedCap)) cap = forcedCap > 0 ? forcedCap : Infinity;
   setTextureBudget(cap);
 

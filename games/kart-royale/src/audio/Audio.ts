@@ -920,6 +920,17 @@ export class Audio implements System {
   private onGesture = () => this.unlock();
   private onVisibility = () => this.syncSuspend();
 
+  /**
+   * Hosted audio (integrate-kart-royale-arcade): when the host lends its
+   * AudioContext, the whole graph builds into it and `master` lands on the
+   * given destination (a host mixer bus) instead of the context destination.
+   * The context is never closed or suspended by us — visibility mutes the
+   * master instead (suspending a host context would mute the host's world).
+   */
+  constructor(
+    private readonly external: { context?: BaseAudioContext | null; destination?: AudioNode | null } | null = null,
+  ) {}
+
   init(ctx: Ctx) {
     this.ctx = ctx;
     this.unsub = ctx.bus.on((e) => this.onEvent(e));
@@ -948,12 +959,20 @@ export class Audio implements System {
     }
     const ctx = this.ctx;
     if (!ctx) return;
+    const vol = ctx.settings?.masterVolume ?? 0.8;
+    // Hosted first: the host's context (if its audio was ever enabled) owns the
+    // graph. A nudge on a host context that exists but is suspended is the
+    // host's business; resuming it here is still correct — the player gesture
+    // that unlocked us would satisfy the host's own policy too.
+    if (this.external?.context) {
+      if (this.build(this.external.context, vol)) this.synth!.ctx.resume().catch(() => {});
+      return;
+    }
     const AC = (globalThis as any).AudioContext || (globalThis as any).webkitAudioContext;
     if (!AC) {
       this.failed = true;
       return;
     }
-    const vol = ctx.settings?.masterVolume ?? 0.8;
     if (this.build(null, vol)) this.synth!.ctx.resume().catch(() => {});
   }
 
@@ -976,7 +995,7 @@ export class Audio implements System {
   /** Shared graph construction. Returns false if audio is unavailable. */
   private build(ac: BaseAudioContext | null, vol: number): boolean {
     try {
-      const s = new Synth(vol, ac ?? undefined);
+      const s = new Synth(vol, ac ?? undefined, this.external?.destination ?? undefined);
       this.lastVolume = vol;
       // Bus-level sends: a touch of room on everything, opened up in the tunnel.
       //
@@ -1019,6 +1038,12 @@ export class Audio implements System {
     const s = this.synth;
     if (!s) return;
     try {
+      if (!s.ownsContext) {
+        // Hosted: the context belongs to the host application. Suspending it
+        // would mute the HOST's world too, so visibility only mutes OUR output.
+        s.master.gain.value = document.hidden ? 0 : clamp(this.lastVolume, 0, 1);
+        return;
+      }
       if (document.hidden) s.ctx.suspend().catch(() => {});
       else s.ctx.resume().catch(() => {});
     } catch {

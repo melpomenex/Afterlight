@@ -60,6 +60,12 @@ export const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
 export class Synth {
   readonly ctx: AudioContext;
+  /**
+   * False when the context was injected by a host (integrate-kart-royale-arcade:
+   * Afterlight's mixer). A host context is NEVER closed here — the host owns its
+   * lifetime — only disconnected.
+   */
+  readonly ownsContext: boolean;
 
   /** final trim — tracks Settings.masterVolume, nothing else touches it */
   readonly master: GainNode;
@@ -89,21 +95,24 @@ export class Synth {
 
   /**
    * @param external an already-constructed context to build into. The game
-   *   never passes one. It exists so a harness can render this exact graph into
-   *   an OfflineAudioContext and measure it — every level, duck depth and tier
-   *   frequency quoted in the comments here and in Audio.ts came from such a
-   *   render, not from listening. An offline context implements every factory
-   *   used below.
+   *   never passes one in standalone. It exists so a harness can render this
+   *   exact graph into an OfflineAudioContext and measure it, and so a HOST
+   *   (integrate-kart-royale-arcade) can lend its own AudioContext. An offline
+   *   context implements every factory used below.
+   * @param destination where `master` lands when the context is external —
+   *   a host bus (e.g. the host mixer's effects bus). Defaults to the context's
+   *   own destination.
    */
-  constructor(volume: number, external?: BaseAudioContext) {
+  constructor(volume: number, external?: BaseAudioContext, destination?: AudioNode) {
     const AC: typeof AudioContext =
       (globalThis as any).AudioContext || (globalThis as any).webkitAudioContext;
     this.ctx = (external ?? new AC({ latencyHint: 'interactive' })) as AudioContext;
+    this.ownsContext = !external;
     const ac = this.ctx;
 
     this.master = ac.createGain();
     this.master.gain.value = clamp(volume, 0, 1);
-    this.master.connect(ac.destination);
+    this.master.connect(destination ?? ac.destination);
 
     // Three-stage output. DynamicsCompressor is a compressor, not a brickwall:
     // measured against a real render it holds RMS but lets ~10 dB of crest
@@ -583,7 +592,10 @@ export class Synth {
 
   dispose() {
     try {
-      this.ctx.close();
+      // Never close a host/injected context (see ownsContext) — stopping our
+      // output at the master is the whole teardown for a hosted graph.
+      this.master.disconnect();
+      if (this.ownsContext) this.ctx.close();
     } catch {
       /* nothing to do */
     }

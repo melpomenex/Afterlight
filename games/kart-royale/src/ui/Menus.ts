@@ -175,8 +175,18 @@ export class Menus {
   private lapsEl!: HTMLDivElement;
   private resultTitle!: HTMLDivElement;
 
-  constructor(parent: HTMLElement) {
+  constructor(
+    parent: HTMLElement,
+    private readonly hostOptions: {
+      onExitCabinet?: (() => void) | null;
+      /** Hosted: never read `location.search` (the host page's URL). */
+      hosted?: boolean;
+      /** Hosted first screen: the cabinet is the title screen. */
+      startScreen?: 'title' | 'select';
+    } = {},
+  ) {
     this.root = el('div', 'kr-screens', parent);
+    if (this.hostOptions.startScreen === 'select') this.selecting = true;
     // Sibling of `.kr-screens`, not a child: the tap-anywhere-confirm listener
     // below is on `this.root`, and a tap on a SETTING must not also start the
     // race. Its own listeners stop propagation before the touch pad sees it.
@@ -203,7 +213,8 @@ export class Menus {
       this.tapConfirm = true;
     });
 
-    const forced = new URLSearchParams(location.search).get('ui');
+    // Hosted: the URL belongs to the host application — no `?ui=` forcing.
+    const forced = this.hostOptions.hosted ? null : new URLSearchParams(location.search).get('ui');
     if (forced === 'title' || forced === 'select' || forced === 'pause' || forced === 'results') {
       this.forced = forced;
     }
@@ -564,14 +575,16 @@ export class Menus {
     ctrl.onclick = () => this.controls.show();
     const restart = el('div', 'kr-btn', list, 'Restart race');
     restart.onclick = () => { this.localPause = false; this.forced = null; this.startRace(this.ctx); };
-    const quit = el('div', 'kr-btn', list, 'Quit to title');
-    quit.onclick = () => {
+    // Hosted (integrate-kart-royale-arcade): the cabinet is the title screen,
+    // so "leaving" returns to the host arcade rather than a local title.
+    const quit = el('div', 'kr-btn', list, this.hostOptions.onExitCabinet ? 'Leave cabinet' : 'Quit to title');
+    quit.onclick = this.hostOptions.onExitCabinet ?? (() => {
       this.localPause = false;
       this.forced = null;
       this.localTitle = true;
       this.selecting = false;
       this.ctx.race.reset();
-    };
+    });
     this.buttons.pause = [resume, ctrl, restart, quit];
     return s;
   }
@@ -590,8 +603,8 @@ export class Menus {
     const list = el('div', 'kr-menu-list kr-stage', inner);
     const again = el('div', 'kr-btn', list, 'Race again');
     again.onclick = () => this.startRace(this.ctx);
-    const title = el('div', 'kr-btn', list, 'Back to title');
-    title.onclick = () => { this.localTitle = true; this.selecting = false; this.forced = null; this.ctx.race.reset(); };
+    const title = el('div', 'kr-btn', list, this.hostOptions.onExitCabinet ? 'Back to the arcade' : 'Back to title');
+    title.onclick = this.hostOptions.onExitCabinet ?? (() => { this.localTitle = true; this.selecting = false; this.forced = null; this.ctx.race.reset(); });
     this.buttons.results = [again, title];
     return s;
   }
