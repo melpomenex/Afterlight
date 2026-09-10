@@ -2213,10 +2213,15 @@ function frame(now) {
     // graphics jobs only while the Theater still owns presentation.
     if (!activityView.held) {
       const kartBudget = activityRuntime.getKartPrepareFrameBudgetMs?.() ?? 0;
+      const framePressure = dt > 0.033 || (typeof document !== 'undefined' && document.hidden);
       if (kartBudget > 0) {
-        activityRuntime.tickBackgroundPreparation?.({ maxMs: kartBudget });
+        activityRuntime.tickBackgroundPreparation?.({
+          maxMs: kartBudget,
+          viewLeaseHeld: activityView.held,
+          framePressure,
+        });
       }
-      graphicsJobs.drain({ maxMs: kartBudget > 0 ? kartBudget : 2 });
+      graphicsJobs.drain({ maxMs: kartBudget > 0 && !framePressure ? kartBudget : 2 });
     }
 
     // Shared lightning envelopes + environmental audio (tasks 4.2/4.1), on

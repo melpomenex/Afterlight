@@ -83,6 +83,63 @@ test('prepare scheduler prefetches host module after controller prefetch with pr
   assert.equal(scheduler.getFrameBudgetMs(), KART_PREPARE_BUDGET_NEAR_MS);
 });
 
+test('prepare scheduler pauses for view lease, frame pressure and hidden tab policy', async () => {
+  const cache = createResourceCache();
+  const preparation = createKartRoyalePreparation({ cache });
+  const scheduler = createKartRoyalePrepareScheduler({
+    preparation,
+    getDistance: () => 5,
+    shouldRun: () => true,
+    importModule: async () => ({}),
+    now: () => 0,
+  });
+
+  await preparation.prefetch();
+  scheduler.enableAfterModulePrefetch();
+
+  assert.equal(scheduler.tick({ maxMs: 4, viewLeaseHeld: true }).reason, 'view-lease');
+  assert.equal(scheduler.tick({ maxMs: 4, framePressure: true }).reason, 'frame-pressure');
+
+  scheduler.pause('hidden-tab');
+  assert.equal(scheduler.tick({ maxMs: 4 }).reason, 'paused');
+  scheduler.resume();
+  assert.equal(scheduler.paused, null);
+});
+
+test('prepare scheduler keeps world batch progress after leaving proximity', async () => {
+  const cache = createResourceCache();
+  const preparation = createKartRoyalePreparation({ cache });
+  let distance = 5;
+  let prepared = false;
+  const scheduler = createKartRoyalePrepareScheduler({
+    preparation,
+    getDistance: () => distance,
+    shouldRun: () => true,
+    createBackgroundHost: () => ({
+      prepareWorldSlice: () => {
+        prepared = true;
+        return { done: true, stepsRun: 1, stepId: 'track:road', cancelled: false };
+      },
+      isWorldPrepared: () => prepared,
+      dispose: () => {},
+    }),
+    importModule: async () => ({}),
+    now: () => 0,
+  });
+
+  await preparation.prefetch();
+  scheduler.enableAfterModulePrefetch();
+  scheduler.tick({ maxMs: 4 });
+  await new Promise((resolve) => queueMicrotask(resolve));
+  scheduler.tick({ maxMs: 4 });
+  assert.equal(prepared, true);
+
+  distance = 20;
+  scheduler.proximity.update();
+  assert.equal(scheduler.getFrameBudgetMs(), 2);
+  assert.equal(scheduler.worldPrepared, true);
+});
+
 test('prepare scheduler pauses while participation input is pending', async () => {
   const cache = createResourceCache();
   const preparation = createKartRoyalePreparation({ cache });

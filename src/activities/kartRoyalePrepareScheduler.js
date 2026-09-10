@@ -38,8 +38,11 @@ export function createKartRoyalePrepareScheduler({
   /** @type {{ prepareWorldSlice?: Function, isWorldPrepared?: Function, dispose?: Function }|null} */
   let backgroundHost = null;
 
+  let pausedReason = null;
+
   function canWarm() {
     if (!preparation || !warmingEnabled) return false;
+    if (pausedReason) return false;
     if (!shouldRun()) return false;
     if (isInputPending()) return false;
     const readiness = preparation.readiness;
@@ -75,7 +78,20 @@ export function createKartRoyalePrepareScheduler({
       warmingEnabled = true;
     },
 
+    pause(reason = 'paused') {
+      pausedReason = reason;
+    },
+
+    resume() {
+      pausedReason = null;
+    },
+
+    get paused() {
+      return pausedReason;
+    },
+
     disable() {
+      pausedReason = null;
       warmingEnabled = false;
       hostModulePromise = null;
       hostModuleLoaded = false;
@@ -90,12 +106,25 @@ export function createKartRoyalePrepareScheduler({
     },
 
     /**
-     * @param {{ maxMs?: number }} [opts]
+     * @param {{ maxMs?: number, viewLeaseHeld?: boolean, framePressure?: boolean }} [opts]
      */
-    tick({ maxMs = proximity.getFrameBudgetMs() } = {}) {
+    tick({
+      maxMs = proximity.getFrameBudgetMs(),
+      viewLeaseHeld = false,
+      framePressure = false,
+    } = {}) {
       proximity.update();
+      if (viewLeaseHeld) {
+        return { ran: false, reason: 'view-lease', near: proximity.near };
+      }
+      if (framePressure) {
+        return { ran: false, reason: 'frame-pressure', near: proximity.near };
+      }
+      if (!shouldRun()) {
+        return { ran: false, reason: 'place-inactive', near: proximity.near };
+      }
       if (!canWarm() || maxMs <= 0) {
-        return { ran: false, reason: 'inactive' };
+        return { ran: false, reason: pausedReason ? 'paused' : 'inactive', near: proximity.near };
       }
 
       let ran = false;

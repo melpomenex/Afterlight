@@ -400,10 +400,23 @@ export function createKartRoyaleInstance({
       return prepareScheduler.getFrameBudgetMs();
     },
 
-    tickBackgroundPreparation({ maxMs = null } = {}) {
+    tickBackgroundPreparation({
+      maxMs = null,
+      viewLeaseHeld = false,
+      framePressure = false,
+    } = {}) {
       if (disposed) return { ran: false, reason: 'disposed' };
+      if (typeof document !== 'undefined' && document.hidden) {
+        prepareScheduler.pause('hidden-tab');
+        return { ran: false, reason: 'hidden-tab' };
+      }
+      prepareScheduler.resume();
       const budget = maxMs ?? prepareScheduler.getFrameBudgetMs();
-      return prepareScheduler.tick({ maxMs: budget });
+      return prepareScheduler.tick({
+        maxMs: budget,
+        viewLeaseHeld,
+        framePressure,
+      });
     },
 
     /**

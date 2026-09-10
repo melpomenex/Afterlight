@@ -359,7 +359,9 @@ export function createActivityRuntime({
     },
 
     tickBackgroundPreparation(opts = {}) {
-      if (!active || activeRoomId !== 'theater') return { ran: false, reason: 'not_theater' };
+      if (!active || activeRoomId !== 'theater') {
+        return { ran: false, reason: 'not_theater' };
+      }
       for (const instance of instances.values()) {
         if (instance?.type !== 'kart-royale') continue;
         if (typeof instance.tickBackgroundPreparation !== 'function') continue;
