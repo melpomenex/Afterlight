@@ -193,6 +193,16 @@ headed harness evidence is in
 `renderer_webgpu_fastpath` stays opt-in and default OFF. Local player
 and Kiln stay on the traditional path.
 
+**2026-09-10 amendment:** commit `9658158` briefly set
+`VITE_RT_WEBGPU_FASTPATH=1` in the committed `.env.production` /
+`.env.development`, which selected the instanced proxies for live remote
+players (capsule "orbs", no nicknames) — the rejected live default. The env
+defaults are reverted to full gardener avatars; `?rt_webgpu_fastpath=1` and
+the personal `afterlight-rt-flags` storage key remain the only opt-ins. A
+repository test (`tests/realtime/gpu-backend.test.js`, "committed env defaults
+keep full avatars") now fails if committed configuration re-enables the
+fastpath (change `fix-remote-avatar-proxies`).
+
 ## Interop verification
 
 `shared/realtime/roaring.js` (dependency-free) was cross-validated against

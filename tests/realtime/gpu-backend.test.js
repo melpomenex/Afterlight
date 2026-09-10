@@ -3,6 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { PackConsumer } from '../../src/realtime/consumer.js';
 import { createPack } from '../../src/realtime/worker/core.js';
 import { resolveFlagsFrom } from '../../src/realtime/flags.js';
@@ -37,6 +38,41 @@ test('flags: renderer_webgpu_fastpath defaults off and is not implied by other f
   assert.equal(shouldConstructWebGpu(d), false);
   assert.equal(shouldConstructWebGpu(resolveFlagsFrom({ search: '?rt_binary=1&rt_wasm=1' })), false);
   assert.equal(shouldConstructWebGpu(resolveFlagsFrom({ search: '?rt_webgpu_fastpath=1' })), true);
+});
+
+// Regression guard (fix-remote-avatar-proxies): commit 9658158 turned the
+// rejected WebGPU proxy default on in the committed env files, so every live
+// remote player rendered as a capsule orb. The default build must stay on the
+// full-avatar path; only a per-load runtime opt-in may select the proxies.
+function parseEnvFile(url) {
+  const out = {};
+  for (const line of readFileSync(url, 'utf8').split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    if (key) out[key] = trimmed.slice(eq + 1).trim();
+  }
+  return out;
+}
+
+test('committed env defaults keep full avatars: data plane on, WebGPU proxies off', () => {
+  for (const rel of ['../../.env.production', '../../.env.development']) {
+    const env = parseEnvFile(new URL(rel, import.meta.url));
+    const flags = resolveFlagsFrom({ env });
+    assert.equal(flags.renderer_webgpu_fastpath, false, `${rel} must not enable the rejected proxy default`);
+    assert.equal(shouldConstructWebGpu(flags), false, `${rel} must select the full-avatar live session`);
+    assert.equal(flags.realtime_binary, true, `${rel} keeps the benchmarked binary data plane on`);
+    assert.equal(flags.realtime_wasm, true, `${rel} keeps the WASM decoder on`);
+    assert.equal(flags.realtime_worker, true, `${rel} keeps the worker pipeline on`);
+  }
+});
+
+test('runtime opt-in still selects the experimental proxy path', () => {
+  const flags = resolveFlagsFrom({ search: '?rt_webgpu_fastpath=1' });
+  assert.equal(flags.renderer_webgpu_fastpath, true);
+  assert.equal(shouldConstructWebGpu(flags), true);
 });
 
 test('CPUThreeBackend: apply + sample matches pack; kiln and local player excluded', () => {
