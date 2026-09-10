@@ -795,7 +795,8 @@ defmodule AfterlightWeb.GameChannel do
       guest_id: socket.assigns.guest_id,
       conn_ref: socket.assigns.conn_ref,
       nickname: socket.assigns[:nickname],
-      world_room: socket.assigns[:world_room]
+      world_room: socket.assigns[:world_room],
+      corr: corr(socket)
     }
 
     {:noreply, replies} = TheaterGateway.handle(type, payload, ctx)

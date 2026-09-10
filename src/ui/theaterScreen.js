@@ -50,13 +50,20 @@ import {
   torrentErrorText,
   torrentTitle,
 } from '../../shared/torrentModel.js';
+import {
+  PLAYBACK_ACTION,
+  isSourceFatalFailure,
+  nextPlaybackAction,
+  shouldRetryPlayerReady,
+  updateProgress,
+} from './theaterPlaybackState.js';
 
 const OVERLAY_BASE = 100; // CSS px side of the untransformed overlay square
 const OVERLAY_MAX_AREA = 8_400_000; // CSS px² budget (~33MB RGBA) before the 1:1 quad fit gives; only extreme off-screen quads hit this
 const SYNC_SEEK_THRESHOLD_SEC = 1.5;
 const DRIFT_CHECK_INTERVAL_MS = 2000;
 const SDK_TIMEOUT_MS = 8000;
-const YT_UNSTARTED_GRACE_MS = 3000;
+const YT_READY_TIMEOUT_MS = 9000; // widget-API handshake bound before one rebuild
 const PLAYLIST_RESOLVE_TIMEOUT_MS = 20_000; // server fetch timeout + grace
 const PLAYLIST_PREVIEW_ROWS = 5; // titles shown before "… and N more"
 const IPTV_LISTS_KEY = 'afterlight-iptv-lists';
@@ -420,6 +427,17 @@ export class TheaterScreenUI {
     this.errorTitle = null;
     this.awaitingGesture = false; // autoplay blocked, waiting for tap
     this.lastDriftCheckMs = 0;
+    // Playback supervision (design D2): position bookkeeping that arms the
+    // stall detector when the engine stops making progress.
+    this.lastPositionSec = null;
+    this.lastProgressAt = null;
+    // Bounded playback diagnostics (design D6): recorded only when the game
+    // enables the ?debug=1 accessor; never persisted.
+    this.debugRecord = false;
+    this.debugEvents = [];
+    // One YouTube player rebuild is allowed per item when the widget-API
+    // handshake never completes (production postMessage origin race).
+    this.youtubeRetryItemId = null;
     this.loadToken = 0; // guards async engine loads against races
     this.volume = 1; // 0..1, local only — never part of shared state
     this.mixGain = 1; // local atmosphere/voice mix factor (task 4.1 D7); user volume stays untouched
@@ -505,6 +523,7 @@ export class TheaterScreenUI {
     if (!this.roomActive) {
       this.teardownEngine();
       this.loadedItemId = null; // force a reload path on reactivation
+      this.youtubeRetryItemId = null; // fresh retry budget on re-entry
       this.awaitingGesture = false;
       this.cancelTorrentResolve();
       this.torrentPick = null;
@@ -579,6 +598,34 @@ export class TheaterScreenUI {
   }
 
   /**
+   * Bounded playback diagnostics (design D6). Recording is off unless the
+   * game enables it for `?debug=1`; the ring holds the last 80 events and is
+   * never persisted or sent anywhere.
+   */
+  setDebugRecord(enabled) {
+    this.debugRecord = enabled === true;
+  }
+
+  recordPlaybackEvent(type, fields = {}) {
+    if (!this.debugRecord) return;
+    this.debugEvents.push({
+      t: Date.now(),
+      type,
+      itemId: this.state?.now?.id || null,
+      engine: this.engine?.kind || null,
+      ...fields,
+    });
+    if (this.debugEvents.length > 80) {
+      this.debugEvents.splice(0, this.debugEvents.length - 80);
+    }
+  }
+
+  /** Read-only copy of the playback event ring (empty unless ?debug=1). */
+  debugPlaybackEvents() {
+    return this.debugEvents.slice();
+  }
+
+  /**
    * Apply a server snapshot { now, queue } + the server clock at send time.
    * Idempotent: redundant calls for the same state only re-assert sync.
    */
@@ -608,6 +655,7 @@ export class TheaterScreenUI {
       if (this.engine || this.loadedItemId !== null) this.teardownEngine();
       this.loadedItemId = null;
       this.reportedForId = null;
+      this.youtubeRetryItemId = null;
       this.setOverlayState('idle');
       this.syncOverlay();
       return;
@@ -639,6 +687,8 @@ export class TheaterScreenUI {
     }
 
     if (playKey !== this.loadedPlayKey) {
+      // A different item gets a fresh handshake-retry budget.
+      if (now.id !== this.youtubeRetryItemId) this.youtubeRetryItemId = null;
       this.reportedForId = null;
       this.loadCurrent();
     } else {
@@ -832,31 +882,70 @@ export class TheaterScreenUI {
     const ts = Date.now();
     if (ts - this.lastDriftCheckMs < DRIFT_CHECK_INTERVAL_MS) return;
     this.lastDriftCheckMs = ts;
-    this.enforceSync();
+    this.enforceSync(ts);
   }
 
   /**
-   * Local-only correction: seek when |engineTime - target| > 1.5s and apply
-   * play/pause to match the shared state. NEVER sends network messages —
-   * corrections must not feed back into shared state.
+   * Local-only correction driven by the pure supervision state machine
+   * (design D2): seek when the engine drifts from the shared target, apply
+   * play/pause to match the bill, and surface the one-tap start control when
+   * the engine wants to play but cannot make progress. NEVER sends network
+   * messages — corrections must not feed back into shared state.
    */
-  enforceSync() {
+  enforceSync(nowMs = Date.now()) {
     if (!this.engine || this.engine.degraded || !this.engine.ready) return;
     const now = this.state?.now;
     if (!now) return;
+    const engineState = typeof this.engine.getState === 'function' ? this.engine.getState() : null;
     const t = this.engine.getTime ? this.engine.getTime() : null;
-    const target = this.targetPosition();
-    if (
-      Number.isFinite(t) && Number.isFinite(target)
-      && Math.abs(t - target) > SYNC_SEEK_THRESHOLD_SEC
-      && !(now.kind === 'hls' && !now.playbackUrl) // live IPTV only; prepared HLS seeks
-    ) {
-      this.engine.seek(Math.max(0, target));
+    const tracked = updateProgress(
+      { lastPositionSec: this.lastPositionSec, lastProgressAt: this.lastProgressAt },
+      t,
+      nowMs,
+    );
+    this.lastPositionSec = tracked.lastPositionSec;
+    this.lastProgressAt = tracked.lastProgressAt;
+    const target = this.targetPosition(nowMs);
+    const action = nextPlaybackAction({
+      wantPlaying: now.playing === true,
+      engineKind: this.engine.kind,
+      engineState,
+      positionSec: t,
+      targetSec: target,
+      nowMs,
+      lastProgressAt: this.lastProgressAt,
+      needsGesture: this.awaitingGesture,
+      // Live IPTV cannot seek; prepared HLS can.
+      seekAllowed: !(now.kind === 'hls' && !now.playbackUrl),
+      seekThresholdSec: SYNC_SEEK_THRESHOLD_SEC,
+    });
+    if (action !== PLAYBACK_ACTION.NONE) {
+      this.recordPlaybackEvent('sync', {
+        action,
+        engineState,
+        positionSec: Number.isFinite(t) ? Math.round(t * 10) / 10 : null,
+        targetSec: Number.isFinite(target) ? Math.round(target * 10) / 10 : null,
+      });
     }
-    if (now.playing) {
-      if (!this.awaitingGesture) this.engine.play();
-    } else {
-      this.engine.pause();
+    switch (action) {
+      case PLAYBACK_ACTION.SEEK:
+        this.engine.seek(Math.max(0, target));
+        break;
+      case PLAYBACK_ACTION.PLAY:
+        this.engine.play();
+        break;
+      case PLAYBACK_ACTION.PAUSE:
+        this.engine.pause();
+        break;
+      case PLAYBACK_ACTION.NEEDS_GESTURE:
+        this.showGestureBadge();
+        break;
+      default:
+        break;
+    }
+    // The stall is over: clear the affordance as soon as progress resumes.
+    if (this.awaitingGesture && engineState === 'playing') {
+      this.hideGestureBadge();
     }
   }
 
@@ -866,8 +955,11 @@ export class TheaterScreenUI {
     const engine = this.engine;
     this.engine = null;
     this.awaitingGesture = false;
+    this.lastPositionSec = null;
+    this.lastProgressAt = null;
     this.hideGestureBadge();
     if (engine) {
+      this.recordPlaybackEvent('engine-teardown', { engine: engine.kind });
       try {
         engine.destroy?.();
       } catch {}
@@ -933,9 +1025,12 @@ export class TheaterScreenUI {
             this.startVimeoEngine(now, token);
             break;
           default:
-            this.failItem();
+            // Unknown engine kind: not source evidence — keep the room's item
+            // and show a local problem rather than reporting it failed.
+            this.localPlaybackProblem();
         }
     }
+    this.recordPlaybackEvent('engine-start', { itemKind: now.kind, engine: resolved.engine || now.kind });
   }
 
   /** Direct <video> for file items; the same element powers HLS. */
@@ -959,6 +1054,14 @@ export class TheaterScreenUI {
       degraded: false,
       ready: false,
       getTime: () => (Number.isFinite(video.currentTime) ? video.currentTime : null),
+      // Normalized state for the supervision machine (design D2).
+      getState: () => {
+        if (video.error) return 'error';
+        if (video.ended) return 'ended';
+        if (!video.paused) return video.readyState >= 3 ? 'playing' : 'buffering';
+        if (video.readyState >= 1) return 'paused';
+        return 'loading';
+      },
       seek: (sec) => {
         try {
           video.currentTime = sec;
@@ -1002,7 +1105,7 @@ export class TheaterScreenUI {
     });
     video.addEventListener('ended', () => this.reportEnded());
     video.addEventListener('error', () => {
-      if (this.engine === engine) this.failItem();
+      if (this.engine === engine) this.reportEngineFailure({ engineKind: engine.kind, videoError: true });
     });
 
     const begin = () => {
@@ -1040,7 +1143,7 @@ export class TheaterScreenUI {
           hls.destroy();
         } catch {}
         if (engine.hls === hls) engine.hls = null;
-        this.failItem();
+        this.reportEngineFailure({ engineKind: 'hls', fatal: true });
       });
       hls.loadSource(item.url);
       hls.attachMedia(video);
@@ -1055,7 +1158,9 @@ export class TheaterScreenUI {
       YT = await ensureYouTubeApi();
     } catch (err) {
       console.warn('theater: YouTube API unavailable', err);
-      if (token === this.loadToken) this.failItem();
+      // The player script failing to load is local to this client (ad-blocker,
+      // network, region): show it here, never advance the room's bill.
+      if (token === this.loadToken) this.localPlaybackProblem();
       return;
     }
     if (token !== this.loadToken) return;
@@ -1068,11 +1173,10 @@ export class TheaterScreenUI {
       mount,
       degraded: false,
       ready: false,
-      unstartedTimer: null,
     };
     this.engine = engine;
 
-    const getState = () => {
+    const playerState = () => {
       try {
         return engine.player?.getPlayerState?.();
       } catch {
@@ -1101,6 +1205,10 @@ export class TheaterScreenUI {
         events: {
           onReady: () => {
             if (this.engine !== engine || token !== this.loadToken) return;
+            if (engine.readyTimer) {
+              clearTimeout(engine.readyTimer);
+              engine.readyTimer = null;
+            }
             engine.ready = true;
             engine.player = player;
             // The player knows the real title for free — cache it so the
@@ -1123,15 +1231,6 @@ export class TheaterScreenUI {
                 player.playVideo();
               } catch {}
             }
-            // Autoplay-block watchdog: if still unstarted ~3s after ready,
-            // surface the tap-to-start badge.
-            engine.unstartedTimer = setTimeout(() => {
-              engine.unstartedTimer = null;
-              if (this.engine !== engine) return;
-              const st = getState();
-              const wanted = this.state?.now?.playing !== false;
-              if (wanted && (st === -1 || st === 5)) this.showGestureBadge();
-            }, YT_UNSTARTED_GRACE_MS);
           },
           onStateChange: (e) => {
             if (this.engine !== engine) return;
@@ -1145,18 +1244,47 @@ export class TheaterScreenUI {
               this.reportEnded();
             }
           },
-          onError: () => {
-            if (this.engine === engine) this.failItem();
+          onError: (e) => {
+            if (this.engine !== engine) return;
+            // 100/101/150 mean the source itself cannot be embedded anywhere;
+            // ambiguous codes stay local so one browser cannot stop the room.
+            this.reportEngineFailure({ engineKind: 'youtube', code: e?.data });
           },
         },
       });
     } catch (err) {
       console.warn('theater: YouTube player creation failed', err);
-      if (token === this.loadToken) this.failItem();
+      if (token === this.loadToken) this.localPlaybackProblem();
       return;
     }
 
     engine.player = player;
+    // Handshake watchdog: the widget API posts to the player iframe before
+    // its cross-origin navigation commits on slow/blocked production loads
+    // (SecurityError, origin = app instead of youtube.com) and the API can
+    // die before onReady. A fresh player usually completes it; ONE rebuild
+    // per item is allowed, then the failure stays local.
+    engine.readyTimer = setTimeout(() => {
+      engine.readyTimer = null;
+      if (this.engine !== engine || token !== this.loadToken || engine.ready) return;
+      this.recordPlaybackEvent('yt-ready-timeout');
+      const retry = shouldRetryPlayerReady({
+        ready: false,
+        waitedMs: YT_READY_TIMEOUT_MS,
+        timeoutMs: YT_READY_TIMEOUT_MS,
+        alreadyRetried: this.youtubeRetryItemId === item.id,
+      });
+      if (retry) {
+        this.youtubeRetryItemId = item.id;
+        this.teardownEngine();
+        this.loadedItemId = null;
+        this.loadedPlayKey = null;
+        this.setOverlayState('loading');
+        this.loadCurrent();
+      } else {
+        this.localPlaybackProblem();
+      }
+    }, YT_READY_TIMEOUT_MS);
     engine.getTime = () => {
       try {
         const t = player.getCurrentTime?.();
@@ -1164,6 +1292,18 @@ export class TheaterScreenUI {
       } catch {
         return null;
       }
+    };
+    // Normalized state for the supervision machine (design D2): a player that
+    // starts and is then paused by policy is as stalled as one that never
+    // started, and both must surface the start control.
+    engine.getState = () => {
+      const st = playerState();
+      if (st === 1) return 'playing';
+      if (st === 2) return 'paused';
+      if (st === 3) return 'buffering';
+      if (st === 0) return 'ended';
+      if (st === 5) return 'cued';
+      return engine.ready ? 'unstarted' : 'loading';
     };
     engine.seek = (sec) => {
       try {
@@ -1184,9 +1324,9 @@ export class TheaterScreenUI {
       applyVolume(v);
     };
     engine.destroy = () => {
-      if (engine.unstartedTimer) {
-        clearTimeout(engine.unstartedTimer);
-        engine.unstartedTimer = null;
+      if (engine.readyTimer) {
+        clearTimeout(engine.readyTimer);
+        engine.readyTimer = null;
       }
       try {
         player.destroy?.();
@@ -1216,7 +1356,9 @@ export class TheaterScreenUI {
       degraded: true,
       ready: true,
       time: null,
+      state: 'loading', // normalized for the supervision machine
       getTime: () => (engine.degraded ? null : engine.time),
+      getState: () => (engine.degraded ? null : engine.state),
       seek: (sec) => {
         try {
           engine.player?.setCurrentTime?.(sec);
@@ -1257,16 +1399,26 @@ export class TheaterScreenUI {
       engine.degraded = false;
       player.on('playing', () => {
         if (this.engine !== engine) return;
+        engine.state = 'playing';
         this.hideGestureBadge();
         this.setOverlayState('playing');
+      });
+      player.on('pause', () => {
+        if (this.engine === engine) engine.state = 'paused';
+      });
+      player.on('bufferstart', () => {
+        if (this.engine === engine) engine.state = 'buffering';
       });
       player.on('timeupdate', (data) => {
         if (this.engine !== engine) return;
         engine.time = Number.isFinite(data?.seconds) ? data.seconds : engine.time;
       });
       player.on('ended', () => this.reportEnded());
-      player.on('error', () => {
-        if (this.engine === engine) this.failItem();
+      player.on('error', (data) => {
+        if (this.engine !== engine) return;
+        // Only privacy/not-found evidence is source-fatal; transient and
+        // network errors stay local to this client.
+        this.reportEngineFailure({ engineKind: 'vimeo', name: data?.name });
       });
       const target = this.targetPosition();
       if (target > 0.5) {
@@ -1358,10 +1510,27 @@ export class TheaterScreenUI {
     if (this.dom?.playBadge) this.dom.playBadge.hidden = true;
   }
 
+  /**
+   * The player's gesture: the browser only lets playback start (or resume)
+   * from a real user activation, so this is also the recovery path for a
+   * blocked player. Seek to the corrected shared position first — the item
+   * kept advancing while this client was stalled — then start.
+   */
   resumeFromGesture() {
     this.hideGestureBadge();
+    this.recordPlaybackEvent('gesture');
     const engine = this.engine;
     if (!engine) return;
+    const now = this.state?.now;
+    const target = this.targetPosition();
+    const seekAllowed = !(now?.kind === 'hls' && !now?.playbackUrl);
+    if (seekAllowed && Number.isFinite(target) && target > 0.5) {
+      try {
+        engine.seek(Math.max(0, target));
+      } catch {}
+    }
+    this.lastPositionSec = null;
+    this.lastProgressAt = Date.now();
     if (engine.video) this.playVideoElement(engine.video);
     else engine.play?.();
   }
@@ -1370,6 +1539,32 @@ export class TheaterScreenUI {
 
   reportEnded() {
     this.sendItemReport('ended');
+  }
+
+  /**
+   * Failure taxonomy gate (design D3): only evidence that the SOURCE is
+   * unplayable advances the shared bill; client-local blocks show a local
+   * message and leave the room's item alone.
+   */
+  reportEngineFailure(failure = {}) {
+    if (isSourceFatalFailure(failure)) {
+      this.failItem();
+    } else {
+      this.localPlaybackProblem();
+    }
+  }
+
+  /**
+   * A playback restriction local to this client (autoplay policy, blocked
+   * player script, ambiguous player error). No ended/failed report is sent,
+   * so the shared bill stays authoritative for everyone else. The next item
+   * or a reload clears the local state.
+   */
+  localPlaybackProblem(title = null) {
+    const now = this.state?.now;
+    this.errorTitle = title || (now && this.titleFor(now)) || 'the current item';
+    this.teardownEngine();
+    this.setOverlayState('error');
   }
 
   failItem() {
@@ -1384,22 +1579,36 @@ export class TheaterScreenUI {
     const id = this.state?.now?.id;
     if (!id || this.reportedForId === id) return;
     this.reportedForId = id;
+    this.recordPlaybackEvent('report', { report: op, itemId: id });
     this.sendControl({ op, itemId: id });
   }
 
   // --- Network wrappers (use the net client's helpers when present) ---
 
+  /**
+   * A new action supersedes the previous rejection message: clear an error
+   * still showing in the booth, so a successful retry does not leave stale
+   * text, and a fresh rejection can replace it.
+   */
+  clearActionError() {
+    const el = this.dom?.addStatus;
+    if (el && el.classList.contains('is-error')) this.setAddStatus('');
+  }
+
   sendControl(payload) {
+    this.clearActionError();
     if (typeof this.net?.sendTheaterControl === 'function') this.net.sendTheaterControl(payload);
     else this.net?.send?.(MSG_TYPES.THEATER_CONTROL, payload);
   }
 
   sendQueue(payload) {
+    this.clearActionError();
     if (typeof this.net?.sendTheaterQueue === 'function') this.net.sendTheaterQueue(payload);
     else this.net?.send?.(MSG_TYPES.THEATER_QUEUE, payload);
   }
 
   sendChannel(url, title) {
+    this.clearActionError();
     if (typeof this.net?.sendTheaterChannel === 'function') this.net.sendTheaterChannel(url, title);
     else this.net?.send?.(MSG_TYPES.THEATER_CHANNEL, { url, title });
   }
@@ -1876,7 +2085,10 @@ export class TheaterScreenUI {
    * The server's rejections arrive as a bare error message. While the
    * player waits on a resolve (playlist or torrent) it belongs in the
    * add-status line, and the pending wait ends — the answer, though
-   * negative, has arrived.
+   * negative, has arrived. Theater action rejections carry the additive
+   * `op` tag (fix-theater-second-player-playback D5): they are surfaced in
+   * the booth even when no resolve is pending, so a refused add/play-now is
+   * never a silent no-op; untagged legacy errors keep the old behavior.
    */
   applyServerErrorMessage(msg) {
     const text = typeof msg?.message === 'string' ? msg.message : '';
@@ -1889,6 +2101,10 @@ export class TheaterScreenUI {
     if (this.torrentPending) {
       this.cancelTorrentResolve();
       if (this.roomActive) this.setAddStatus(text, true);
+      return;
+    }
+    if (typeof msg?.op === 'string' && msg.op && this.roomActive) {
+      this.setAddStatus(text, true);
     }
   }
 

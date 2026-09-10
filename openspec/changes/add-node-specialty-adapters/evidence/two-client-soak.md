@@ -1,5 +1,5 @@
 # P7 task 6.3 — wire-level specialty soak (partial)
-Recorded: 2026-09-07T03:22:55.281Z
+Recorded: 2026-09-10T15:19:06.883Z
 
 Covered in this pass:
 - Two gateway clients in theater; shared `theater_state` on add/playNow/pause/seek/resume

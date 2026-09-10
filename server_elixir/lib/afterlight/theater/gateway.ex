@@ -9,6 +9,8 @@ defmodule Afterlight.Theater.Gateway do
   alias Afterlight.Theater
   alias Afterlight.Theater.{OutboxRelay, PlaylistResolve, SessionTracker}
 
+  require Logger
+
   @theater_room "theater"
   @queue_ops ~w(add addMany remove playNow skip clear channel)
   @control_ops ~w(pause resume seek ended failed)
@@ -23,30 +25,41 @@ defmodule Afterlight.Theater.Gateway do
     conn_ref = ctx[:conn_ref] || ctx["conn_ref"]
     nickname = ctx[:nickname] || ctx["nickname"] || player_id
     wire_room = ctx[:world_room][:wire_id] || ctx[:world_room]["wire_id"]
+    corr = ctx[:corr] || ctx["corr"] || "unknown"
 
     cond do
       wire_room != @theater_room ->
-        {:noreply, [error("You need to be inside The Orpheum to reach the projector.")]}
+        log_rejection(corr, action_op(type, payload), nil, "wrong_room")
+
+        {:noreply,
+         [error("You need to be inside The Orpheum to reach the projector.", op_tag(type, payload))]}
 
       type == "theater_playlist_resolve" ->
         handle_playlist_resolve(payload, player_id, conn_ref)
 
       type == "theater_channel" ->
         action = channel_action(payload)
-        dispatch_action(action, player_id, conn_ref, nickname, nil)
+        dispatch_action(action, player_id, conn_ref, nickname, nil, corr)
 
       type == "theater_queue" ->
-        dispatch_action(payload, player_id, conn_ref, nickname, nil)
+        dispatch_action(payload, player_id, conn_ref, nickname, nil, corr)
 
       type == "theater_control" ->
-        dispatch_action(payload, player_id, conn_ref, nickname, session_key(player_id, conn_ref))
+        dispatch_action(
+          payload,
+          player_id,
+          conn_ref,
+          nickname,
+          session_key(player_id, conn_ref),
+          corr
+        )
 
       true ->
         {:noreply, [error("The projector ignores that.")]}
     end
   end
 
-  defp dispatch_action(%{"op" => op} = action, player_id, conn_ref, nickname, session_key)
+  defp dispatch_action(%{"op" => op} = action, player_id, conn_ref, nickname, session_key, corr)
        when op in @queue_ops or op in @control_ops do
     receipt_id = mint_receipt_id()
 
@@ -67,12 +80,15 @@ defmodule Afterlight.Theater.Gateway do
         {:noreply, replies}
 
       {:error, reason} when is_binary(reason) ->
-        {:noreply, [error(Theater.error_text(reason))]}
+        log_rejection(corr, op, receipt_id, reason)
+        {:noreply, [error(Theater.error_text(reason), %{"op" => op, "requestId" => receipt_id})]}
     end
   end
 
-  defp dispatch_action(_action, _player_id, _conn_ref, _nickname, _session_key) do
-    {:noreply, [error(Theater.error_text("invalid_action"))]}
+  defp dispatch_action(action, _player_id, _conn_ref, _nickname, _session_key, corr) do
+    op = if is_map(action) and is_binary(action["op"]), do: action["op"], else: nil
+    log_rejection(corr, op, nil, "invalid_action")
+    {:noreply, [error(Theater.error_text("invalid_action"), op_tag_for(op))]}
   end
 
   defp handle_playlist_resolve(payload, player_id, _conn_ref) do
@@ -151,7 +167,41 @@ defmodule Afterlight.Theater.Gateway do
     "srv_" <> Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
   end
 
-  defp error(message), do: {"error", %{"message" => message}}
+  # Action rejections carry the additive `op` tag so the acting client can
+  # attribute and surface them (fix-theater-second-player-playback D5);
+  # `requestId` echoes the minted receipt id for correlation. Untagged errors
+  # keep their legacy meaning, and older clients simply ignore the new keys.
+  defp error(message, extras \\ %{}) do
+    {"error", Map.merge(%{"message" => message}, extras)}
+  end
+
+  defp op_tag(type, payload) do
+    case action_op(type, payload) do
+      nil -> %{}
+      op -> %{"op" => op}
+    end
+  end
+
+  defp action_op(type, payload) do
+    cond do
+      type == "theater_channel" -> "channel"
+      type == "theater_playlist_resolve" -> "playlist_resolve"
+      is_map(payload) and is_binary(payload["op"]) and payload["op"] != "" -> payload["op"]
+      true -> nil
+    end
+  end
+
+  defp op_tag_for(op) when is_binary(op) and op != "", do: %{"op" => op}
+  defp op_tag_for(_op), do: %{}
+
+  # One bounded log line per refusal (design D6): correlation id, action op,
+  # and receipt for support/debugging — never tokens, nicknames, or payloads.
+  defp log_rejection(corr, op, receipt_id, reason) do
+    Logger.info(
+      "theater action rejected corr=#{corr} op=#{op || "unknown"} " <>
+        "receipt=#{receipt_id || "-"} reason=#{reason}"
+    )
+  end
 
   defp maybe_prepare_items(commit) do
     theater = commit[:theater] || commit["theater"] || %{}

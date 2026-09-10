@@ -760,6 +760,9 @@ function refreshChallengeInvite() {
 // Opt-in debug introspection (?debug=1): read-only accessors for automated
 // gate verification. Never enabled by default; exposes only local state.
 if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
+  // Theater playback diagnostics (fix-theater-second-player-playback D6):
+  // the ring is only collected and exposed behind ?debug=1.
+  theaterUI.setDebugRecord(true);
   window.__afterlight = {
     player: () => [player.position.x, player.position.z],
     facing: () => player.rotation.y,
@@ -792,6 +795,7 @@ if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
       supports: net.supportsActivities,
       open: net.transport?.isOpen?.() ?? null,
     }),
+    theaterPlayback: () => theaterUI.debugPlaybackEvents(),
     tp: (x, z) => {
       player.position.set(Number(x) || 0, 0, Number(z) || 0);
       target = null;

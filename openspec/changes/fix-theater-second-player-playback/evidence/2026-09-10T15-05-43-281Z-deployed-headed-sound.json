@@ -1,0 +1,591 @@
+{
+  "label": "deployed-headed-sound",
+  "app": "https://game-beige-pi.vercel.app/?room=theater&debug=1",
+  "gateway": "<PRODUCTION_BACKEND_URL>",
+  "headed": true,
+  "autoplayStrict": true,
+  "soundRequested": "on",
+  "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "startedAt": "2026-09-10T15:03:00.932Z",
+  "tag": "gate-mtvnpp76",
+  "billProbe": {
+    "itemIds": [
+      {
+        "t": 1,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      },
+      {
+        "t": 2,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      },
+      {
+        "t": 3,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      },
+      {
+        "t": 4,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      },
+      {
+        "t": 5,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      },
+      {
+        "t": 6,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      },
+      {
+        "t": 7,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      },
+      {
+        "t": 8,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      },
+      {
+        "t": 9,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      },
+      {
+        "t": 10,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      },
+      {
+        "t": 11,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      },
+      {
+        "t": 12,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      },
+      {
+        "t": 13,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      },
+      {
+        "t": 14,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      },
+      {
+        "t": 15,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      },
+      {
+        "t": 16,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      },
+      {
+        "t": 17,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      },
+      {
+        "t": 18,
+        "nowId": null,
+        "nowTitle": null,
+        "playing": null
+      }
+    ],
+    "advances": [],
+    "originalNow": null,
+    "soundLabel": "♫  Sound on",
+    "finalNow": null
+  },
+  "A": {
+    "name": "A-observer",
+    "samples": [
+      {
+        "t": 1,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 2,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 3,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 4,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 5,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 6,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 7,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 8,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 9,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 10,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 11,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 12,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 13,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 14,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 15,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 16,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 17,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 18,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫ Sound off"
+      }
+    ]
+  },
+  "B": {
+    "name": "B-actor",
+    "samples": [
+      {
+        "t": 1,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      },
+      {
+        "t": 2,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+          "warn: NetworkClient transport error: Failed to fetch"
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      },
+      {
+        "t": 3,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+          "warn: NetworkClient transport error: Failed to fetch"
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      },
+      {
+        "t": 4,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+          "warn: NetworkClient transport error: Failed to fetch"
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      },
+      {
+        "t": 5,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+          "warn: NetworkClient transport error: Failed to fetch"
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      },
+      {
+        "t": 6,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+          "warn: NetworkClient transport error: Failed to fetch"
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      },
+      {
+        "t": 7,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+          "warn: NetworkClient transport error: Failed to fetch"
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      },
+      {
+        "t": 8,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+          "warn: NetworkClient transport error: Failed to fetch"
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      },
+      {
+        "t": 9,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+          "warn: NetworkClient transport error: Failed to fetch"
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      },
+      {
+        "t": 10,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+          "warn: NetworkClient transport error: Failed to fetch"
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      },
+      {
+        "t": 11,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+          "warn: NetworkClient transport error: Failed to fetch"
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      },
+      {
+        "t": 12,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+          "warn: NetworkClient transport error: Failed to fetch"
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      },
+      {
+        "t": 13,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+          "warn: NetworkClient transport error: Failed to fetch"
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      },
+      {
+        "t": 14,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+          "warn: NetworkClient transport error: Failed to fetch"
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      },
+      {
+        "t": 15,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+          "warn: NetworkClient transport error: Failed to fetch"
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      },
+      {
+        "t": 16,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+          "warn: NetworkClient transport error: Failed to fetch"
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      },
+      {
+        "t": 17,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+          "warn: NetworkClient transport error: Failed to fetch"
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      },
+      {
+        "t": 18,
+        "badge": false,
+        "caption": "",
+        "cls": "ts-state-idle",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+          "warn: NetworkClient transport error: Failed to fetch"
+        ],
+        "media": null,
+        "sent": [],
+        "sound": "♫  Sound on"
+      }
+    ]
+  },
+  "errors": [
+    "A transport never opened",
+    "B transport never opened"
+  ],
+  "actionAt": "2026-09-10T15:05:20.688Z"
+}

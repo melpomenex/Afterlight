@@ -1,0 +1,570 @@
+{
+  "label": "local-baseline",
+  "app": "http://localhost:5173/?room=theater&debug=1",
+  "gateway": "http://localhost:4000",
+  "headed": false,
+  "autoplayStrict": false,
+  "soundRequested": "off",
+  "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "startedAt": "2026-09-10T14:55:38.401Z",
+  "tag": "gate-mtvng72c",
+  "billProbe": {
+    "itemIds": [
+      {
+        "t": 1,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      },
+      {
+        "t": 2,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      },
+      {
+        "t": 3,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      },
+      {
+        "t": 4,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      },
+      {
+        "t": 5,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      },
+      {
+        "t": 6,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      },
+      {
+        "t": 7,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      },
+      {
+        "t": 8,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      },
+      {
+        "t": 9,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      },
+      {
+        "t": 10,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      },
+      {
+        "t": 11,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      },
+      {
+        "t": 12,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      },
+      {
+        "t": 13,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      },
+      {
+        "t": 14,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      },
+      {
+        "t": 15,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      },
+      {
+        "t": 16,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      },
+      {
+        "t": 17,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      },
+      {
+        "t": 18,
+        "nowId": "itm_mtvngobx_x05i",
+        "nowTitle": "A YouTube video",
+        "playing": true
+      }
+    ],
+    "advances": [],
+    "originalNow": null,
+    "finalNow": null
+  },
+  "A": {
+    "name": "A-observer",
+    "samples": [
+      {
+        "t": 1,
+        "badge": false,
+        "caption": "Warming up the projector… Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-loading",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 2,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 3,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 4,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 5,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 6,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 7,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 8,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 9,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 10,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 11,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 12,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 13,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 14,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 15,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 16,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 17,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 18,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      }
+    ]
+  },
+  "B": {
+    "name": "B-actor",
+    "samples": [
+      {
+        "t": 1,
+        "badge": false,
+        "caption": "Warming up the projector… Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-loading",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 2,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 3,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 4,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 5,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 6,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 7,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 8,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 9,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 10,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 11,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 12,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 13,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 14,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 15,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 16,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 17,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      },
+      {
+        "t": 18,
+        "badge": false,
+        "caption": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "cls": "ts-state-playing",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "media": "IFRAME",
+        "sent": [],
+        "sound": "♫ Sound off"
+      }
+    ]
+  },
+  "errors": [],
+  "actionAt": "2026-09-10T14:55:58.509Z"
+}

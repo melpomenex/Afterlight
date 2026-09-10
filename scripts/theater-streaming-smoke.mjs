@@ -124,7 +124,12 @@ await addAndRemove('hls', 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8');
   const url = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
   const beforeId = bill()?.now?.id;
   channel.push('theater_channel', { url, title: `${TAG} iptv-flip` });
-  const item = await waitFor(() => bill()?.now?.url === url, 5000);
+  // waitFor returns the condition's value: return the live item so the
+  // assertion (and the cleanup below) can read its id/kind.
+  const item = await waitFor(() => {
+    const current = bill()?.now;
+    return current?.url === url ? current : null;
+  }, 5000);
   record(
     'iptv: theater_channel commits hls now',
     !!item && item.kind === 'hls',

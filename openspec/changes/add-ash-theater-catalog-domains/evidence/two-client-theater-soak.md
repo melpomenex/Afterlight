@@ -1,5 +1,5 @@
 # P5 task 9.2 — two-client theater wire soak
-Recorded: 2026-09-07T03:22:55.280Z
+Recorded: 2026-09-10T15:19:06.881Z
 
 - PASS two-client add broadcasts theater_state to both
 - PASS playNow promotes queued item

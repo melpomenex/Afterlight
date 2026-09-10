@@ -53,12 +53,32 @@ defmodule Afterlight.Theater.GatewayTest do
     assert snapshot["now"]["id"] == theater["now"]["id"]
   end
 
-  test "theater_channel outside the theater is refused" do
+  test "theater_channel outside the theater is refused with an op tag" do
     bad_ctx = Map.put(ctx(), :world_room, %{wire_id: "market"})
 
-    {:noreply, [{"error", %{"message" => message}}]} =
+    {:noreply, [{"error", frame}]} =
       Gateway.handle("theater_channel", %{"url" => @hls}, bad_ctx)
 
-    assert message =~ "Orpheum"
+    assert frame["message"] =~ "Orpheum"
+    assert frame["op"] == "channel"
+  end
+
+  test "a rejected theater action carries op and a minted requestId" do
+    {:noreply, [{"error", frame}]} =
+      Gateway.handle("theater_queue", %{"op" => "add", "url" => "not a url"}, ctx())
+
+    assert frame["op"] == "add"
+    assert is_binary(frame["requestId"])
+    assert frame["requestId"] != ""
+    assert frame["message"] =~ "not something the projector can play"
+    assert Theater.snapshot(@room)["now"] == nil
+  end
+
+  test "an unknown theater op is refused with the invalid-action message" do
+    {:noreply, [{"error", frame}]} =
+      Gateway.handle("theater_queue", %{"op" => "explode"}, ctx())
+
+    assert frame["op"] == "explode"
+    assert frame["message"] =~ "does not understand that request"
   end
 end
