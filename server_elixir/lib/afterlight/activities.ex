@@ -87,6 +87,10 @@ defmodule Afterlight.Activities do
               not Afterlight.Activities.Snowboard.enabled?() ->
             {:error, :race_unavailable}
 
+          Map.get(act_def, "type") == Afterlight.Activities.DownhillMayhem.SessionPolicy.activity_type() and
+              not Afterlight.Activities.DownhillMayhem.enabled?() ->
+            {:error, :race_unavailable}
+
           true ->
             args =
             %{

@@ -1148,7 +1148,8 @@ defmodule AfterlightWeb.GameChannel do
                       conn_ref: socket.assigns.conn_ref,
                       channel_pid: self(),
                       room_key: room_key,
-                      room_epoch: epoch
+                      room_epoch: epoch,
+                      nickname: socket.assigns[:nickname]
                     }
 
                     case Activities.command(session_pid, type, payload, ctx) do
@@ -1301,6 +1302,7 @@ defmodule AfterlightWeb.GameChannel do
              "activity_join",
              "activity_leave",
              "activity_ready",
+             "activity_config",
              "activity_challenge",
              "activity_challenge_respond",
              "activity_challenge_mute",

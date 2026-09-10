@@ -31,6 +31,11 @@ config :afterlight,
 # operators enable via AFTERLIGHT_SNOWBOARD_ENABLED=1 in the runtime environment.
 config :afterlight, :snowboard_enabled, false
 
+# Downhill Mayhem admission is disabled by default
+# (integrate-multiplayer-downhill-mayhem-arcade D20); operators enable via
+# AFTERLIGHT_DOWNHILL_MAYHEM_ENABLED=1 in the runtime environment.
+config :afterlight, :downhill_mayhem_enabled, false
+
 config :afterlight, :conferencing,
   enabled: false,
   grant_ttl_secs: 300,

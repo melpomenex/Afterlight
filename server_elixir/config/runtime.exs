@@ -178,3 +178,14 @@ snowboard_flag =
 
 config :afterlight, snowboard_enabled: snowboard_flag
 
+# Downhill Mayhem admission flag (integrate-multiplayer-downhill-mayhem-arcade
+# D20): production stays closed unless AFTERLIGHT_DOWNHILL_MAYHEM_ENABLED=1;
+# local Mix dev enables it so the Orpheum cabinet is actually joinable.
+downhill_mayhem_flag =
+  case System.get_env("AFTERLIGHT_DOWNHILL_MAYHEM_ENABLED") do
+    v when v in ["1", "true"] -> true
+    v when v in ["0", "false"] -> false
+    _ -> config_env() == :dev
+  end
+
+config :afterlight, downhill_mayhem_enabled: downhill_mayhem_flag
