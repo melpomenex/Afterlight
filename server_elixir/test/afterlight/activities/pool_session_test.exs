@@ -124,6 +124,29 @@ defmodule Afterlight.Activities.PoolSessionTest do
     {{0, lease0}, {1, lease1}}
   end
 
+  test "solo lobby practice shoots without recording a match and resets when opponent readies", ctx do
+    session = start_pool_session(ctx)
+    p0 = make_player("practice")
+    assert {:ok, %{lease: lease}} = GenServer.call(session, {:command, "activity_join", %{"role" => "play"}, p0})
+    assert {:ok, _} = GenServer.call(session, {:command, "activity_ready", %{"ready" => true}, p0})
+    payload = %{"sessionId" => Activities.session_id(session), "lease" => lease, "seq" => 1,
+      "controls" => %{"action" => "shoot", "angle" => 0.0, "power" => 0.5}}
+    assert {:ok, %{result: "input_accepted"}} = GenServer.call(session, {:command, "activity_input", payload, p0})
+    before = :sys.get_state(session).sim_state["physics"]["balls"]["0"]["x"]
+    Process.sleep(80)
+    state = :sys.get_state(session)
+    assert state.status == :lobby
+    assert state.sim_state["physics"]["balls"]["0"]["x"] != before
+    assert state.match_id == nil
+    p1 = make_player("opponent")
+    assert {:ok, _} = GenServer.call(session, {:command, "activity_join", %{"role" => "play"}, p1})
+    assert {:ok, _} = GenServer.call(session, {:command, "activity_ready", %{"ready" => true}, p1})
+    state = :sys.get_state(session)
+    assert state.status == :in_progress
+    assert state.sim_state["status"] == "aiming"
+    assert state.sim_state["physics"]["settled"]
+  end
+
   describe "Task 4.4: shot validation and input acknowledgments" do
     test "accepts and acknowledges a valid shot from current turn player", ctx do
       session = start_pool_session(ctx)

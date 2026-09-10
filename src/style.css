@@ -2142,6 +2142,11 @@ body[data-hud-context='social'] [data-hud-legacy] { display: none !important; }
   font-weight: 600;
   color: #ffffff;
 }
+.pool-help {
+  font: 10px 'Space Mono', monospace;
+  letter-spacing: 0.04em;
+  color: #c6c3b2;
+}
 .pool-foul {
   font-size: 12px;
   color: #ff6b6b;

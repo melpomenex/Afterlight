@@ -20,6 +20,7 @@ import { createParticipationController } from './participation.js';
 export function createActivityRuntime({
   net = null,
   getActiveCamera = null,
+  getCanvas = null,
   getPlayer = null,
   participation: injectedParticipation = null,
   applyAnchor = null,
@@ -127,6 +128,7 @@ export function createActivityRuntime({
             generation: activeGeneration,
             roomId,
             getActiveCamera: seam.getActiveCamera || getActiveCamera,
+            getCanvas: seam.getCanvas || getCanvas,
             getPlayer: seam.getPlayer || getPlayer,
             setActivityCamera: seam.setActivityCamera || setActivityCamera,
             clearActivityCamera: seam.clearActivityCamera || clearActivityCamera,

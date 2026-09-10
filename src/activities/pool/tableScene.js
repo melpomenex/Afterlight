@@ -18,6 +18,8 @@ import {
   HALF_LENGTH,
   HALF_WIDTH,
   BALL_RADIUS,
+  CORNER_POCKET_RADIUS,
+  SIDE_POCKET_RADIUS,
   POCKETS,
 } from '../../../shared/pool/physics.js';
 import { getBallTexture } from './ballTextures.js';
@@ -60,6 +62,7 @@ export function createPoolTableScene({
     color: '#0a0a0c', // Dark shadow leather pocket interior
     roughness: 0.95,
     metalness: 0.0,
+    side: THREE.DoubleSide, // visible from above through the pocket mouth
   });
 
   const diamondMat = new THREE.MeshStandardMaterial({
@@ -93,10 +96,38 @@ export function createPoolTableScene({
   }
 
   // --- 1. Table Bed (Slate & Worsted Wool Cloth) ---
-  // Length 2.24m (X: -1.12 to 1.12), Width 1.12m (Z: -0.56 to 0.56)
-  const bedGeo = regGeo(new THREE.BoxGeometry(TABLE_LENGTH, 0.04, TABLE_WIDTH));
+  // Length 2.24m (X: -1.12 to 1.12), Width 1.12m (Z: -0.56 to 0.56).
+  // The cloth is extruded from a shape whose outline notches a real opening at
+  // each pocket mouth (semicircular side notches, quarter-arc corners), so
+  // balls have a visible hole to fall into. Mouths stay slightly wider than
+  // the physics capture radii so capture always happens over an opening.
+  const cornerMouthR = CORNER_POCKET_RADIUS + 0.01; // 0.075
+  const sideMouthR = SIDE_POCKET_RADIUS + 0.008; // 0.068
+
+  const clothShape = new THREE.Shape();
+  clothShape.moveTo(-HALF_LENGTH + cornerMouthR, -HALF_WIDTH);
+  clothShape.lineTo(-sideMouthR, -HALF_WIDTH);
+  clothShape.absarc(0, -HALF_WIDTH, sideMouthR, Math.PI, 0, true);
+  clothShape.lineTo(HALF_LENGTH - cornerMouthR, -HALF_WIDTH);
+  clothShape.absarc(HALF_LENGTH, -HALF_WIDTH, cornerMouthR, Math.PI, Math.PI / 2, true);
+  clothShape.lineTo(HALF_LENGTH, HALF_WIDTH - cornerMouthR);
+  clothShape.absarc(HALF_LENGTH, HALF_WIDTH, cornerMouthR, Math.PI * 1.5, Math.PI, true);
+  clothShape.lineTo(sideMouthR, HALF_WIDTH);
+  clothShape.absarc(0, HALF_WIDTH, sideMouthR, 0, Math.PI, true);
+  clothShape.lineTo(-HALF_LENGTH + cornerMouthR, HALF_WIDTH);
+  clothShape.absarc(-HALF_LENGTH, HALF_WIDTH, cornerMouthR, 0, Math.PI * 1.5, true);
+  clothShape.lineTo(-HALF_LENGTH, -HALF_WIDTH + cornerMouthR);
+  clothShape.absarc(-HALF_LENGTH, -HALF_WIDTH, cornerMouthR, Math.PI / 2, 0, true);
+  clothShape.closePath();
+
+  const bedGeo = regGeo(new THREE.ExtrudeGeometry(clothShape, {
+    depth: 0.04,
+    bevelEnabled: false,
+    curveSegments: 24,
+  }));
+  bedGeo.rotateX(-Math.PI / 2); // extrusion runs upward in Y; shape plane -> world XZ
   const bedMesh = new THREE.Mesh(bedGeo, clothMat);
-  bedMesh.position.set(0, 0.76, 0);
+  bedMesh.position.set(0, 0.74, 0); // spans 0.74..0.78; playing surface stays at 0.78
   bedMesh.receiveShadow = true;
   rootGroup.add(bedMesh);
 
@@ -186,17 +217,39 @@ export function createPoolTableScene({
   }
 
   // --- 5. Six Pocket Castings & Drop Pockets ---
-  const pocketRingGeo = regGeo(new THREE.CylinderGeometry(0.08, 0.08, 0.048, 16));
-  const pocketHoleGeo = regGeo(new THREE.CylinderGeometry(0.062, 0.055, 0.06, 16));
+  // Each pocket is a brass torus casting ringing the mouth in the cloth,
+  // with a tapered dark leather well hanging below the slate so the mouth
+  // reads as a real opening with depth, not a painted circle.
+  const pocketKinds = [
+    { match: 'corner', mouthR: cornerMouthR },
+    { match: 'side', mouthR: sideMouthR },
+  ];
+  const wellDepth = 0.13; // from just under the slate (0.74) down to 0.61
+
+  for (const kind of pocketKinds) {
+    kind.wellGeo = regGeo(new THREE.CylinderGeometry(
+      kind.mouthR * 0.98, kind.mouthR * 0.72, wellDepth, 20, 1, true,
+    ));
+    kind.capGeo = regGeo(new THREE.CircleGeometry(kind.mouthR * 0.72, 20));
+    kind.castingGeo = regGeo(new THREE.TorusGeometry(kind.mouthR + 0.004, 0.011, 12, 28));
+  }
 
   for (const p of POCKETS) {
-    const ring = new THREE.Mesh(pocketRingGeo, brassMat);
-    ring.position.set(p.x, railY, p.z);
-    rootGroup.add(ring);
+    const kind = pocketKinds.find((k) => p.id.startsWith(k.match));
 
-    const hole = new THREE.Mesh(pocketHoleGeo, pocketInteriorMat);
-    hole.position.set(p.x, railY - 0.01, p.z);
-    rootGroup.add(hole);
+    const casting = new THREE.Mesh(kind.castingGeo, brassMat);
+    casting.rotation.x = Math.PI / 2; // lie flat in the table plane
+    casting.position.set(p.x, railY - 0.002, p.z);
+    rootGroup.add(casting);
+
+    const well = new THREE.Mesh(kind.wellGeo, pocketInteriorMat);
+    well.position.set(p.x, 0.74 - wellDepth / 2, p.z);
+    rootGroup.add(well);
+
+    const cap = new THREE.Mesh(kind.capGeo, pocketInteriorMat);
+    cap.rotation.x = -Math.PI / 2; // face upward, visible through the mouth
+    cap.position.set(p.x, 0.74 - wellDepth, p.z);
+    rootGroup.add(cap);
   }
 
   // --- 6. Ball Meshes & Contact Shadows (16 Balls) ---
@@ -320,6 +373,17 @@ export function createPoolTableScene({
   previewMesh.visible = false;
   rootGroup.add(previewMesh);
 
+  // Cosmetic pocket-drop animation state (presentation only; the shared
+  // physics snapshots stay authoritative). When a ball transitions to
+  // 'pocketed' after being seen in play, it sinks through the pocket mouth
+  // instead of blinking out of existence.
+  const CLOTH_TOP_Y = 0.78;
+  const POCKET_DROP_SECONDS = 0.22;
+  const POCKET_DROP_END_Y = 0.66; // fully below the slate, inside the well
+  const pocketDrops = new Map(); // ball id -> { x0, z0, x1, z1, t }
+  const seenInPlay = new Set();
+  let lastDropNow = performance.now();
+
   return {
     group: rootGroup,
     ballMeshes,
@@ -339,6 +403,10 @@ export function createPoolTableScene({
       const balls = simState?.physics?.balls || simState?.balls;
       if (!balls) return;
 
+      const now = performance.now();
+      const dropDt = Math.min((now - lastDropNow) / 1000, 0.05);
+      lastDropNow = now;
+
       for (let i = 0; i <= 15; i++) {
         const ballData = balls[String(i)] || balls[i];
         const mesh = ballMeshes.get(i);
@@ -346,10 +414,33 @@ export function createPoolTableScene({
         if (!mesh || !shadow) continue;
 
         if (!ballData || ballData.state === 'pocketed') {
-          mesh.visible = false;
           shadow.visible = false;
+          // Balls already pocketed when we join mid-game were never seen in
+          // play: just hide them instead of dropping from a bogus position.
+          if (!mesh.visible || !seenInPlay.has(i)) {
+            mesh.visible = false;
+            pocketDrops.delete(i);
+            continue;
+          }
+          if (!pocketDrops.has(i)) {
+            const sx = Number.isFinite(ballData?.x) ? ballData.x : mesh.position.x;
+            const sz = Number.isFinite(ballData?.z) ? ballData.z : mesh.position.z;
+            let target = POCKETS[0];
+            let bestDist = Infinity;
+            for (const p of POCKETS) {
+              const d = (sx - p.x) * (sx - p.x) + (sz - p.z) * (sz - p.z);
+              if (d < bestDist) {
+                bestDist = d;
+                target = p;
+              }
+            }
+            pocketDrops.set(i, { x0: sx, z0: sz, x1: target.x, z1: target.z, t: 0 });
+          }
           continue;
         }
+
+        seenInPlay.add(i);
+        pocketDrops.delete(i); // re-spotted or placed by hand: cancel any drop
 
         mesh.visible = true;
         shadow.visible = true;
@@ -379,6 +470,28 @@ export function createPoolTableScene({
           const rotAxis = new THREE.Vector3(-vz, 0, vx).normalize();
           mesh.rotateOnWorldAxis(rotAxis, rotAngle);
         }
+      }
+
+      // Advance pocket drops: slide toward the pocket center while sinking
+      // through the mouth (quadratic ease-in approximates gravity).
+      for (const [id, drop] of pocketDrops) {
+        drop.t += dropDt / POCKET_DROP_SECONDS;
+        const mesh = ballMeshes.get(id);
+        if (!mesh) {
+          pocketDrops.delete(id);
+          continue;
+        }
+        if (drop.t >= 1) {
+          mesh.visible = false;
+          pocketDrops.delete(id);
+          continue;
+        }
+        const sink = drop.t * drop.t;
+        mesh.position.set(
+          drop.x0 + (drop.x1 - drop.x0) * drop.t,
+          CLOTH_TOP_Y + BALL_RADIUS + (POCKET_DROP_END_Y - (CLOTH_TOP_Y + BALL_RADIUS)) * sink,
+          drop.z0 + (drop.z1 - drop.z0) * drop.t,
+        );
       }
     },
 

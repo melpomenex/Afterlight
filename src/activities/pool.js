@@ -26,6 +26,7 @@ export function createPoolInstance({
   generation,
   roomId = 'theater',
   getActiveCamera = null,
+  getCanvas = null,
   getPlayer = null,
   setActivityCamera = null,
   clearActivityCamera = null,
@@ -58,6 +59,7 @@ export function createPoolInstance({
   // 3. Camera Controller
   const camera = createPoolCamera({
     tablePosition: pos,
+    tableRotationY: rotY,
     getActiveCamera,
     setActivityCamera,
     clearActivityCamera,
@@ -67,9 +69,9 @@ export function createPoolInstance({
 
   // 4. State & Simulation
   let simState = initGame();
-  let serverSimState = null;
+  let sessionStatus = null;
+  let playerCount = 0;
   let activeParticipant = false;
-  let isShootingLocally = false;
   let mySlot = 0;
   let seq = 1;
 
@@ -80,8 +82,9 @@ export function createPoolInstance({
   const controller = createPoolController({
     tablePosition: pos,
     tableRotationY: rotY,
+    getActiveCamera,
+    getCanvas,
     onShoot: ({ angle, power, spinX, spinY, calledPocket }) => {
-      isShootingLocally = true;
       const p = getParticipation?.();
       if (!p || !net) return;
 
@@ -210,6 +213,10 @@ export function createPoolInstance({
       return audio;
     },
 
+    handlePrimaryAction(pressed) {
+      return controller.setShotCharging(pressed);
+    },
+
     /**
      * Active-only frame loop update.
      */
@@ -288,7 +295,7 @@ export function createPoolInstance({
       }
 
       // Update controller and camera
-      controller.update(delta, simState);
+      controller.update(delta, simState, { practice: sessionStatus === 'lobby' && playerCount === 1 });
 
       if (cueBall) {
         camera.update({
@@ -307,16 +314,14 @@ export function createPoolInstance({
      */
     acceptSnapshot(frame) {
       if (!frame) return;
+      sessionStatus = frame.state?.status ?? frame.status ?? sessionStatus;
+      playerCount = frame.state?.players?.length ?? frame.players?.length ?? playerCount;
       const sim = extractActivitySim(frame);
       if (sim && (sim.physics || sim.turn != null || Number.isInteger(sim.turn))) {
-        serverSimState = sim;
-
-        // If not actively simulating local shot, sync directly
-        if (!isShootingLocally || sim.physics?.settled) {
-          isShootingLocally = false;
-          simState = sim;
-          tableScene.updateBalls(simState, 0.9);
-        }
+        // Shots start on the server. Accept moving snapshots too, then
+        // advance their physics between updates in the frame loop.
+        simState = sim;
+        tableScene.updateBalls(simState, 0.9);
 
         // Play events from snapshot if present
         if (Array.isArray(sim.physics?.events)) {
@@ -348,8 +353,8 @@ export function createPoolInstance({
      * Accepts match result.
      */
     acceptResult(frame) {
-      if (!frame || !frame.result) return;
-      isShootingLocally = false;
+      // Command acknowledgements (ready/input_accepted) are not match results.
+      if (!frame?.result || typeof frame.result !== 'object') return;
       const result = frame.result;
       if (simState) {
         simState.status = 'game_over';
@@ -362,7 +367,6 @@ export function createPoolInstance({
      * Accepts server error response.
      */
     acceptError(frame) {
-      isShootingLocally = false;
     },
 
     /**

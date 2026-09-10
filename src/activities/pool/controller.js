@@ -2,7 +2,7 @@
  * Multi-input controller and interactive HUD for 8-ball billiards (Task 5.2; Spec social-billiards).
  *
  * Supports complete input parity across:
- *   - Mouse & Keyboard (mouse aim/drag, Space charge/shoot, I/J/K/L spin, Esc cancel)
+ *   - Mouse & Keyboard (mouse aim/drag, F charge/shoot, I/J/K/L spin, Esc cancel)
  *   - Touch (touch drag aim, power slider, tap spin widget, tap table for ball-in-hand)
  *   - Controller / Gamepad (analog sticks for aim & spin, RT/A for power/shoot, B cancel)
  *
@@ -13,6 +13,8 @@
  *   - Called pocket selector for the 8-ball
  *   - Compact house-rules modal sheet
  */
+
+import * as THREE from 'three';
 
 import {
   TABLE_LENGTH,
@@ -27,6 +29,8 @@ import {
 export function createPoolController({
   tablePosition = [-8.6, 0, -4.5],
   tableRotationY = Math.PI / 2,
+  getActiveCamera = null,
+  getCanvas = null,
   onShoot = null,
   onPlaceCueBall = null,
   onCallPocket = null,
@@ -39,7 +43,13 @@ export function createPoolController({
   const tableZ = tablePosition.length === 3 ? tablePosition[2] : tablePosition[1];
 
   // Aim and shot state
-  let aimAngle = 0.0; // Radians in table local coordinates
+  let aimAngle = 0.0; // Radians in table local coordinates (rendered/smoothed)
+  let aimTargetAngle = 0.0; // Mouse pointer target; rendered aimAngle follows it
+  let hasAimTarget = false;
+  // Mouse-aim presentation tuning (client-side only, not physics).
+  const AIM_NEAR_BALL_DEAD_ZONE = BALL_DIAMETER * 3; // atan2 singularity guard
+  const AIM_SMOOTHING_RATE = 14.0; // per-second exponential convergence
+  const AIM_MAX_SLEW = 4.5; // rad/sec cap so fast sweeps follow smoothly
   let shotPower = 0.4; // 0.0 to 1.0
   let isCharging = false;
   let chargeDirection = 1;
@@ -63,6 +73,14 @@ export function createPoolController({
   const heldKeys = new Set();
   let active = false;
   let hud = null;
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  const tablePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.78);
+  const tableHit = new THREE.Vector3();
+  let strokePointerId = null;
+  let strokeStartX = 0;
+  let strokeStartY = 0;
+  let strokeDragged = false;
 
   /**
    * Transforms world point (wx, wz) into table local coordinates (tx, tz).
@@ -70,12 +88,126 @@ export function createPoolController({
   function worldToTable(wx, wz) {
     const dx = wx - tableX;
     const dz = wz - tableZ;
-    // Inverse of rotation Math.PI/2:
-    // tableX_local = dz, tableZ_local = -dx
+    const cosR = Math.cos(tableRotationY);
+    const sinR = Math.sin(tableRotationY);
     return {
-      x: dz,
-      z: -dx,
+      x: cosR * dx - sinR * dz,
+      z: sinR * dx + cosR * dz,
     };
+  }
+
+  function typingTarget(target) {
+    const tag = target?.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable;
+  }
+
+  function tablePointFromEvent(e) {
+    const canvas = getCanvas?.();
+    const camera = getActiveCamera?.();
+    if (!canvas || !camera || typeof canvas.getBoundingClientRect !== 'function') return null;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    pointer.set(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    raycaster.setFromCamera(pointer, camera);
+    return raycaster.ray.intersectPlane(tablePlane, tableHit) ? tableHit : null;
+  }
+
+  function stopWorldPointer(e) {
+    e.preventDefault();
+    e.stopImmediatePropagation?.();
+    e.stopPropagation();
+  }
+
+  function wrapAimDelta(d) {
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    return d;
+  }
+
+  function stepAimTowardTarget(delta) {
+    if (!hasAimTarget) return;
+    const d = wrapAimDelta(aimTargetAngle - aimAngle);
+    if (Math.abs(d) < 1e-4) {
+      aimAngle = aimTargetAngle;
+      return;
+    }
+    const maxStep = AIM_MAX_SLEW * Math.max(delta, 0);
+    const smoothing = 1 - Math.exp(-AIM_SMOOTHING_RATE * Math.max(delta, 0));
+    let step = d * smoothing;
+    if (step > maxStep) step = maxStep;
+    else if (step < -maxStep) step = -maxStep;
+    if (Math.abs(step) > Math.abs(d)) step = d;
+    aimAngle += step;
+  }
+
+  function syncAimTarget() {
+    aimTargetAngle = aimAngle;
+    hasAimTarget = true;
+  }
+
+  function aimAtWorldPoint(worldX, worldZ, placeBall = false) {
+    const local = worldToTable(worldX, worldZ);
+    const ballInHand = currentSim?.status === 'awaiting_ball_in_hand' || currentSim?.ball_in_hand;
+    if (ballInHand) {
+      previewCueX = local.x;
+      previewCueZ = local.z;
+      previewValid = validateBallInHand(local.x, local.z, currentSim);
+      if (placeBall && previewValid) onPlaceCueBall?.(local.x, local.z);
+      return;
+    }
+    const balls = currentSim?.physics?.balls || currentSim?.balls || {};
+    const cueBall = balls['0'];
+    if (!cueBall) return;
+    const dx = local.x - cueBall.x;
+    const dz = local.z - cueBall.z;
+    // Near-ball dead zone: skip updates where atan2 gain is unbounded.
+    if (Math.hypot(dx, dz) < AIM_NEAR_BALL_DEAD_ZONE) return;
+    aimTargetAngle = Math.atan2(dz, dx);
+    hasAimTarget = true;
+  }
+
+  function onTablePointerMove(e) {
+    if (!active || !isMyTurn || typingTarget(e.target) || e.target !== getCanvas?.()) return;
+    const point = tablePointFromEvent(e);
+    if (!point) return;
+    stopWorldPointer(e);
+    if (strokePointerId === e.pointerId) {
+      const drag = Math.hypot(e.clientX - strokeStartX, e.clientY - strokeStartY);
+      if (drag >= 6) {
+        strokeDragged = true;
+        shotPower = Math.max(0.05, Math.min(1, drag / 220));
+        updatePowerDisplay();
+      }
+      return;
+    }
+    aimAtWorldPoint(point.x, point.z);
+  }
+
+  function onTablePointerDown(e) {
+    if (!active || !isMyTurn || e.button !== 0 || typingTarget(e.target) || e.target !== getCanvas?.()) return;
+    const point = tablePointFromEvent(e);
+    if (!point) return;
+    stopWorldPointer(e);
+    const ballInHand = currentSim?.status === 'awaiting_ball_in_hand' || currentSim?.ball_in_hand;
+    aimAtWorldPoint(point.x, point.z, ballInHand);
+    if (ballInHand) return;
+    strokePointerId = e.pointerId;
+    strokeStartX = e.clientX;
+    strokeStartY = e.clientY;
+    strokeDragged = false;
+    getCanvas?.()?.setPointerCapture?.(e.pointerId);
+  }
+
+  function onTablePointerUp(e) {
+    if (!active || strokePointerId !== e.pointerId) return;
+    stopWorldPointer(e);
+    strokePointerId = null;
+    getCanvas?.()?.releasePointerCapture?.(e.pointerId);
+    if (strokeDragged) executeShot();
+    strokeDragged = false;
   }
 
   /**
@@ -182,6 +314,7 @@ export function createPoolController({
       <div class="pool-hud-top">
         <div class="pool-title">The Orpheum · Billiards Lounge</div>
         <div class="pool-status" data-role="status">Awaiting players…</div>
+        <div class="pool-help">Move pointer to aim · A/D fine aim · Hold F for power, release F to shoot</div>
         <div class="pool-foul" data-role="foul" style="display: none;"></div>
       </div>
 
@@ -196,7 +329,7 @@ export function createPoolController({
           </div>
 
           <!-- Power Meter -->
-          <div class="pool-power-container" title="Hold Space or Drag slider to adjust shot power">
+          <div class="pool-power-container" title="Hold F or drag the slider to adjust shot power">
             <div class="pool-power-label">Power</div>
             <div class="pool-power-meter" data-role="power-meter">
               <div class="pool-power-fill" data-role="power-fill"></div>
@@ -211,7 +344,7 @@ export function createPoolController({
 
         <div class="pool-panel pool-hud-right">
           <div class="pool-buttons">
-            <button type="button" class="pool-btn pool-btn-shoot" data-action="shoot">Shoot (Space)</button>
+            <button type="button" class="pool-btn pool-btn-shoot" data-action="shoot">Shoot (F)</button>
             <button type="button" class="pool-btn" data-action="camera">Camera (C)</button>
             <button type="button" class="pool-btn" data-action="rules">House Rules</button>
             <button type="button" class="pool-btn" data-action="exit">Exit Table</button>
@@ -396,9 +529,11 @@ export function createPoolController({
 
     heldKeys.add(e.code);
 
-    if (e.code === 'Space') {
+    if (e.code === 'KeyF') {
       e.preventDefault();
-      isCharging = true;
+      e.stopImmediatePropagation?.();
+      e.stopPropagation();
+      setShotCharging(true);
     }
   }
 
@@ -406,13 +541,24 @@ export function createPoolController({
     if (!active) return;
     heldKeys.delete(e.code);
 
-    if (e.code === 'Space') {
+    if (e.code === 'KeyF') {
       e.preventDefault();
-      if (isCharging) {
-        isCharging = false;
-        executeShot();
-      }
+      e.stopImmediatePropagation?.();
+      e.stopPropagation();
+      setShotCharging(false);
     }
+  }
+
+  function setShotCharging(pressed) {
+    if (!active) return false;
+    if (pressed) {
+      isCharging = true;
+      return true;
+    }
+    if (!isCharging) return false;
+    isCharging = false;
+    executeShot();
+    return true;
   }
 
   function onBlur() {
@@ -427,6 +573,11 @@ export function createPoolController({
 
     set aimAngle(val) {
       aimAngle = val;
+      syncAimTarget();
+    },
+
+    get aimTargetAngle() {
+      return aimTargetAngle;
     },
 
     get shotPower() {
@@ -461,6 +612,8 @@ export function createPoolController({
       return previewValid;
     },
 
+    setShotCharging,
+
     calculateImpact(cueX, cueZ, angle, simState) {
       return calculateImpact(cueX, cueZ, angle, simState || currentSim);
     },
@@ -473,12 +626,18 @@ export function createPoolController({
       if (active) return;
       active = true;
       mySlot = slot;
+      aimTargetAngle = aimAngle;
+      hasAimTarget = false;
       buildHud();
 
       if (typeof window !== 'undefined') {
         window.addEventListener('keydown', onKeyDown, true);
         window.addEventListener('keyup', onKeyUp, true);
         window.addEventListener('blur', onBlur);
+        window.addEventListener('pointerdown', onTablePointerDown, true);
+        window.addEventListener('pointermove', onTablePointerMove, true);
+        window.addEventListener('pointerup', onTablePointerUp, true);
+        window.addEventListener('pointercancel', onTablePointerUp, true);
       }
     },
 
@@ -487,11 +646,17 @@ export function createPoolController({
       active = false;
       heldKeys.clear();
       isCharging = false;
+      strokePointerId = null;
+      hasAimTarget = false;
 
       if (typeof window !== 'undefined') {
         window.removeEventListener('keydown', onKeyDown, true);
         window.removeEventListener('keyup', onKeyUp, true);
         window.removeEventListener('blur', onBlur);
+        window.removeEventListener('pointerdown', onTablePointerDown, true);
+        window.removeEventListener('pointermove', onTablePointerMove, true);
+        window.removeEventListener('pointerup', onTablePointerUp, true);
+        window.removeEventListener('pointercancel', onTablePointerUp, true);
       }
 
       if (hud?.root) {
@@ -505,22 +670,7 @@ export function createPoolController({
      */
     handleTableClick(worldX, worldZ) {
       if (!active || !isMyTurn) return;
-
-      const local = worldToTable(worldX, worldZ);
-      if (this.isBallInHand) {
-        if (validateBallInHand(local.x, local.z, currentSim)) {
-          previewCueX = local.x;
-          previewCueZ = local.z;
-          previewValid = true;
-          onPlaceCueBall?.(local.x, local.z);
-        }
-      } else {
-        const balls = currentSim?.physics?.balls || currentSim?.balls || {};
-        const cueBall = balls['0'];
-        if (cueBall) {
-          aimAngle = Math.atan2(local.z - cueBall.z, local.x - cueBall.x);
-        }
-      }
+      aimAtWorldPoint(worldX, worldZ, true);
     },
 
     /**
@@ -529,18 +679,13 @@ export function createPoolController({
     handleTablePointerMove(worldX, worldZ) {
       if (!active || !isMyTurn) return;
 
-      const local = worldToTable(worldX, worldZ);
-      if (this.isBallInHand) {
-        previewCueX = local.x;
-        previewCueZ = local.z;
-        previewValid = validateBallInHand(local.x, local.z, currentSim);
-      }
+      aimAtWorldPoint(worldX, worldZ);
     },
 
     /**
      * Frame update for keyboard controls, power charging, and HUD synchronization.
      */
-    update(delta = 1 / 60, simState = null) {
+    update(delta = 1 / 60, simState = null, { practice = false } = {}) {
       if (simState) {
         currentSim = simState;
         isMyTurn = Number.isInteger(simState.turn) && simState.turn === mySlot && simState.status !== 'game_over';
@@ -549,14 +694,19 @@ export function createPoolController({
 
       if (!active) return;
 
-      // Keyboard aim adjustments
+      // Keyboard aim adjustments (direct; kept in sync with the mouse target)
       const aimSpeed = 1.4 * delta;
       if (heldKeys.has('KeyA') || heldKeys.has('ArrowLeft')) {
         aimAngle -= aimSpeed;
+        syncAimTarget();
       }
       if (heldKeys.has('KeyD') || heldKeys.has('ArrowRight')) {
         aimAngle += aimSpeed;
+        syncAimTarget();
       }
+
+      // Mouse target follow: damped, slew-capped, shortest-arc convergence.
+      stepAimTowardTarget(delta);
 
       // Keyboard spin adjustments
       const spinSpeed = 1.2 * delta;
@@ -565,7 +715,7 @@ export function createPoolController({
       if (heldKeys.has('KeyJ')) spinX = Math.max(-0.7, spinX - spinSpeed);
       if (heldKeys.has('KeyL')) spinX = Math.min(0.7, spinX + spinSpeed);
 
-      // Power charging via held Space
+      // Power charging via held F
       if (isCharging) {
         shotPower += chargeDirection * delta * 0.9;
         if (shotPower >= 1.0) {
@@ -583,9 +733,10 @@ export function createPoolController({
         const gamepads = navigator.getGamepads();
         const gp = gamepads ? gamepads[0] : null;
         if (gp) {
-          // Left stick aim
+          // Left stick aim (direct; kept in sync with the mouse target)
           if (Math.abs(gp.axes[0]) > 0.15) {
             aimAngle += gp.axes[0] * delta * 2.0;
+            syncAimTarget();
           }
           // Right stick spin
           if (Math.abs(gp.axes[2]) > 0.15) {
@@ -618,6 +769,9 @@ export function createPoolController({
           const won = currentSim.winner === mySlot;
           statusEl.textContent = won ? 'VICTORY!' : 'MATCH CONCLUDED';
           statusEl.style.color = won ? '#7ae69e' : '#e6a27a';
+        } else if (practice) {
+          statusEl.textContent = this.isBallInHand ? 'SOLO PRACTICE · BALL IN HAND (CLICK TABLE)' : 'SOLO PRACTICE · HOLD F, RELEASE TO SHOOT';
+          statusEl.style.color = '#ffffff';
         } else if (isMyTurn) {
           if (this.isBallInHand) {
             statusEl.textContent = 'YOUR TURN · BALL IN HAND (CLICK TABLE)';

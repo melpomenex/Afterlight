@@ -544,6 +544,7 @@ registerTheaterAdapter(theaterAdapter);
 const activityRuntime = createActivityRuntime({
   net,
   getActiveCamera: () => activeCamera,
+  getCanvas: () => renderer.domElement,
   getPlayer: () => player,
   setActivityCamera: (cam) => setActivityCamera(cam),
   clearActivityCamera: () => clearActivityCamera(),
@@ -556,7 +557,14 @@ const activityRuntime = createActivityRuntime({
     spawn: activeSpawns.spawn,
   }),
   applyAnchor: (anchor, slot) => {
-    if (isTypingTarget(document.activeElement)) document.activeElement.blur();
+    // The join/interact button must not retain native Space-to-click focus:
+    // activating it again while occupied is intentionally the leave action.
+    if (document.activeElement && document.activeElement !== document.body) {
+      document.activeElement.blur();
+    }
+    // An activity anchor supersedes any theater seat. Clear the seat before
+    // pool owns Space so a stale seated flag cannot turn Shoot into Stand.
+    if (seats.current) seats.stand();
     const pos = anchor.position;
     const ax = pos[0];
     const az = pos.length === 3 ? pos[2] : pos[1];
@@ -1754,6 +1762,29 @@ $('atmosphere').onchange = () => { particles.visible = $('atmosphere').checked; 
 window.addEventListener('keydown', (e) => {
   if ((isTypingTarget(e.target) || e.target.closest('#call-panel')) && e.code !== 'Escape') return;
 
+  if (participation.isParticipating && e.code === 'KeyF') {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    activityRuntime.getInstance(participation.currentActivity?.id)?.handlePrimaryAction?.(true);
+    return;
+  }
+
+  // Space belongs exclusively to world jumping. At an occupied table it is
+  // intentionally inert, so it cannot stand, click, shoot, or leave.
+  if (participation.isParticipating && e.code === 'Space') {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    return;
+  }
+
+  // Occupied activities own their play keys before seat/cinema/world input is
+  // considered. Returning here does not stop propagation; the activity's own
+  // capture listener still receives the event.
+  if (participation.isParticipating && ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyC'].includes(e.code)) {
+    e.preventDefault();
+    return;
+  }
+
   // A seated player can always free themselves with E or any movement key —
   // this runs even while some panel has paused the world, so sitting can
   // never become a trap.
@@ -1844,7 +1875,17 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-window.addEventListener('keyup', (e) => keys.delete(e.code));
+window.addEventListener('keyup', (e) => {
+  keys.delete(e.code);
+  if (participation.isParticipating && e.code === 'KeyF') {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    activityRuntime.getInstance(participation.currentActivity?.id)?.handlePrimaryAction?.(false);
+  } else if (participation.isParticipating && e.code === 'Space') {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }
+});
 // Returning to a hidden-then-shown tab is a resume, not a catch-up: seek to
 // the current server state and drop clock-dependent thunder (tasks 2.2/4.2).
 document.addEventListener('visibilitychange', () => {

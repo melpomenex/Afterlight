@@ -403,3 +403,30 @@ test('buildPlaceWorld generates activity interactable items from def.activities'
   // Also check that footprint block was created
   assert.ok(world.obstacles.some(o => Math.abs(o.x - 3) < 0.01 && Math.abs(o.z - 4) < 0.01));
 });
+
+test('pool command rejections retain the seat and credentials; stale sessions still dismount', () => {
+  let dismounts = 0;
+  const messages = [];
+  const controller = createParticipationController({
+    applyDismount: () => { dismounts++; },
+    toast: (_title, message) => messages.push(message),
+    getRoomId: () => 'theater',
+  });
+  controller.join({ id: 'orpheum-pool', type: 'pool' });
+  controller.handleResult({ activityId: 'orpheum-pool', status: 'seated', slot: 0,
+    sessionId: 'pool-session', lease: 'pool-lease' });
+  for (const error of ['not_in_progress', 'out_of_turn', 'balls_in_motion', 'not_aiming',
+    'must_place_cue_ball', 'pocket_call_required', 'overlap_placement',
+    'invalid_state', 'no_ball_in_hand', 'invalid_call']) {
+    assert.equal(controller.handleError({ activityId: 'orpheum-pool', error }), true);
+    assert.equal(controller.state, 'participating', error);
+    assert.equal(controller.sessionId, 'pool-session');
+    assert.equal(controller.lease, 'pool-lease');
+    assert.equal(controller.currentSlot, 0);
+    assert.equal(dismounts, 0);
+    assert.equal(messages.at(-1), error);
+  }
+  controller.handleError({ activityId: 'orpheum-pool', error: 'stale_session' });
+  assert.equal(controller.state, 'idle');
+  assert.equal(dismounts, 1);
+});

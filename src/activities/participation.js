@@ -411,7 +411,14 @@ export function createParticipationController({
         return false;
       }
 
-      const recoverable = frame?.error === 'not_loaded'
+      // Pool rule rejections reject the command, not the player's seat.
+      // In particular, releasing a charged shot in the lobby must not dismount.
+      const poolCommandRejected = currentActivity?.type === 'pool' && [
+        'not_in_progress', 'out_of_turn', 'balls_in_motion', 'not_aiming',
+        'must_place_cue_ball', 'pocket_call_required', 'overlap_placement',
+        'invalid_state', 'no_ball_in_hand', 'invalid_call',
+      ].includes(frame?.error);
+      const recoverable = poolCommandRejected || frame?.error === 'not_loaded'
         || frame?.error === 'invalid_request'
         || frame?.error === 'stale_match'
         || frame?.error === 'stale_sequence';

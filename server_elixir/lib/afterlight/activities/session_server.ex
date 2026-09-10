@@ -302,7 +302,18 @@ defmodule Afterlight.Activities.SessionServer do
         generic_sim_tick(state)
       end
     else
-      {:noreply, %{state | tick_timer_ref: nil}}
+      if pool_practice?(state) do
+        {sim, _events} = Afterlight.Activities.Pool.Rules.step(state.sim_state, 1.0 / 60.0)
+        [slot] = Map.keys(state.players)
+        sim = if sim["status"] == "game_over", do: Afterlight.Activities.Pool.Rules.init_game(), else: sim
+        sim = if sim["status"] == "shooting", do: sim, else: Map.put(sim, "turn", slot)
+        ref = if sim["status"] == "shooting", do: Process.send_after(self(), :sim_tick, state.tick_interval_ms), else: nil
+        state = %{state | sim_state: sim, tick_timer_ref: ref, revision: state.revision + 1}
+        broadcast_activity_state(state)
+        {:noreply, state}
+      else
+        {:noreply, %{state | tick_timer_ref: nil}}
+      end
     end
   end
 
@@ -2370,10 +2381,28 @@ defmodule Afterlight.Activities.SessionServer do
     end
   end
 
+  # Lobby practice never creates a competitive match or records results.
+  defp pool_practice?(state) do
+    pool?(state) and state.status == :lobby and map_size(state.players) == 1
+  end
+
   defp handle_pool_input(state, player, slot, seq, controls) do
-    if state.status != :in_progress do
+    if state.status != :in_progress and not pool_practice?(state) do
       {:reply, {:error, :not_in_progress}, state}
     else
+      # Lobby practice has no match to initialize the rack; deal one for the
+      # solo player on first input so turn checks have a real sim to read.
+      state =
+        if pool_practice?(state) and state.sim_state == %{} do
+          sim =
+            Afterlight.Activities.Pool.Rules.init_game()
+            |> Map.put("turn", slot)
+
+          %{state | sim_state: sim, revision: state.revision + 1}
+        else
+          state
+        end
+
       action = Map.get(controls, "type") || Map.get(controls, "action") || "shoot"
       turn = state.sim_state["turn"]
 
@@ -2465,6 +2494,13 @@ defmodule Afterlight.Activities.SessionServer do
 
     players = Map.put(state.players, slot, updated_player)
     state = %{state | players: players, sim_state: new_sim, revision: state.revision + 1}
+
+    state =
+      if pool_practice?(state) and is_nil(state.tick_timer_ref) do
+        %{state | tick_timer_ref: Process.send_after(self(), :sim_tick, state.tick_interval_ms)}
+      else
+        state
+      end
 
     reply = %{
       result: "input_accepted",

@@ -99,6 +99,16 @@ test('2. P3 Gate: multi-input parity for mouse, touch, and controller', () => {
   controller.update(0.1, sim); // A/D or arrows would modify aimAngle
   assert.equal(controller.aimAngle, 0);
 
+  assert.equal(controller.setShotCharging(true), true, 'main input can begin a pool charge directly');
+  assert.equal(controller.setShotCharging(false), true, 'main input can release the charged shot directly');
+  assert.ok(shotData, 'direct F-key routing releases a shot without leaving participation');
+  shotData = null;
+
+  // The Orpheum table is rotated +90 degrees: its local +X (toward the rack)
+  // points along world -Z. Pointer aiming must preserve that authored rotation.
+  controller.handleTableClick(-8.6, -4.5 - 0.56);
+  assert.ok(Math.abs(controller.aimAngle) < 0.001, 'world pointer maps to the table-local rack direction');
+
   // 2. 2D Spin setting (topspin/backspin/english)
   assert.ok(Math.abs(controller.spinX) <= 0.72);
   assert.ok(Math.abs(controller.spinY) <= 0.72);
@@ -146,18 +156,21 @@ test('3. P3 Gate: camera modes (standing, cue, overhead) and reduced-motion supp
   poolCam.activate();
   assert.equal(poolCam.active, true);
   assert.equal(poolCam.mode, 'cue');
+  assert.notEqual(activeCameraRef, camera, 'pool acquires a dedicated camera that world follow cannot overwrite');
+  poolCam.update({ cueX: -0.56, cueZ: 0, angle: 0, power: 0, settled: true }, 1.0);
+  assert.ok(activeCameraRef.position.z > -4.5, 'cue camera starts behind the shooter, not beyond the rack');
 
   // Cycle to standing view
   assert.equal(poolCam.cycleMode(), 'standing');
   poolCam.update({ cueX: -0.56, cueZ: 0, angle: 0, power: 0, settled: true }, 1.0);
-  assert.ok(camera.position.x > -8.6, 'standing camera looks from elevated 3/4 lounge angle');
+  assert.ok(activeCameraRef.position.x > -8.6, 'standing camera looks from elevated 3/4 lounge angle');
 
   // Cycle to overhead view
   assert.equal(poolCam.cycleMode(), 'overhead');
   poolCam.update({ cueX: -0.56, cueZ: 0, angle: 0, power: 0, settled: true }, 1.0);
-  assert.ok(Math.abs(camera.position.x - (-8.6)) < 0.01, 'overhead camera is centered over table X');
-  assert.ok(Math.abs(camera.position.z - (-4.5)) < 0.01, 'overhead camera is centered over table Z');
-  assert.ok(camera.position.y >= 3.5, 'overhead camera is high above table');
+  assert.ok(Math.abs(activeCameraRef.position.x - (-8.6)) < 0.01, 'overhead camera is centered over table X');
+  assert.ok(Math.abs(activeCameraRef.position.z - (-4.5)) < 0.01, 'overhead camera is centered over table Z');
+  assert.ok(activeCameraRef.position.y >= 3.5, 'overhead camera is high above table');
 
   // Cycle back to cue view
   assert.equal(poolCam.cycleMode(), 'cue');
