@@ -371,6 +371,7 @@ export async function createSnowboardScene({ courseDoc, resourceCache = null, ow
   const camera = new THREE.PerspectiveCamera(64, 1, 0.1, 1000);
   const cameraTarget = new THREE.Vector3();
   const lookTarget = new THREE.Vector3();
+  const smoothLookTarget = new THREE.Vector3(0, 2, -20);
   camera.position.set(12, 10, 22);
 
   /**
@@ -457,7 +458,11 @@ export async function createSnowboardScene({ courseDoc, resourceCache = null, ow
       lookTarget.set(startX, base + 2, -20);
     }
     camera.position.lerp(cameraTarget, 1 - Math.exp(-clampedDt * 5));
-    camera.lookAt(lookTarget);
+    // Smooth the aim point as well as the camera position. Snapping lookAt
+    // directly to lateral rider motion made digital A/D carving jerk the
+    // whole view even though the camera position itself was interpolated.
+    smoothLookTarget.lerp(lookTarget, 1 - Math.exp(-clampedDt * 8));
+    camera.lookAt(smoothLookTarget);
     camera.fov = THREE.MathUtils.lerp(camera.fov, localState?.boosting ? 76 : 64, clampedDt * 3);
     camera.updateProjectionMatrix();
 

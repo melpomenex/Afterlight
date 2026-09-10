@@ -34,6 +34,10 @@ function el(tag, className, text = null) {
   return node;
 }
 
+export function resultRenderKey(snap, rows) {
+  return JSON.stringify({ rows, score: snap.score, bestCombo: snap.bestCombo, landings: snap.landings });
+}
+
 /**
  * @param {object} options
  * @param {HTMLElement} [options.host]  mount point (defaults to body)
@@ -202,6 +206,7 @@ export function createRaceHud({ host = null, onReady, onExit, onSoundToggle = nu
   // Touch buttons are wired by the controller through setTouchSink so this
   // module owns no input capture of its own — the SAME action path as keys.
   const touchHandlers = [];
+  let renderedResultsKey = null;
 
   const q = (role) => root.querySelector(`[data-role="${role}"]`);
 
@@ -315,15 +320,23 @@ export function createRaceHud({ host = null, onReady, onExit, onSoundToggle = nu
 
     // Results modal.
     cls(refs.rematchButton, 'sbx-visible', snap.phase === 'results');
-    if (snap.phase === 'results' && snap.results) {
+    if (snap.phase === 'results') {
       renderResults(snap);
+    } else {
+      renderedResultsKey = null;
     }
   }
 
   function renderResults(snap) {
-    const { results } = snap;
+    const results = snap.results ?? { standings: [] };
     const rows = Array.isArray(results.standings) ? results.standings : [];
     const mine = rows.find((row) => row.self) ?? null;
+    // update() runs every animation frame. Keep the result controls mounted
+    // while their data is unchanged so a pointerdown/up pair reaches the
+    // same Rematch button and produces a click.
+    const resultsKey = resultRenderKey(snap, rows);
+    if (resultsKey === renderedResultsKey) return;
+    renderedResultsKey = resultsKey;
     const heading = document.createElement('div');
     const you = mine ?? { place: null, timeMs: null };
     heading.innerHTML = `
@@ -343,8 +356,10 @@ export function createRaceHud({ host = null, onReady, onExit, onSoundToggle = nu
           <i>${row.status === 'dnf' ? (row.dnfReason ?? 'DNF') : row.timeMs != null ? formatTime(row.timeMs / 1000) : '—'}</i>
           <em>${(row.score ?? 0).toLocaleString()} PTS</em>
         </div>`).join('')}</div>
+      <button type="button" class="sbx-drop-button" data-action="rematch">REMATCH <span>R</span></button>
       <p class="sbx-result-note">SESSION RECORDS ONLY — NOT SAVED</p>`;
     refs.modal.replaceChildren(heading);
+    refs.modal.querySelector('[data-action="rematch"]')?.addEventListener('click', () => onReady?.(), { once: true });
   }
 
   mount.appendChild(root);

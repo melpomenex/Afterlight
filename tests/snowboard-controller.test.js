@@ -10,10 +10,37 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createSnowboardController } from '../src/activities/snowboard/controller.js';
+import { blendRiderState, createSnowboardController, easeSteer } from '../src/activities/snowboard/controller.js';
+import { resultRenderKey } from '../src/activities/snowboard/hud.js';
 import { initialState } from '../shared/snowboard/rules.js';
 
 const courseDocument = JSON.parse(readFileSync(new URL('../shared/snowboard/course-alpine-rush.json', import.meta.url)));
+
+test('digital steering eases toward input and back to center', () => {
+  const first = easeSteer(0, 1, 1 / 60);
+  assert.ok(first > 0 && first < 1, 'first frame does not snap to full lock');
+  let held = first;
+  for (let i = 0; i < 60; i++) held = easeSteer(held, 1, 1 / 60);
+  assert.ok(held > 0.99, 'held steering still reaches full lock');
+  const released = easeSteer(held, 0, 1 / 60);
+  assert.ok(released > 0 && released < held, 'release returns smoothly toward center');
+});
+
+test('visual rider state blends between 30 Hz simulation ticks', () => {
+  const visual = { x: 0, y: 1, s: 10, lateral: 0, v: 12, score: 0 };
+  const target = { ...visual, x: 2, s: 11, lateral: 4, score: 50 };
+  blendRiderState(visual, target, 1 / 60);
+  assert.ok(visual.x > 0 && visual.x < 2, 'lateral position does not snap');
+  assert.ok(visual.lateral > 0 && visual.lateral < 4, 'board angle does not snap');
+  assert.equal(visual.score, 50, 'non-positional authoritative fields stay current');
+});
+
+test('unchanged results keep a stable render key so rematch controls stay mounted', () => {
+  const rows = [{ playerId: 'me', place: 1, score: 1200, self: true }];
+  const snap = { score: 1200, bestCombo: 800, landings: 2 };
+  assert.equal(resultRenderKey(snap, rows), resultRenderKey({ ...snap }, [{ ...rows[0] }]));
+  assert.notEqual(resultRenderKey(snap, rows), resultRenderKey({ ...snap, score: 1300 }, rows));
+});
 
 test('load retries until acknowledged, follows seat identity, and accepts Phoenix race snapshots', async () => {
   const calls = [];

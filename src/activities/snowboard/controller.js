@@ -39,6 +39,7 @@ import { createRaceAudio } from './audio.js';
 import { createRaceHud } from './hud.js';
 
 const HEARTBEAT_MS = 33;
+const STEER_RESPONSE = 7.5;
 const NEUTRAL = Object.freeze({ kind: 'neutral' });
 const TOAST_SECONDS = 2.2;
 const BEAT_SECONDS = 0.43;
@@ -52,6 +53,38 @@ const EVENT_TOASTS = {
   bail: 'BAIL!  •  Finish your trick before landing',
   pickup: 'BOOST PICKUP  +250',
 };
+
+export function easeSteer(current, target, dt) {
+  const next = current + (target - current) * (1 - Math.exp(-Math.min(dt, 0.05) * STEER_RESPONSE));
+  return Math.abs(next) < 0.001 ? 0 : next;
+}
+
+export function blendRiderState(visual, target, dt) {
+  const previous = {
+    x: visual.x ?? target.x ?? 0,
+    y: visual.y ?? target.y ?? 0,
+    s: visual.s ?? target.s ?? 0,
+    lateral: visual.lateral ?? target.lateral ?? 0,
+    v: visual.v ?? target.v ?? 0,
+  };
+  Object.assign(visual, target);
+  const follow = 1 - Math.exp(-Math.min(dt, 0.05) * 14);
+  for (const key of Object.keys(previous)) {
+    visual[key] = previous[key] + ((target[key] ?? previous[key]) - previous[key]) * follow;
+  }
+  return visual;
+}
+
+function resultStandings(frame, participation) {
+  const result = frame.result ?? frame.state?.matchOutcome ?? null;
+  if (result?.kind !== 'snowboard_race') return null;
+  const mine = participation();
+  const myPlayerId = mine?.playerId ?? frame.self?.playerId ?? null;
+  return (Array.isArray(result.standings) ? result.standings : []).map((row) => ({
+    ...row,
+    self: row.playerId === myPlayerId || row.slot === mine?.currentSlot,
+  }));
+}
 
 export async function createSnowboardController({
   activityDef,
@@ -144,6 +177,7 @@ export async function createSnowboardController({
   // --- input (source controls; 4.3) ---------------------------------------------
   const keys = new Set();
   let chargeHeld = false;
+  let smoothSteer = 0;
   let listenersAttached = false;
 
   function isTyping() {
@@ -159,7 +193,7 @@ export async function createSnowboardController({
     if (event.code === 'KeyR') {
       event.preventDefault();
       event.stopPropagation();
-      if (lastStatus === 'lobby' || lastStatus === 'results' || lastStatus === null) sendReady(true);
+      if (lastStatus === 'lobby' || lastStatus === 'results' || lastStatus === 'ended' || lastStatus === null) sendReady(true);
       return;
     }
     if (event.code === 'Escape') {
@@ -183,6 +217,7 @@ export async function createSnowboardController({
   function onBlur() {
     keys.clear();
     chargeHeld = false;
+    smoothSteer = 0;
     submitControls(NEUTRAL);
   }
 
@@ -197,6 +232,7 @@ export async function createSnowboardController({
   function detachControls() {
     keys.clear();
     chargeHeld = false;
+    smoothSteer = 0;
     if (!listenersAttached || typeof window === 'undefined') return;
     window.removeEventListener('keydown', onKeyDown, true);
     window.removeEventListener('keyup', onKeyUp, true);
@@ -214,7 +250,7 @@ export async function createSnowboardController({
 
   function currentControls() {
     if (!viewHeld) return NEUTRAL;
-    const steer = (keys.has('KeyA') || keys.has('ArrowLeft') ? -1 : 0) + (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0);
+    const steer = smoothSteer;
     const tuck = keys.has('ShiftLeft') || keys.has('ShiftRight');
     const lean = keys.has('KeyW') || keys.has('ArrowUp');
     const brake = keys.has('KeyS') || keys.has('ArrowDown');
@@ -318,6 +354,9 @@ export async function createSnowboardController({
     else if (serverStatus === 'aborted') phase = 'aborted';
 
     const nowMs = performance.now();
+    const countdown = countdownStartAt != null
+      ? clock.countdown(countdownStartAt, nowMs)
+      : null;
     const snapshot = {
       phase,
       place: state ? provisionalPosition() : null,
@@ -344,7 +383,7 @@ export async function createSnowboardController({
       boosting: state?.boosting === true,
       riderCount: readyCountForHud(p),
       capacity: activityDef.capacities?.players ?? 8,
-      countdownLeft: countdownStartAt != null ? Math.max(0, (countdownStartAt - nowMs) / 1000) : null,
+      countdownLeft: countdown?.ready ? countdown.secondsLeft : null,
       results: resultsStandings,
       ...extra,
     };
@@ -534,6 +573,12 @@ export async function createSnowboardController({
 
     if (!viewHeld) return;
 
+    // Ease digital A/D input into the simulation instead of snapping the
+    // rider (and therefore the chase camera) between -1, 0 and 1.
+    const steerTarget = (keys.has('KeyA') || keys.has('ArrowLeft') ? -1 : 0)
+      + (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0);
+    smoothSteer = easeSteer(smoothSteer, steerTarget, dt);
+
     // Lobby load handshake as soon as the seat is known.
     if (p?.sessionId) sendLoaded();
 
@@ -549,7 +594,10 @@ export async function createSnowboardController({
       const result = predictor.update(nowMs, dt * 1000);
       const state = result?.state;
       if (state && !result.frozen) {
-        Object.assign(myState, state);
+        // The simulation intentionally advances at 30 Hz while rendering can
+        // run much faster. Blend its positional fields at display rate so
+        // local carving does not visibly stair-step between simulation ticks.
+        blendRiderState(myState, state, dt);
         if (result.events?.length) handleEvents(result.events);
         // Source beat while racing (audible only when sound is enabled).
         beatAccumulator += dt;
@@ -562,8 +610,9 @@ export async function createSnowboardController({
 
     // Countdown ticks (audio only; the authoritative start stays server-owned).
     if (lastStatus === 'countdown' && countdownStartAt != null) {
-      const whole = Math.max(1, Math.ceil((countdownStartAt - nowMs) / 1000));
-      if (whole !== lastCountdownWhole) {
+      const countdown = clock.countdown(countdownStartAt, nowMs);
+      const whole = countdown.ready ? Math.max(1, Math.ceil(countdown.secondsLeft)) : null;
+      if (whole != null && whole !== lastCountdownWhole) {
         lastCountdownWhole = whole;
         audio.event('countdown');
       }
@@ -599,7 +648,9 @@ export async function createSnowboardController({
       currentMatchId = frame.matchId;
     }
 
-    lastStatus = typeof frame.status === 'string' ? frame.status : lastStatus;
+    lastStatus = frame.status === 'ended'
+      ? 'results'
+      : (typeof frame.status === 'string' ? frame.status : lastStatus);
     if (lastStatus !== 'racing') raceStarted = false;
     if (frame.status === 'racing' && !raceStarted) {
       raceStarted = true;
@@ -622,6 +673,7 @@ export async function createSnowboardController({
     const riders = frame.state?.sim?.riders;
     const playerRows = Array.isArray(frame.state?.players) ? frame.state.players : [];
     lastPlayerRows = playerRows;
+    if (lastStatus === 'results') resultsStandings = resultStandings(frame, participation);
     // Phoenix's simulator keys riders by slot; older snapshots carry an
     // array with playerId. Normalize both before prediction/interpolation.
     const rows = Array.isArray(riders) ? riders : Object.entries(riders ?? {}).map(([slot, rider]) => ({
@@ -665,7 +717,6 @@ export async function createSnowboardController({
           mineRow.resetSeq ?? 0,
           performance.now(),
         );
-        Object.assign(myState, mineRow);
       }
     } else {
       // Fallback: my row by slot match (private attachment absent).
