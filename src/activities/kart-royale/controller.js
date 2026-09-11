@@ -305,6 +305,17 @@ export function createKartRoyaleController({
           hudHost: ensureHudRoot(),
           audio: mixerAudioOptions(),
           startScreen: 'select',
+          // Hosted render policy (fix-kart-royale-render-sharpness D8): the
+          // desktop floors and blur strength this change commits to. The
+          // policy can only TIGHTEN device detection inside the game, so this
+          // is a commitment, not a bypass; standalone Kart Royale is
+          // untouched and keeps its own defaults and harness knobs.
+          params: {
+            renderPolicy: {
+              normalScaleFloor: 0.85,
+              emergencyScaleFloor: 0.72,
+            },
+          },
           perfSpan: (name, action, meta) => perfSpan(name, action, meta),
           perfMark: (phase, data) => perfMark(phase, data),
           onFatal: (title, detail) => {
@@ -325,8 +336,21 @@ export function createKartRoyaleController({
           return;
         }
         host = nextHost;
+        // Render diagnostics are ALWAYS published (fix-kart-royale-render-
+        // sharpness D10): read-only field reads, no DOM, no frame cost. The
+        // heavier probe hooks stay behind the ?debug gate.
+        if (typeof window !== 'undefined') {
+          const existing = window.__kartDebug;
+          window.__kartDebug = {
+            ...existing,
+            getRenderStats: () => (host && !host.dead ? host.getRenderStats() : null),
+            isBooted: () => booted,
+            isReady: () => presentationReady,
+          };
+        }
         if (typeof window !== 'undefined' && Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
           window.__kartDebug = {
+            ...window.__kartDebug,
             getCamera: () => {
               if (!host?.ctx?.camera) return null;
               const c = host.ctx.camera;
@@ -345,8 +369,6 @@ export function createKartRoyaleController({
                 y: k.object.position.y,
               }));
             },
-            isBooted: () => booted,
-            isReady: () => presentationReady,
           };
         }
 

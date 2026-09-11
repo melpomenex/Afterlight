@@ -1,4 +1,4 @@
-import { Quality, type Settings } from '../types';
+import { Quality, type HostRenderPolicy, type Settings } from '../types';
 import { setTextureBudget } from '../render/Textures';
 import { logPipeline } from './Diagnostics';
 
@@ -672,6 +672,8 @@ export interface SettingsOverrides {
   /** Ceiling on the tier's `maxPixelRatio` (a host DPR policy). */
   maxPixelRatio?: number;
   renderScale?: number;
+  /** Adaptive image-quality clamp (fix-kart-royale-render-sharpness D8). */
+  renderPolicy?: HostRenderPolicy;
 }
 
 export function createSettings(host?: SettingsOverrides): Settings {

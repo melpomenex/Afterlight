@@ -46,6 +46,7 @@ import {
 // @ts-ignore — n8ao ships no type declarations, and we may not add a .d.ts here.
 import { N8AOPostPass } from 'n8ao';
 import { Quality, type Ctx } from '../types';
+import { DEGRADE_STAGES } from '../../../../shared/kart-royale/renderPolicy.js';
 
 /**
  * The fraction of the drawing buffer the depth-of-field effect runs its own
@@ -164,6 +165,7 @@ uniform vec3 rush;    // x radial blur amount, y gated speed intensity, z boost 
 uniform vec2 vig;     // x vignette amount (speed-driven), y inner edge (closes in with speed)
 uniform vec3 subject; // world-space centre of the player's kart
 uniform vec2 hold;    // hold-out radii about the subject: x fully sharp, y fully blurred (metres)
+uniform vec4 subjectAhead; // near-road hold-out sphere: xyz world centre, w outer radius (<=0 disables)
 uniform vec3 coolTint;
 uniform vec3 warmTint;
 uniform vec3 shadowLift;
@@ -369,7 +371,22 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth,
   // the translucent wings hanging off both fenders in the r4 frames. hold.y then
   // releases over another 1.3 m so the tarmac eases back into the streak instead
   // of stepping into it.
-  velocity *= smoothstep(hold.x, hold.y, distance(world.xyz, subject));
+  //
+  // NEAR-ROAD HOLD-OUT (fix-kart-royale-render-sharpness D6, task 5.3): the
+  // racing line immediately AHEAD of the kart is the second place sharpness is
+  // judged, and at speed the radial streak was smearing it even though the kart
+  // itself is held. A second world-space sphere, parked ~3 m down the kart's
+  // forward axis, keeps the road the eye actually steers by readable while
+  // leaving the periphery — where the speed read lives — fully streaked. The
+  // stronger of the two masks wins, so the spheres merge into one protected
+  // region rather than double-cutting the image. subjectAhead.w <= 0 disables
+  // the second sphere entirely (1.0 = no hold-out from it).
+  float heroMask = smoothstep(hold.x, hold.y, distance(world.xyz, subject));
+  float aheadMask = subjectAhead.w > 0.0
+    ? smoothstep(min(hold.x * 0.85, subjectAhead.w), subjectAhead.w,
+                 distance(world.xyz, subjectAhead.xyz))
+    : 1.0;
+  velocity *= max(heroMask, aheadMask);
 
   float travel = length(velocity);
   // Capped so the fixed tap budget always covers the streak — an unbounded
@@ -378,7 +395,14 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth,
   // the rush term is RADIAL: it is exactly zero in the middle of the frame and
   // only reaches full length out at the corners, so a long streak there costs
   // the subject and the racing line nothing.
-  float travelCap = 0.0125 + 0.0105 * rush.z;
+  //
+  // RETUNED (fix-kart-royale-render-sharpness D6, task 5.1): the cap was
+  // 0.0125 + 0.0105 * rush.z — up to ~0.0256 uv, ~50 px at 1080p during a
+  // boost ignition. The shipped ladder now sits at ~55% of that
+  // (0.0069 + 0.0058 * rush.z, ~27 px peak), which lands the perceived smear
+  // inside the 40–60% band the acceptance criteria name while the corner
+  // streaks still read as speed.
+  float travelCap = 0.0069 + 0.0058 * rush.z;
   velocity *= min(travel, travelCap) / max(travel, 1e-5);
   travel = min(travel, travelCap);
 
@@ -617,6 +641,12 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth,
 export interface GradeOptions {
   /** motion-blur taps; 1 disables the blur and leaves plain aberration */
   samples: number;
+  /**
+   * Floor for the smear-loop tap budget (SMEAR_SAMPLES). 11 = the retuned
+   * authored streak at degrade stage 0; 6 = adaptive stage 1+ (fix-kart-
+   * royale-render-sharpness D3).
+   */
+  smearFloor?: number;
   exposure: number;
   contrast: number;
   saturation: number;
@@ -667,7 +697,13 @@ export class GradeEffect extends Effect {
         // holds it at 4.5 px. Paid only on frames with more than ~0.4 px of
         // travel, and the half-budget branch still covers most of the screen
         // because the rush is edge-weighted.
-        ['SMEAR_SAMPLES', String(Math.max(11, Math.round(opts.samples)))],
+        //
+        // fix-kart-royale-render-sharpness D3/D6: the floor is now stage- and
+        // retune-aware — 11 at stage 0 over the RETUNED (shorter) streak, 6 at
+        // stage 1+. The old comment's 50 px peak was the pre-retune cap; the
+        // retuned ceiling (~0.0141 uv, ~27 px at 1080p) is inside what six
+        // taps integrate smoothly.
+        ['SMEAR_SAMPLES', String(Math.max(opts.smearFloor ?? 11, Math.round(opts.samples)))],
       ]),
       uniforms: new Map<string, THREE.Uniform>([
         ['prevViewProj', new THREE.Uniform(new THREE.Matrix4())],
@@ -680,6 +716,9 @@ export class GradeEffect extends Effect {
         // first `sync` looks exactly like the old constant-vignette build.
         ['vig', new THREE.Uniform(new THREE.Vector2(opts.vignette, VIGNETTE_INNER_REST))],
         ['subject', new THREE.Uniform(new THREE.Vector3())],
+        // Near-road hold-out sphere (D6 task 5.3). w = 0 until `sync` finds a
+        // player kart, which disables it in the shader.
+        ['subjectAhead', new THREE.Uniform(new THREE.Vector4(0, 0, 0, 0))],
         // Released until `sync` finds a player kart: with a negative outer
         // radius the smoothstep returns 1 everywhere and nothing is held.
         ['hold', new THREE.Uniform(new THREE.Vector2(-2, -1))],
@@ -759,6 +798,7 @@ export class GradeEffect extends Effect {
   get rush(): THREE.Vector3 { return this.uniforms.get('rush')!.value; }
   get vig(): THREE.Vector2 { return this.uniforms.get('vig')!.value; }
   get subject(): THREE.Vector3 { return this.uniforms.get('subject')!.value; }
+  get subjectAhead(): THREE.Vector4 { return this.uniforms.get('subjectAhead')!.value; }
   get hold(): THREE.Vector2 { return this.uniforms.get('hold')!.value; }
   get prevViewProj(): THREE.Matrix4 { return this.uniforms.get('prevViewProj')!.value; }
   get invViewProj(): THREE.Matrix4 { return this.uniforms.get('invViewProj')!.value; }
@@ -928,6 +968,14 @@ const KICK_HI = 8.5;
  */
 const SUBJECT_HOLD = 2.05;
 const SUBJECT_FADE = 3.40;
+/**
+ * Near-road hold-out sphere (fix-kart-royale-render-sharpness D6, task 5.3):
+ * parked this far down the kart's forward axis, fully sharp inside 85% of the
+ * hero's inner radius and released at this outer radius. World units, like the
+ * hero hold-out, so the chase arm's length is irrelevant.
+ */
+const SUBJECT_AHEAD_DISTANCE = 3.0;
+const SUBJECT_AHEAD_RADIUS = 4.5;
 
 export interface PostFXOptions {
   /** true when we detected a software rasteriser (headless capture / CI) */
@@ -976,12 +1024,21 @@ export class PostFX {
     const s = ctx.settings;
     const q = s.quality;
     const high = q >= Quality.High;
+    // The adaptive ladder's effect-degradation stage (fix-kart-royale-render-
+    // sharpness D3). Each stage here REMOVES measured cost in the documented
+    // order; reaching one requires the sustained-pressure window in
+    // host/runtime.ts, and recovery walks back down the same ladder.
+    const stage = s.degradeStage ?? 0;
+    // A hosted policy may turn DoF off entirely (D8); 'authored' keeps it,
+    // gated only by the quality tier and the degradation stage.
+    const policyDof = (ctx as unknown as { renderPolicy?: { depthOfField?: 'authored' | 'off' } })
+      .renderPolicy?.depthOfField ?? 'authored';
 
     const renderPass = new RenderPass(ctx.scene, ctx.camera);
     this.add(composer, renderPass);
 
     // --- ambient occlusion -------------------------------------------------
-    if (s.ssao) {
+    if (s.ssao && stage < DEGRADE_STAGES.AO_OFF) {
       const ao = new N8AOPostPass(ctx.scene, ctx.camera, ctx.width, ctx.height);
       const cfg = ao.configuration;
 
@@ -1068,7 +1125,10 @@ export class PostFX {
       // which is the shipped-kart-racer look, and it costs nothing: the sample
       // count is unchanged.
       cfg.intensity = q >= Quality.Ultra ? 5.4 : 5.0;
-      cfg.aoSamples = high ? 16 : 8;
+      // Stage 2 (D3): halve the sample count. High and Ultra both ship 16; the
+      // AO pass is the most expensive item in the chain, and this is the
+      // measured-cheapest first AO cut before stage 5 removes the pass.
+      cfg.aoSamples = stage >= DEGRADE_STAGES.AO_SAMPLES ? 8 : (high ? 16 : 8);
       cfg.denoiseSamples = 8;
       // A 6-texel poisson denoise at half res is a 12-pixel blur, which is
       // wider than the contact band it is supposed to be cleaning up and turns
@@ -1133,8 +1193,10 @@ export class PostFX {
     // --- depth of field ----------------------------------------------------
     // Built here, ADDED BELOW. DoF and bloom go into one EffectPass together;
     // see the note on `merged` after the bloom block.
+    // Stage 3 (D3) or an explicit hosted policy (D8) remove it: it is authored
+    // as garnish, so it degrades before any spatial resolution does.
     let dofEffect: DepthOfFieldEffect | null = null;
-    if (s.dof) {
+    if (s.dof && stage < DEGRADE_STAGES.DOF_OFF && policyDof !== 'off') {
       // Garnish only: a long focus range means the road, the kerbs and the
       // next two corners stay razor sharp and only the bay and the headland
       // soften. bokehScale stays small for the same reason.
@@ -1214,7 +1276,10 @@ export class PostFX {
         // halves that reach to ~64 px, keeps the disc glow §2 asks for, and
         // costs one fewer up/down mip pair per frame.
         radius: 0.72,
-        levels: 6,
+        // Stage 4 (D3): two levels off the chain halves the veil's reach
+        // (~64 px -> ~32 px at the top mip) for the largest remaining
+        // bandwidth saving that is not an effect disappearing.
+        levels: stage >= DEGRADE_STAGES.BLOOM_LEVELS ? 4 : 6,
       });
       this.bloom = bloom;
     }
@@ -1263,8 +1328,15 @@ export class PostFX {
     // (The shader honours that literally now: below two taps it zeroes the
     // velocity instead of stochastically displacing the single tap.)
     const samples = !s.motionBlur || opts.software ? 1 : (high ? 6 : 4);
+    // Stage 1 (D3): the smear loop's tap budget drops 11 -> 6, halving the
+    // bandwidth the streak loop costs on exactly the fast frames where it
+    // runs — without changing the look, since the jitter + travel cap were
+    // sized for a 6-tap budget before the ignition pulse lengthened the
+    // streak. The blur STRENGTH retune is D6 and lives in `sync`.
+    const smearFloor = stage >= DEGRADE_STAGES.BLUR_TAPS ? 6 : 11;
     const grade = new GradeEffect({
       samples,
+      smearFloor,
       exposure: 1.05,
       contrast: 0.18,
       saturation: 1.12,
@@ -1333,6 +1405,11 @@ export class PostFX {
     this.speed += (target - this.speed) * (1 - Math.exp(-dt / 0.11));
     const speed = this.speed;
 
+    // Hosted render-policy multiplier on the authored smear (D6/D8). Default 1
+    // is the retuned art; Afterlight may set it calmer via HostRenderPolicy.
+    const mbStrength = (ctx as unknown as { renderPolicy?: { motionBlurStrength?: number } })
+      .renderPolicy?.motionBlurStrength ?? 1;
+
     // Boost kick. Punches in fast (0.05 s) and releases slowly (0.28 s), which
     // is the same asymmetry the FOV itself uses — the lens should not snap back
     // the instant the boost expires.
@@ -1364,8 +1441,14 @@ export class PostFX {
     // longer camera streak than a 55 km/h cruise at the same frame rate. The
     // subject is masked out of the velocity in the shader, so this only ever
     // smears the world around the kart, never the kart.
+    //
+    // RETUNED (fix-kart-royale-render-sharpness D6, task 5.1): was
+    // 0.50 + 0.34·fast. 0.35 + 0.20·fast is ~55% of the authored streak at
+    // every speed — the middle of the 40–60% band the acceptance criteria
+    // name — with the sense of speed carried by the untouched cues (speed
+    // lines, vignette, FOV) and the near-road hold-out below.
     const shutter = ctx.settings.motionBlur
-      ? (0.50 + 0.34 * fast) * THREE.MathUtils.clamp(1 / 60 / Math.max(dt, 1e-4), 0.2, 2)
+      ? (0.35 + 0.20 * fast) * mbStrength * THREE.MathUtils.clamp(1 / 60 / Math.max(dt, 1e-4), 0.2, 2)
       : 0;
 
     const lens = grade.lens;
@@ -1392,37 +1475,20 @@ export class PostFX {
     const rush = grade.rush;
     // Radial zoom-blur, and the second half of the "no speed cue at speed" fix.
     //
-    // The old expression was `0.0065 * speed^2 + 0.0105 * kick * speed`, i.e.
-    // quadratic in a signal that never exceeds 0.42 and linear in a term that is
-    // zero unless a boost is running. At 101 km/h that is 0.4 px of travel at
-    // the frame corner. The sustained term below is quadratic in `fast`, which
-    // is the same ramp renormalised, so it is still off during ordinary driving
-    // (0 at 70% of top speed, 2.1 px at 90 km/h) and reaches 6.7 px at 101 km/h
-    // and 11 px flat out — a readable edge smear that leaves the middle of the
-    // frame, the racing line and the vanishing point untouched, because the term
-    // is radial and therefore exactly zero at frame centre.
-    //
-    // It is combined with `max`, not `+`: the boost path keeps the value it was
-    // tuned to (0.0145, ~17 px at the corner) rather than gaining the sustained
-    // term on top of it. The reviewers are already unhappy about how much of
-    // boost.png is smeared; this must not make that worse.
-    //
-    // RETUNED, and the numbers are the point. The old sustained term was
-    // 0.0095 * fast^2 with a flat radial profile: at the 101 km/h frame the
-    // reviewers were shown (fast = 0.80) that is 0.0061, i.e. 6.7 px of travel
-    // at the extreme corner and 3.4 px halfway out — measurable and invisible.
-    // Measured on the shipped frames, the radial-to-tangential gradient ratio in
-    // the outer annulus is 0.952 at 55 km/h and 0.915 at 101: a four percent
-    // difference, which is exactly the "visually indistinguishable" note.
-    //
-    // 0.0165 * fast^1.5 with the edge weighting in the shader puts the same
-    // frame at 13 px at the corner and still under 2 px at mid-radius, and a
-    // boost at 27 px. The exponent came down from 2 to 1.5 because the whole
-    // range that matters is fast 0.5..1 (85% of top speed and up) and a square
-    // spends most of that range doing nothing.
+    // RETUNED (fix-kart-royale-render-sharpness D6, tasks 5.1/5.2). The
+    // coefficients came down to ~55% of the 0.0165·fast^1.5 / 0.0125·speed² /
+    // 0.0150·kick·speed / 0.0085·ignite set, and the SUSTAINED term gained an
+    // activation knee — smoothstep(0.30, 0.75, fast) — so ordinary and
+    // mid-pace driving stay exactly clean and the streak arrives as the pace
+    // does. The boost path keeps its own shape (a boost at any speed must
+    // read) with the reduced magnitudes. rush.z's ignition ceiling came down
+    // from 1.25 to 1.1 to match the shorter cap in the shader.
+    const rushKnee = THREE.MathUtils.smoothstep(fast, 0.30, 0.75);
     rush.x = shutter > 0
-      ? Math.max(0.0165 * Math.pow(fast, 1.5), 0.0125 * speed * speed + 0.0150 * kick * speed)
-        + 0.0085 * ignite
+      ? mbStrength * Math.max(
+          0.0090 * Math.pow(fast, 1.5) * rushKnee,
+          0.0069 * speed * speed + 0.0083 * kick * speed)
+        + 0.0047 * ignite * mbStrength
       : 0;
     // The gate on the speed-line comb, now driven by the renormalised ramp: it
     // cracks open just above the art bible's ~70% of top speed and is fully open
@@ -1441,8 +1507,9 @@ export class PostFX {
     // on this. Letting the ignition pulse drive it above the sustained kick is
     // what makes the first few frames of a release visibly denser than the rest
     // of the boost, which is the difference between a lens that announces an
-    // event and one that reports a state.
-    rush.z = Math.min(1.25, kick + ignite * 0.55);
+    // event and one that reports a state. Ceiling down from 1.25 to 1.1 with
+    // the retuned streak cap (D6).
+    rush.z = Math.min(1.1, kick + ignite * 0.55);
 
     // Keep `time` in a range where fract() still has bits left for the grain.
     const pass = this.gradePass as any;
@@ -1477,9 +1544,18 @@ export class PostFX {
     if (player !== undefined && player !== null) {
       grade.subject.copy(player.position);
       hold.set(SUBJECT_HOLD, SUBJECT_FADE);
+      // Park the near-road hold-out ~3 m down the kart's forward axis (D6
+      // task 5.3): the tarmac the eye steers by stays readable at speed.
+      grade.subjectAhead.set(
+        player.position.x + player.forward.x * SUBJECT_AHEAD_DISTANCE,
+        player.position.y + player.forward.y * SUBJECT_AHEAD_DISTANCE,
+        player.position.z + player.forward.z * SUBJECT_AHEAD_DISTANCE,
+        SUBJECT_AHEAD_RADIUS,
+      );
     } else {
       // No subject to protect — release the mask and let the whole frame blur.
       hold.set(-2, -1);
+      grade.subjectAhead.set(0, 0, 0, 0);
     }
 
     if (this.dof !== null) {

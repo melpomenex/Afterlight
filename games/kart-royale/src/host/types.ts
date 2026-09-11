@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import type { Ctx, RaceState, Quality } from '../types';
+import type { Ctx, RaceState, Quality, HostRenderPolicy } from '../types';
 
 /**
  * Host boundary for Kart Royale (integrate-kart-royale-arcade).
@@ -28,6 +28,8 @@ export interface HostSettingsOverrides {
   /** Clamp the tier's `maxPixelRatio` (e.g. a host-side DPR policy). */
   maxPixelRatio?: number;
   renderScale?: number;
+  /** Adaptive image-quality clamp (fix-kart-royale-render-sharpness D8). */
+  renderPolicy?: HostRenderPolicy;
 }
 
 export interface HostAudioOptions {
@@ -119,6 +121,13 @@ export interface KartRoyaleHost {
   beginSession(): void;
   endSession(): void;
   setMuted(muted: boolean): void;
+  /**
+   * Render diagnostics (fix-kart-royale-render-sharpness D10): CSS viewport,
+   * DPR, caps, dynamicScale, effective ratio, drawing/composer buffers,
+   * quality/degrade state, effect flags, AA path and the scaler's EMA
+   * signals — one cheap read for the host page's `__kartDebug` surface.
+   */
+  getRenderStats(): Record<string, unknown>;
   /** True when the runtime has failed irrecoverably (host must exit). */
   dead: boolean;
   /**

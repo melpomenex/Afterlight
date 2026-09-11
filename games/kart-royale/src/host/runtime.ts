@@ -1,8 +1,14 @@
 import * as THREE from 'three';
 import { IncrementalBatchRunner, type BatchRunResult } from '../core/IncrementalBatch';
-import { RaceState, type BatchStep, type Ctx, type System } from '../types';
+import { RaceState, type BatchStep, type Ctx, type System, type HostRenderPolicy } from '../types';
 import { Bus } from '../core/Bus';
-import { createSettings, device, type SettingsOverrides } from '../core/Settings';
+import { createSettings, device, glCapabilities, type SettingsOverrides } from '../core/Settings';
+import {
+  resolveRenderPolicy, fullLadder, lowestRungIndex, normalRungLimit,
+  nextDescentAction, nextRecoveryAction, isHostPageContention,
+  isEmergencyRung, describeRung, MAX_DEGRADE_STAGE,
+  PAYOFF_EVAL_FRAMES, DESCENT_PAYOFF_MS,
+} from '../../../../shared/kart-royale/renderPolicy.js';
 import { Input } from '../core/Input';
 import { prewarm } from '../core/Prewarm';
 import { FrameWatch } from '../core/FrameWatch';
@@ -105,6 +111,8 @@ export interface KartRoyaleRuntime {
   setMuted(muted: boolean): void;
   /** Watchdog state for harnesses (`__loopHealth` in the standalone shell). */
   loopHealth(): Record<string, unknown>;
+  /** Render diagnostics (D10): pipeline + scaler state in one read. */
+  renderStats(): Record<string, unknown>;
   /** Mount session listeners/HUD/audio; hosted only splits resource vs session. */
   beginSession(): void;
   endSession(): void;
@@ -262,23 +270,16 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
   }
 
   // ---------------------------------------------------------------------------
-  //  Render-loop watchdog (moved verbatim from main.ts)
+  //  Render-loop watchdog (moved verbatim from main.ts, ladder re-expressed
+  //  through core/renderPolicy.js — fix-kart-royale-render-sharpness D2/D3/D5)
   // ---------------------------------------------------------------------------
   const STALL_MS = 220;
   const SLOW_MS = 45;
-  const SCALE_RUNGS = [1, 0.85, 0.72, 0.6, 0.5];
   const FRAME_SLOW_MS = 18.0;
   const FRAME_CLEAN_MS = 17.6;
   const FRAME_EMA_ALPHA = 0.06;
-  const CPU_BOUND_MS = 13.0;
   const RACING_SETTLE_FRAMES = 30;
-  const CSS_FLOOR_HANDHELD = 1.0;
-  const CSS_FLOOR_DEFAULT = 0.6;
-  const MIN_LADDER_RUNGS = 2;
-  const DESCENT_PAYOFF_MS = 0.6;
   const NO_PAYOFF_LOCKOUT = 3600;
-  const MAX_JUMP_RUNGS = 2;
-  const FRAME_JUMP_MS = 25.0;
   const SCALE_COOLDOWN = 60;
   const RECOVER_COOLDOWN = 120;
   const PROBE_FRAMES_MIN = 360;
@@ -286,6 +287,22 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
   const PROBE_FAIL_WINDOW = 900;
   const CLEAN_LEAK = 30;
   const WATCHDOG_FROM_FRAME = 30;
+
+  /**
+   * The resolved adaptive-render policy: device-class ladders, effect-stage
+   * order, hosted clamps. `MAX_JUMP_RUNGS`/`FRAME_JUMP_MS` and the sqrt-budget
+   * descent targeting are gone on purpose — the policy descends ONE step per
+   * sustained window, which is what temporal stability (no 1.0 → 0.72 pops)
+   * actually requires.
+   */
+  const policy = resolveRenderPolicy(
+    { ...device(), software: glCapabilities().software },
+    (options.settingsOverrides?.renderPolicy ?? null) as HostRenderPolicy | null,
+  );
+  // Published on Ctx for the systems that need the policy values at frame
+  // rate (PostFX reads motionBlurStrength / depthOfField in build/sync), the
+  // same way the shared material library is published.
+  (ctx as any).renderPolicy = policy;
 
   const SCALER_PINNED = options.scalerParam !== null && options.scalerParam !== undefined && options.scalerParam !== '';
   const SCALER_PIN_VALUE = (() => {
@@ -304,11 +321,23 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
   let racingFrames = 0;
   let lastTickPresented = false;
   let skipRender = 0;
+  /** Index into `fullLadder(policy)` — the current dynamic-scale rung. */
   let scaleRung = 0;
+  /** Current effect-degradation stage (0 = full quality). See renderPolicy.js. */
+  let degradeStage = 0;
+  /** Consecutive usable racing frames with the pressure signal high. */
+  let pressureFrames = 0;
+  /** Same, counted only once the normal ladder AND the stage ladder are spent. */
+  let emergencyFrames = 0;
   let scaleCooldown = 0;
+  /** Frames until the most recent descent's payoff is evaluated. */
+  let payoffCountdown = 0;
   let descendFromRung = -1;
+  let descendFromStage = -1;
   let descendFromEma = 0;
-  let noPayoffRung = -1;
+  /** The action a payoff evaluation rejected, locked out for NO_PAYOFF_LOCKOUT frames. */
+  let noPayoffKind: 'stage' | 'rung' | 'emergency' | null = null;
+  let noPayoffIndex = -1;
   let noPayoffFrame = 0;
   let descentsKept = 0;
   let descentsReverted = 0;
@@ -339,53 +368,131 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
     return bufW / ctx.width / ds;
   }
 
-  function lowestRung(): number {
-    const base = baseCssRatio();
-    const floor = device().handheld ? CSS_FLOOR_HANDHELD : CSS_FLOOR_DEFAULT;
-    let i = SCALE_RUNGS.length - 1;
-    while (i > 0 && base * SCALE_RUNGS[i] < floor - 1e-6) i--;
-    i = Math.min(SCALE_RUNGS.length - 1, Math.max(i, MIN_LADDER_RUNGS));
-    if (noPayoffRung > 0 && ctx.frame - noPayoffFrame < NO_PAYOFF_LOCKOUT) {
-      i = Math.min(i, noPayoffRung - 1);
+  /**
+   * Next degradation under sustained pressure, with the no-payoff lockout
+   * applied: an action a payoff evaluation rejected is not repeated for
+   * NO_PAYOFF_LOCKOUT frames.
+   */
+  function nextDescent() {
+    const action = nextDescentAction({
+      degradeStage,
+      rung: scaleRung,
+      policy,
+      baseCssRatio: baseCssRatio(),
+      pressureFrames,
+      emergencyFrames,
+    });
+    if (!action) return null;
+    if (noPayoffKind !== null && ctx.frame - noPayoffFrame < NO_PAYOFF_LOCKOUT) {
+      const idx = action.kind === 'stage' ? action.stage : action.rung;
+      if (action.kind === noPayoffKind && idx === noPayoffIndex) return null;
     }
-    return Math.max(0, i);
+    return action;
   }
 
-  function descendTarget(): number {
-    const floor = lowestRung();
-    if (scaleRung + 1 > floor) return scaleRung;
-    if (frameEma <= FRAME_JUMP_MS) return scaleRung + 1;
-    const pixelCost = Math.max(1, frameEma - renderCostEma);
-    const budget = Math.max(2, FRAME_CLEAN_MS - renderCostEma);
-    const want = SCALE_RUNGS[scaleRung] * Math.sqrt(budget / pixelCost);
-    let target = scaleRung + 1;
-    while (target < floor && SCALE_RUNGS[target] > want) target++;
-    return Math.min(target, scaleRung + MAX_JUMP_RUNGS, floor);
+  /**
+   * Apply one descent (an effect stage or a render-scale rung). Records the
+   * pre-descent state so `evaluatePayoff` can revert an action that did not
+   * buy its minimum frame-time improvement.
+   */
+  function applyDescent(action: { kind: 'stage' | 'rung' | 'emergency'; stage?: number; rung?: number }): void {
+    descendFromRung = scaleRung;
+    descendFromStage = degradeStage;
+    descendFromEma = frameEma;
+    if (action.kind === 'stage') {
+      degradeStage = action.stage ?? degradeStage + 1;
+      // Applied by the pipeline: degradeStage is part of pipelineSignature, so
+      // the next frame rebuilds the effect chain with the cheaper stage.
+      ctx.settings.degradeStage = degradeStage;
+      console.warn(
+        `[frame] ${frameEma.toFixed(1)}ms between presented frames ` +
+        `(submit ${renderCostEma.toFixed(1)}ms); effect stage -> ${degradeStage} ` +
+        `(resolution unchanged)`,
+      );
+    } else {
+      scaleRung = action.rung ?? scaleRung + 1;
+      pipeline.setDynamicScale(fullLadder(policy)[scaleRung]);
+      console.warn(
+        `[frame] ${frameEma.toFixed(1)}ms between presented frames ` +
+        `(submit ${renderCostEma.toFixed(1)}ms); render scale -> ` +
+        `${describeRung(policy, scaleRung)} (every frame still presented)`,
+      );
+    }
+    scaleCooldown = SCALE_COOLDOWN;
+    payoffCountdown = PAYOFF_EVAL_FRAMES;
+    cleanFrames = 0;
   }
 
-  function settleDescent(): boolean {
-    if (descendFromRung < 0) return false;
-    const from = descendFromRung;
+  /**
+   * Did the most recent descent buy at least DESCENT_PAYOFF_MS? A descent that
+   * did not is REVERTED and its action locked out — degrading the picture for
+   * nothing is the worst of both worlds.
+   */
+  function evaluatePayoff(): void {
+    if (descendFromRung < 0 && descendFromStage < 0) return;
     const before = descendFromEma;
+    const fromStage = descendFromStage;
+    const fromRung = descendFromRung;
+    const appliedKind: 'stage' | 'rung' | 'emergency' =
+      degradeStage !== fromStage ? 'stage' : (isEmergencyRung(policy, scaleRung) ? 'emergency' : 'rung');
+    const appliedIndex = appliedKind === 'stage' ? degradeStage : scaleRung;
     descendFromRung = -1;
+    descendFromStage = -1;
     if (frameEma <= before - DESCENT_PAYOFF_MS) {
       descentsKept++;
-      return false;
+      return;
     }
     descentsReverted++;
-    noPayoffRung = scaleRung;
+    noPayoffKind = appliedKind;
+    noPayoffIndex = appliedIndex;
     noPayoffFrame = ctx.frame;
-    scaleRung = from;
+    // Revert to the pre-descent state. applyDescent records both axes, so
+    // restoring them is exact: one moves back, the other is already there.
+    if (fromStage >= 0) {
+      degradeStage = fromStage;
+      ctx.settings.degradeStage = degradeStage;
+    }
+    if (fromRung >= 0) {
+      scaleRung = fromRung;
+      pipeline.setDynamicScale(fullLadder(policy)[scaleRung]);
+    }
     scaleCooldown = RECOVER_COOLDOWN;
     cleanFrames = 0;
-    pipeline.setDynamicScale(SCALE_RUNGS[scaleRung]);
     console.warn(
-      `[frame] render scale ${SCALE_RUNGS[noPayoffRung]} bought ` +
+      `[frame] descent ${appliedKind} ${appliedIndex} bought ` +
       `${(before - frameEma).toFixed(2)}ms of ${DESCENT_PAYOFF_MS}ms needed ` +
-      `(${before.toFixed(1)} -> ${frameEma.toFixed(1)}ms); reverting to ` +
-      `${SCALE_RUNGS[scaleRung]} and locking that rung out`,
+      `(${before.toFixed(1)} -> ${frameEma.toFixed(1)}ms); reverting and locking it out`,
     );
-    return true;
+  }
+
+  /** Full reset of the adaptive state — context restore (standalone) and every hosted `beginSession` (D9). */
+  function resetAdaptiveState(): void {
+    renderCostEma = 16.7;
+    frameEma = 16.7;
+    cleanFrames = 0;
+    probeFrames = PROBE_FRAMES_MIN;
+    lastProbeFrame = -PROBE_FAIL_WINDOW;
+    lastTickPresented = false;
+    racingFrames = 0;
+    skipRender = 0;
+    scaleRung = 0;
+    degradeStage = 0;
+    ctx.settings.degradeStage = 0;
+    pressureFrames = 0;
+    emergencyFrames = 0;
+    scaleCooldown = 0;
+    payoffCountdown = 0;
+    descendFromRung = -1;
+    descendFromStage = -1;
+    descendFromEma = 0;
+    noPayoffKind = null;
+    noPayoffIndex = -1;
+    noPayoffFrame = 0;
+    descentsKept = 0;
+    descentsReverted = 0;
+    stallCount = 0;
+    renderFailures = 0;
+    pipeline.setDynamicScale(SCALER_PINNED ? SCALER_PIN_VALUE : fullLadder(policy)[0]);
   }
 
   /** True while the display surface is unusable (hidden pane, background tab). */
@@ -449,23 +556,9 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
         console.error('[restore] pre-warm failed; expect compile hitches', err);
       }
 
-      // Hand the simulation a fresh clock and reset the ladder bookkeeping.
-      renderCostEma = 16.7;
-      frameEma = 16.7;
-      cleanFrames = 0;
-      probeFrames = PROBE_FRAMES_MIN;
-      lastProbeFrame = -PROBE_FAIL_WINDOW;
-      lastTickPresented = false;
-      racingFrames = 0;
-      skipRender = 0;
-      scaleRung = 0;
-      scaleCooldown = 0;
-      descendFromRung = -1;
-      descendFromEma = 0;
-      noPayoffRung = -1;
-      noPayoffFrame = 0;
-      pipeline.setDynamicScale(SCALER_PINNED ? SCALER_PIN_VALUE : 1);
-      renderFailures = 0;
+      // Hand the simulation a fresh clock and reset the adaptive state (the
+      // same table a hosted beginSession applies — see resetAdaptiveState).
+      resetAdaptiveState();
       suspended = false;
     };
   }
@@ -598,11 +691,26 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
       const intervalMs = rawTickMs;
       const usable = racing && lastTickPresented && !frozenTick &&
         intervalMs > 1 && intervalMs < 100;
+      // Attribution (D5): the presented-frame interval is what the player
+      // feels, but the GAP to the game's own submit cost says WHO is slow. A
+      // gap beyond CONTENTION_GAP_MS is host-page time — degrading the game
+      // cannot buy it back, so neither descent nor recovery acts on it.
+      const pressureGap = frameEma - renderCostEma;
+      const contention = isHostPageContention(frameEma, renderCostEma);
+      const highPressure = frameEma > FRAME_SLOW_MS || renderCostEma > SLOW_MS;
       if (usable) {
         frameEma += (intervalMs - frameEma) * FRAME_EMA_ALPHA;
         cleanFrames = intervalMs <= FRAME_CLEAN_MS && frameEma <= FRAME_CLEAN_MS
           ? cleanFrames + 1
           : Math.max(0, cleanFrames - CLEAN_LEAK);
+        // Sustained-pressure window (D5): a descent needs the signal to stay
+        // high for PRESSURE_WINDOW_FRAMES of usable racing frames. One stall,
+        // one GC pause, one background-job overrun resets the window.
+        pressureFrames = highPressure ? pressureFrames + 1 : 0;
+        const normalBottomed =
+          degradeStage >= MAX_DEGRADE_STAGE &&
+          scaleRung >= normalRungLimit(policy, baseCssRatio());
+        emergencyFrames = highPressure && normalBottomed ? emergencyFrames + 1 : 0;
       }
 
       if (cost > STALL_MS) {
@@ -622,35 +730,44 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
         // never spends resolution.
       } else if (racingFrames < RACING_SETTLE_FRAMES) {
         // Not racing, or not long enough yet.
-      } else if (scaleCooldown > 0) {
-        if (--scaleCooldown === 0) settleDescent();
-      } else if ((frameEma > FRAME_SLOW_MS || renderCostEma > SLOW_MS) &&
-                 (renderCostEma < CPU_BOUND_MS || renderCostEma > SLOW_MS) &&
-                 scaleRung < lowestRung()) {
-        if (ctx.frame - lastProbeFrame < PROBE_FAIL_WINDOW) {
-          probeFrames = Math.min(PROBE_FRAMES_MAX, probeFrames * 2);
+      } else {
+        if (payoffCountdown > 0 && --payoffCountdown === 0) evaluatePayoff();
+        if (scaleCooldown > 0) {
+          scaleCooldown--;
+        } else if (usable && highPressure && !contention) {
+          const action = nextDescent();
+          if (action !== null) {
+            // A descent arriving soon after a recovery probe means the probe
+            // failed: the next probe waits longer (up to PROBE_FRAMES_MAX).
+            if (ctx.frame - lastProbeFrame < PROBE_FAIL_WINDOW) {
+              probeFrames = Math.min(PROBE_FRAMES_MAX, probeFrames * 2);
+            }
+            applyDescent(action);
+          }
+        } else if (usable && !contention && cleanFrames >= probeFrames) {
+          const action = nextRecoveryAction({ degradeStage, rung: scaleRung, policy });
+          if (action !== null) {
+            if (action.kind === 'stage') {
+              degradeStage = action.stage;
+              ctx.settings.degradeStage = degradeStage;
+              console.info(
+                `[frame] ${Math.round(probeFrames / 60)}s of clean frames at ` +
+                `${frameEma.toFixed(1)}ms; effect stage -> ${degradeStage}`,
+              );
+            } else {
+              scaleRung = action.rung;
+              pipeline.setDynamicScale(fullLadder(policy)[scaleRung]);
+              console.info(
+                `[frame] ${Math.round(probeFrames / 60)}s of clean frames at ` +
+                `${frameEma.toFixed(1)}ms; probing render scale -> ` +
+                `${describeRung(policy, scaleRung)}`,
+              );
+            }
+            scaleCooldown = RECOVER_COOLDOWN;
+            cleanFrames = 0;
+            lastProbeFrame = ctx.frame;
+          }
         }
-        descendFromRung = scaleRung;
-        descendFromEma = frameEma;
-        scaleRung = descendTarget();
-        scaleCooldown = SCALE_COOLDOWN;
-        cleanFrames = 0;
-        pipeline.setDynamicScale(SCALE_RUNGS[scaleRung]);
-        console.warn(
-          `[frame] ${frameEma.toFixed(1)}ms between presented frames ` +
-          `(submit ${renderCostEma.toFixed(1)}ms); render scale -> ${SCALE_RUNGS[scaleRung]} ` +
-          `(every frame still presented)`,
-        );
-      } else if (scaleRung > 0 && cleanFrames >= probeFrames) {
-        scaleRung--;
-        scaleCooldown = RECOVER_COOLDOWN;
-        cleanFrames = 0;
-        lastProbeFrame = ctx.frame;
-        pipeline.setDynamicScale(SCALE_RUNGS[scaleRung]);
-        console.info(
-          `[frame] ${Math.round(probeFrames / 60)}s of clean frames at ${frameEma.toFixed(1)}ms; ` +
-          `probing render scale -> ${SCALE_RUNGS[scaleRung]}`,
-        );
       }
     }
     lastTickPresented = presented;
@@ -697,16 +814,26 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
       frame: ctx.frame,
       renderCostEma: +renderCostEma.toFixed(2),
       frameEma: +frameEma.toFixed(2),
+      pressureGapMs: +(frameEma - renderCostEma).toFixed(2),
+      hostPageContention: isHostPageContention(frameEma, renderCostEma),
       cleanFrames,
       probeFrames,
       racingFrames,
-      renderScale: SCALE_RUNGS[scaleRung],
+      pressureFrames,
+      emergencyFrames,
+      degradeStage,
+      maxDegradeStage: MAX_DEGRADE_STAGE,
+      renderScale: fullLadder(policy)[scaleRung] ?? 1,
       scaleRung,
-      lowestRung: lowestRung(),
+      lowestRung: lowestRungIndex(policy, baseCssRatio()),
+      deviceClass: policy.deviceClass,
+      ladder: fullLadder(policy).slice(),
+      motionBlurStrength: policy.motionBlurStrength,
       baseCssRatio: +baseCssRatio().toFixed(3),
       descentsKept,
       descentsReverted,
-      noPayoffRung,
+      noPayoffKind,
+      noPayoffIndex,
       scalerPinned: SCALER_PINNED,
       dynamicScale: pipeline?.dynamicScale ?? 1,
       stalls: stallCount,
@@ -717,8 +844,40 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
     };
   }
 
+  /**
+   * Render diagnostics (fix-kart-royale-render-sharpness D10): the scaler-side
+   * half, merged with `RenderPipeline.renderStats()` (buffers, GL state) by the
+   * composition that owns the page surface. Cheap field reads only.
+   */
+  function renderStats(): Record<string, unknown> {
+    return {
+      ...pipeline.renderStats(ctx),
+      qualityName: ['low', 'medium', 'high', 'ultra'][ctx.settings.quality] ?? String(ctx.settings.quality),
+      degradeStage,
+      maxDegradeStage: MAX_DEGRADE_STAGE,
+      currentRung: scaleRung,
+      currentRungLabel: describeRung(policy, scaleRung),
+      lowestRung: lowestRungIndex(policy, baseCssRatio()),
+      deviceClass: policy.deviceClass,
+      ladder: fullLadder(policy).slice(),
+      motionBlurStrength: policy.motionBlurStrength,
+      frameEmaMs: +frameEma.toFixed(2),
+      renderCostEmaMs: +renderCostEma.toFixed(2),
+      pressureGapMs: +(frameEma - renderCostEma).toFixed(2),
+      hostPageContention: isHostPageContention(frameEma, renderCostEma),
+      scalerPinned: SCALER_PINNED,
+      resets: descentsReverted,
+      contextLost: pipeline.contextLost,
+    };
+  }
+
   function beginSession() {
     if (hosted) {
+      // A hosted session — cold OR re-entry into a retained warm host — starts
+      // presentation at the preferred rung with fresh measurement windows
+      // (fix-kart-royale-render-sharpness D9). Retention keeps the WORLD warm;
+      // it must never keep a previous session's degradation.
+      resetAdaptiveState();
       hud.enterSession();
       audio.enterSession();
     }
@@ -748,7 +907,8 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
 
   return {
     ctx, systems, pipeline, race, input, audio, sky, hud, camera, drawBudget,
-    boot, update, present, resize, setMuted, loopHealth, beginSession, endSession,
+    boot, update, present, resize, setMuted, loopHealth, renderStats,
+    beginSession, endSession,
     prepareWorldSlice, isWorldBatchesComplete, dispose,
   };
 }

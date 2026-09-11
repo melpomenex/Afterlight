@@ -47,6 +47,12 @@ export function createKartRoyaleHost(options: KartRoyaleHostOptions): KartRoyale
   const runtime = createKartRoyaleRuntime({
     hosted: true,
     renderer: options.renderer,
+    // fix-kart-royale-render-sharpness D8: the overrides field was declared on
+    // KartRoyaleHostOptions for the whole of the instant-entry round but never
+    // FORWARDED — the runtime silently ran with `settingsOverrides: undefined`,
+    // so no host policy could ever reach createSettings. Wired now. Absent
+    // `params`, behaviour is exactly what it was: pure device detection.
+    settingsOverrides: options.params,
     viewport: () => {
       if (viewportOverride) return { w: viewportOverride.width, h: viewportOverride.height };
       const size = options.viewport();
@@ -172,6 +178,9 @@ export function createKartRoyaleHost(options: KartRoyaleHostOptions): KartRoyale
     },
     setMuted(m) {
       runtime.setMuted(m);
+    },
+    getRenderStats() {
+      return runtime.renderStats();
     },
     get dead() { return dead; },
     dispose() {

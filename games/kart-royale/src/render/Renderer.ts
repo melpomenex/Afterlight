@@ -19,6 +19,7 @@ import { PostFX } from './PostFX';
 import { glCapabilities, forcedFailure, drainErrors, type GLCapabilities } from '../core/Settings';
 import { logPipeline, recordShaderError, type FrameSample } from '../core/Diagnostics';
 import { hostedGpuAvailable, runHostedGpuWork, runHostedGpuWorkSync } from '../host/graphicsWork';
+import { computeEffectivePixelRatio, DEGRADE_STAGES } from '../../../../shared/kart-royale/renderPolicy.js';
 
 interface DeviceProfile {
   webgl2: boolean;
@@ -140,7 +141,13 @@ function pipelineSignature(s: Settings): number {
     (s.motionBlur ? 1 << 5 : 0) |
     (s.dof ? 1 << 6 : 0) |
     (Math.round(THREE.MathUtils.clamp(s.renderScale, 0.25, 2) * 64) << 7) |
-    (Math.round(THREE.MathUtils.clamp(s.maxPixelRatio, 0.5, 4) * 8) << 16);
+    (Math.round(THREE.MathUtils.clamp(s.maxPixelRatio, 0.5, 4) * 8) << 16) |
+    // The adaptive ladder's effect-degradation stage (fix-kart-royale-render-
+    // sharpness D3) changes what the chain BUILDS — tap budgets, AO samples,
+    // DoF, bloom levels — so it belongs in the signature: a stage move is
+    // hysteretic (see renderPolicy.js) and a rebuild per move costs no more
+    // than a manual quality change already does.
+    ((s.degradeStage ?? 0) & 15) << 20;
 }
 
 export class RenderPipeline implements System {
@@ -425,7 +432,12 @@ export class RenderPipeline implements System {
     this.applyMaterialOverride();
     // Shadow maps are the other thing a rejected shader family takes with it,
     // and at the safe rungs there are no PBR materials left to receive them.
-    this.renderer.shadowMap.enabled = this.ctx.settings.shadows && this.rung < Rung.Safe;
+    this.renderer.shadowMap.enabled = this.ctx.settings.shadows && this.rung < Rung.Safe &&
+      // Stage 6 of the adaptive ladder (fix-kart-royale-render-sharpness D3):
+      // the cascade maps themselves are baked into shader literals at Sky.init,
+      // so the runtime-reachable shadow lever is the renderer flag, not a
+      // cascade resize.
+      (this.ctx.settings.degradeStage ?? 0) < DEGRADE_STAGES.SHADOWS_OFF;
     this.usePost = this.rung <= Rung.Ldr;
 
     if (!this.usePost) {
@@ -819,6 +831,40 @@ export class RenderPipeline implements System {
   capabilities(): GLCapabilities { return glCapabilities(); }
 
   /**
+   * Render diagnostics, pipeline half (fix-kart-royale-render-sharpness D10).
+   * Cheap field reads; the runtime's `renderStats()` merges in the scaler and
+   * policy state. Nothing here allocates per frame — it is called on demand.
+   */
+  renderStats(ctx: Ctx): Record<string, unknown> {
+    const gl = this.gl as WebGL2RenderingContext | null;
+    const s = ctx.settings;
+    const stage = s.degradeStage ?? 0;
+    return {
+      viewportCss: [ctx.width, ctx.height],
+      devicePixelRatio: globalThis.devicePixelRatio ?? 1,
+      maxPixelRatioCap: s.maxPixelRatio,
+      renderScale: s.renderScale,
+      dynamicScale: this.dynamicScale,
+      effectivePixelRatio: +this.effectivePixelRatio().toFixed(4),
+      drawingBuffer: gl ? [gl.drawingBufferWidth, gl.drawingBufferHeight] : null,
+      composerBuffer: this.composer
+        ? [this.composer.inputBuffer.width, this.composer.inputBuffer.height]
+        : null,
+      quality: s.quality,
+      rung: this.rungName(),
+      motionBlur: s.motionBlur,
+      dof: s.dof && stage < DEGRADE_STAGES.DOF_OFF,
+      ssao: s.ssao && stage < DEGRADE_STAGES.AO_OFF,
+      bloom: s.bloom,
+      shadows: s.shadows && stage < DEGRADE_STAGES.SHADOWS_OFF,
+      aaPath: this.composer === null
+        ? 'driver-msaa'
+        : `${this.msaaSamples()}x-msaa + smaa`,
+      contextLost: this.contextLost,
+    };
+  }
+
+  /**
    * Read two strips of the finished frame back and score them.
    *
    * THE ONLY HONEST ORACLE IN THE FILE. Draw calls, framebuffer status and
@@ -1205,77 +1251,19 @@ export class RenderPipeline implements System {
 
   private effectivePixelRatio(): number {
     const s = this.ctx.settings;
-    const cap = this.device.software ? 1 : Math.max(0.5, s.maxPixelRatio);
-    const scale = THREE.MathUtils.clamp(s.renderScale, 0.25, 2) * this.dynamicScale;
-    const dpr = THREE.MathUtils.clamp(globalThis.devicePixelRatio || 1, 0.5, 4);
-    const ratio = Math.min(dpr, cap) * scale;
-
-    // Never ask for a buffer the driver cannot make.
-    //
-    // Every colour attachment in the chain is allocated at the drawing-buffer
-    // size, and a render target whose edge exceeds `MAX_TEXTURE_SIZE` or
-    // `MAX_RENDERBUFFER_SIZE` does not fail loudly — it comes back incomplete
-    // and everything drawn into it is black, which is the most literal possible
-    // version of the player's report. It is not hypothetical on a handheld: a
-    // 2532 CSS-px landscape panel at devicePixelRatio 3 is 7596 drawing-buffer
-    // pixels wide, and the WebGL2 floor for both limits is 2048. Clamping the
-    // ratio costs sharpness on a device that had no chance of affording those
-    // pixels anyway, and it costs nothing at all on the desktop tiers, where
-    // the limit is 16384.
-    const limit = Math.min(
-      this.renderer?.capabilities?.maxTextureSize ?? 4096,
-      this.maxRenderbufferSize(),
-    );
-    //
-    // BOTH CLAMPS BELOW MULTIPLY `scale` BACK IN, and that is not cosmetic.
-    // `ratio` already contains `scale` (renderScale * dynamicScale); returning a
-    // bare `limit / longest` or `sqrt(budget / pixels)` throws it away, so above
-    // either ceiling the adaptive ladder has NO AUTHORITY OVER BUFFER SIZE AT
-    // ALL — `setDynamicScale` moves `dynamicScale`, `applyResolution` runs, and
-    // the drawing buffer comes back byte-identical. Proven with the harness:
-    // `--scale 1.5` and `--scale 2.0` both produced exactly 2666x1500 = 4.00
-    // Mpx. A retina 1512x982 window at devicePixelRatio 2 is 5.94 Mpx, i.e.
-    // over the backstop before the ladder has taken a single rung, so on the
-    // machine this game is developed on the ladder's first step was silently
-    // swallowed. Multiplying through keeps the ceiling a CEILING and leaves the
-    // ladder free to go below it, which is the only arrangement in which both
-    // mechanisms mean what their names say.
-    const longest = Math.max(this.width, this.height);
-    if (longest * ratio > limit) return Math.max(0.25, (limit / longest) * scale);
-
-    // A CEILING ON TOTAL PIXELS, NOT ONLY ON THE RATIO.
-    //
-    // `maxPixelRatio` caps a MULTIPLIER, and a multiplier does not know how big
-    // the window is. Every cost in this frame that matters scales with the
-    // product: the audit for this round fits the whole build at ~7.0 ms of fill
-    // per megapixel plus ~7.5 ms of resolution-independent per-frame cost, and
-    // the post chain alone is 5.3 ms/Mpx of that. So the same `maxPixelRatio:
-    // 2` that is harmless on a 1280x800 laptop panel (4.1 Mpx) asks a retina
-    // 1920x1200 desktop for 9.2 Mpx and 65+ ms frames — which is why the
-    // machine this game is developed on renders 3840x2160 and gets ~15 fps
-    // while the 1080p bench profile it is tuned against sits at 2.07 Mpx and
-    // never sees the problem.
-    //
-    // 4.0 Mpx is deliberately a BACKSTOP rather than the policy. It is above
-    // every native-resolution desktop the game is likely to meet — 2560x1440 is
-    // 3.69 Mpx and passes through untouched, and so does 1080p at any ratio up
-    // to 1.39 — so it never blurs a monitor that is simply large. What it
-    // catches is devicePixelRatio-2 SUPERSAMPLING, where the CSS pixels are
-    // already small and the extra samples are the least visible pixels in the
-    // frame. On the 1920x1200 retina case it takes the ratio from 2.0 to ~1.29,
-    // which is still 1.7 geometric samples per CSS pixel in each axis with SMAA
-    // running last on top. That IS a resolution reduction and it should be read
-    // as one; it is the difference between a playable frame and a slideshow on
-    // a machine that was getting neither the pixels nor the frame rate.
-    //
-    // The tier's `maxPixelRatio` remains the primary knob and is applied above;
-    // this only ever takes the lower of the two.
-    const budget = 4.0e6;
-    const pixels = this.width * this.height * ratio * ratio;
-    if (pixels > budget) {
-      return Math.max(0.25, Math.sqrt(budget / (this.width * this.height)) * scale);
-    }
-    return ratio;
+    // The arithmetic lives in core/renderPolicy.js (pure, Node-testable —
+    // fix-kart-royale-render-sharpness D2). Identical maths, one home.
+    return computeEffectivePixelRatio({
+      cssW: this.width,
+      cssH: this.height,
+      dpr: globalThis.devicePixelRatio || 1,
+      maxPixelRatioCap: Math.max(0.5, s.maxPixelRatio),
+      renderScale: s.renderScale,
+      dynamicScale: this.dynamicScale,
+      software: this.device.software,
+      maxTextureSize: this.renderer?.capabilities?.maxTextureSize ?? 4096,
+      maxRenderbufferSize: this.maxRenderbufferSize(),
+    });
   }
 
   private maxRenderbufferSize(): number {

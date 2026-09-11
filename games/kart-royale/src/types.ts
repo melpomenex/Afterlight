@@ -349,6 +349,28 @@ export interface Settings {
   particleDensity: number;
   foliageDensity: number;
   masterVolume: number;
+  /**
+   * Effect-degradation stage, 0 = full quality (fix-kart-royale-render-
+   * sharpness D3). Written by the adaptive ladder, read by the pipeline's
+   * signature and PostFX.build; deliberately NOT part of the authored presets.
+   */
+  degradeStage?: number;
+}
+
+/**
+ * A HOST may clamp the adaptive image-quality policy (fix-kart-royale-render-
+ * sharpness D8). Every field is optional and the policy can only TIGHTEN what
+ * device classification allows — never add rungs or raise the blur.
+ */
+export interface HostRenderPolicy {
+  /** Deepest dynamic-scale rung the NORMAL ladder may reach, ×CSS (e.g. 0.85). */
+  normalScaleFloor?: number;
+  /** Deepest EMERGENCY rung allowed (e.g. 0.72); 0 removes the emergency rungs. */
+  emergencyScaleFloor?: number;
+  /** 0..1 multiplier on the authored motion-blur smear. */
+  motionBlurStrength?: number;
+  /** Depth-of-field policy: authored (default) or off. */
+  depthOfField?: 'authored' | 'off';
 }
 
 // ---------------------------------------------------------------------------

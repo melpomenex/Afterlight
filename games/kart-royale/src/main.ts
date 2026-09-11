@@ -148,3 +148,7 @@ boot().catch((err) => {
 // Watchdog state, for the perf and soak harnesses: how many frames overran, and
 // what resolution rung the adaptive scaler has settled on.
 (window as any).__loopHealth = runtime.loopHealth;
+// Render diagnostics (fix-kart-royale-render-sharpness D10): buffers, ratios,
+// effect/degrade state and the scaler's EMA signals in one cheap read — the
+// standalone twin of the hosted `window.__kartDebug.getRenderStats()`.
+(window as any).__renderStats = () => runtime.renderStats();
