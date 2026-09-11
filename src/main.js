@@ -29,7 +29,8 @@ import { ARCADE_GAMES } from '../shared/leaderboardModel.js';
 import { MSG_TYPES, ROOMS } from '../shared/protocol.js';
 import { CROPS, CROP_LIST, GROWTH_STAGES } from '../shared/crops.js';
 import { MILL_REQUIREMENT } from '../shared/materials.js';
-import { FP_MODE, nextCameraMode, clampPitch, moveBasis, classifyDrag } from './cameraControl.js';
+import { FP_MODE, nextCameraMode, moveBasis, classifyDrag, applyLookDelta } from './cameraControl.js';
+import { readMouseLookPreference, writeMouseLookPreference } from './ui/mouseLookPreference.js';
 import { createJumpState, resetJump, stepJump, moveSpeedFor, HOP_CAP_RATIO } from './jump.js';
 import { createPlaceRuntime } from './places/runtime.js';
 import { resolveRoomRequest, worldUpdateInput } from './places/travelState.js';
@@ -124,8 +125,6 @@ const camera = new THREE.OrthographicCamera();
 // through `activeCamera`, assigned by setCameraMode().
 const EYE_HEIGHT = 1.55;
 const SEATED_EYE_HEIGHT = 1.05;
-const LOOK_SENS_YAW = 0.005;
-const LOOK_SENS_PITCH = 0.004;
 const fpCamera = new THREE.PerspectiveCamera(58, 1, 0.1, 150);
 const cameraSeam = createCameraSeam({ initialMode: 0 });
 let activeCamera = camera;
@@ -133,6 +132,10 @@ let cameraMode = 0;
 let fpYaw = 0;
 let fpPitch = 0;
 let zoom = 24;
+// Mouse look (add-first-person-mouse-look): hover-follow look input in first
+// person, on by default, reversible in Settings. Presentation-only: like the
+// camera mode it is never saved into the exploration save and never synced.
+let mouseLookEnabled = readMouseLookPreference();
 
 const composer = new EffectComposer(renderer);
 const renderPass = new RenderPass(scene, camera);
@@ -483,6 +486,7 @@ const keys = new Set();
 // Pointer gesture state lives with the other travel-transient input so a
 // room change can clear it (declared before the first setRoom call below).
 let press = null; // { x, y, lastX, lastY, dragging }
+let hoverLast = null; // { x, y } last mouse position over the canvas, for mouse-look deltas
 
 // Jump & bunny hop: session-local movement state, never saved or synced as
 // anything but an airborne flag. Space jumps; holding it chains hops whose
@@ -1857,6 +1861,17 @@ $('quality').onchange = () => {
 };
 $('atmosphere').onchange = () => { particles.visible = $('atmosphere').checked; };
 
+// Mouse look toggle: flips the look input immediately (no dialog close
+// needed) and persists; a storage failure keeps the choice session-local.
+{
+  const mouseLookCheckbox = $('mouse-look');
+  mouseLookCheckbox.checked = mouseLookEnabled;
+  mouseLookCheckbox.onchange = () => {
+    mouseLookEnabled = mouseLookCheckbox.checked;
+    writeMouseLookPreference(mouseLookEnabled);
+  };
+}
+
 // --- KEYBOARD CONTROLS ---
 window.addEventListener('keydown', (e) => {
   if ((isTypingTarget(e.target) || e.target.closest('#call-panel')) && e.code !== 'Escape') return;
@@ -1999,11 +2014,13 @@ window.addEventListener('blur', () => {
   activityRuntime.neutralizeInput?.();
 });
 
-// --- POINTER / CLICK TO WALK + DRAG TO LOOK ---
+// --- POINTER / CLICK TO WALK + LOOK ---
 // A press is a walk click unless pointer travel promotes it to a drag
-// (classifyDrag). In first person a drag turns the view instead; in every
-// mode a plain press-release does what the old pointerdown handler did:
-// stands a seated player up, leaves cinema view, and plants a walk target.
+// (classifyDrag). In first person the view follows mouse movement by default
+// (mouse look, hover-follow, no button held); with mouse look off, a held
+// drag turns the view instead. In every mode a plain press-release does what
+// the old pointerdown handler did: stands a seated player up, leaves cinema
+// view, and plants a walk target. A dragged press never plants one.
 // (`press` is declared with the other travel-transient state above.)
 
 renderer.domElement.addEventListener('pointerdown', (e) => {
@@ -2013,18 +2030,36 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
 });
 
 renderer.domElement.addEventListener('pointermove', (e) => {
+  // Mouse look path: every mouse move over the canvas turns the view in
+  // first person, gated exactly like the gesture path. The last-position
+  // bookkeeping runs even while gated so enabling it can never jump the view.
+  // Hover does not exist for touch, so touch never takes this path.
+  const isMouse = e.pointerType === 'mouse';
+  if (isMouse) {
+    const hdx = hoverLast ? e.clientX - hoverLast.x : 0;
+    const hdy = hoverLast ? e.clientY - hoverLast.y : 0;
+    hoverLast = { x: e.clientX, y: e.clientY };
+    if (mouseLookEnabled && cameraMode === FP_MODE && !paused && !emoteWheel?.isOpen) {
+      ({ yaw: fpYaw, pitch: fpPitch } = applyLookDelta(fpYaw, fpPitch, hdx, hdy));
+    }
+  }
   if (!press || paused) return;
   const dx = e.clientX - press.lastX;
   const dy = e.clientY - press.lastY;
   press.lastX = e.clientX;
   press.lastY = e.clientY;
   press.dragging = classifyDrag(press.x, press.y, e.clientX, e.clientY, press.dragging);
-  if (press.dragging && cameraMode === FP_MODE) {
-    // Drag right looks right, drag up looks up (direct, non-inverted).
-    fpYaw -= dx * LOOK_SENS_YAW;
-    fpPitch = clampPitch(fpPitch - dy * LOOK_SENS_PITCH);
+  // Drag-to-look: the fallback when mouse look is off, and touch's path in
+  // both modes. With mouse look on, a held mouse drag is already covered by
+  // the hover path, so applying it here again would double the turn.
+  if (press.dragging && cameraMode === FP_MODE && !(mouseLookEnabled && isMouse)) {
+    ({ yaw: fpYaw, pitch: fpPitch } = applyLookDelta(fpYaw, fpPitch, dx, dy));
   }
 });
+
+// Leaving the canvas (over HUD or out of the window) resets hover deltas so
+// the next entry starts from rest instead of applying the whole gap.
+renderer.domElement.addEventListener('pointerleave', () => { hoverLast = null; });
 
 function endPress(e) {
   const started = press;

@@ -126,7 +126,7 @@ The market garden, the economy and the restoration landmarks live on unchanged f
 | --- | --- |
 | <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> / Arrows | Move gardener relative to camera (in first person: relative to your view) |
 | Click / Tap ground | Walk to location |
-| Drag on the world | Turn your view (first person only) |
+| Drag on the world | Turn your view (first person fallback; see Mouse look below) |
 | <kbd>Shift</kbd> | Run |
 | <kbd>Space</kbd> | Jump — hold it to bunny hop: chained hops keep your momentum and build speed (up to ~1.5× run) as long as the chain lasts. Obstacles still block mid-air. |
 | <kbd>1</kbd> | Hands / Inspect tool |
@@ -153,7 +153,7 @@ The market garden, the economy and the restoration landmarks live on unchanged f
 
 **Emotes.** Wave, Rust shuffle, Cheer, Much love, Bow, and Shrug animate your character for nearby players. Movement or jumping ends the pose. The wheel stops your walk target; it never pauses other players. Emotes also work seated, and leaving cinema view to choose keeps your seat.
 
-**First person.** The fourth camera view puts you at street level. Your own avatar steps out of sight (Kiln and everyone else stay put), WASD moves relative to where you look, and dragging on the world turns your view — a plain click still walks, and a drag never does. Sit in a theater seat in first person to watch the shared screen from your own chair; your view choice is local and resets to the default angle on reload.
+**First person.** The fourth camera view puts you at street level. Your own avatar steps out of sight (Kiln and everyone else stay put), WASD moves relative to where you look, and your view simply follows the mouse — no button needed. A plain click still walks, and a held drag never does. Prefer the old control? **Settings → Mouse look** switches back to press-and-drag to look (touch always uses drag). Sit in a theater seat in first person to watch the shared screen from your own chair; your view choice is local and resets to the default angle on reload, and the mouse-look setting is remembered per browser.
 
 **Sound.** The world starts **quiet**: sound is off until you press the **♫ Sound** footer toggle, which starts the ambience and effects (everything is synthesized in the browser — no audio downloads). The switch is the master volume for the whole game — with sound off, screens in The Orpheum stay silent too, and pressing it brings their picture's audio back at your chosen theater volume. Footsteps follow your walking and running cadence; their volume lives in **Settings** (<kbd>Esc</kbd> → Footsteps) and is remembered per browser.
 

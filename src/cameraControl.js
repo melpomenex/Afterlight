@@ -6,6 +6,9 @@ export const ISO_MODES = 3; // Fixed isometric views (modes 0-2)
 export const FP_MODE = 3; // First person, appended to the cycle
 export const CAMERA_MODES = 4;
 export const DRAG_THRESHOLD_PX = 6; // Pointer travel that turns a press into a look-drag
+export const LOOK_SENS_YAW = 0.005; // rad per px of look movement (drag or hover)
+export const LOOK_SENS_PITCH = 0.004; // rad per px
+export const MAX_LOOK_STEP_PX = 250; // Per-event delta clamp: absorbs pointer re-entry spikes
 export const PITCH_MIN = -0.9; // rad (~-52°): furthest look-down
 export const PITCH_MAX = 0.7; // rad (~+40°): furthest look-up
 
@@ -51,4 +54,17 @@ export function moveBasis(cameraMode, fpYaw, moveX, moveZ) {
 // cannot flicker a drag back into a click.
 export function classifyDrag(startX, startY, x, y, alreadyDragging) {
   return alreadyDragging || Math.hypot(x - startX, y - startY) > DRAG_THRESHOLD_PX;
+}
+
+// The single look-update rule shared by the drag and hover paths: mouse-right
+// looks right (yaw decreases), mouse-up looks up (non-inverted), pitch stays
+// clamped. Per-event deltas are clamped so a pointer re-entry spike cannot
+// whip the view.
+export function applyLookDelta(yaw, pitch, dx, dy) {
+  const stepX = Math.max(-MAX_LOOK_STEP_PX, Math.min(MAX_LOOK_STEP_PX, dx));
+  const stepY = Math.max(-MAX_LOOK_STEP_PX, Math.min(MAX_LOOK_STEP_PX, dy));
+  return {
+    yaw: yaw - stepX * LOOK_SENS_YAW,
+    pitch: clampPitch(pitch - stepY * LOOK_SENS_PITCH),
+  };
 }

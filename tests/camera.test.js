@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  nextCameraMode, clampPitch, moveBasis, classifyDrag,
-  FP_MODE, PITCH_MIN, PITCH_MAX, DRAG_THRESHOLD_PX,
+  nextCameraMode, clampPitch, moveBasis, classifyDrag, applyLookDelta,
+  FP_MODE, PITCH_MIN, PITCH_MAX, DRAG_THRESHOLD_PX, LOOK_SENS_YAW, LOOK_SENS_PITCH, MAX_LOOK_STEP_PX,
 } from '../src/cameraControl.js';
 
 const near = (a, b, eps = 1e-12) => Math.abs(a - b) < eps;
@@ -57,4 +57,36 @@ test('pointer gesture: sub-threshold is a click, beyond is a drag that sticks', 
   assert.equal(classifyDrag(100, 100, 90, 108, false), true);
   // Once dragging, a release back near the origin must not re-classify as a click.
   assert.equal(classifyDrag(100, 100, 100, 100, true), true);
+});
+
+test('look delta: direct, non-inverted, shared by drag and hover paths', () => {
+  // Mouse right looks right (yaw decreases); mouse up (dy < 0) looks up.
+  let { yaw, pitch } = applyLookDelta(0, 0, 100, 0);
+  assert.ok(near(yaw, -100 * LOOK_SENS_YAW), `mouse-right yaw was ${yaw}`);
+  ({ yaw, pitch } = applyLookDelta(yaw, pitch, 0, -100));
+  assert.ok(near(pitch, 100 * LOOK_SENS_PITCH), `mouse-up pitch was ${pitch}`);
+
+  // Both paths get the same rule: the old inline drag arithmetic is identical.
+  const dx = 37, dy = -23;
+  const direct = { yaw: -dx * LOOK_SENS_YAW, pitch: clampPitch(-dy * LOOK_SENS_PITCH) };
+  assert.deepEqual(applyLookDelta(0, 0, dx, dy), direct);
+});
+
+test('look delta: pitch saturates at its limit', () => {
+  const { pitch } = applyLookDelta(0, PITCH_MAX - 0.01, 0, -10000);
+  assert.equal(pitch, PITCH_MAX);
+  assert.equal(applyLookDelta(0, PITCH_MIN + 0.01, 0, 10000).pitch, PITCH_MIN);
+});
+
+test('look delta: absurd per-event spikes are clamped, not applied raw', () => {
+  // A pointer re-entry can report a huge jump; it must move the view no more
+  // than MAX_LOOK_STEP_PX worth of travel.
+  const { yaw } = applyLookDelta(0, 0, 1e6, 0);
+  assert.ok(near(yaw, -MAX_LOOK_STEP_PX * LOOK_SENS_YAW), `spike yaw was ${yaw}`);
+  const { yaw: negYaw } = applyLookDelta(0, 0, -1e6, 0);
+  assert.ok(near(negYaw, MAX_LOOK_STEP_PX * LOOK_SENS_YAW));
+});
+
+test('look delta: zero movement leaves the view untouched', () => {
+  assert.deepEqual(applyLookDelta(0.42, -0.1, 0, 0), { yaw: 0.42, pitch: -0.1 });
 });
