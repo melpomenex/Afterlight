@@ -2278,7 +2278,6 @@ function addSunRim(m: THREE.MeshPhysicalMaterial, strength: number) {
 }
 
 let _impostor: THREE.MeshStandardMaterial | null = null;
-let _shadowOnly: THREE.MeshBasicMaterial | null = null;
 
 /**
  * The distant kart's single surface.
@@ -2314,26 +2313,6 @@ export function impostorMaterial(): THREE.MeshStandardMaterial {
   // in the sunset's.
   injectEnvResponse(_impostor, PAINT_ENV_RESPONSE);
   return _impostor;
-}
-
-/**
- * The same merged mesh, wearing nothing.
- *
- * three decides what goes in a shadow map from `castShadow` on the object and
- * `visible` on the object and its material — there is no "cast but do not
- * draw" flag, and both the colour pass and the shadow pass read the same two
- * booleans. So a near kart, which must keep all fifteen detail meshes in the
- * colour pass, gets its shadow from this: the merged mesh stays in the scene
- * with `castShadow` on and a material that writes no colour and no depth. It
- * costs one rasterised-but-discarded draw and saves nineteen shadow draws.
- *
- * `renderOrder` puts it after the opaque queue so the depth buffer it is tested
- * against is already full and almost every fragment dies at early-Z.
- */
-export function shadowOnlyMaterial(): THREE.MeshBasicMaterial {
-  if (_shadowOnly) return _shadowOnly;
-  _shadowOnly = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
-  return _shadowOnly;
 }
 
 let _heroPaint: THREE.MeshPhysicalMaterial | null = null;

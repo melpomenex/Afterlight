@@ -33,7 +33,7 @@ import * as THREE from 'three';
 import type { KartStats } from '../types';
 import {
   Mesher, PANEL_SIZE, PANEL_UV, Role, WHEEL_UV, contactShadow, getLivery, heroPaint,
-  impostorMaterial, kartMaterials, liveryGeometry, mat, shadowOnlyMaterial, syncKartEnv,
+  impostorMaterial, kartMaterials, liveryGeometry, mat, syncKartEnv,
   type Built, type Livery, type Section,
 } from './Liveries';
 import { buildDriver, driverTriangles, DriverRig } from './Driver';
@@ -1076,16 +1076,11 @@ function clusterDecimate(
  * Every kart built this session, so the capture harness can interrogate the
  * shadow path without reaching through Race into Kart into `visual`.
  *
- * Why this exists: a kart's ENTIRE contribution to both cascades is one mesh
- * (`kartImpostor`) — `buildKart` force-clears `castShadow` on all fifteen
- * detail meshes the moment the bake succeeds, and `DrawBudget` then owns that
- * mesh's `visible` and `castShadow` flags from `lateUpdate`. So there are four
- * independent ways for a kart to end up casting nothing at all, and from a
- * screenshot they are indistinguishable from each other and from "the cascade
- * never saw it". `__kartShadow.report()` separates them in one call, and
- * `detailShadows(true)` is the A/B: if the kart's shadow appears with the
- * detail meshes casting, the bake or its flags are at fault; if it still does
- * not, the caster was never the problem and the cascade is.
+ * Why this exists: a kart's shipping shadow is its root-relative contact blob.
+ * The detail meshes and far-LOD bake deliberately do not cast directional-light
+ * shadows, because the low key light would project a second car-shaped
+ * silhouette beside the vehicle. `__kartShadow.report()` makes that ownership
+ * visible in one call; `detailShadows(true)` remains a diagnostic A/B only.
  */
 const _built: THREE.Group[] = [];
 
@@ -1349,31 +1344,28 @@ export function buildKart(
     for (let i = 0; i < 4; i++) contact.setWheel(i, wheels[i].position.y - WHEEL_R);
   };
 
-  // --- far LOD / shadow proxy ----------------------------------------------
+  // --- far LOD proxy --------------------------------------------------------
   // Built last, after every part is in place and posed, because it is just a
-  // bake of the assembled model. See `mergeToImpostor`. The detail meshes stop
-  // casting shadows at the same time: from here on this one mesh is the kart's
-  // entire contribution to both cascades, near or far, and DrawBudget decides
-  // per frame whether it is also what the camera sees.
+  // bake of the assembled model. See `mergeToImpostor`. It is a far-distance
+  // camera representation only; the contact blob remains the kart's sole
+  // shipping shadow so the low sun cannot project a duplicate vehicle shape.
   const impostorGeo = mergeToImpostor(root);
   let impostor: THREE.Mesh | null = null;
   if (impostorGeo) {
-    impostor = new THREE.Mesh(impostorGeo, shadowOnlyMaterial());
+    impostor = new THREE.Mesh(impostorGeo, impostorMaterial());
     impostor.name = 'kartImpostor';
-    impostor.castShadow = true;
+    impostor.castShadow = false;
     impostor.receiveShadow = true;
-    // after the opaque queue, so the shadow-only pose is killed at early-Z
-    impostor.renderOrder = 4;
+    impostor.visible = false;
     root.add(impostor);
     root.traverse((o) => {
       const m = o as THREE.Mesh;
-      if ((m as unknown as { isMesh?: boolean }).isMesh && m !== impostor) m.castShadow = false;
+      if ((m as unknown as { isMesh?: boolean }).isMesh) m.castShadow = false;
     });
   }
 
   root.userData.impostor = impostor;
   root.userData.impostorMat = impostorMaterial();
-  root.userData.shadowOnlyMat = shadowOnlyMaterial();
   /** everything DrawBudget hides when the kart collapses to its impostor */
   root.userData.detailNodes = [body, ...wheels, tyres];
   root.userData.body = body;
