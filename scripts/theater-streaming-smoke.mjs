@@ -45,12 +45,16 @@ const socket = new Socket(WS_URL, { params: { token } });
 socket.connect();
 
 const frames = [];
+const grants = [];
 let errors = [];
+let frameSeq = 0;
 const channel = socket.channel('game:v1', { guestId: GUEST_ID });
 
 channel.onMessage = (event, payload) => {
-  if (event === 'theater_state') frames.push(payload);
-  if (event === 'iptv_state') frames.push({ __iptv: true });
+  frameSeq += 1;
+  if (event === 'theater_state') frames.push({ __n: frameSeq, ...payload });
+  if (event === 'iptv_state') frames.push({ __iptv: true, __n: frameSeq });
+  if (event === 'torrent_grant') grants.push({ __n: frameSeq, ...payload });
   if (event === 'error') errors.push(payload?.message || '');
   return payload;
 };
@@ -158,6 +162,58 @@ await addAndRemove('hls', 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8');
   channel.push('torrent_resolve', { requestId: `smoke-${Date.now()}`, magnet: 'magnet:?xt=urn:btih:zzzz' });
   await waitFor(() => errors.length > 0, 5000);
   record('invalid magnet: resolve refused with readable error', errors.length > 0, errors[0] || 'no error within 5s');
+}
+
+// 5b. Torrent pick: a valid magnet with a pick must deliver a targeted
+//     torrent_grant to the actor BEFORE the theater_state that announces the
+//     item, and the shared state must stay token-free
+//     (fix-torrent-playback-grant-regression). No real swarm is needed for
+//     the frame contract; the HTTP grant/Range path is covered by the
+//     browser gate and unit suites.
+{
+  const infohash = '08ada5a7a6183aae1e09d831df6748d566095a10';
+  const magnet = `magnet:?xt=urn:btih:${infohash}&dn=SmokeProbe`;
+  const title = `${TAG} torrent-pick`;
+  const grantStart = grants.length;
+  const frameStart = frames.length;
+
+  channel.push('theater_queue', {
+    op: 'add',
+    url: magnet,
+    title,
+    fileIndex: 0,
+    filePath: 'SmokeProbe/movie.mp4',
+    fileBytes: 12345,
+  });
+
+  const item = await waitFor(() => findTagged(title), 5000);
+  const grant = grants
+    .slice(grantStart)
+    .find((g) => String(g.infohash || '').toLowerCase() === infohash);
+  const announcing = frames
+    .slice(frameStart)
+    .find((f) => f.theater?.now?.id && f.theater.now.id === item?.id);
+
+  record(
+    'torrent: targeted grant delivered before the announcing theater_state',
+    !!grant && !!announcing && grant.__n < announcing.__n,
+    grant ? `grant seq=${grant.__n} state seq=${announcing?.__n}` : errors.join('; ') || 'no grant within 5s',
+  );
+  record(
+    'torrent: shared theater_state carries no grant material',
+    !!announcing && !('grant' in announcing) && !('expiresAtMs' in announcing),
+    announcing ? `keys=${Object.keys(announcing).join(',')}` : 'no announcing state',
+  );
+  record(
+    'torrent: grant is scoped to the picked infohash/file',
+    grant?.infohash === infohash && Number(grant?.fileIndex) === 0,
+    grant ? `infohash=${grant.infohash} fileIndex=${grant.fileIndex}` : 'no grant',
+  );
+
+  if (item) {
+    channel.push('theater_queue', { op: 'remove', itemId: item.id });
+    await waitFor(() => !findTagged(title), 5000);
+  }
 }
 
 // 6. Leave the bill exactly as we found it (queue AND a live item).
