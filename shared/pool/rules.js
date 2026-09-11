@@ -11,7 +11,18 @@ import {
   TABLE_LENGTH,
   TABLE_WIDTH,
   POCKETS,
+  POOL_MIN_CUE_SPEED,
+  POOL_MAX_CUE_SPEED,
+  POOL_POWER_EXPONENT,
+  normalizedPowerToCueSpeed,
 } from './physics.js';
+
+export {
+  POOL_MIN_CUE_SPEED,
+  POOL_MAX_CUE_SPEED,
+  POOL_POWER_EXPONENT,
+  normalizedPowerToCueSpeed,
+};
 
 export const RULES_VERSION = 1;
 
@@ -160,7 +171,8 @@ export function shoot(state, player, angle, power, spinX = 0.0, spinY = 0.0) {
     return { ok: false, error: 'pocket_call_required' };
   }
 
-  const phys = strikeCueBall(state.physics, angle, power, spinX, spinY);
+  const physicalSpeed = normalizedPowerToCueSpeed(power);
+  const phys = strikeCueBall(state.physics, angle, physicalSpeed, spinX, spinY);
 
   const shotTracker = {
     shooter: player,

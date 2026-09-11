@@ -42,6 +42,25 @@ export const SETTLE_LINEAR_THRESHOLD = 0.002;
 export const SETTLE_ANGULAR_THRESHOLD = 0.05;
 export const MAX_SUBSTEP_DISPLACEMENT = 0.007;
 
+// Cue shot power curve constants (normalized 0.0..1.0 -> physical m/s)
+export const POOL_MIN_CUE_SPEED = 0.65;
+export const POOL_MAX_CUE_SPEED = 10.5;
+export const POOL_POWER_EXPONENT = 1.35;
+
+/**
+ * Converts a normalized cue shot strength [0.0, 1.0] to physical launch speed in m/s.
+ * Uses a nonlinear power curve that preserves finesse at low power while enabling
+ * full-power rack-dispersing breaks.
+ *
+ * @param {number} power Normalized power in [0.0, 1.0]
+ * @returns {number} Physical launch speed in m/s [0.65, 10.5]
+ */
+export function normalizedPowerToCueSpeed(power) {
+  const num = Number(power);
+  const p = Math.max(0.0, Math.min(1.0, Number.isFinite(num) ? num : 0.0));
+  return POOL_MIN_CUE_SPEED + (POOL_MAX_CUE_SPEED - POOL_MIN_CUE_SPEED) * Math.pow(p, POOL_POWER_EXPONENT);
+}
+
 // Pocket centers in table coordinate system: X in [-1.12, 1.12], Z in [-0.56, 0.56]
 export const POCKETS = Object.freeze([
   { id: 'corner_tl', x: -HALF_LENGTH, z: -HALF_WIDTH, radius: CORNER_POCKET_RADIUS },
@@ -125,14 +144,20 @@ export function generateTriangularRack(apexX, apexZ) {
 
 /**
  * Applies a cue shot impulse to the cue ball (id: 0).
+ *
+ * @param {object} state Table physics state
+ * @param {number} angle Shot angle in radians
+ * @param {number} speed Physical launch speed in m/s [0.1, 15.0]
+ * @param {number} [spinX=0.0] Sidespin / english in [-1.0, 1.0]
+ * @param {number} [spinY=0.0] Topspin / backspin in [-1.0, 1.0]
  */
-export function strikeCueBall(state, angle, power, spinX = 0.0, spinY = 0.0) {
+export function strikeCueBall(state, angle, speed, spinX = 0.0, spinY = 0.0) {
   const cue = state.balls['0'];
   if (!cue || cue.state !== 'in_play') {
     return state;
   }
 
-  const p = Math.max(0.1, Math.min(15.0, Number(power)));
+  const p = Math.max(0.1, Math.min(15.0, Number(speed)));
   const sx = Math.max(-1.0, Math.min(1.0, Number(spinX)));
   const sy = Math.max(-1.0, Math.min(1.0, Number(spinY)));
 

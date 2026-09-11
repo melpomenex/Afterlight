@@ -141,31 +141,31 @@ defmodule Afterlight.Activities.Pool.Physics do
   Applies a cue shot impulse to the cue ball (id: 0).
   Params:
     - angle: shot angle in radians on XZ plane (0 points along +X)
-    - power: speed in m/s (clamped to 0.1..15.0 m/s)
+    - speed: launch speed in m/s (clamped to 0.1..15.0 m/s)
     - spin_x: english / side spin in [-1.0, 1.0]
     - spin_y: vertical cue offset (topspin/follow in [0..1], backspin/draw in [-1..0])
   """
-  def strike_cue_ball(state, angle, power, spin_x \\ 0.0, spin_y \\ 0.0) do
+  def strike_cue_ball(state, angle, speed, spin_x \\ 0.0, spin_y \\ 0.0) do
     balls = state["balls"]
     cue = balls["0"]
 
     if cue == nil or cue["state"] != "in_play" do
       state
     else
-      power = max(0.1, min(15.0, power * 1.0))
+      speed = max(0.1, min(15.0, speed * 1.0))
       spin_x = max(-1.0, min(1.0, spin_x * 1.0))
       spin_y = max(-1.0, min(1.0, spin_y * 1.0))
 
-      vx = :math.cos(angle) * power
-      vz = :math.sin(angle) * power
+      vx = :math.cos(angle) * speed
+      vz = :math.sin(angle) * speed
 
       # Side spin (angular velocity about Y axis)
-      wy = spin_x * (power / @ball_radius) * 0.4
+      wy = spin_x * (speed / @ball_radius) * 0.4
 
       # Vertical offset translates into initial rolling/backspin angular velocity
-      # Natural roll angular speed would be w_roll = power / R
+      # Natural roll angular speed would be w_roll = speed / R
       # spin_y > 0 adds forward roll (topspin), spin_y < 0 adds backward roll (backspin)
-      w_roll = spin_y * (power / @ball_radius) * 1.2
+      w_roll = spin_y * (speed / @ball_radius) * 1.2
       wx = -:math.sin(angle) * w_roll
       wz = :math.cos(angle) * w_roll
 

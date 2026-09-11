@@ -28,7 +28,7 @@ test('pool rules: scratch on break awards opponent ball-in-hand', () => {
   let game = initGame();
   // Aim directly towards corner_tl pocket (-1.12, -0.56) from cue ball at (-0.56, 0.0)
   const angle = Math.atan2(-0.56, -0.56);
-  const res = shoot(game, 0, angle, 4.0);
+  const res = shoot(game, 0, angle, 0.45);
   assert.equal(res.ok, true);
   game = res.state;
 
@@ -96,7 +96,7 @@ test('pool rules: group assignment on first post-break pocket', () => {
   };
 
   const angle = Math.atan2(0.56 - 0.4, 1.12 - 0.8);
-  const shotRes = shoot(game, 0, angle, 3.0);
+  const shotRes = shoot(game, 0, angle, 0.35);
   assert.equal(shotRes.ok, true);
   game = shotRes.state;
 
@@ -134,7 +134,7 @@ test('pool rules: early eight-ball causes immediate loss', () => {
   };
 
   const angle = Math.atan2(0.56 - 0.4, 1.12 - 0.8);
-  const shotRes = shoot(game, 0, angle, 3.0);
+  const shotRes = shoot(game, 0, angle, 0.35);
   assert.equal(shotRes.ok, true);
   game = shotRes.state;
 
@@ -175,7 +175,7 @@ test('pool rules: legal called eight-ball wins match', () => {
   game = callRes.state;
 
   const angle = Math.atan2(0.56 - 0.4, 1.12 - 0.8);
-  const shotRes = shoot(game, 0, angle, 3.0);
+  const shotRes = shoot(game, 0, angle, 0.35);
   assert.equal(shotRes.ok, true);
   game = shotRes.state;
 
@@ -215,7 +215,7 @@ test('pool rules: wrong pocket on eight loses match', () => {
   game = callRes.state;
 
   const angle = Math.atan2(0.56 - 0.4, 1.12 - 0.8);
-  const shotRes = shoot(game, 0, angle, 3.0);
+  const shotRes = shoot(game, 0, angle, 0.35);
   assert.equal(shotRes.ok, true);
   game = shotRes.state;
 

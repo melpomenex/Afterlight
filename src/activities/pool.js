@@ -305,6 +305,7 @@ export function createPoolInstance({
           power: controller.shotPower,
           settled: simState.physics?.settled,
           isShooter: isParticipating && simState.turn === mySlot,
+          status: simState.status,
         }, 0.12);
       }
     },

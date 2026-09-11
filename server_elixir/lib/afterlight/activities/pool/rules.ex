@@ -24,6 +24,28 @@ defmodule Afterlight.Activities.Pool.Rules do
   @rules_version 1
   def rules_version, do: @rules_version
 
+  @min_cue_speed 0.65
+  @max_cue_speed 10.5
+  @power_exponent 1.35
+
+  def min_cue_speed, do: @min_cue_speed
+  def max_cue_speed, do: @max_cue_speed
+  def power_exponent, do: @power_exponent
+
+  @doc """
+  Converts a normalized cue shot strength [0.0, 1.0] to physical launch speed in m/s.
+  Matches shared/pool/physics.js normalizedPowerToCueSpeed op-for-op.
+  """
+  def normalized_power_to_cue_speed(power) do
+    p =
+      case power do
+        v when is_number(v) -> max(0.0, min(1.0, v * 1.0))
+        _ -> 0.0
+      end
+
+    @min_cue_speed + (@max_cue_speed - @min_cue_speed) * :math.pow(p, @power_exponent)
+  end
+
   @doc """
   Initializes a fresh 8-ball game state.
   """
@@ -175,7 +197,8 @@ defmodule Afterlight.Activities.Pool.Rules do
         {:error, :pocket_call_required}
 
       true ->
-        phys = Physics.strike_cue_ball(state["physics"], angle, power, spin_x, spin_y)
+        speed = normalized_power_to_cue_speed(power)
+        phys = Physics.strike_cue_ball(state["physics"], angle, speed, spin_x, spin_y)
 
         shot_tracker = %{
           "shooter" => player,

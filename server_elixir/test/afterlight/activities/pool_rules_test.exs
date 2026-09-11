@@ -25,7 +25,7 @@ defmodule Afterlight.Activities.PoolRulesTest do
       game = Rules.init_game()
       angle = :math.atan2(-0.56, -0.56)
 
-      {:ok, shooting_game} = Rules.shoot(game, 0, angle, 4.0)
+      {:ok, shooting_game} = Rules.shoot(game, 0, angle, 0.45)
 
       final_game =
         Enum.reduce_while(1..60, shooting_game, fn _i, acc ->
@@ -104,7 +104,7 @@ defmodule Afterlight.Activities.PoolRulesTest do
         |> put_in(["physics", "settled"], true)
 
       angle = :math.atan2(0.56 - 0.4, 1.12 - 0.8)
-      {:ok, shooting} = Rules.shoot(game, 0, angle, 3.0)
+      {:ok, shooting} = Rules.shoot(game, 0, angle, 0.35)
 
       final_game =
         Enum.reduce_while(1..80, shooting, fn _i, acc ->
@@ -140,7 +140,7 @@ defmodule Afterlight.Activities.PoolRulesTest do
         |> put_in(["physics", "settled"], true)
 
       angle = :math.atan2(0.56 - 0.4, 1.12 - 0.8)
-      {:ok, shooting} = Rules.shoot(game, 0, angle, 3.0)
+      {:ok, shooting} = Rules.shoot(game, 0, angle, 0.35)
 
       final_game =
         Enum.reduce_while(1..80, shooting, fn _i, acc ->
@@ -172,7 +172,7 @@ defmodule Afterlight.Activities.PoolRulesTest do
 
       {:ok, called_game} = Rules.call_pocket(game, 0, "corner_br")
       angle = :math.atan2(0.56 - 0.4, 1.12 - 0.8)
-      {:ok, shooting} = Rules.shoot(called_game, 0, angle, 3.0)
+      {:ok, shooting} = Rules.shoot(called_game, 0, angle, 0.35)
 
       final_game =
         Enum.reduce_while(1..80, shooting, fn _i, acc ->
@@ -205,7 +205,7 @@ defmodule Afterlight.Activities.PoolRulesTest do
       # Call wrong pocket corner_tl while it goes into corner_br
       {:ok, called_game} = Rules.call_pocket(game, 0, "corner_tl")
       angle = :math.atan2(0.56 - 0.4, 1.12 - 0.8)
-      {:ok, shooting} = Rules.shoot(called_game, 0, angle, 3.0)
+      {:ok, shooting} = Rules.shoot(called_game, 0, angle, 0.35)
 
       final_game =
         Enum.reduce_while(1..80, shooting, fn _i, acc ->

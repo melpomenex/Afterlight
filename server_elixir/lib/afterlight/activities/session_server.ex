@@ -3236,7 +3236,8 @@ defmodule Afterlight.Activities.SessionServer do
 
         action == "shoot" ->
           angle = float_or(Map.get(controls, "angle"), 0.0)
-          power = float_or(Map.get(controls, "power"), 1.0)
+          raw_power = float_or(Map.get(controls, "power"), 1.0)
+          power = max(0.0, min(1.0, raw_power))
           spin_x = float_or(Map.get(controls, "spinX") || Map.get(controls, "spin_x"), 0.0)
           spin_y = float_or(Map.get(controls, "spinY") || Map.get(controls, "spin_y"), 0.0)
 
