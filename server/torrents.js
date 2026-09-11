@@ -199,7 +199,7 @@ export class TorrentManager {
    * Resolve a magnet to its metadata + picker file list. Rejects with
    * `{ reason }` ('invalid_magnet' | 'engine_unavailable' |
    * 'resolve_timeout' | 'resolve_failed'). The torrent is added with all
-   * files deselected; streaming selects on demand.
+   * files deselected (`deselect: true`); streaming selects on demand.
    */
   async resolve(rawMagnet) {
     const magnet = parseMagnet(rawMagnet);
@@ -286,8 +286,15 @@ export class TorrentManager {
 
       // webtorrent v3: add() returns the torrent synchronously and reports
       // readiness/failure via its own events — there is no error-first
-      // callback (that was the v2 API).
-      const torrent = client.add(magnetUri, { path: path.join(this.cacheDir, infohash) });
+      // callback (that was the v2 API). `deselect: true` is required for the
+      // documented add-deselected behavior: without it v3 selects the whole
+      // torrent once metadata is ready (lib/torrent.js `_startAsDeselected`),
+      // so a picked episode dragged the entire archive down from the swarm.
+      // Streaming re-selects only the chosen file (and ranged pieces).
+      const torrent = client.add(magnetUri, {
+        path: path.join(this.cacheDir, infohash),
+        deselect: true,
+      });
       const onReady = () => {
         cleanup();
         entry.torrent = torrent;
@@ -312,11 +319,11 @@ export class TorrentManager {
    * when the file cannot be served. `rangeHeader` may be null.
    */
   async streamFile(infohash, fileIndex, rangeHeader) {
-    if (!INFOHASH_RE.test(String(infohash || ''))) return { statusCode: 404 };
+    if (!INFOHASH_RE.test(String(infohash || ''))) return { statusCode: 404, reason: 'stream_404' };
     const idx = Number(fileIndex);
-    if (!Number.isInteger(idx) || idx < 0) return { statusCode: 404 };
+    if (!Number.isInteger(idx) || idx < 0) return { statusCode: 404, reason: 'stream_404' };
     const client = await this.ensureEngine();
-    if (!client) return { statusCode: 503 };
+    if (!client) return { statusCode: 503, reason: 'engine_unavailable' };
 
     const entry = this.entries.get(infohash);
     if (!entry?.magnet && this.magnetResolver) {
@@ -333,7 +340,7 @@ export class TorrentManager {
         return this.streamFile(infohash, idx, rangeHeader); // retry with the entry in place
       }
     }
-    if (!entry?.magnet) return { statusCode: 404 };
+    if (!entry?.magnet) return { statusCode: 404, reason: 'stream_404' };
 
     let torrent = entry.torrent;
     if (!torrent?.info) {
@@ -343,16 +350,18 @@ export class TorrentManager {
         );
         entry.torrent = torrent;
       } catch (err) {
-        return { statusCode: err?.reason === 'resolve_timeout' ? 504 : 404 };
+        return err?.reason === 'resolve_timeout'
+          ? { statusCode: 504, reason: 'metadata_timeout' }
+          : { statusCode: 404, reason: 'stream_404' };
       }
     }
 
     const file = torrent.files?.[idx];
-    if (!file || !isVideoFile(file.path)) return { statusCode: 404 };
+    if (!file || !isVideoFile(file.path)) return { statusCode: 404, reason: 'stream_404' };
 
     const total = file.length;
     const range = parseRange(rangeHeader, total);
-    if (rangeHeader && !range) return { statusCode: 416 };
+    if (rangeHeader && !range) return { statusCode: 416, reason: 'stream_416' };
 
     // Streaming selects the file; everything else stays deselected so a
     // picked episode does not drag the whole archive down from the swarm.
@@ -365,7 +374,7 @@ export class TorrentManager {
     try {
       stream = file.createReadStream(opts);
     } catch {
-      return { statusCode: 500 };
+      return { statusCode: 500, reason: 'stream_error' };
     }
     entry.lastServedMs = Date.now();
 

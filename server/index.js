@@ -52,6 +52,17 @@ export function resolveTorrentGrantConfig(options = {}) {
   return { grantsRequired, loopbackDev, secrets: options.grantSecrets ?? torrentGrantSecrets() };
 }
 
+/**
+ * Stable diagnostic category for a refused torrent stream request.
+ * `grant` is the presented query value (may be null) and `reason` the
+ * verifier's reason. Never includes the token or any secret.
+ */
+export function torrentGrantRefusalCategory(grant, reason) {
+  if (!grant) return 'grant_missing';
+  if (reason === 'expired') return 'grant_expired';
+  return 'grant_invalid';
+}
+
 export function createServer(customStorage = null, options = {}) {
   const storage = customStorage || new Storage();
 
@@ -362,9 +373,11 @@ export function createServer(customStorage = null, options = {}) {
     if (torrentGrantConfig.grantsRequired) {
       const verdict = verifyTorrentGrant(grant, infohash, fileIndex, torrentGrantConfig.secrets);
       if (!verdict.ok) {
-        if (process.env.DEBUG_TORRENT_GRANT === '1') {
-          console.warn('torrent grant rejected:', verdict.reason, redactGrantQuery(req.url));
-        }
+        const category = torrentGrantRefusalCategory(grant, verdict.reason);
+        console.warn(
+          `torrent stream refused category=${category} reason=${verdict.reason} ` +
+            `hash=${infohash.slice(0, 8)} path=${redactGrantQuery(req.url)}`
+        );
         res.writeHead(403);
         res.end();
         return;
@@ -380,9 +393,25 @@ export function createServer(customStorage = null, options = {}) {
       return;
     }
     if (!result.stream) {
-      res.writeHead(result.statusCode);
+      const statusCode = Number(result.statusCode) || 500;
+      const category = result.reason || `stream_${statusCode}`;
+      const line =
+        `torrent stream refused category=${category} hash=${infohash.slice(0, 8)} ` +
+        `index=${fileIndex} status=${statusCode}`;
+
+      // 404s are routine (stale bills, probes); everything else is worth a
+      // warn line. Neither ever contains the magnet or a grant token.
+      if (statusCode === 404) console.debug(line);
+      else console.warn(line);
+
+      res.writeHead(statusCode);
       res.end();
       return;
+    }
+    if (process.env.DEBUG_TORRENT_STREAM === '1') {
+      console.log(
+        `torrent stream opened hash=${infohash.slice(0, 8)} index=${fileIndex} status=${result.statusCode}`
+      );
     }
     res.writeHead(result.statusCode, result.headers);
     if (req.method === 'HEAD') {
@@ -391,7 +420,10 @@ export function createServer(customStorage = null, options = {}) {
       return;
     }
     result.stream.on('error', (err) => {
-      console.warn('torrent file stream error:', err?.message || err);
+      console.warn(
+        `torrent stream stalled category=stream_stalled hash=${infohash.slice(0, 8)} ` +
+          `index=${fileIndex} message=${err?.message || err}`
+      );
       res.destroy();
     });
     res.on('close', () => {
@@ -399,6 +431,11 @@ export function createServer(customStorage = null, options = {}) {
         result.stream.destroy();
       } catch {}
     });
+    if (process.env.DEBUG_TORRENT_STREAM === '1') {
+      result.stream.once('data', () => {
+        console.log(`torrent stream first_bytes hash=${infohash.slice(0, 8)} index=${fileIndex}`);
+      });
+    }
     result.stream.pipe(res);
   }
 

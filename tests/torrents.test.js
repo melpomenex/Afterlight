@@ -4,7 +4,7 @@ import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createServer, resolveTorrentGrantConfig } from '../server/index.js';
+import { createServer, resolveTorrentGrantConfig, torrentGrantRefusalCategory } from '../server/index.js';
 import { TorrentManager, parseRange } from '../server/torrents.js';
 import { Storage } from '../server/storage.js';
 import {
@@ -291,7 +291,9 @@ test('parseRange handles full, open-ended, suffix, and rejects malformed ranges'
 /** A webtorrent-shaped stub whose add() emits the torrent's ready event. */
 function stubClientFactory(torrentDef) {
   return () => ({
+    addedOptions: null,
     add(magnetUri, opts) {
+      this.addedOptions = opts;
       const torrent = new EventEmitter();
       Object.assign(torrent, {
         info: { name: torrentDef.name },
@@ -391,6 +393,39 @@ test('TorrentManager.streamFile serves real ranged bytes and refuses junk', asyn
   assert.equal(torrents.entries.get(HEX).torrent.files[0].selected, true, 'streaming selects the file');
 
   assert.equal((await torrents.streamFile(HEX, 0, 'bytes=99-120')).statusCode, 416);
+});
+
+test('torrents are added deselected and only the picked file is selected', async () => {
+  const dir = tempDir('deselect');
+  const fixture = path.join(dir, 'fixture.bin');
+  fs.writeFileSync(fixture, '0123456789abcdef');
+  const torrents = fakeTorrentManager(path.join(dir, 'data'), fixture);
+
+  await torrents.resolve(MAGNET);
+
+  // The v3 option is what actually deselects: without it webtorrent selects
+  // the entire torrent when metadata lands (lib/torrent.js).
+  assert.equal(
+    torrents.client.addedOptions?.deselect,
+    true,
+    'client.add must be called with deselect: true',
+  );
+
+  const entry = torrents.entries.get(HEX);
+  assert.equal(
+    entry.torrent.files.every((file) => file.selected === false),
+    true,
+    'nothing is selected before a pick',
+  );
+
+  const ranged = await torrents.streamFile(HEX, 0, 'bytes=0-3');
+  assert.equal(ranged.statusCode, 206);
+  assert.equal(ranged.headers['Content-Range'], 'bytes 0-3/12');
+  await readStream(ranged.stream);
+
+  assert.equal(entry.torrent.files[0].selected, true, 'picked file selected');
+  assert.equal(entry.torrent.files[1].selected, false, 'subtitle file stays deselected');
+  assert.equal(entry.torrent.files[2].selected, false, 'poster file stays deselected');
 });
 
 test('TorrentManager reaps idle torrents but never bill-referenced ones', async () => {
@@ -585,6 +620,61 @@ test('GET /api/theater/torrent streams ranged bytes over HTTP with a valid grant
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
+});
+
+test('torrent stream refusals log bounded categories and never the token', async () => {
+  const dir = tempDir('refuse-log');
+  const fixture = path.join(dir, 'fixture.bin');
+  fs.writeFileSync(fixture, '0123456789ab');
+  const torrents = fakeTorrentManager(path.join(dir, 'data'), fixture);
+  await torrents.resolve(MAGNET);
+  const { server } = createServer(new Storage(path.join(dir, 'state.json')), {
+    dataDir: path.join(dir, 'data'),
+    torrents,
+    grantsRequired: true,
+    grantSecrets: [TEST_GRANT_SECRET],
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+
+  const lines = [];
+  const origWarn = console.warn;
+  console.warn = (...args) => lines.push(args.join(' '));
+  try {
+    assert.equal((await fetch(`${base}/api/theater/torrent/${HEX}/0`)).status, 403);
+
+    const expired = mintTorrentGrant('player_a', HEX, 0, {
+      secret: TEST_GRANT_SECRET,
+      nowMs: Date.now() - (TORRENT_GRANT_TTL_SECS + 60) * 1000,
+    });
+    assert.equal(
+      (await fetch(`${base}/api/theater/torrent/${HEX}/0?grant=${encodeURIComponent(expired.grant)}`)).status,
+      403,
+      'expired grant refused',
+    );
+
+    const wrongFile = mintTorrentGrant('player_a', HEX, 1, { secret: TEST_GRANT_SECRET });
+    assert.equal(
+      (await fetch(`${base}/api/theater/torrent/${HEX}/0?grant=${encodeURIComponent(wrongFile.grant)}`)).status,
+      403,
+      'wrong-file grant refused',
+    );
+  } finally {
+    console.warn = origWarn;
+    await new Promise((resolve) => server.close(resolve));
+  }
+
+  const log = lines.join('\n');
+  assert.match(log, /category=grant_missing/);
+  assert.match(log, /category=grant_expired/);
+  assert.match(log, /category=grant_invalid/);
+  assert.doesNotMatch(log, /[?&]grant=[^&\s[]/, 'grant value must be redacted');
+  assert.doesNotMatch(log, new RegExp(TEST_GRANT_SECRET), 'signing secret must never be logged');
+
+  assert.equal(torrentGrantRefusalCategory(null, 'malformed'), 'grant_missing');
+  assert.equal(torrentGrantRefusalCategory('tok', 'expired'), 'grant_expired');
+  assert.equal(torrentGrantRefusalCategory('tok', 'invalid_signature'), 'grant_invalid');
+  assert.equal(torrentGrantRefusalCategory('tok', 'wrong_file'), 'grant_invalid');
 });
 
 test('loopback dev may stream without grants when explicitly configured', async () => {
