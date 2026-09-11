@@ -10,7 +10,7 @@ defmodule Afterlight.Specialty.Grants do
 
   @default_secret "afterlight-torrent-grant-dev-secret-change-in-prod-000"
   @version 1
-  @ttl_secs 300
+  @default_ttl_secs 300
   @re_mint_ratio 0.65
   @skew_secs 10
 
@@ -20,9 +20,20 @@ defmodule Afterlight.Specialty.Grants do
           claims: map()
         }
 
-  @doc "Short TTL for playback grants (seconds)."
+  @doc """
+  Short TTL for playback grants (seconds).
+
+  Defaults to #{@default_ttl_secs}; `Application.get_env(:afterlight,
+  :torrent_grant_ttl_secs, …)` lets tests (and deliberate ops tuning) shorten
+  the lifecycle without touching the token format or the Node verifier.
+  """
   @spec grant_ttl_secs() :: pos_integer()
-  def grant_ttl_secs, do: @ttl_secs
+  def grant_ttl_secs do
+    case Application.get_env(:afterlight, :torrent_grant_ttl_secs, @default_ttl_secs) do
+      ttl when is_integer(ttl) and ttl > 0 -> ttl
+      _ -> @default_ttl_secs
+    end
+  end
 
   @doc "Re-mint when this fraction of the TTL has elapsed (~50–80% window)."
   @spec re_mint_ratio() :: float()
@@ -55,7 +66,7 @@ defmodule Afterlight.Specialty.Grants do
   def mint(participant, infohash, file_index, opts \\ []) when is_binary(participant) do
     with {:ok, infohash} <- normalize_infohash(infohash),
          true <- is_integer(file_index) and file_index >= 0 do
-      ttl = Keyword.get(opts, :ttl_secs, @ttl_secs)
+      ttl = Keyword.get(opts, :ttl_secs, grant_ttl_secs())
       now_ms = Keyword.get(opts, :now_ms, System.system_time(:millisecond))
       exp = div(now_ms, 1000) + ttl
 
@@ -116,7 +127,7 @@ defmodule Afterlight.Specialty.Grants do
   @spec should_re_mint?(non_neg_integer(), non_neg_integer()) :: boolean()
   def should_re_mint?(expires_at_ms, now_ms \\ System.system_time(:millisecond)) do
     remaining = expires_at_ms - now_ms
-    total_ms = @ttl_secs * 1000
+    total_ms = grant_ttl_secs() * 1000
     remaining <= trunc(total_ms * (1 - @re_mint_ratio))
   end
 

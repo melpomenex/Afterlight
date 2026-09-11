@@ -9,6 +9,8 @@ defmodule Afterlight.Specialty.TheaterSession do
 
   alias Afterlight.Specialty.Grants
 
+  require Logger
+
   @theater_room "theater"
 
   @doc """
@@ -20,11 +22,10 @@ defmodule Afterlight.Specialty.TheaterSession do
 
     case {in_theater?(socket), active_torrent(theater)} do
       {true, {infohash, file_index}} ->
-        maybe_mint(socket, socket.assigns.guest_id, infohash, file_index)
+        maybe_mint(socket, socket.assigns.guest_id, infohash, file_index, action: :mint)
 
       _ ->
-        cancel_timer(socket)
-        |> assign_ctx(nil)
+        clear_if_ctx(socket)
     end
   end
 
@@ -35,11 +36,26 @@ defmodule Afterlight.Specialty.TheaterSession do
 
     case {in_theater?(socket), active_torrent(theater)} do
       {true, {^infohash, ^file_index}} ->
-        maybe_mint(socket, socket.assigns.guest_id, infohash, file_index, force: true)
+        maybe_mint(socket, socket.assigns.guest_id, infohash, file_index,
+          force: true,
+          action: :renew
+        )
 
       _ ->
-        cancel_timer(socket) |> assign_ctx(nil)
+        clear_if_ctx(socket)
     end
+  end
+
+  @doc """
+  Cancel the participant's grant lifecycle (left the theater, disconnected,
+  or the item stopped being a torrent). Idempotent.
+  """
+  @spec clear(Phoenix.Socket.t()) :: Phoenix.Socket.t()
+  def clear(socket) do
+    ctx = socket.assigns[:torrent_grant_ctx]
+    socket = cancel_timer(socket) |> assign_ctx(nil)
+    if ctx, do: emit(:clear, ctx.key, %{})
+    socket
   end
 
   @doc "Remember the latest theater snapshot for renew timers."
@@ -49,29 +65,50 @@ defmodule Afterlight.Specialty.TheaterSession do
     Phoenix.Socket.assign(socket, :theater_snapshot, theater)
   end
 
+  defp clear_if_ctx(socket) do
+    if socket.assigns[:torrent_grant_ctx] do
+      clear(socket)
+    else
+      socket
+    end
+  end
+
   defp maybe_mint(socket, participant, infohash, file_index, opts \\ []) do
     key = {infohash, file_index}
     ctx = socket.assigns[:torrent_grant_ctx]
     force? = Keyword.get(opts, :force, false)
+    action = Keyword.get(opts, :action, :mint)
 
     cond do
       not force? and ctx_matches?(ctx, key) and not Grants.should_re_mint?(ctx.expires_at_ms) ->
+        emit(:skip, key, %{})
         socket
 
       true ->
         case Grants.mint(participant, infohash, file_index) do
           {:ok, info} ->
-            Phoenix.Channel.push(socket, "torrent_grant", %{
-              "infohash" => infohash,
-              "fileIndex" => file_index,
-              "grant" => info.grant,
-              "expiresAtMs" => info.expires_at_ms
-            })
+            payload =
+              %{
+                "infohash" => infohash,
+                "fileIndex" => file_index,
+                "grant" => info.grant,
+                "expiresAtMs" => info.expires_at_ms
+              }
+              |> maybe_put_room(socket)
+
+            Phoenix.Channel.push(socket, "torrent_grant", payload)
+            emit(action, key, %{expires_at_ms: info.expires_at_ms})
 
             socket
             |> schedule_renew(key, info.expires_at_ms)
 
-          {:error, _} ->
+          {:error, reason} ->
+            emit(:mint_failed, key, %{reason: reason})
+
+            Logger.debug(
+              "torrent grant mint failed infohash=#{prefix(infohash)} reason=#{inspect(reason)}"
+            )
+
             socket
         end
     end
@@ -104,6 +141,34 @@ defmodule Afterlight.Specialty.TheaterSession do
   defp assign_ctx(socket, ctx) do
     Phoenix.Socket.assign(socket, :torrent_grant_ctx, ctx)
   end
+
+  # Room tag travels on the public frame (never in the token): the client's
+  # travel filter drops a queued old-room grant.
+  defp maybe_put_room(payload, socket) do
+    case socket.assigns[:world_room] do
+      %{wire_id: wire} when is_binary(wire) -> Map.put(payload, "roomId", wire)
+      _ -> payload
+    end
+  end
+
+  # Bounded telemetry for the grant lifecycle; never the token, never the
+  # full magnet. `infohash` is an 8-char prefix only.
+  defp emit(action, key, extra) do
+    {infohash, file_index} = key || {nil, nil}
+
+    :telemetry.execute(
+      [:afterlight, :torrent, :grant],
+      %{count: 1},
+      Map.merge(
+        %{action: action, infohash: prefix(infohash), file_index: file_index},
+        extra
+      )
+    )
+  end
+
+  defp prefix(nil), do: nil
+  defp prefix(infohash) when is_binary(infohash), do: String.slice(infohash, 0, 8)
+  defp prefix(_other), do: nil
 
   defp in_theater?(socket) do
     case socket.assigns[:world_room] do

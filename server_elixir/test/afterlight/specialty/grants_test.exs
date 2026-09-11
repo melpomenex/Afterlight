@@ -126,4 +126,25 @@ defmodule Afterlight.Specialty.GrantsTest do
     refute Grants.should_re_mint?(info.expires_at_ms, now_ms + 60_000)
     assert Grants.should_re_mint?(info.expires_at_ms, now_ms + 200_000)
   end
+
+  test "grant TTL is configurable for tests while the default stays 300s" do
+    prev = Application.get_env(:afterlight, :torrent_grant_ttl_secs)
+    on_exit(fn -> restore_ttl(prev) end)
+
+    Application.delete_env(:afterlight, :torrent_grant_ttl_secs)
+    assert Grants.grant_ttl_secs() == 300
+
+    Application.put_env(:afterlight, :torrent_grant_ttl_secs, 2)
+    assert Grants.grant_ttl_secs() == 2
+
+    now_ms = 1_700_000_000_000
+    {:ok, info} = Grants.mint(@participant, @infohash, 0, now_ms: now_ms)
+    assert info.expires_at_ms == div(now_ms, 1000) * 1000 + 2_000
+
+    refute Grants.should_re_mint?(info.expires_at_ms, now_ms + 100)
+    assert Grants.should_re_mint?(info.expires_at_ms, now_ms + 1_400)
+  end
+
+  defp restore_ttl(nil), do: Application.delete_env(:afterlight, :torrent_grant_ttl_secs)
+  defp restore_ttl(value), do: Application.put_env(:afterlight, :torrent_grant_ttl_secs, value)
 end

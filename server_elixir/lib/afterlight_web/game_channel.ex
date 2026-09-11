@@ -81,6 +81,7 @@ defmodule AfterlightWeb.GameChannel do
   alias Afterlight.Gateway.Welcome
   alias Afterlight.LogCorrelation
   alias Afterlight.Specialty.Resolve
+  alias Afterlight.Specialty.TheaterSession
   alias Afterlight.Specialty.TorrentRules
   alias Afterlight.Social
   alias Afterlight.Theater
@@ -210,13 +211,13 @@ defmodule AfterlightWeb.GameChannel do
   @impl true
   def handle_info({:world_frame, room_id, frame}, socket) when is_binary(room_id) and is_map(frame) do
     case socket.assigns[:world_room] do
-      %{wire_id: ^room_id} -> push_world_frame(frame, room_id, socket)
+      %{wire_id: ^room_id} -> deliver_world_frame(frame, room_id, socket)
       _stale_or_absent -> {:noreply, socket}
     end
   end
 
   def handle_info({:world_frame, frame}, socket) when is_map(frame) do
-    push_world_frame(frame, nil, socket)
+    deliver_world_frame(frame, nil, socket)
   end
 
   def handle_info({:economy_frame, event, payload}, socket) do
@@ -282,6 +283,12 @@ defmodule AfterlightWeb.GameChannel do
 
       event == "welcome" ->
         relay_welcome(fields, socket)
+
+      event == "theater_state" ->
+        # Legacy relay path (Node still owns the bill): the participant's
+        # grant lifecycle is minted here exactly as on the Phoenix path.
+        socket = push_theater_state(socket, fields, room_wire_id(socket))
+        {:noreply, socket}
 
       true ->
         push(socket, event, fields)
@@ -350,6 +357,15 @@ defmodule AfterlightWeb.GameChannel do
     {:noreply, socket}
   end
 
+  # Targeted torrent playback grant renewal (fix-torrent-playback-grant-
+  # regression): `TheaterSession` schedules this to the owning channel
+  # process; the module itself guards item match and eligibility. Without
+  # this clause the message fell into the catch-all below and the first
+  # grant silently expired mid-film.
+  def handle_info({:torrent_grant_renew, key}, socket) do
+    {:noreply, TheaterSession.renew_grant(socket, key)}
+  end
+
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   @impl true
@@ -388,14 +404,23 @@ defmodule AfterlightWeb.GameChannel do
 
       {:ok, room} ->
         # Travel: leave the old world room first (one presence_leave for
-        # the transition), then join the new one.
-        case socket.assigns[:world_room] do
-          %{wire_id: old} when old != room.wire_id ->
-            World.leave(old, guest_id, conn, :travel)
+        # the transition), then join the new one. Leaving The Orpheum also
+        # cancels the torrent grant lifecycle: eligibility is room-bound,
+        # and a renewal timer must not outlive membership.
+        socket =
+          case socket.assigns[:world_room] do
+            %{wire_id: old} when old != room.wire_id ->
+              World.leave(old, guest_id, conn, :travel)
 
-          _ ->
-            :ok
-        end
+              if old == TorrentRules.theater_wire_id() do
+                TheaterSession.clear(socket)
+              else
+                socket
+              end
+
+            _ ->
+              socket
+          end
 
         case World.join(room.wire_id, guest_id, conn, self(), socket.assigns[:nickname], socket.assigns[:world_pose]) do
           {:ok, room_pid, roster} ->
@@ -746,8 +771,11 @@ defmodule AfterlightWeb.GameChannel do
 
       socket =
         if Router.theater_phx?() do
-          push(socket, "theater_state", %{"theater" => Theater.snapshot(wire), "serverNow" => now})
-          socket
+          push_theater_state(
+            socket,
+            %{"theater" => Theater.snapshot(wire), "serverNow" => now},
+            wire
+          )
         else
           socket
         end
@@ -803,6 +831,9 @@ defmodule AfterlightWeb.GameChannel do
 
     socket =
       Enum.reduce(replies, socket, fn
+        {"theater_state", fields}, sock ->
+          push_theater_state(sock, fields, socket.assigns[:world_room][:wire_id])
+
         {event, fields}, sock ->
           push(sock, event, fields)
           sock
@@ -1480,6 +1511,41 @@ defmodule AfterlightWeb.GameChannel do
         payload = if room_id, do: Map.put(payload, "roomId", room_id), else: payload
         push(socket, frame["type"], payload)
         {:noreply, socket}
+    end
+  end
+
+  # One theater-state chokepoint (fix-torrent-playback-grant-regression D1):
+  # every `theater_state` this participant receives passes through here. The
+  # participant's own targeted grant is pushed strictly BEFORE the shared
+  # frame, so the client's first torrent stream request is authenticated.
+  # Tokens never ride the shared frame and are never room-broadcast.
+  defp push_theater_state(socket, fields, room_id) do
+    socket =
+      socket
+      |> TheaterSession.remember_theater(fields)
+      |> TheaterSession.sync_grant(fields)
+
+    payload = fields |> Map.delete("type") |> maybe_put_room_tag(room_id)
+    push(socket, "theater_state", payload)
+    socket
+  end
+
+  # Theater state arrives over the room broadcast as a tagged world frame;
+  # all other frames keep the existing conversion path.
+  defp deliver_world_frame(%{"type" => "theater_state"} = frame, room_id, socket) do
+    {:noreply, push_theater_state(socket, frame, room_id)}
+  end
+
+  defp deliver_world_frame(frame, room_id, socket), do: push_world_frame(frame, room_id, socket)
+
+  defp maybe_put_room_tag(payload, nil), do: payload
+  defp maybe_put_room_tag(payload, room_id) when is_binary(room_id), do: Map.put(payload, "roomId", room_id)
+  defp maybe_put_room_tag(payload, _room_id), do: payload
+
+  defp room_wire_id(socket) do
+    case socket.assigns[:world_room] do
+      %{wire_id: wire} when is_binary(wire) -> wire
+      _ -> nil
     end
   end
 
