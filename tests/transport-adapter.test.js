@@ -148,3 +148,20 @@ test('facade: close fires disconnect listeners and reconnect restores hello', ()
   assert.deepEqual(second.sent[0].type, 'hello', 'welcome path starts with hello after reconnect');
   assert.deepEqual(second.sent[1], { type: 'join_room', roomId: 'garden:whatever' }, 'desiredRoom replayed');
 });
+
+test('facade: superseded error marks client superseded and closes transport', () => {
+  stubWebSocket();
+  const client = new NetworkClient('ws://127.0.0.1:3999/ws');
+  let reconnectScheduled = false;
+  client.scheduleReconnect = () => { reconnectScheduled = true; };
+  client.connect();
+  const ws = FakeWebSocket.instances.at(-1);
+  ws.serverOpen();
+  assert.equal(client.connected, true);
+
+  // Deliver terminal superseded error from server
+  ws.serverFrame({ type: 'error', message: 'superseded' });
+  assert.equal(client.superseded, true);
+  assert.equal(ws.readyState, FakeWebSocket.CLOSED);
+});
+

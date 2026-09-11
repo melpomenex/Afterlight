@@ -144,6 +144,21 @@ export function createPhoenixTransport(client, wsUrl) {
                 client.handleError(resp);
                 client.handleClose();
               });
+
+            channel.onClose(() => {
+              const wasJoined = joined;
+              teardown();
+              if (wasJoined) client.handleClose();
+            });
+
+            channel.onError((err) => {
+              const wasJoined = joined;
+              teardown();
+              if (wasJoined) {
+                client.handleError(err);
+                client.handleClose();
+              }
+            });
           });
 
           socket.onClose(() => {

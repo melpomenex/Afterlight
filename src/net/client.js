@@ -189,6 +189,7 @@ export class NetworkClient {
   handleFrame(msg) {
     if (msg.type === 'error' && msg.message === 'superseded') {
       this.superseded = true;
+      this.transport.close();
     }
     if (msg.type === 'error' && msg.message === 'lease_lost') {
       if (typeof msg.epoch === 'number' && this.desiredRoom) {

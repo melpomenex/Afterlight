@@ -25,6 +25,21 @@ function clampSize(value, lo, hi) {
   return Math.max(lo, Math.min(hi, value));
 }
 
+const PRESENCE_COOLDOWN_MS = 15_000;
+const PRESENCE_FLAP_WINDOW_MS = 3_000;
+const PRESENCE_CLEANUP_INTERVAL_MS = 30_000;
+
+function isSelfPresence(net, who) {
+  return who === net?.nickname || who === net?.guestId;
+}
+
+function isPresenceFlapping(last, event, now) {
+  if (!last) return false;
+  const elapsed = now - last.ts;
+  if (last.event === event) return elapsed < PRESENCE_COOLDOWN_MS;
+  return elapsed < PRESENCE_FLAP_WINDOW_MS;
+}
+
 export class ChatPanel {
   constructor(net, { onFocusChange = null } = {}) {
     this.net = net;
@@ -41,6 +56,7 @@ export class ChatPanel {
     this.sendBtn = document.getElementById('chat-send');
     this.handle = document.getElementById('chat-resize');
     this.connected = false;
+    this.recentPresence = new Map();
 
     if (!this.panel || !this.log) return;
 
@@ -158,9 +174,25 @@ export class ChatPanel {
   }
 
   addPresence(msg) {
-    const verb = msg.event === 'join' ? 'steps into the town channel' : ' drifts away from it';
+    if (!msg?.who || isSelfPresence(this.net, msg.who)) return;
+
+    const now = Date.now();
+    const last = this.recentPresence.get(msg.who);
+    if (isPresenceFlapping(last, msg.event, now)) return;
+
+    this.recentPresence.set(msg.who, { event: msg.event, ts: now });
+    this.#pruneOldPresence(now);
+
+    const verb = msg.event === 'join' ? ' steps into the town channel' : ' drifts away from it';
     const origin = msg.fromKind === 'irc' ? ' (relay)' : '';
     this.addSystemLine(`${msg.who}${origin}${verb}.`);
+  }
+
+  #pruneOldPresence(now) {
+    if (this.recentPresence.size <= 200) return;
+    for (const [k, v] of this.recentPresence) {
+      if (now - v.ts > PRESENCE_CLEANUP_INTERVAL_MS) this.recentPresence.delete(k);
+    }
   }
 
   addError(msg) {
