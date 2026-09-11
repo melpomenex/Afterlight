@@ -1,0 +1,2044 @@
+{
+  "label": "run",
+  "app": "http://localhost:5173/?room=theater&debug=1",
+  "gateway": "http://localhost:4000",
+  "headed": false,
+  "startedAt": "2026-09-11T15:58:35.273Z",
+  "tag": "torrent-gate-mtx551qg",
+  "seeding": {
+    "infohash": "9c25ac1c0ea49ab61c37195d207c83ee96d8becf",
+    "name": "AfterlightTorrentGate",
+    "files": [
+      "AfterlightTorrentGate/clip_a.webm",
+      "AfterlightTorrentGate/clip_b.webm",
+      "AfterlightTorrentGate/notes.txt"
+    ],
+    "announce": "http://127.0.0.1:42199/announce"
+  },
+  "A": {
+    "samples": [
+      {
+        "t": 1789142504855,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142505859,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142506862,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142507865,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142508868,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142509871,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142510874,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142511878,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142512881,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142513884,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142514887,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142515891,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142516894,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142517898,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142518901,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142519904,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142520907,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142521911,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142522914,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142523917,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142524920,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142525923,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142526926,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142527929,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142528932,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142529935,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142530939,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142531942,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142532946,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142533950,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142534953,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142535957,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142536960,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142537963,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142538966,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142539970,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142540973,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142541976,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142542980,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142543983,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142544986,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142545989,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142546992,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142547995,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142548998,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142550001,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142551005,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142552008,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142553011,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142554014,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142555017,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142556021,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142557025,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142558028,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142559031,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142560035,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142561039,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142562042,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142563045,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142564048,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142730191,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142731195,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142732199,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142733203,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142734207,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142735211,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142736215,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142737219,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142738223,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142739226,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142740231,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142741235,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142742238,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142743243,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      }
+    ]
+  },
+  "B": {
+    "samples": [
+      {
+        "t": 1789142668990,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142669993,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142670997,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142672001,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142673004,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142674008,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142675011,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142676014,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142677019,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142678022,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142679026,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142680030,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142681034,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142682037,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142683041,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142684044,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142685047,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142686050,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142687055,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142688058,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142689061,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142690064,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142691067,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142692070,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142693073,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142694076,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142695080,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142696083,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142697086,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142698090,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142699093,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142700096,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142701099,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142702102,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142703105,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142704108,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142705110,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142706114,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142707117,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142708121,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142709124,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142710127,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142711130,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142712133,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142713136,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142714139,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142715142,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142716145,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142717148,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142718151,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142719154,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142720157,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142721160,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142722163,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142723167,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142724170,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142725173,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142726177,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142727180,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142728184,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142730191,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142731195,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142732199,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142733203,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142734207,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142735211,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142736215,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142737219,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142738223,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142739226,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142740231,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142741235,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142742238,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      },
+      {
+        "t": 1789142743243,
+        "caption": "",
+        "cls": null,
+        "events": [],
+        "logs": [
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: A WebGL context could not be created. Reason:  Could not create a WebGL context, VENDOR = 0x10de, DEVICE = 0x1f06, GL_VENDOR = Google Inc. (Mesa), GL_RENDERER = ANGLE (Mesa, llvmpipe (LLVM 20.1.2 256 bits), OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2), GL_VERSION = 25.2.8, Sandboxed = no, Optimus = no, AMD switchable = no, Reset notification strategy = 0x8252, ErrorMessage = BindToCurrentSequence failed: .",
+          "error: THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+        ],
+        "room": null,
+        "video": null
+      }
+    ]
+  },
+  "phases": {
+    "A_first_grant": null,
+    "pause_resume": {
+      "progressed": 0,
+      "pausedAt": 0,
+      "pausedHeld": 0,
+      "resumed": null
+    },
+    "seek": {
+      "forward": null,
+      "back": null
+    },
+    "grants": {
+      "A": null,
+      "B": null
+    },
+    "file_change": null
+  },
+  "failures": [
+    {
+      "name": "session A transport never opened",
+      "detail": ""
+    },
+    {
+      "name": "session B transport never opened",
+      "detail": ""
+    },
+    {
+      "name": "A never saw the torrent picker",
+      "detail": "add-status="
+    },
+    {
+      "name": "A never reached playing",
+      "detail": ""
+    },
+    {
+      "name": "A first stream URL was not signed",
+      "detail": "null"
+    },
+    {
+      "name": "A never received a torrent-grant-received event",
+      "detail": ""
+    },
+    {
+      "name": "pause did not hold",
+      "detail": "0.0 -> 0.0"
+    },
+    {
+      "name": "resume did not advance playback",
+      "detail": ""
+    },
+    {
+      "name": "forward seek did not reach the target",
+      "detail": ""
+    },
+    {
+      "name": "backward seek did not reach the target",
+      "detail": ""
+    },
+    {
+      "name": "B transport never opened",
+      "detail": ""
+    },
+    {
+      "name": "B never reached playback while A was streaming",
+      "detail": ""
+    },
+    {
+      "name": "B never received a grant",
+      "detail": ""
+    },
+    {
+      "name": "A/B grant fingerprints are missing or identical",
+      "detail": "A=undefined B=undefined"
+    },
+    {
+      "name": "A could not re-pick clip_b.webm",
+      "detail": ""
+    },
+    {
+      "name": "file change did not produce a fileIndex=1 grant/source",
+      "detail": ""
+    },
+    {
+      "name": "B could not travel out via the Places selector",
+      "detail": ""
+    },
+    {
+      "name": "B could not travel back to The Orpheum",
+      "detail": ""
+    }
+  ],
+  "originalNow": null,
+  "finalNow": null
+}
