@@ -67,7 +67,7 @@ function wheelGeo() {
 
 /** Build one rider rig and add it (plus its blob shadow) to `parent`. */
 export function createRiderViz(def, parent) {
-  const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.02 });
   const J = def.color, F = new THREE.Color(def.color).multiplyScalar(0.5).getHex(),
     SK = def.skin, DK = 0x24242a;
   const root = new THREE.Group(); root.rotation.order = 'YXZ';
@@ -93,6 +93,7 @@ export function createRiderViz(def, parent) {
   const torsoG = new THREE.Group(); torsoG.position.set(0, 0.13, 0); person.add(torsoG);
   const tp = [];
   partBox(tp, J, 0.35, 0.44, 0.21, 0, 0.22, 0).tint = 'jersey';
+  tp.push({ geo: new THREE.BoxGeometry(0.3, 0.36, 0.14), color: 0x232833, x: 0, y: 0.24, z: -0.17, rx: -0.12 });
   tp.push({ geo: new THREE.SphereGeometry(0.105, 8, 6), color: SK, x: 0, y: 0.52, z: 0.03 });
   tp.push({ geo: new THREE.SphereGeometry(0.128, 8, 6), color: J, x: 0, y: 0.565, z: 0, sy: 0.82, sz: 1.12, tint: 'jersey' });
   partBox(tp, DK, 0.16, 0.03, 0.12, 0, 0.52, 0.15);
@@ -111,8 +112,9 @@ export function createRiderViz(def, parent) {
   const legL = mkLeg(-0.10), legR = mkLeg(0.10);
 
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.85, 10),
-    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.34, depthWrite: false }));
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.24, depthWrite: false }));
   shadow.rotation.x = -Math.PI / 2; shadow.renderOrder = 1;
+  root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   (parent || root).add(shadow);
   (parent || root).add(root);
   return {
@@ -255,7 +257,7 @@ export function updateRiderVisual(r, dt, ctx) {
   const hgt = clamp(r.y - gnd, 0, 8);
   const sc = lerp(1, 0.45, hgt / 8);
   v.shadow.scale.set(sc, sc, sc);
-  v.shadow.material.opacity = 0.34 * (1 - hgt / 9);
+  v.shadow.material.opacity = 0.24 * (1 - hgt / 9);
 }
 
 /** Dispose one rig's geometries/materials (rigs share no GPU resources). */

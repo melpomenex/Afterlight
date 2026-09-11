@@ -28,6 +28,7 @@ import {
 import { createAudio, MUSIC_THEMES } from '../game/audio.js';
 import { createHud, ordinal, fmtTime } from '../game/hud.js';
 import { createEffects } from '../game/effects.js';
+import { createVfx } from '../game/vfx.js';
 import { createInputAdapter } from '../game/input-adapter.js';
 import {
   initialRiderState, neutralControls, normalizeControls, stepField, DIFFS, START_LATS, DT, TICK_HZ, RULES_VERSION,
@@ -45,7 +46,7 @@ function shuffleSeeded(arr, rng) {
 }
 
 export function createDownhillMayhemRuntime(options = {}) {
-  const {
+  let {
     renderer = null,
     viewport = null,
     hudHost = null,
@@ -80,6 +81,7 @@ export function createDownhillMayhemRuntime(options = {}) {
   const hud = createHud({ root: hudHost });
   const effects = createEffects({ root: hudHost });
   if (streakCanvas) effects.attachStreakCanvas(streakCanvas);
+  const vfx = createVfx({ scene, camera });
 
   const audioSys = createAudio({
     context: audio && audio.context ? audio.context : null,
@@ -119,6 +121,10 @@ export function createDownhillMayhemRuntime(options = {}) {
   const stats = { topSpeed: 0, biggestAir: 0, tricksLanded: 0, decked: 0, bestCombo: 0, crashes: 0, aiKicks: 0 };
   const camPos = new THREE.Vector3();
   const camLook = new THREE.Vector3();
+  const playerWorld = new THREE.Vector3();
+  const sprayDir = new THREE.Vector3();
+  let sprayWasGrounded = true;
+  let sprayWasCrashed = false;
 
   function player() { return riders[0]; }
 
@@ -137,6 +143,8 @@ export function createDownhillMayhemRuntime(options = {}) {
     const nameRng = mulberry32((matchSeed * 2654435761) >>> 0);
     const names = shuffleSeeded(RIVAL_NAMES.slice(), nameRng);
     const jerseys = shuffleSeeded(JERSEY_POOL.slice(), nameRng);
+    jerseys[0] = 0x1d2430;
+    jerseys[1] = 0x2f66d0;
     let ni = 0;
     for (let slot = 0; slot < RIDER_COUNT; slot++) {
       const fresh = initialRiderState(slot, { difficulty, isAI: slot > 0, seed: matchSeed });
@@ -156,7 +164,7 @@ export function createDownhillMayhemRuntime(options = {}) {
   }
 
   function resetCamera() {
-    camSnap = true; shake = 0; camFov = 74;
+    camSnap = true; shake = 0; camFov = 71;
   }
 
   function startRace({ difficulty: d, mode: m, matchSeed: seed } = {}) {
@@ -321,18 +329,51 @@ export function createDownhillMayhemRuntime(options = {}) {
     if (camSnap) { camPos.set(dx, dy, dz); camSnap = false; }
     else { const k = 1 - Math.exp(-dt * 7.5); camPos.x += (dx - camPos.x) * k; camPos.y += (dy - camPos.y) * k; camPos.z += (dz - camPos.z) * k; }
     const slopeAhead = (course.heightAt(p.s + 26, p.lat * 0.5) - course.heightAt(p.s + 5, p.lat * 0.5)) / 21;
-    const lookDrop = Math.min(Math.max(slopeAhead, -0.34), 0.05) * 7;
-    camLook.set(tmpV.x + fwdX * 5 - Math.cos(c.h) * p.vlat * 0.12, tmpV.y + 1.05 + lookDrop, tmpV.z + fwdZ * 5 + Math.sin(c.h) * p.vlat * 0.12);
-    const targetFov = 74 + Math.min(Math.max(p.vs - 16, 0), 17) * 0.55 + (p.boosting ? 13 : 0);
+    const lookDrop = Math.min(Math.max(slopeAhead, -0.2), 0.04) * 1.6;
+    camLook.set(tmpV.x + fwdX * 5 - Math.cos(c.h) * p.vlat * 0.12, tmpV.y + 1.3 + lookDrop, tmpV.z + fwdZ * 5 + Math.sin(c.h) * p.vlat * 0.12);
+    const targetFov = 71 + Math.min(Math.max(p.vs - 16, 0), 17) * 0.45 + (p.boosting ? 12 : 0);
     camFov += (targetFov - camFov) * Math.min(1, dt * 5);
     shake = Math.max(0, shake - dt * 1.8);
     const sh = shake * 0.28;
     camera.position.set(camPos.x + (Math.random() - 0.5) * sh, camPos.y + (Math.random() - 0.5) * sh, camPos.z + (Math.random() - 0.5) * sh);
     camera.lookAt(camLook.x, camLook.y + (Math.random() - 0.5) * sh, camLook.z);
     if (Math.abs(camera.fov - camFov) > 1e-4) { camera.fov = camFov; camera.updateProjectionMatrix(); }
+    course.worldPosition(p.s, p.lat, p.y, playerWorld);
     rendering.skyDome.position.copy(camera.position);
-    rendering.mountains.position.set(camera.position.x, camera.position.y - 22, camera.position.z);
+    rendering.mountains.position.copy(camera.position);
+    if (rendering.glow) {
+      rendering.glow.position.copy(camera.position).addScaledVector(rendering.sunDirection, 620);
+      rendering.glow.lookAt(camera.position);
+    }
+    rendering.updateShadowFocus(playerWorld);
     rendering.updateSun(p.s / FINISH_S, cfg.coldEdge, cfg.warmEdge);
+  }
+
+  function updateVfx(dt) {
+    const p = player();
+    const racing = phase === 'racing' || phase === 'finished';
+    const c = course.sampleTrack(p.s);
+    sprayDir.set(Math.sin(c.h), 0, Math.cos(c.h));
+    if (racing && p) {
+      if (p.grounded && !p.crashed && p.vs > 6) {
+        const amount = Math.min(3, Math.max(1, Math.round(p.vs * 0.09 * (p.boosting ? 1.8 : 1))));
+        const rear = playerWorld.clone().addScaledVector(sprayDir, -0.6);
+        rear.y += 0.2;
+        vfx.emit(rear, sprayDir, amount, { speed: 1.3 + p.vs * 0.07, up: 0.7 + p.vs * 0.03, spread: 0.9, life: 0.5, size: 0.085 });
+      }
+      if (sprayWasGrounded && p.grounded === false && !p.crashed && p.vs > 6) {
+        vfx.emit(playerWorld, sprayDir, 26, { speed: 2.2 + p.vs * 0.06, up: 3.0, spread: 2.2, life: 1.6, size: 0.3 });
+      }
+      if (!sprayWasGrounded && p.grounded) {
+        vfx.emit(playerWorld, sprayDir, 16, { speed: 3.0, up: 2.3, spread: 2.4, life: 0.85, size: 0.15 });
+      }
+      if (!sprayWasCrashed && p.crashed) {
+        vfx.emit(playerWorld, sprayDir, 22, { speed: 4.2, up: 3.0, spread: 3.2, life: 1.1, size: 0.17 });
+      }
+      sprayWasGrounded = p.grounded === true;
+      sprayWasCrashed = p.crashed === true;
+    }
+    vfx.update(dt, { player: p });
   }
 
   function updateHud(dt) {
@@ -546,6 +587,7 @@ export function createDownhillMayhemRuntime(options = {}) {
       if (phase !== 'lobby' && phase !== 'results') updateHud(step);
       for (const r of riders) updateRiderVisual(r, step, { course, time });
       updateCamera(step);
+      updateVfx(step);
       const p = player();
       audioSys.update(step, p, phase === 'racing' || phase === 'finished');
       const streakOn = p.boosting || p.vs > 25 || p.draftT > 0.55;
@@ -566,6 +608,7 @@ export function createDownhillMayhemRuntime(options = {}) {
       if (disposed) return;
       rendering.setViewport(width, height);
       effects.resize(width, height);
+      vfx.resize(width, height);
     },
 
     buildHumanControls(active) { return input.consumeControls(active); },
@@ -578,6 +621,17 @@ export function createDownhillMayhemRuntime(options = {}) {
      */
     setLocalControlProvider(provider) {
       localControlProvider = typeof provider === 'function' ? provider : null;
+    },
+
+    /** Deterministic capture seam: replay a takeoff plume at a course point. */
+    emitPlumeAt(s, lat) {
+      const c = course.sampleTrack(s);
+      sprayDir.set(Math.sin(c.h), 0, Math.cos(c.h));
+      for (const [ds, n, size, spread] of [[-2, 22, 0.6, 1.8], [-1, 30, 0.72, 1.9], [0, 34, 0.8, 2.0], [1, 26, 0.62, 1.8], [2, 18, 0.5, 1.5]]) {
+        course.worldPosition(s + ds, lat, course.heightAt(s + ds, lat) + 0.1, playerWorld);
+        vfx.emit(playerWorld, sprayDir, n, { speed: 2.2, up: 3.3, spread, life: 2.2, size });
+      }
+      vfx.update(0, { player: player() });
     },
 
     applySnapshot,
@@ -596,6 +650,7 @@ export function createDownhillMayhemRuntime(options = {}) {
       for (const r of riders) disposeRiderViz(r.viz);
       riders.length = 0;
       world.dispose();
+      vfx.dispose();
       rendering.dispose();
       hiddenTarget?.dispose?.();
       hiddenTarget = null;

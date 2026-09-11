@@ -35,10 +35,14 @@ export function bootStandalone() {
     return;
   }
 
-  const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(1);
+  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
   renderer.setSize(innerWidth, innerHeight);
   if ('outputColorSpace' in renderer && THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.25;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.domElement.id = 'gl';
   if (wrap) wrap.prepend(renderer.domElement);
 
@@ -342,6 +346,7 @@ export function bootStandalone() {
     get phase() { return state.phase; },
     get best() { return best; },
     get scene() { return runtime.scene; },
+    get renderer() { return renderer; },
     get challenges() { return challenge; },
     startMode(m, d) { if (d) setDifficulty(d); setMode(m); startRace(); },
     fastForward(seconds) {
@@ -356,6 +361,8 @@ export function bootStandalone() {
     test: {
       get autopilotOn() { return autopilotOn; },
       autopilot(on) { autopilotOn = Boolean(on); },
+      /** Debug-only frame freeze for deterministic captures (no gameplay effect). */
+      freeze(on) { paused = Boolean(on); },
       placeAt(s, lat) {
         const p = runtime.riders[0];
         p.s = s;
@@ -399,6 +406,7 @@ export function bootStandalone() {
         return r;
       },
       setDifficulty(d) { setDifficulty(d); },
+      emitPlumeAt(s, lat) { runtime.emitPlumeAt(s, lat); },
       startMode(m, d) { if (d) setDifficulty(d); setMode(m); startRace(); },
       riderNames() { return runtime.riders.filter((r) => !r.isPlayer).map((r) => r.def.name); },
       /**
