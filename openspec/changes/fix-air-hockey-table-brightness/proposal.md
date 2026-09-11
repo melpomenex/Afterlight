@@ -22,6 +22,6 @@ In the Orpheum, the air hockey table's near-white laminate bed and low-roughness
 
 ## Impact
 
-- Client: `src/activities/airHockey/tableScene.js` (bed material, bed court texture, and derived surface parameters).
-- Tests: `tests/air-hockey-view.test.js` (material/texture regression assertions).
+- Client: `src/activities/airHockey/tableScene.js` (bed material, bed court texture, and derived surface parameters) plus a pure `src/activities/airHockey/surfacePalette.js` module holding the calibrated palette and contrast helpers.
+- Tests: new `tests/air-hockey-surface.test.js` for palette/finish/contrast regression assertions.
 - No network, persistence, manifest, or server changes; activity definition, transforms, and rules are unaffected.
