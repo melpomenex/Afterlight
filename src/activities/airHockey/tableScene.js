@@ -11,6 +11,10 @@
  */
 
 import * as THREE from 'three';
+import {
+  AIR_HOCKEY_BED_FINISH,
+  AIR_HOCKEY_SURFACE_PALETTE,
+} from './surfacePalette.js';
 
 export function createAirHockeyTableScene({
   position = [5.8, 0, 7.0],
@@ -22,9 +26,9 @@ export function createAirHockeyTableScene({
 
   // Materials
   const bedMat = new THREE.MeshStandardMaterial({
-    color: '#edf4f8',
-    roughness: 0.18,
-    metalness: 0.08,
+    color: '#ffffff',
+    roughness: AIR_HOCKEY_BED_FINISH.roughness,
+    metalness: AIR_HOCKEY_BED_FINISH.metalness,
   });
 
   const railMat = new THREE.MeshStandardMaterial({
@@ -371,6 +375,7 @@ export function createAirHockeyTableScene({
   return {
     group,
     bedHeight,
+    bedSurface: { mesh: bedMesh, material: bedMat },
 
     /**
      * Converts 2D simulation coordinates (X in [0, 200], Y in [0, 100])
@@ -481,12 +486,12 @@ function createBedTexture() {
   canvas.height = 512;
   const ctx = canvas.getContext('2d');
 
-  // Background white laminate
-  ctx.fillStyle = '#f2f8fc';
+  // Background laminate
+  ctx.fillStyle = AIR_HOCKEY_SURFACE_PALETTE.bed;
   ctx.fillRect(0, 0, 1024, 512);
 
   // Subtle perforated air holes grid
-  ctx.fillStyle = '#dce6ed';
+  ctx.fillStyle = AIR_HOCKEY_SURFACE_PALETTE.dots;
   for (let x = 16; x < 1024; x += 24) {
     for (let y = 16; y < 512; y += 24) {
       ctx.beginPath();
@@ -496,7 +501,7 @@ function createBedTexture() {
   }
 
   // Red court markings
-  ctx.strokeStyle = '#d32f2f';
+  ctx.strokeStyle = AIR_HOCKEY_SURFACE_PALETTE.red;
   ctx.lineWidth = 6;
 
   // Center division line
@@ -510,7 +515,7 @@ function createBedTexture() {
   ctx.arc(512, 256, 110, 0, Math.PI * 2);
   ctx.stroke();
 
-  ctx.fillStyle = '#d32f2f';
+  ctx.fillStyle = AIR_HOCKEY_SURFACE_PALETTE.red;
   ctx.beginPath();
   ctx.arc(512, 256, 8, 0, Math.PI * 2);
   ctx.fill();
@@ -527,7 +532,7 @@ function createBedTexture() {
   ctx.stroke();
 
   // Cyan defensive boundary lines
-  ctx.strokeStyle = '#0288d1';
+  ctx.strokeStyle = AIR_HOCKEY_SURFACE_PALETTE.cyan;
   ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.moveTo(256, 0);
