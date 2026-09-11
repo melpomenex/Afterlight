@@ -25,6 +25,7 @@ import {
   BALL_DIAMETER,
   POCKETS,
 } from '../../../shared/pool/physics.js';
+import { needsCalledPocket } from '../../../shared/pool/rules.js';
 
 export function createPoolController({
   tablePosition = [-8.6, 0, -4.5],
@@ -67,6 +68,7 @@ export function createPoolController({
   let mySlot = 0;
   let isMyTurn = false;
   let isShooting = false;
+  let shootingSafetyTimeout = null;
   let rulesModalOpen = false;
 
   // Key tracking
@@ -187,7 +189,15 @@ export function createPoolController({
   }
 
   function onTablePointerDown(e) {
-    if (!active || !isMyTurn || e.button !== 0 || typingTarget(e.target) || e.target !== getCanvas?.()) return;
+    if (!active || !isMyTurn || typingTarget(e.target) || e.target !== getCanvas?.()) return;
+    if (e.button === 2) {
+      if (isCharging || strokePointerId !== null) {
+        stopWorldPointer(e);
+        cancelShotCharging();
+      }
+      return;
+    }
+    if (e.button !== 0) return;
     const point = tablePointFromEvent(e);
     if (!point) return;
     stopWorldPointer(e);
@@ -478,8 +488,14 @@ export function createPoolController({
   function updatePowerDisplay() {
     if (!hud) return;
     const fillEl = hud.root.querySelector('[data-role="power-fill"]');
+    const meterEl = hud.root.querySelector('[data-role="power-meter"]');
+    const isFull = shotPower >= 0.99;
     if (fillEl) {
       fillEl.style.height = `${Math.round(shotPower * 100)}%`;
+      fillEl.classList.toggle('power-full', isFull);
+    }
+    if (meterEl) {
+      meterEl.classList.toggle('pool-power-full', isFull);
     }
   }
 
@@ -495,6 +511,15 @@ export function createPoolController({
     }
 
     isShooting = true;
+    clearTimeout(shootingSafetyTimeout);
+    shootingSafetyTimeout = setTimeout(() => {
+      if (isShooting && currentSim?.status !== 'shooting') {
+        isShooting = false;
+        shotPower = 0.35;
+        updatePowerDisplay();
+      }
+    }, 1200);
+
     onShoot?.({
       angle: aimAngle,
       power: shotPower,
@@ -515,6 +540,14 @@ export function createPoolController({
       return;
     }
 
+    if (isCharging && e.code === 'Escape') {
+      e.preventDefault();
+      e.stopImmediatePropagation?.();
+      e.stopPropagation();
+      cancelShotCharging();
+      return;
+    }
+
     if (e.code === 'Escape') {
       e.preventDefault();
       onExit?.();
@@ -523,6 +556,7 @@ export function createPoolController({
 
     if (e.code === 'KeyC') {
       e.preventDefault();
+      if (isCharging) cancelShotCharging();
       onCameraCycle?.();
       return;
     }
@@ -550,20 +584,53 @@ export function createPoolController({
   }
 
   function setShotCharging(pressed) {
-    if (!active) return false;
     if (pressed) {
-      isCharging = true;
+      if (!active || !isMyTurn || isShooting) return false;
+      if (!isCharging) {
+        isCharging = true;
+        shotPower = 0.05;
+        updatePowerDisplay();
+      }
       return true;
     }
+
     if (!isCharging) return false;
     isCharging = false;
+
+    if (!active || !isMyTurn || isShooting) {
+      cancelShotCharging();
+      return false;
+    }
+
     executeShot();
     return true;
   }
 
+  function cancelShotCharging() {
+    if (!isCharging && strokePointerId === null) return false;
+    isCharging = false;
+    if (strokePointerId !== null) {
+      try {
+        getCanvas?.()?.releasePointerCapture?.(strokePointerId);
+      } catch {}
+      strokePointerId = null;
+      strokeDragged = false;
+    }
+    shotPower = 0.35;
+    updatePowerDisplay();
+    return true;
+  }
+
+  function onContextMenu(e) {
+    if (active && (isCharging || strokePointerId !== null)) {
+      e.preventDefault();
+      cancelShotCharging();
+    }
+  }
+
   function onBlur() {
     heldKeys.clear();
-    isCharging = false;
+    cancelShotCharging();
   }
 
   return {
@@ -612,7 +679,12 @@ export function createPoolController({
       return previewValid;
     },
 
+    get isCharging() {
+      return isCharging;
+    },
+
     setShotCharging,
+    cancelShotCharging,
 
     calculateImpact(cueX, cueZ, angle, simState) {
       return calculateImpact(cueX, cueZ, angle, simState || currentSim);
@@ -634,6 +706,7 @@ export function createPoolController({
         window.addEventListener('keydown', onKeyDown, true);
         window.addEventListener('keyup', onKeyUp, true);
         window.addEventListener('blur', onBlur);
+        window.addEventListener('contextmenu', onContextMenu);
         window.addEventListener('pointerdown', onTablePointerDown, true);
         window.addEventListener('pointermove', onTablePointerMove, true);
         window.addEventListener('pointerup', onTablePointerUp, true);
@@ -644,6 +717,7 @@ export function createPoolController({
     deactivate() {
       if (!active) return;
       active = false;
+      clearTimeout(shootingSafetyTimeout);
       heldKeys.clear();
       isCharging = false;
       strokePointerId = null;
@@ -653,6 +727,7 @@ export function createPoolController({
         window.removeEventListener('keydown', onKeyDown, true);
         window.removeEventListener('keyup', onKeyUp, true);
         window.removeEventListener('blur', onBlur);
+        window.removeEventListener('contextmenu', onContextMenu);
         window.removeEventListener('pointerdown', onTablePointerDown, true);
         window.removeEventListener('pointermove', onTablePointerMove, true);
         window.removeEventListener('pointerup', onTablePointerUp, true);
@@ -687,9 +762,16 @@ export function createPoolController({
      */
     update(delta = 1 / 60, simState = null, { practice = false } = {}) {
       if (simState) {
+        const wasShooting = isShooting;
         currentSim = simState;
         isMyTurn = Number.isInteger(simState.turn) && simState.turn === mySlot && simState.status !== 'game_over';
         isShooting = simState.status === 'shooting' || !simState.physics?.settled;
+
+        if (wasShooting && !isShooting) {
+          clearTimeout(shootingSafetyTimeout);
+          shotPower = 0.35;
+          updatePowerDisplay();
+        }
       }
 
       if (!active) return;
@@ -715,16 +797,9 @@ export function createPoolController({
       if (heldKeys.has('KeyJ')) spinX = Math.max(-0.7, spinX - spinSpeed);
       if (heldKeys.has('KeyL')) spinX = Math.min(0.7, spinX + spinSpeed);
 
-      // Power charging via held F
+      // Power charging via held F or gamepad
       if (isCharging) {
-        shotPower += chargeDirection * delta * 0.9;
-        if (shotPower >= 1.0) {
-          shotPower = 1.0;
-          chargeDirection = -1;
-        } else if (shotPower <= 0.05) {
-          shotPower = 0.05;
-          chargeDirection = 1;
-        }
+        shotPower = Math.min(1.0, shotPower + delta * 0.85);
         updatePowerDisplay();
       }
 
@@ -745,12 +820,16 @@ export function createPoolController({
           if (Math.abs(gp.axes[3]) > 0.15) {
             spinY = Math.max(-0.7, Math.min(0.7, spinY - gp.axes[3] * delta * 1.5));
           }
-          // Right trigger (button 7) or A (button 0) for shot
-          if (gp.buttons[7]?.pressed || gp.buttons[0]?.pressed) {
-            isCharging = true;
+          // B (button 1) cancels charging
+          if (isCharging && gp.buttons[1]?.pressed) {
+            cancelShotCharging();
+          } else if (gp.buttons[7]?.pressed || gp.buttons[0]?.pressed) {
+            // Right trigger (button 7) or A (button 0) for shot
+            if (!isCharging) {
+              setShotCharging(true);
+            }
           } else if (isCharging) {
-            isCharging = false;
-            executeShot();
+            setShotCharging(false);
           }
         }
       }
@@ -797,8 +876,37 @@ export function createPoolController({
         }
 
         // Show 8-ball pocket picker if on 8-ball
-        const onEight = group && isMyTurn; // Show pocket picker when group assigned
+        const onEight = isMyTurn && currentSim && needsCalledPocket(currentSim, mySlot);
         pocketPanel.style.display = onEight ? 'flex' : 'none';
+        if (onEight) {
+          const pocketBtns = pocketPanel.querySelectorAll('.pool-pocket-btn');
+          pocketBtns.forEach((btn) => {
+            const pId = btn.textContent.toLowerCase().replace(/ /g, '_');
+            btn.classList.toggle('active', pId === calledPocket);
+          });
+        }
+      }
+    },
+
+    acceptError(frame) {
+      clearTimeout(shootingSafetyTimeout);
+      isShooting = false;
+      isCharging = false;
+      shotPower = 0.35;
+      updatePowerDisplay();
+
+      if (hud) {
+        const foulEl = hud.root.querySelector('[data-role="foul"]');
+        const errText = frame?.message || frame?.error || frame?.reason;
+        if (foulEl && errText) {
+          foulEl.style.display = 'block';
+          foulEl.textContent = String(errText).replace(/_/g, ' ').toUpperCase();
+          setTimeout(() => {
+            if (foulEl && (!currentSim || !currentSim.foul)) {
+              foulEl.style.display = 'none';
+            }
+          }, 2500);
+        }
       }
     },
   };

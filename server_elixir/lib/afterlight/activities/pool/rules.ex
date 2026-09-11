@@ -25,7 +25,7 @@ defmodule Afterlight.Activities.Pool.Rules do
   def rules_version, do: @rules_version
 
   @min_cue_speed 0.65
-  @max_cue_speed 10.5
+  @max_cue_speed 32.0
   @power_exponent 1.35
 
   def min_cue_speed, do: @min_cue_speed
@@ -179,7 +179,9 @@ defmodule Afterlight.Activities.Pool.Rules do
   @doc """
   Executes a shot if legal for the current player and settled state.
   """
-  def shoot(state, player, angle, power, spin_x \\ 0.0, spin_y \\ 0.0) do
+  def shoot(state, player, angle, power, spin_x \\ 0.0, spin_y \\ 0.0, called_pocket \\ nil) do
+    effective_pocket = called_pocket || state["called_pocket"]
+
     cond do
       state["status"] != "aiming" ->
         {:error, :not_aiming}
@@ -193,7 +195,7 @@ defmodule Afterlight.Activities.Pool.Rules do
       not state["physics"]["settled"] ->
         {:error, :balls_in_motion}
 
-      needs_called_pocket?(state, player) and is_nil(state["called_pocket"]) ->
+      needs_called_pocket?(state, player) and is_nil(effective_pocket) ->
         {:error, :pocket_call_required}
 
       true ->
@@ -202,7 +204,7 @@ defmodule Afterlight.Activities.Pool.Rules do
 
         shot_tracker = %{
           "shooter" => player,
-          "called_pocket" => state["called_pocket"],
+          "called_pocket" => effective_pocket,
           "first_hit" => nil,
           "rails_post_contact" => 0,
           "pocketed_balls" => [],
@@ -216,6 +218,7 @@ defmodule Afterlight.Activities.Pool.Rules do
           | "physics" => phys,
             "status" => "shooting",
             "foul" => nil,
+            "called_pocket" => effective_pocket,
             "current_shot" => shot_tracker
         }
 

@@ -152,7 +152,7 @@ defmodule Afterlight.Activities.Pool.Physics do
     if cue == nil or cue["state"] != "in_play" do
       state
     else
-      speed = max(0.1, min(15.0, speed * 1.0))
+      speed = max(0.1, min(50.0, speed * 1.0))
       spin_x = max(-1.0, min(1.0, spin_x * 1.0))
       spin_y = max(-1.0, min(1.0, spin_y * 1.0))
 
@@ -222,7 +222,7 @@ defmodule Afterlight.Activities.Pool.Physics do
     else
       # Adaptive substepping to prevent tunneling at high velocities
       displacement = max_v * delta_sec
-      substeps = max(1, min(36, ceil(displacement / @max_substep_displacement)))
+      substeps = max(1, min(96, ceil(displacement / @max_substep_displacement)))
       dt_sub = delta_sec / substeps
 
       # Execute substeps

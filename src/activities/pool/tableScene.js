@@ -503,12 +503,13 @@ export function createPoolTableScene({
       cueZ = 0,
       angle = 0,
       power = 0,
+      strokeOffset = 0,
       visible = true,
     } = {}) {
       cueGroup.visible = visible;
       if (!visible) return;
 
-      const pullBack = 0.05 + power * 0.28; // Draw back along aim line
+      const pullBack = 0.05 + power * 0.28 - strokeOffset;
       const cueHeight = 0.78 + BALL_RADIUS + 0.015;
 
       // Position cue at cue ball center, elevated slightly above rail

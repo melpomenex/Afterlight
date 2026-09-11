@@ -2350,6 +2350,25 @@ body[data-hud-context='social'] [data-hud-legacy] { display: none !important; }
   background: linear-gradient(to top, #44bb66, #e6c844 70%, #ee3333 100%);
   transition: height 0.05s linear;
 }
+.pool-power-meter.pool-power-full {
+  border-color: #ee4444;
+  box-shadow: 0 0 8px rgba(238, 68, 68, 0.7);
+  animation: pool-power-pulse 0.4s ease-in-out infinite alternate;
+}
+.pool-power-fill.power-full {
+  background: linear-gradient(to top, #44bb66, #ffdd44 60%, #ff2222 100%);
+  filter: brightness(1.25);
+}
+@keyframes pool-power-pulse {
+  from { box-shadow: 0 0 4px rgba(238, 68, 68, 0.4); }
+  to { box-shadow: 0 0 10px rgba(255, 68, 68, 0.9); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pool-power-meter.pool-power-full {
+    animation: none;
+    box-shadow: 0 0 8px rgba(238, 68, 68, 0.7);
+  }
+}
 .pool-buttons {
   display: flex;
   flex-direction: column;

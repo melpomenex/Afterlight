@@ -162,12 +162,13 @@ export function placeCueBall(state, player, x, z) {
 /**
  * Executes a shot if legal for current player and settled state.
  */
-export function shoot(state, player, angle, power, spinX = 0.0, spinY = 0.0) {
+export function shoot(state, player, angle, power, spinX = 0.0, spinY = 0.0, calledPocket = null) {
   if (state.status !== 'aiming') return { ok: false, error: 'not_aiming' };
   if (state.turn !== player) return { ok: false, error: 'not_your_turn' };
   if (state.ball_in_hand) return { ok: false, error: 'must_place_cue_ball' };
   if (!state.physics.settled) return { ok: false, error: 'balls_in_motion' };
-  if (needsCalledPocket(state, player) && !state.called_pocket) {
+  const effectivePocket = calledPocket || state.called_pocket;
+  if (needsCalledPocket(state, player) && !effectivePocket) {
     return { ok: false, error: 'pocket_call_required' };
   }
 
@@ -176,7 +177,7 @@ export function shoot(state, player, angle, power, spinX = 0.0, spinY = 0.0) {
 
   const shotTracker = {
     shooter: player,
-    called_pocket: state.called_pocket,
+    called_pocket: effectivePocket,
     first_hit: null,
     rails_post_contact: 0,
     pocketed_balls: [],

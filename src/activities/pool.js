@@ -74,6 +74,7 @@ export function createPoolInstance({
   let activeParticipant = false;
   let mySlot = 0;
   let seq = 1;
+  let strokeAnim = null;
 
   // Initial balls placement
   tableScene.updateBalls(simState, 1.0);
@@ -107,7 +108,17 @@ export function createPoolInstance({
         },
       });
 
-      audio.playCueStrike(power);
+      const balls = simState?.physics?.balls || {};
+      const cueBall = balls['0'];
+      strokeAnim = {
+        startTime: typeof performance !== 'undefined' ? performance.now() : Date.now(),
+        duration: Math.max(0.08, 0.12 - power * 0.03),
+        power,
+        angle,
+        cueX: cueBall ? cueBall.x : 0,
+        cueZ: cueBall ? cueBall.z : 0,
+        impactFired: false,
+      };
     },
 
     onPlaceCueBall: (x, z) => {
@@ -180,6 +191,7 @@ export function createPoolInstance({
   });
 
   function handleExit() {
+    strokeAnim = null;
     activeParticipant = false;
     controller.deactivate();
     camera.deactivate();
@@ -260,7 +272,34 @@ export function createPoolInstance({
       const cueBall = balls['0'];
       const showAim = isParticipating && simState.physics?.settled && simState.turn === mySlot && simState.status !== 'awaiting_ball_in_hand';
 
-      if (showAim && cueBall) {
+      if (strokeAnim && cueBall) {
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        const elapsed = (now - strokeAnim.startTime) / 1000;
+        const pFrac = Math.min(1.0, elapsed / strokeAnim.duration);
+        const pullBack0 = 0.05 + strokeAnim.power * 0.28;
+        const totalTravel = pullBack0 + 0.035;
+        const ease = pFrac * pFrac * (3 - 2 * pFrac);
+        const strokeOffset = totalTravel * ease;
+
+        if (!strokeAnim.impactFired && strokeOffset >= pullBack0) {
+          strokeAnim.impactFired = true;
+          audio.playCueStrike(strokeAnim.power);
+        }
+
+        tableScene.updateAimGuides({ visible: false });
+        tableScene.updateCue({
+          cueX: strokeAnim.cueX,
+          cueZ: strokeAnim.cueZ,
+          angle: strokeAnim.angle,
+          power: strokeAnim.power,
+          strokeOffset,
+          visible: true,
+        });
+
+        if (pFrac >= 1.0 && elapsed >= strokeAnim.duration + 0.04) {
+          strokeAnim = null;
+        }
+      } else if (showAim && cueBall) {
         const impact = controller.calculateImpact(cueBall.x, cueBall.z, controller.aimAngle, simState);
         tableScene.updateAimGuides({
           cueX: cueBall.x,
@@ -275,6 +314,7 @@ export function createPoolInstance({
           cueZ: cueBall.z,
           angle: controller.aimAngle,
           power: controller.shotPower,
+          strokeOffset: 0,
           visible: true,
         });
       } else {
@@ -368,12 +408,15 @@ export function createPoolInstance({
      * Accepts server error response.
      */
     acceptError(frame) {
+      strokeAnim = null;
+      controller.acceptError?.(frame);
     },
 
     /**
      * Clean resource disposal.
      */
     dispose() {
+      strokeAnim = null;
       activeParticipant = false;
       controller.deactivate();
       camera.deactivate();

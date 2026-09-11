@@ -10,33 +10,34 @@ import {
   step as physicsStep,
 } from '../shared/pool/physics.js';
 import { initGame, shoot, step as rulesStep } from '../shared/pool/rules.js';
+import { createPoolController } from '../src/activities/pool/controller.js';
 
 test('pool power: power curve maps calibrated speed checkpoints accurately', () => {
   assert.equal(POOL_MIN_CUE_SPEED, 0.65);
-  assert.equal(POOL_MAX_CUE_SPEED, 10.5);
+  assert.equal(POOL_MAX_CUE_SPEED, 32.0);
   assert.equal(POOL_POWER_EXPONENT, 1.35);
 
   // Checkpoint: 0.0 -> MIN_CUE_SPEED (gentle tap)
   assert.equal(normalizedPowerToCueSpeed(0.0), 0.65);
 
-  // Checkpoint: 0.10 -> ~1.09 m/s (finesse shot)
+  // Checkpoint: 0.10 -> ~2.05 m/s (finesse shot)
   const sp10 = normalizedPowerToCueSpeed(0.10);
-  assert.ok(Math.abs(sp10 - 1.09) < 0.05, `0.10 power -> ${sp10} m/s (expected ~1.09)`);
+  assert.ok(Math.abs(sp10 - 2.05) < 0.05, `0.10 power -> ${sp10} m/s (expected ~2.05)`);
 
-  // Checkpoint: 0.25 -> ~2.17 m/s (controlled positional roll)
+  // Checkpoint: 0.25 -> ~5.47 m/s (controlled positional roll)
   const sp25 = normalizedPowerToCueSpeed(0.25);
-  assert.ok(Math.abs(sp25 - 2.17) < 0.05, `0.25 power -> ${sp25} m/s (expected ~2.17)`);
+  assert.ok(Math.abs(sp25 - 5.47) < 0.05, `0.25 power -> ${sp25} m/s (expected ~5.47)`);
 
-  // Checkpoint: 0.50 -> ~4.51 m/s (medium table shot)
+  // Checkpoint: 0.50 -> ~12.95 m/s (medium table shot)
   const sp50 = normalizedPowerToCueSpeed(0.50);
-  assert.ok(Math.abs(sp50 - 4.51) < 0.05, `0.50 power -> ${sp50} m/s (expected ~4.51)`);
+  assert.ok(Math.abs(sp50 - 12.95) < 0.05, `0.50 power -> ${sp50} m/s (expected ~12.95)`);
 
-  // Checkpoint: 0.75 -> ~7.33 m/s (firm power shot)
+  // Checkpoint: 0.75 -> ~21.91 m/s (firm power shot)
   const sp75 = normalizedPowerToCueSpeed(0.75);
-  assert.ok(Math.abs(sp75 - 7.33) < 0.05, `0.75 power -> ${sp75} m/s (expected ~7.33)`);
+  assert.ok(Math.abs(sp75 - 21.91) < 0.05, `0.75 power -> ${sp75} m/s (expected ~21.91)`);
 
-  // Checkpoint: 1.00 -> 10.50 m/s (full break)
-  assert.equal(normalizedPowerToCueSpeed(1.00), 10.5);
+  // Checkpoint: 1.00 -> 32.00 m/s (full break)
+  assert.equal(normalizedPowerToCueSpeed(1.00), 32.0);
 });
 
 test('pool power: power curve is strictly monotonic across [0.0, 1.0]', () => {
@@ -90,7 +91,7 @@ test('pool power: full-power break forcefully disperses the rack vs old weak 1.0
     if (Math.hypot(b.x - oldInitial[id].x, b.z - oldInitial[id].z) > 0.05) oldDisplaced++;
   }
 
-  // 2. Simulate break at the new 10.5 m/s maximum power
+  // 2. Simulate break at the new 32.0 m/s maximum power
   let newState = initRack();
   newState = strikeCueBall(newState, 0.0, POOL_MAX_CUE_SPEED, 0.0, 0.0);
   const newInitial = {};
@@ -118,7 +119,7 @@ test('pool power: full-power break forcefully disperses the rack vs old weak 1.0
   assert.ok(oldDisplaced <= 2, `old weak shot displaced ${oldDisplaced} balls`);
   assert.equal(oldRailHits, 0, 'old weak shot had 0 rail hits');
 
-  // At 10.5 m/s: full rack separation! All 15 balls forcefully displaced!
+  // At 32.0 m/s: full rack separation! All 15 balls forcefully displaced!
   assert.equal(newDisplaced, 15, `new break must displace all 15 object balls, displaced ${newDisplaced}`);
   assert.ok(newSteps > 150, 'break motion persists across substantial physics simulation');
 });
@@ -130,7 +131,78 @@ test('pool power: shoot() rules integration converts normalized power authoritat
   assert.equal(res.ok, true);
   const cueBall = res.state.physics.balls['0'];
 
-  // Physical launch velocity must reflect ~10.5 m/s, NOT ~1.0 m/s
-  assert.ok(Math.abs(cueBall.vx - 10.5) < 0.01, `cue ball vx should be ~10.5 m/s, got ${cueBall.vx}`);
+  // Physical launch velocity must reflect ~32.0 m/s, NOT ~1.0 m/s
+  assert.ok(Math.abs(cueBall.vx - 32.0) < 0.01, `cue ball vx should be ~32.0 m/s, got ${cueBall.vx}`);
   assert.ok(Math.abs(cueBall.vz) < 0.001);
+});
+
+test('pool power: hold-to-charge ramps monotonically, clamps firmly at 1.0, and executes at 1.0 upon release', () => {
+  let executedShot = null;
+  const controller = createPoolController({
+    onShoot: (shot) => { executedShot = shot; },
+  });
+
+  controller.activate(0);
+  const sim = { turn: 0, status: 'aiming', physics: { settled: true } };
+  controller.update(0.016, sim);
+
+  // Initiate charging
+  const started = controller.setShotCharging(true);
+  assert.equal(started, true);
+  assert.equal(controller.isCharging, true);
+  assert.equal(controller.shotPower, 0.05);
+
+  // Advance by 0.5 seconds: power increases smoothly
+  controller.update(0.5, sim);
+  const midPower = controller.shotPower;
+  assert.ok(midPower > 0.40 && midPower < 0.55, `expected power ~0.475, got ${midPower}`);
+
+  // Advance by another 1.0 second: power reaches 1.0
+  controller.update(1.0, sim);
+  assert.equal(controller.shotPower, 1.0);
+
+  // Crucial test: hold for 3.0 more seconds at maximum charge.
+  // In popular pool games, power MUST stay clamped at 1.0 and NOT oscillate or drain down!
+  controller.update(3.0, sim);
+  assert.equal(controller.shotPower, 1.0, 'power must remain firmly clamped at 1.0 while holding');
+  assert.equal(controller.isCharging, true);
+
+  // Release charge: executes shot with 1.0 power!
+  const stopped = controller.setShotCharging(false);
+  assert.equal(stopped, true);
+  assert.equal(controller.isCharging, false);
+  assert.notEqual(executedShot, null);
+  assert.equal(executedShot.power, 1.0, 'executed shot must have full 1.0 power');
+
+  controller.deactivate();
+});
+
+test('pool power: cancelShotCharging() aborts active charge and resets power to baseline without shooting', () => {
+  let executedShot = null;
+  const controller = createPoolController({
+    onShoot: (shot) => { executedShot = shot; },
+  });
+
+  controller.activate(0);
+  const sim = { turn: 0, status: 'aiming', physics: { settled: true } };
+  controller.update(0.016, sim);
+
+  controller.setShotCharging(true);
+  controller.update(0.5, sim);
+  assert.equal(controller.isCharging, true);
+  assert.ok(controller.shotPower > 0.4);
+
+  // Cancel charge explicitly (e.g. user pressed Escape or right-click)
+  const cancelled = controller.cancelShotCharging();
+  assert.equal(cancelled, true);
+  assert.equal(controller.isCharging, false);
+  assert.equal(controller.shotPower, 0.35, 'power resets to neutral baseline upon cancellation');
+  assert.equal(executedShot, null, 'no shot must be executed on cancel');
+
+  // Calling setShotCharging(false) after cancellation is a no-op and does not shoot
+  const releasedAfterCancel = controller.setShotCharging(false);
+  assert.equal(releasedAfterCancel, false);
+  assert.equal(executedShot, null);
+
+  controller.deactivate();
 });

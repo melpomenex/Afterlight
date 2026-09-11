@@ -3240,6 +3240,15 @@ defmodule Afterlight.Activities.SessionServer do
           power = max(0.0, min(1.0, raw_power))
           spin_x = float_or(Map.get(controls, "spinX") || Map.get(controls, "spin_x"), 0.0)
           spin_y = float_or(Map.get(controls, "spinY") || Map.get(controls, "spin_y"), 0.0)
+          called_pocket = Map.get(controls, "calledPocket") || Map.get(controls, "called_pocket")
+
+          called_pocket =
+            if is_nil(called_pocket) and is_nil(state.sim_state["called_pocket"]) and pool_practice?(state) and
+                 Afterlight.Activities.Pool.Rules.needs_called_pocket?(state.sim_state, slot) do
+              "corner_tl"
+            else
+              called_pocket
+            end
 
           case Afterlight.Activities.Pool.Rules.shoot(
                  state.sim_state,
@@ -3247,7 +3256,8 @@ defmodule Afterlight.Activities.SessionServer do
                  angle,
                  power,
                  spin_x,
-                 spin_y
+                 spin_y,
+                 called_pocket
                ) do
             {:ok, new_sim} ->
               accept_pool_input(state, player, slot, seq, controls, new_sim)
@@ -3286,9 +3296,6 @@ defmodule Afterlight.Activities.SessionServer do
           case Afterlight.Activities.Pool.Rules.call_pocket(state.sim_state, slot, pocket_id) do
             {:ok, new_sim} ->
               accept_pool_input(state, player, slot, seq, controls, new_sim)
-
-            {:error, :not_your_turn} ->
-              {:reply, {:error, :out_of_turn}, state}
 
             {:error, err} ->
               {:reply, {:error, err}, state}

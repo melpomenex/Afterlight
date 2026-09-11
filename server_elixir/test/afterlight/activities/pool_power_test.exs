@@ -6,7 +6,7 @@ defmodule Afterlight.Activities.PoolPowerTest do
   describe "power curve calibration and JS parity" do
     test "constants match JS specification" do
       assert Rules.min_cue_speed() == 0.65
-      assert Rules.max_cue_speed() == 10.5
+      assert Rules.max_cue_speed() == 32.0
       assert Rules.power_exponent() == 1.35
     end
 
@@ -14,23 +14,23 @@ defmodule Afterlight.Activities.PoolPowerTest do
       # 0.0 -> 0.65
       assert_in_delta Rules.normalized_power_to_cue_speed(0.0), 0.65, 1.0e-5
 
-      # 0.10 -> ~1.08998
-      assert_in_delta Rules.normalized_power_to_cue_speed(0.10), 1.08998, 1.0e-3
+      # 0.10 -> ~2.05035
+      assert_in_delta Rules.normalized_power_to_cue_speed(0.10), 2.05035, 1.0e-3
 
-      # 0.25 -> ~2.1658
-      assert_in_delta Rules.normalized_power_to_cue_speed(0.25), 2.1658, 1.0e-3
+      # 0.25 -> ~5.47455
+      assert_in_delta Rules.normalized_power_to_cue_speed(0.25), 5.47455, 1.0e-3
 
-      # 0.35 -> ~3.0374
-      assert_in_delta Rules.normalized_power_to_cue_speed(0.35), 3.0374, 1.0e-3
+      # 0.35 -> ~8.24853
+      assert_in_delta Rules.normalized_power_to_cue_speed(0.35), 8.24853, 1.0e-3
 
-      # 0.50 -> ~4.5140
-      assert_in_delta Rules.normalized_power_to_cue_speed(0.50), 4.5140, 1.0e-3
+      # 0.50 -> ~12.94836
+      assert_in_delta Rules.normalized_power_to_cue_speed(0.50), 12.94836, 1.0e-3
 
-      # 0.75 -> ~7.3298
-      assert_in_delta Rules.normalized_power_to_cue_speed(0.75), 7.3298, 1.0e-3
+      # 0.75 -> ~21.91034
+      assert_in_delta Rules.normalized_power_to_cue_speed(0.75), 21.91034, 1.0e-3
 
-      # 1.00 -> 10.5
-      assert_in_delta Rules.normalized_power_to_cue_speed(1.00), 10.5, 1.0e-5
+      # 1.00 -> 32.0
+      assert_in_delta Rules.normalized_power_to_cue_speed(1.00), 32.0, 1.0e-5
     end
 
     test "strictly monotonic across [0.0, 1.0]" do
@@ -47,8 +47,8 @@ defmodule Afterlight.Activities.PoolPowerTest do
     test "clamps out-of-bound and invalid inputs" do
       assert Rules.normalized_power_to_cue_speed(-0.5) == 0.65
       assert Rules.normalized_power_to_cue_speed(-9999.0) == 0.65
-      assert Rules.normalized_power_to_cue_speed(1.5) == 10.5
-      assert Rules.normalized_power_to_cue_speed(9999.0) == 10.5
+      assert Rules.normalized_power_to_cue_speed(1.5) == 32.0
+      assert Rules.normalized_power_to_cue_speed(9999.0) == 32.0
       assert Rules.normalized_power_to_cue_speed(nil) == 0.65
       assert Rules.normalized_power_to_cue_speed("invalid") == 0.65
     end
@@ -60,14 +60,14 @@ defmodule Afterlight.Activities.PoolPowerTest do
       {:ok, shooting_game} = Rules.shoot(game, 0, 0.0, 1.0)
       cue_ball = shooting_game["physics"]["balls"]["0"]
 
-      assert_in_delta cue_ball["vx"], 10.5, 1.0e-3
+      assert_in_delta cue_ball["vx"], 32.0, 1.0e-3
       assert_in_delta cue_ball["vz"], 0.0, 1.0e-3
     end
 
     test "full-power break forcefully disperses the rack" do
       initial_rack = Physics.init_rack()
-      # Strike rack at maximum break speed 10.5 m/s
-      struck_rack = Physics.strike_cue_ball(initial_rack, 0.0, 10.5, 0.0, 0.0)
+      # Strike rack at maximum break speed 32.0 m/s
+      struck_rack = Physics.strike_cue_ball(initial_rack, 0.0, 32.0, 0.0, 0.0)
 
       # Step physics forward until settled or capped
       {final_rack, _events} =
@@ -90,7 +90,7 @@ defmodule Afterlight.Activities.PoolPowerTest do
           :math.sqrt(dx * dx + dz * dz) > 0.05
         end)
 
-      # At full 10.5 m/s, all 15 balls in the rack must separate!
+      # At full 32.0 m/s, all 15 balls in the rack must separate!
       assert displaced_count == 15
     end
   end

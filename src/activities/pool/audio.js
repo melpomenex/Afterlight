@@ -72,24 +72,24 @@ export function createPoolAudio({
 
       try {
         const now = ac.currentTime;
+        const p = Math.max(0.0, Math.min(1.0, Number(power) || 0.5));
         const osc = ac.createOscillator();
         const gain = ac.createGain();
 
-        // Higher frequency snap at higher power
+        // Dynamic frequency snap and bass descent scaling with power
         osc.type = 'triangle';
-        const startFreq = 480 + power * 280;
-        osc.frequency.setValueAtTime(startFreq, now);
-        osc.frequency.exponentialRampToValueAtTime(80, now + 0.04);
+        osc.frequency.setValueAtTime(450 + p * 350, now);
+        osc.frequency.exponentialRampToValueAtTime(50 + (1.0 - p) * 30, now + 0.04 + p * 0.03);
 
-        const volume = (0.2 + power * 0.3) * dist;
+        const volume = (0.2 + p * 0.5) * dist;
         gain.gain.setValueAtTime(volume, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05 + p * 0.03);
 
         osc.connect(gain);
         connectOutput(gain);
 
         osc.start(now);
-        osc.stop(now + 0.05);
+        osc.stop(now + 0.05 + p * 0.03);
       } catch {}
     },
 

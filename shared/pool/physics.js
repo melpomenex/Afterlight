@@ -44,7 +44,7 @@ export const MAX_SUBSTEP_DISPLACEMENT = 0.007;
 
 // Cue shot power curve constants (normalized 0.0..1.0 -> physical m/s)
 export const POOL_MIN_CUE_SPEED = 0.65;
-export const POOL_MAX_CUE_SPEED = 10.5;
+export const POOL_MAX_CUE_SPEED = 32.0;
 export const POOL_POWER_EXPONENT = 1.35;
 
 /**
@@ -53,7 +53,7 @@ export const POOL_POWER_EXPONENT = 1.35;
  * full-power rack-dispersing breaks.
  *
  * @param {number} power Normalized power in [0.0, 1.0]
- * @returns {number} Physical launch speed in m/s [0.65, 10.5]
+ * @returns {number} Physical launch speed in m/s [0.65, 32.0]
  */
 export function normalizedPowerToCueSpeed(power) {
   const num = Number(power);
@@ -147,7 +147,7 @@ export function generateTriangularRack(apexX, apexZ) {
  *
  * @param {object} state Table physics state
  * @param {number} angle Shot angle in radians
- * @param {number} speed Physical launch speed in m/s [0.1, 15.0]
+ * @param {number} speed Physical launch speed in m/s [0.1, 50.0]
  * @param {number} [spinX=0.0] Sidespin / english in [-1.0, 1.0]
  * @param {number} [spinY=0.0] Topspin / backspin in [-1.0, 1.0]
  */
@@ -157,7 +157,7 @@ export function strikeCueBall(state, angle, speed, spinX = 0.0, spinY = 0.0) {
     return state;
   }
 
-  const p = Math.max(0.1, Math.min(15.0, Number(speed)));
+  const p = Math.max(0.1, Math.min(50.0, Number(speed)));
   const sx = Math.max(-1.0, Math.min(1.0, Number(spinX)));
   const sy = Math.max(-1.0, Math.min(1.0, Number(spinY)));
 
@@ -221,7 +221,7 @@ export function step(state, deltaSec = 0.016667) {
   }
 
   const displacement = maxV * deltaSec;
-  const substeps = Math.max(1, Math.min(36, Math.ceil(displacement / MAX_SUBSTEP_DISPLACEMENT)));
+  const substeps = Math.max(1, Math.min(96, Math.ceil(displacement / MAX_SUBSTEP_DISPLACEMENT)));
   const dtSub = deltaSec / substeps;
 
   let currentBalls = balls;
