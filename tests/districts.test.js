@@ -26,15 +26,20 @@ test('public places have unique IDs, complete metadata and the unchanged legacy 
     // Conditional restoration contract: objective and note tuples are
     // optional per place (the court is objective-free by design), but every
     // present tuple must be complete — and the legacy restoration districts
-    // keep theirs.
+    // keep theirs. The Orpheum is the one objective-bearing place with no
+    // field note (its stand was removed from the foosball bay).
     if (d.id === 'court' || d.id === 'desert-camp') {
       assert.ok(d.objective == null && d.note == null, 'court stays objective-free');
     } else {
       assert.ok(d.objective && d.action && d.done, `${d.id} has restoration action metadata`);
       assert.ok(d.message, `${d.id} has a completion message`);
       assert.ok(Array.isArray(d.landmark) && d.landmark.length === 2, `${d.id} has landmark coordinate`);
-      assert.ok(Array.isArray(d.note) && d.note.length === 2, `${d.id} has note coordinate`);
-      assert.ok(d.noteTitle && d.noteBody, `${d.id} has note lore`);
+      if (d.id === 'theater') {
+        assert.ok(d.note == null && d.noteTitle == null && d.noteBody == null, 'theater has no field note');
+      } else {
+        assert.ok(Array.isArray(d.note) && d.note.length === 2, `${d.id} has note coordinate`);
+        assert.ok(d.noteTitle && d.noteBody, `${d.id} has note lore`);
+      }
     }
   }
   assert.deepEqual(validatePlaceDefinitions(districts), [], 'every district passes place validation');

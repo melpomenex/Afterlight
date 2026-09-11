@@ -74,7 +74,9 @@ test('migrated definitions retain their original display fields and framework co
   assert.equal(theater.kind, 'venue');
   assert.deepEqual(theater.capabilities, { seating: true, sharedMedia: true, conferencing: false });
   assert.deepEqual(theater.landmark, [0, 7.6]);
-  assert.equal(theater.noteTitle, 'The Orpheum’s house rules');
+  assert.equal(theater.note, undefined, 'the theater declares no field note');
+  assert.equal(theater.noteTitle, undefined, 'the theater declares no note title');
+  assert.equal(theater.noteBody, undefined, 'the theater declares no note body');
   assert.deepEqual(theater.bounds, { ...LEGACY_URBAN_BOUNDS });
   for (const def of PLACE_DEFINITIONS) {
     for (const field of ['name', 'district', 'subtitle', 'color', 'sun', 'description', 'minimapPath', 'shell', 'builderKey']) {

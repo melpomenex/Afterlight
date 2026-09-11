@@ -234,4 +234,17 @@ test('5. Foosball table placement preserves 100% theater seat sightlines and >= 
   // Any ray from any seat towards z = -8.28 travels North (z <= 4.7).
   // Foosball at z in [6.4, 7.6] is mathematically impossible to intersect any seat-to-screen ray.
   assert.ok(fz - fd > 5.01, 'foosball is strictly south of all seats');
+
+  // Clearance regression (fix-foosball-table-blocker): the runner-carpet bay
+  // holds only the foosball activity — the retired field-note stand must not
+  // return inside the table or its approaches.
+  const bay = { minX: fx - 1.6, maxX: fx + 1.6, minZ: fz - 1.2, maxZ: fz + 1.2 };
+  const inBay = (o) => o.x >= bay.minX && o.x <= bay.maxX && o.z >= bay.minZ && o.z <= bay.maxZ;
+  assert.deepEqual(
+    world.items.filter(inBay).map(i => i.activityId),
+    ['orpheum-foosball'],
+    'the foosball activity is the only interaction item in the bay',
+  );
+  assert.deepEqual(world.obstacles.filter(inBay), [obs], 'the foosball footprint is the only obstacle in the bay');
+  assert.ok(!world.items.some(i => i.type === 'field-note'), 'the theater builds no field-note item');
 });
