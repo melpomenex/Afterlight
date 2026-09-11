@@ -15,6 +15,10 @@ const ROOM_SCOPED_TYPES = new Set([
   'emote_broadcast',
   'theater_state',
   'torrent_state',
+  // Playback grants are targeted and room-tagged: a queued old-room grant
+  // must never authorize the new room's stream (fix-torrent-playback-grant-
+  // regression).
+  'torrent_grant',
   'garden_state',
   'welcome',
   // Room atmosphere (add-atmosphere-weather-system 2.2): snapshots are

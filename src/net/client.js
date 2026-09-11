@@ -19,6 +19,9 @@ import {
 const GUEST_KEY = 'afterlight-gardener-guest-id';
 const NICK_KEY = 'afterlight-gardener-nickname';
 
+/** Treat a torrent grant as unusable this long before its stated expiry. */
+const TORRENT_GRANT_SKEW_MS = 10_000;
+
 /**
  * Default transport: the original raw WebSocket to the Node server. The
  * facade drives it through lifecycle callbacks; `client.ws` stays the live
@@ -318,6 +321,28 @@ export class NetworkClient {
     if (!infohash || fileIndex === undefined || !grant) return;
     const key = `${String(infohash).toLowerCase()}:${Number(fileIndex)}`;
     this.torrentGrants.set(key, { grant, expiresAtMs });
+  }
+
+  /**
+   * True when a stored grant authorizes playback of this exact item and is
+   * still valid (with a safety skew before expiry). The theater player's
+   * first-request gate uses this: a torrent media element is never created
+   * without a usable, participant-scoped grant already stored.
+   */
+  hasUsableTorrentGrant(item, { nowMs = Date.now(), skewMs = TORRENT_GRANT_SKEW_MS } = {}) {
+    const infohash = String(item?.infohash || '').toLowerCase();
+    const fileIndex = Number(item?.fileIndex);
+    if (!infohash || !Number.isInteger(fileIndex)) return false;
+    const entry = this.torrentGrants.get(`${infohash}:${fileIndex}`);
+    if (!entry?.grant) return false;
+    const expiresAtMs = Number(entry.expiresAtMs);
+    if (!Number.isFinite(expiresAtMs)) return false;
+    return expiresAtMs - skewMs > nowMs;
+  }
+
+  /** Forget every stored torrent grant (leaving the theater, reconnect). */
+  clearTorrentGrants() {
+    this.torrentGrants.clear();
   }
 
   /**

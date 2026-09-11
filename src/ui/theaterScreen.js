@@ -407,6 +407,21 @@ async function ensureVimeoSdk() {
   throw new Error('Vimeo player SDK missing after load');
 }
 
+/**
+ * Non-reversible short fingerprint of a grant token for `?debug=1`
+ * diagnostics only (never the token itself). Lets cross-client checks prove
+ * two participants hold distinct grants without logging secret material.
+ */
+export function grantFingerprint(token) {
+  let hash = 0x811c9dc5;
+  const text = String(token || '');
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, '0');
+}
+
 // --- The UI ---
 
 export class TheaterScreenUI {
@@ -466,6 +481,10 @@ export class TheaterScreenUI {
     this.torrentPending = null; // { requestId, magnet, playNow, timer }
     this.torrentPick = null; // { magnet, name, playNow } while the picker is open
     this.torrentStatuses = new Map();
+    // First-request gate (fix-torrent-playback-grant-regression): set while a
+    // torrent item is live but this participant has no usable grant yet. The
+    // media element is not created until the matching grant arrives.
+    this.awaitingTorrentGrant = null; // { infohash, fileIndex, itemId }
 
     // YouTube playlist import: resolve in flight, the open mixed-link
     // choice, and the confirmed-once preview (same lifecycle as torrents).
@@ -525,6 +544,8 @@ export class TheaterScreenUI {
       this.loadedItemId = null; // force a reload path on reactivation
       this.youtubeRetryItemId = null; // fresh retry budget on re-entry
       this.awaitingGesture = false;
+      this.awaitingTorrentGrant = null;
+      this.net?.clearTorrentGrants?.(); // grants are room-bound
       this.cancelTorrentResolve();
       this.torrentPick = null;
       this.torrentStatuses.clear();
@@ -535,9 +556,12 @@ export class TheaterScreenUI {
       if (this.dom?.playlistChoiceDialog?.open) this.dom.playlistChoiceDialog.close();
       this.setOverlayState('idle');
     } else if (this.state?.now) {
-      // Rebuild playback from the retained snapshot.
+      // Rebuild playback from the retained snapshot. Runs through
+      // applyState so the torrent first-request gate still holds on
+      // re-entry (grants were cleared when the room deactivated).
       this.loadedItemId = null;
-      this.loadCurrent();
+      this.loadedPlayKey = null;
+      this.applyState(this.state, null);
     } else {
       this.setOverlayState('idle');
     }
@@ -685,6 +709,22 @@ export class TheaterScreenUI {
       this.syncOverlay();
       return;
     }
+
+    // First-request gate (fix-torrent-playback-grant-regression D3): a
+    // torrent item is not loaded until this participant's matching grant is
+    // stored, so the media engine can never issue an unsigned first request
+    // (which Node refuses 403 and which would be misread as a source error).
+    if (now.kind === 'torrent' && !this.torrentGrantReady(now)) {
+      if (this.engine) this.teardownEngine();
+      this.loadedItemId = null;
+      this.loadedPlayKey = null;
+      this.awaitTorrentGrant(now);
+      this.setOverlayState('loading');
+      this.syncOverlay();
+      return;
+    }
+
+    if (now.kind !== 'torrent') this.awaitingTorrentGrant = null;
 
     if (playKey !== this.loadedPlayKey) {
       // A different item gets a fresh handshake-retry budget.
@@ -1105,7 +1145,15 @@ export class TheaterScreenUI {
     });
     video.addEventListener('ended', () => this.reportEnded());
     video.addEventListener('error', () => {
-      if (this.engine === engine) this.reportEngineFailure({ engineKind: engine.kind, videoError: true });
+      if (this.engine !== engine) return;
+      this.recordPlaybackEvent('video-error', {
+        itemId: this.state?.now?.id ?? null,
+        itemKind: engine.kind,
+        mediaError: video.error?.code ?? null,
+        networkState: video.networkState,
+        readyState: video.readyState,
+      });
+      this.reportEngineFailure({ engineKind: engine.kind, videoError: true });
     });
 
     const begin = () => {
@@ -1119,8 +1167,20 @@ export class TheaterScreenUI {
     if (video.readyState >= 1) begin();
     else video.addEventListener('loadedmetadata', begin, { once: true });
 
-    if (isHls) this.attachHls(video, item, engine, token);
-    else video.src = item.kind === 'torrent' ? this.torrentStreamUrl(item) : item.url;
+    if (isHls) {
+      this.attachHls(video, item, engine, token);
+    } else if (item.kind === 'torrent') {
+      const src = this.torrentStreamUrl(item);
+      this.recordPlaybackEvent('torrent-source-set', {
+        itemId: item.id,
+        infohash: String(item.infohash || '').toLowerCase(),
+        fileIndex: Number(item.fileIndex),
+        signed: /[?&]grant=/.test(src),
+      });
+      video.src = src;
+    } else {
+      video.src = item.url;
+    }
   }
 
   /** Lazy-import hls.js; fall back to native HLS (Safari) without it. */
@@ -2266,6 +2326,37 @@ export class TheaterScreenUI {
     return `${base}/api/theater/torrent/${item.infohash}/${item.fileIndex}`;
   }
 
+  /**
+   * Whether a usable, participant-scoped grant is stored for this torrent
+   * item. Missing grant support means "not ready": the player fails closed
+   * rather than issuing an unauthorized request (design D3).
+   */
+  torrentGrantReady(item) {
+    if (typeof this.net?.hasUsableTorrentGrant !== 'function') return false;
+    try {
+      return this.net.hasUsableTorrentGrant(item) === true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Enter (or hold) the wait-for-grant state for a live torrent item. */
+  awaitTorrentGrant(now) {
+    const infohash = String(now?.infohash || '').toLowerCase();
+    const fileIndex = Number(now?.fileIndex);
+    const already =
+      this.awaitingTorrentGrant?.infohash === infohash &&
+      this.awaitingTorrentGrant?.fileIndex === fileIndex;
+    this.awaitingTorrentGrant = { infohash, fileIndex, itemId: now?.id ?? null };
+    if (!already) {
+      this.recordPlaybackEvent('torrent-grant-wait', {
+        itemId: now?.id ?? null,
+        infohash,
+        fileIndex,
+      });
+    }
+  }
+
   /** Resolve relative prepared-media paths against the game-server HTTP origin. */
   mediaStreamUrl(url) {
     if (!url || typeof url !== 'string') return url;
@@ -2322,6 +2413,24 @@ export class TheaterScreenUI {
     if (!now || now.kind !== 'torrent' || !msg?.grant) return;
     if (String(now.infohash).toLowerCase() !== String(msg.infohash || '').toLowerCase()) return;
     if (Number(now.fileIndex) !== Number(msg.fileIndex)) return;
+
+    this.recordPlaybackEvent('torrent-grant-received', {
+      itemId: now.id,
+      infohash: String(msg.infohash || '').toLowerCase(),
+      fileIndex: Number(msg.fileIndex),
+      expiresAtMs: Number(msg.expiresAtMs) || null,
+      fingerprint: grantFingerprint(msg.grant),
+    });
+
+    // A player that was gated on this grant may load now; the grant is
+    // already stored by NetworkClient before handlers run.
+    if (this.awaitingTorrentGrant && this.roomActive) {
+      this.awaitingTorrentGrant = null;
+      this.loadedPlayKey = null;
+      this.loadCurrent();
+      return;
+    }
+
     const video = this.dom?.mediaHost?.querySelector('video');
     if (!video) return;
     const next = this.torrentStreamUrl(now);
