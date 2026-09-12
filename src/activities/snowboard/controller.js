@@ -37,6 +37,7 @@ import { createRemoteRiderBuffer } from './interpolation.js';
 import { createRaceClock } from './clock.js';
 import { createRaceAudio } from './audio.js';
 import { createRaceHud } from './hud.js';
+import { isMediaUiEvent } from '../inputSeam.js';
 
 const HEARTBEAT_MS = 33;
 const STEER_RESPONSE = 7.5;
@@ -99,6 +100,7 @@ export async function createSnowboardController({
   audioMixer = null,
   toast = null,
   onExit = null,
+  notifyPresentationTerminal = null,
 } = {}) {
   const attempt = { token: {}, cancelled: false, disposed: false };
   let controller = null;
@@ -186,6 +188,7 @@ export async function createSnowboardController({
   }
 
   function onKeyDown(event) {
+    if (isMediaUiEvent(event)) return; // media chrome keys never steer the board
     if (!viewHeld || isTyping()) return;
     // Capture-phase R (explicit readiness/rematch, lobby/results ONLY — a
     // racing R can never restart the shared match) and Escape (exit the
@@ -210,6 +213,7 @@ export async function createSnowboardController({
   }
 
   function onKeyUp(event) {
+    if (isMediaUiEvent(event)) return;
     keys.delete(event.code);
     if (event.code === 'Space') chargeHeld = false;
   }
@@ -788,6 +792,11 @@ export async function createSnowboardController({
     if (viewHeld) releaseView?.(attempt.token, reason);
     handleViewRelease(reason);
     if (onExit) onExit(reason);
+    // Admission already released the presentation through participation
+    // state; failure/cancel before that point releases it explicitly.
+    if (participation()?.isOccupied !== true) {
+      notifyPresentationTerminal?.(reason);
+    }
   }
 
   function dispose() {
@@ -801,6 +810,9 @@ export async function createSnowboardController({
     // Scene instances are per-attempt; the course document + cached heavy
     // resources stay in the application cache for warm rematches.
     scene.dispose();
+    if (participation()?.isOccupied !== true) {
+      notifyPresentationTerminal?.('dispose');
+    }
   }
 
   controller = {

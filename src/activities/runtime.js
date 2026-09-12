@@ -16,6 +16,7 @@
 import { getActivityModule, hasActivityModule } from './registry.js';
 import { getPlaceActivities } from '../../shared/placeDefinitions.js';
 import { createParticipationController } from './participation.js';
+import { createMediaPresentationLease, MEDIA_LEASE_PHASE } from './mediaPresentation.js';
 
 export function createActivityRuntime({
   net = null,
@@ -32,6 +33,11 @@ export function createActivityRuntime({
   clearMovement = null,
   toast = null,
   onParticipationStateChange = null,
+  onMediaPresentationEnter = null,
+  onMediaPresentationPhase = null,
+  onMediaPresentationReplace = null,
+  onMediaPresentationExit = null,
+  isFloatingMediaEnabled = null,
   setActivityCamera = null,
   clearActivityCamera = null,
   acquireView = null,
@@ -44,8 +50,53 @@ export function createActivityRuntime({
   let activeRoomId = null;
   let activeGeneration = 0;
   const instances = new Map();
+  const activityDefs = new Map();
   const errors = new Map();
   let theaterIdlePrefetchScheduled = false;
+
+  // One generation/attempt-fenced presentation lease per runtime. The league
+  // owns no DOM: main.js bridges enter/exit/replace to the theater UI.
+  const mediaPresentation = createMediaPresentationLease({
+    isEnabled: typeof isFloatingMediaEnabled === 'function' ? isFloatingMediaEnabled : () => true,
+    onEnter: (lease) => {
+      try { onMediaPresentationEnter?.(lease); } catch (err) { console.warn('[ActivityRuntime] media enter bridge failed:', err); }
+    },
+    onPhase: (lease, phase) => {
+      try { onMediaPresentationPhase?.(lease, phase); } catch (err) { console.warn('[ActivityRuntime] media phase bridge failed:', err); }
+    },
+    onReplace: (lease, previous) => {
+      try { onMediaPresentationReplace?.(lease, previous); } catch (err) { console.warn('[ActivityRuntime] media replace bridge failed:', err); }
+    },
+    onExit: (lease, reason) => {
+      try { onMediaPresentationExit?.(lease, reason); } catch (err) { console.warn('[ActivityRuntime] media exit bridge failed:', err); }
+    },
+  });
+
+  /**
+   * Participation state feeds the media lease: provisional entries release
+   * on queue/watch/ejection/deactivate, while promotion into play starts a
+   * fresh entry (new attempt, new entry mute).
+   */
+  function handleParticipationStateChange(state, info = {}) {
+    try {
+      if (state === 'participating') {
+        const act = info.activity || participation.currentActivity;
+        const current = mediaPresentation.active;
+        if (act && (!current || current.token.activityId !== act.id)) {
+          mediaPresentation.begin(act, { generation: activeGeneration, role: 'play' });
+        } else if (current) {
+          mediaPresentation.phase(current.token, MEDIA_LEASE_PHASE.PARTICIPATING);
+        }
+      } else if (state === 'queued' || state === 'watching') {
+        mediaPresentation.release(state);
+      } else if (state === 'idle') {
+        mediaPresentation.release(info.reason || 'idle');
+      }
+    } catch (err) {
+      console.warn('[ActivityRuntime] media lease update failed:', err);
+    }
+    try { onParticipationStateChange?.(state, info); } catch (err) { console.warn('[ActivityRuntime] participation callback failed:', err); }
+  }
 
   const participation = injectedParticipation || createParticipationController({
     net,
@@ -56,8 +107,30 @@ export function createActivityRuntime({
     clearMovement,
     toast,
     getRoomId: () => activeRoomId,
-    onStateChange: onParticipationStateChange,
+    onStateChange: handleParticipationStateChange,
+    // Acquire/adopt the provisional token BEFORE the join frame is sent, so
+    // non-interaction admission paths float media from the first instant.
+    beforeJoin: (activityDef, { role = 'play' } = {}) => {
+      mediaPresentation.begin(activityDef, { generation: activeGeneration, role });
+    },
   });
+
+  /** Find a previously activated activity definition by id. */
+  function findActivityDef(id) {
+    return activityDefs.get(id) || null;
+  }
+
+  /**
+   * Terminal presentation release for one activity (lazy adapters report
+   * cancellation/failure through their initialize() context). Only the
+   * matching active token is ended; stale notifications are inert.
+   */
+  function endMediaPresentationFor(activityId, reason = 'terminal') {
+    const current = mediaPresentation.active;
+    if (!current) return false;
+    if (activityId && current.token.activityId !== activityId) return false;
+    return mediaPresentation.end(current.token, reason);
+  }
 
   /** The first active activity instance declaring a hook of this name. */
   function firstWithHook(hook) {
@@ -84,6 +157,11 @@ export function createActivityRuntime({
       return participation;
     },
 
+    /** The generation/attempt-fenced media presentation lease. */
+    get mediaPresentation() {
+      return mediaPresentation;
+    },
+
     getInstance(activityId) {
       return instances.get(activityId) || null;
     },
@@ -94,6 +172,10 @@ export function createActivityRuntime({
 
     getErrors() {
       return new Map(errors);
+    },
+
+    getActivityDef(activityId) {
+      return findActivityDef(activityId);
     },
 
     /**
@@ -134,6 +216,7 @@ export function createActivityRuntime({
         }
 
         const module = getActivityModule(actDef.type);
+        activityDefs.set(actDef.id, actDef);
         try {
           const instance = module.initialize({
             activityDef: actDef,
@@ -154,6 +237,10 @@ export function createActivityRuntime({
             setActivityCamera: seam.setActivityCamera || setActivityCamera,
             clearActivityCamera: seam.clearActivityCamera || clearActivityCamera,
             getParticipation: () => participation,
+            // Terminal cancellation/failure notification for lazy adapters
+            // (add-floating-minigame-media D2): releases the provisional
+            // floating token even when participation never left idle.
+            notifyPresentationTerminal: (reason = 'terminal') => endMediaPresentationFor(actDef.id, reason),
             acquireView: seam.acquireView || acquireView,
             releaseView: seam.releaseView || releaseView,
             scheduleGraphicsJob: seam.scheduleGraphicsJob || scheduleGraphicsJob,
@@ -190,6 +277,14 @@ export function createActivityRuntime({
         console.warn('[ActivityRuntime] Error deactivating participation:', err);
       }
 
+      // Leaving the place releases any floating presentation ownership, even
+      // when participation was already idle (stale tokens become inert).
+      try {
+        mediaPresentation.release('deactivate');
+      } catch (err) {
+        console.warn('[ActivityRuntime] Error releasing media presentation:', err);
+      }
+
       try {
         cancelGraphicsJobs?.();
       } catch (err) {
@@ -210,6 +305,7 @@ export function createActivityRuntime({
         }
       }
       instances.clear();
+      activityDefs.clear();
       errors.clear();
     },
 
@@ -310,25 +406,90 @@ export function createActivityRuntime({
     },
 
     /**
-     * Optional pre-join participation flow (add-multiplayer-snowboard-arcade
-     * 6.1): activities that must LOAD before joining declare
-     * instance.beginParticipation; the interaction route calls this before
-     * the generic participation.interact. Old games return undefined and
-     * keep immediate join.
+     * The single activity entry route (add-floating-minigame-media D2).
+     * main.js calls this for every activity interaction instead of splitting
+     * "load-before-join" modules from generic immediate joins:
+     *
+     *   1. acquire a provisional media presentation token BEFORE any lazy
+     *      code runs or a direct join is sent (a token is available even when
+     *      the module opts out or there is no current media — it is inert),
+     *   2. activity modules declaring instance.beginParticipation load first;
+     *      all others join immediately through the participation controller
+     *      (whose beforeJoin callback adopts/reuses the same token),
+     *   3. a rejected join releases the provisional token.
+     *
+     * @param {object} item world interaction ({ activityId, activityDef })
+     * @param {{ role?: string }} [opts]
+     * @returns {{ handled: boolean, action?: 'begin'|'join', token?: object|null }}
+     */
+    enterActivity(item, { role = 'play' } = {}) {
+      if (!item) return { handled: false, token: null };
+      const id = item.activityId ?? item.id;
+      if (!id) return { handled: false, token: null };
+      const actDef = item.activityDef || findActivityDef(id) || item;
+      if (!actDef?.id) return { handled: false, token: null };
+
+      // A pending/active span for a DIFFERENT activity is not stolen: the
+      // caller must leave it first (main.js handles that before entry).
+      const occupied = participation.isOccupied === true;
+      if (occupied && participation.currentActivity?.id !== actDef.id) {
+        return { handled: false, token: null };
+      }
+
+      const token = mediaPresentation.begin(actDef, { generation: activeGeneration, role });
+
+      const instance = instances.get(actDef.id);
+      if (instance && typeof instance.beginParticipation === 'function') {
+        // Fire-and-forget by design, but a rejection (graphics reset mid-init,
+        // a stale-deploy chunk import) must never surface as an unhandled
+        // rejection: the activities report player-facing failure themselves.
+        // A false/failed completion with no participation state releases the
+        // provisional floating token immediately (terminal notification).
+        // Invoke synchronously (the lazy module starts its work immediately),
+        // but never let a synchronous throw escape the interaction route.
+        let beginPromise;
+        try {
+          beginPromise = Promise.resolve(instance.beginParticipation());
+        } catch (error) {
+          beginPromise = Promise.reject(error);
+        }
+        beginPromise.then((ok) => {
+          if (ok === false && participation.isOccupied !== true) {
+            endMediaPresentationFor(actDef.id, 'failed');
+          }
+        }).catch((error) => {
+          console.warn('[ActivityRuntime] beginParticipation rejected:', error);
+          if (participation.isOccupied !== true) {
+            endMediaPresentationFor(actDef.id, 'failed');
+          }
+        });
+        return { handled: true, action: 'begin', token };
+      }
+
+      // Duplicate entry for the same pending join reuses the attempt (and its
+      // token) instead of sending a second join and releasing the first.
+      if (occupied) return { handled: true, action: 'reuse', token };
+
+      const joined = participation.join(actDef, { role });
+      if (!joined) {
+        mediaPresentation.end(token, 'rejected');
+        return { handled: false, token: null };
+      }
+      return { handled: true, action: 'join', token };
+    },
+
+    /**
+     * Back-compat wrapper for the pre-3.2 interaction route: returns true only
+     * for modules that declare a pre-join load. Prefer enterActivity().
      */
     beginParticipationFor(item) {
-      if (!item) return false;
-      const id = item.activityId ?? item.id;
-      if (!id) return false;
-      const instance = instances.get(id);
-      if (!instance || typeof instance.beginParticipation !== 'function') return false;
-      // Fire-and-forget by design, but a rejection (graphics reset mid-init,
-      // a stale-deploy chunk import) must never surface as an unhandled
-      // rejection: the activities report player-facing failure themselves.
-      Promise.resolve(instance.beginParticipation()).catch((error) => {
-        console.warn('[ActivityRuntime] beginParticipation rejected:', error);
-      });
-      return true;
+      const result = this.enterActivity(item, { role: 'play' });
+      return result.handled && result.action === 'begin';
+    },
+
+    /** Release the floating presentation for one activity (or all when omitted). */
+    endActivityPresentationFor(activityId, reason = 'terminal') {
+      return endMediaPresentationFor(activityId, reason);
     },
 
     /**

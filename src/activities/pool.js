@@ -430,6 +430,10 @@ export function createPoolInstance({
 
 const PoolModule = {
   initialize: createPoolInstance,
+  // Critical HUD/touch regions the floating player must avoid (D5).
+  mediaPolicy: {
+    reservedSelectors: ['.pool-hud-top', '.pool-hud-bottom'],
+  },
 };
 
 registerActivityModule('pool', PoolModule);

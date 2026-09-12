@@ -41,9 +41,9 @@ function installBrowserStubs() {
   const window = {
     innerWidth: 1280,
     innerHeight: 720,
-    addEventListener: (type, fn, opts) => listeners.push({ scope: 'window', type, fn, capture: !!opts?.capture }),
+    addEventListener: (type, fn, opts) => listeners.push({ scope: 'window', type, fn, capture: opts === true || !!opts?.capture }),
     removeEventListener: (type, fn, opts) => {
-      const i = listeners.findIndex((l) => l.scope === 'window' && l.type === type && l.fn === fn && l.capture === !!opts?.capture);
+      const i = listeners.findIndex((l) => l.scope === 'window' && l.type === type && l.fn === fn && l.capture === (opts === true || !!opts?.capture));
       if (i >= 0) listeners.splice(i, 1);
     },
   };
@@ -629,6 +629,71 @@ test('lobby snapshots track the captain and handle leadership transfer', async (
     humans = controller.debugState().humans;
     assert.deepEqual(humans.map((h) => h.name), ['Bravo']);
     assert.equal(humans[0].captain, true);
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('presentation terminal notification reports dispose without admission', () => {
+  const stubs = installBrowserStubs();
+  const terminals = [];
+  try {
+    const state = makeState();
+    const controller = createDownhillController({
+      activityDef: ACTIVITY_DEF,
+      getParticipation: makeParticipation(state),
+      getHudHost: () => null,
+      notifyPresentationTerminal: (reason) => terminals.push(reason),
+    });
+    controller.dispose();
+    controller.dispose();
+    assert.deepEqual(terminals, ['dispose'], 'idempotent disposal notifies exactly once');
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('media chrome keys never reach the rider; normal keys still ride', async () => {
+  const stubs = installBrowserStubs();
+  try {
+    const { controller, net, state } = await bootToView(stubs);
+    assert.equal(controller.viewHeld, true);
+    await flush();
+    await flush();
+    controller.update(0, 1 / 60);
+    await flush();
+    controller.update(1 / 60, 1 / 60);
+    const keydowns = stubs.listeners.filter((l) => l.scope === 'window' && l.type === 'keydown' && l.capture).map((l) => l.fn);
+    assert.ok(keydowns.length > 0, 'capture-phase keydown attached while the view is held');
+
+    const mediaTarget = { closest: (sel) => (String(sel).includes('floating-media') ? {} : null) };
+    const gameTarget = { closest: () => null };
+    const makeEvent = (code, target) => ({
+      code, key: code, target,
+      cancelable: true,
+      defaultPrevented: false,
+      preventDefault() { this.defaultPrevented = true; },
+      stopPropagation() {},
+      stopImmediatePropagation() {},
+    });
+
+    // Media chrome: not consumed, no input frame emitted.
+    const mediaKey = makeEvent('KeyA', mediaTarget);
+    for (const fn of keydowns) fn(mediaKey);
+    assert.equal(mediaKey.defaultPrevented, false, 'media chrome keys are left to the chrome');
+    const callsBefore = net.calls.filter((c) => c.type === 'input').length;
+    controller.update(2 / 60, 1 / 60);
+    assert.equal(
+      net.calls.filter((c) => c.type === 'input').length, callsBefore,
+      'the media keystroke produced no rider input frame',
+    );
+
+    // Normal gameplay: consumed and reflected in the next ride frame.
+    const gameKey = makeEvent('KeyA', gameTarget);
+    for (const fn of keydowns) fn(gameKey);
+    assert.equal(gameKey.defaultPrevented, true, 'gameplay keys are still consumed');
+    void state;
     controller.dispose();
   } finally {
     stubs.restore();

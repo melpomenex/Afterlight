@@ -61,6 +61,16 @@ import {
   twitchEngineState,
   updateProgress,
 } from './theaterPlaybackState.js';
+import {
+  MEDIA_ACTION as MEDIA_PRESENTATION_ACTION,
+  PRESENTATION_MODE,
+  createInitialMediaPresentationState,
+  effectiveMediaVolume,
+  presentationMode as mediaPresentationMode,
+  reduceMediaPresentation,
+  unmutePlan as mediaUnmutePlan,
+} from './mediaPresentationState.js';
+import { createFloatingMediaChrome, createFloatingMediaPresenter } from './floatingMedia.js';
 
 const OVERLAY_BASE = 100; // CSS px side of the untransformed overlay square
 const OVERLAY_MAX_AREA = 8_400_000; // CSS px² budget (~33MB RGBA) before the 1:1 quad fit gives; only extreme off-screen quads hit this
@@ -497,9 +507,17 @@ export class TheaterScreenUI {
     this.twitchFallbackItemId = null;
     this.twitchOffline = false; // live channel OFFLINE card (local, never shared)
     this.loadToken = 0; // guards async engine loads against races
-    this.volume = 1; // 0..1, local only — never part of shared state
-    this.mixGain = 1; // local atmosphere/voice mix factor (task 4.1 D7); user volume stays untouched
-    this.masterSound = false; // the game's Sound toggle (main.js): media stays silent until sound is on
+    // Local audio/presentation policy (add-floating-minigame-media D3/D4):
+    // user volume/mute preferences plus the temporary activity entry mute.
+    // `this.volume`/`mixGain`/`masterSound` are getters over this state so
+    // existing call sites keep working.
+    this.presentationState = createInitialMediaPresentationState();
+    // Turn-on-sound callback supplied by the game (main.js Sound handler);
+    // used by the one labeled unmute action when the master gate is off.
+    this.requestMasterSound = null;
+    // Provider audio-control capability and the last command's acknowledgment
+    // (floating mini-game media, task 2.2). Local only; never sent anywhere.
+    this.audioControl = { supported: null, status: 'idle', reason: null, at: 0, generation: 0 };
     this.watching = false; // cinema view: big stage + docked chat, HUD hidden
     // Set by the game: standing up from a seat is the game's business
     // (pose, movement flag); the watch bar only requests it.
@@ -548,6 +566,14 @@ export class TheaterScreenUI {
     this.quadTransform = ''; // last transform string written to the overlay
 
     this.dom = null;
+    // Floating chrome (created once around the persistent surface; it never
+    // owns or moves the media node). Presentation-only: classes and labels.
+    this.floatingChrome = null;
+    this.floatingPresenter = null;
+    this.floatingReservations = null; // bounded HUD rects supplied by the host (task 4.4)
+    this.onReturnGameFocus = null; // set by main.js: focus the WebGL canvas
+    this.onFloatingMove = null; // set by the layout bindings (task 4.3)
+    this.onFloatingReset = null;
     if (typeof document !== 'undefined') {
       this.dom = {};
       this.buildOverlay();
@@ -555,6 +581,34 @@ export class TheaterScreenUI {
       this.buildDialogs();
       this.buildWatchBar();
       this.savedLists = this.loadSavedLists();
+      try {
+        this.floatingChrome = createFloatingMediaChrome(this, {
+          onBack: () => this.returnFocusToGame(),
+          onMove: (dx, dy) => this.floatingPresenter?.nudge?.(dx, dy) ?? this.onFloatingMove?.(dx, dy),
+          onReset: () => {
+            this.floatingPresenter?.reset();
+            this.onFloatingReset?.();
+          },
+          onRestore: () => {
+            this.setFloatingHidden(false);
+            if (this.floatingPresenter?.layout?.mode === 'chip') {
+              this.floatingPresenter.requestSpace();
+            }
+          },
+        });
+        this.floatingPresenter = createFloatingMediaPresenter(this, {
+          chrome: this.floatingChrome,
+          getReservations: () => (typeof this.floatingReservations === 'function' ? this.floatingReservations() : []),
+          onManualMove: (position) => this.onFloatingMove?.(position),
+        });
+        this.floatingChrome.sync();
+      } catch (err) {
+        // The floating chrome is a progressive enhancement: a failure must
+        // never take the theater down.
+        console.warn('theater: floating chrome unavailable', err);
+        this.floatingChrome = null;
+        this.floatingPresenter = null;
+      }
       this.syncOverlay();
     }
 
@@ -577,12 +631,36 @@ export class TheaterScreenUI {
     }
   }
 
+  // --- Local audio preferences (getters over the pure policy state) ---
+
+  get volume() {
+    return this.presentationState.volume;
+  }
+
+  set volume(value) {
+    this.presentationState = reduceMediaPresentation(this.presentationState, {
+      type: MEDIA_PRESENTATION_ACTION.SET_VOLUME,
+      value,
+    });
+  }
+
+  get mixGain() {
+    return this.presentationState.mixGain;
+  }
+
+  get masterSound() {
+    return this.presentationState.masterSound;
+  }
+
   // --- Public interface ---
 
   /** Entering/leaving the `theater` room: show/hide overlay + HUD button. */
   setRoomActive(active) {
     this.roomActive = !!active;
     if (!this.roomActive) {
+      // Room-bound teardown ends any floating activity presentation once and
+      // restores the baseline audio fields before the engine goes away.
+      this.endActivityPresentation();
       this.teardownEngine();
       this.loadedItemId = null; // force a reload path on reactivation
       this.youtubeRetryItemId = null; // fresh retry budget on re-entry
@@ -616,15 +694,14 @@ export class TheaterScreenUI {
 
   /**
    * Effective LOCAL volume: the master sound gate (sound off — the game's
-   * default — means silence) multiplied by the user's own slider and the
-   * game's mix gain (atmosphere duck / future voice duck). The slider
-   * preference itself is never overwritten (task 4.1, design D7).
+   * default — means silence) multiplied by the user's own slider, the
+   * game's mix gain (atmosphere duck / voice duck) and, while a mini-game
+   * is active, silenced by the temporary activity entry mute. The slider
+   * preference itself is never overwritten (task 4.1, design D7; floating
+   * mini-game media design D3).
    */
   effectiveVolume() {
-    if (!this.masterSound) return 0;
-    const user = Number.isFinite(this.volume) ? Math.min(1, Math.max(0, this.volume)) : 1;
-    const mix = Number.isFinite(this.mixGain) ? Math.min(1, Math.max(0, this.mixGain)) : 1;
-    return user * mix;
+    return effectiveMediaVolume(this.presentationState);
   }
 
   /**
@@ -635,15 +712,26 @@ export class TheaterScreenUI {
    * applyEffectiveVolume() result (false when no controlled engine exists).
    */
   setMasterSound(enabled) {
-    this.masterSound = enabled === true;
-    // A degraded Twitch embed (clip or SDK fallback) exposes no volume API
-    // and bakes its mute state into the URL, so flipping the master gate is
-    // the one transition that reloads it — audibly on, silently off.
+    this.presentationState = reduceMediaPresentation(this.presentationState, {
+      type: MEDIA_PRESENTATION_ACTION.SET_MASTER_SOUND,
+      enabled: enabled === true,
+    });
+    // A degraded Twitch embed (clip or SDK fallback) has no volume API and
+    // bakes its mute state into the URL, so flipping the master gate is the
+    // one transition that reloads it — audibly on, silently off. Presentation
+    // transitions (activity mute, floating layout, mix gain) never do.
     const engine = this.engine;
     if (engine?.kind === 'twitch' && engine.degraded
       && typeof engine.muted === 'boolean'
       && engine.muted !== (this.effectiveVolume() <= 0)
       && this.dom && this.state?.now) {
+      this.audioControl = {
+        supported: false,
+        status: 'unavailable',
+        reason: 'provider',
+        at: Date.now(),
+        generation: this.audioControl.generation + 1,
+      };
       this.teardownEngine();
       this.loadedItemId = null;
       this.loadedPlayKey = null;
@@ -661,23 +749,256 @@ export class TheaterScreenUI {
    * as unavailable, never simulated by muting or skipping the shared item.
    */
   setMixGain(gain = 1) {
-    const g = Number(gain);
-    this.mixGain = Number.isFinite(g) ? Math.min(1, Math.max(0, g)) : 1;
+    this.presentationState = reduceMediaPresentation(this.presentationState, {
+      type: MEDIA_PRESENTATION_ACTION.SET_MIX_GAIN,
+      gain,
+    });
     return this.applyEffectiveVolume();
   }
 
+  /**
+   * Explicit user volume edit (booth slider): persistent preference, marked
+   * as a user edit so an activity exit never restores over it.
+   */
+  setUserVolume(value) {
+    this.presentationState = reduceMediaPresentation(this.presentationState, {
+      type: MEDIA_PRESENTATION_ACTION.SET_VOLUME,
+      value,
+    });
+    return this.applyEffectiveVolume();
+  }
+
+  /**
+   * Explicit local mute/unmute (floating speaker control). Unmute clears the
+   * temporary activity mute; mute records a persistent user preference.
+   * Returns whether the current engine accepted the volume change.
+   */
+  setMuted(muted) {
+    this.presentationState = reduceMediaPresentation(this.presentationState, {
+      type: muted ? MEDIA_PRESENTATION_ACTION.USER_MUTE : MEDIA_PRESENTATION_ACTION.USER_UNMUTE,
+    });
+    return this.applyEffectiveVolume();
+  }
+
+  /**
+   * The one labeled unmute action. With the master Sound gate off it first
+   * asks the game to turn Sound on; with a zero slider it restores the
+   * remembered nonzero volume as part of the same explicit action. Never
+   * claims audibility while a gate still prevents it.
+   *
+   * @returns {{ applied: boolean, reason?: string }}
+   */
+  requestUnmute() {
+    const plan = mediaUnmutePlan(this.presentationState);
+    if (plan.needsMaster) {
+      const enabled = typeof this.requestMasterSound === 'function' ? this.requestMasterSound() : false;
+      if (!enabled) return { applied: false, reason: 'sound_unavailable' };
+    }
+    if (plan.targetVolume != null) {
+      this.presentationState = reduceMediaPresentation(this.presentationState, {
+        type: MEDIA_PRESENTATION_ACTION.SET_VOLUME,
+        value: plan.targetVolume,
+      });
+    }
+    this.presentationState = reduceMediaPresentation(this.presentationState, {
+      type: MEDIA_PRESENTATION_ACTION.USER_UNMUTE,
+    });
+    const applied = this.applyEffectiveVolume();
+    return applied ? { applied: true } : { applied: false, reason: 'engine_unsupported' };
+  }
+
+  // --- Activity presentation lifecycle (floating mini-game media) ---
+
+  /** Current presentation mode selector (primary | waiting | floating | hidden). */
+  presentationMode() {
+    return mediaPresentationMode(this.presentationState);
+  }
+
+  isFloatingHidden() {
+    return this.presentationState.hidden === true;
+  }
+
+  isFloatingExpanded() {
+    return this.presentationState.expanded === true;
+  }
+
+  /** Recompute floating geometry (entry, hide/show, expand, resize, metadata). */
+  refreshFloatingLayout(reason = 'sync') {
+    return this.floatingPresenter?.refresh(reason) ?? null;
+  }
+
+  /** Content aspect for floating sizing (video metadata when available). */
+  mediaAspect() {
+    const video = this.engine?.video;
+    if (video && Number.isFinite(video.videoWidth) && video.videoWidth > 0
+      && Number.isFinite(video.videoHeight) && video.videoHeight > 0) {
+      return video.videoWidth / video.videoHeight;
+    }
+    return 16 / 9;
+  }
+
+  /**
+   * Begin a contiguous mini-game presentation span. Entry mute is applied
+   * before the engine sees any activity side effect; duplicate notifications
+   * for the same token are no-ops. Returns the resulting presentation mode.
+   */
+  beginActivityPresentation(token = {}) {
+    const id = token.id ?? token.activityId;
+    if (!id) return this.presentationMode();
+    this.presentationState = reduceMediaPresentation(this.presentationState, {
+      type: MEDIA_PRESENTATION_ACTION.ENTRY,
+      activity: { id, generation: token.generation ?? null, attempt: token.attempt ?? null },
+    });
+    this.applyEffectiveVolume();
+    this.syncOverlay();
+    this.refreshFloatingLayout('entry');
+    return this.presentationMode();
+  }
+
+  /** Same-room replacement: keep the span baseline, reset hidden/expanded, re-mute. */
+  replaceActivityPresentation(token = {}) {
+    const id = token.id ?? token.activityId;
+    if (!id) return this.presentationMode();
+    this.presentationState = reduceMediaPresentation(this.presentationState, {
+      type: MEDIA_PRESENTATION_ACTION.REPLACE,
+      activity: { id, generation: token.generation ?? null, attempt: token.attempt ?? null },
+    });
+    this.applyEffectiveVolume();
+    this.syncOverlay();
+    this.refreshFloatingLayout('replace');
+    return this.presentationMode();
+  }
+
+  /**
+   * End the presentation span: restore baseline audio fields that were not
+   * explicitly edited, drop the entry mute, and hand sizing back to the
+   * primary presentation. Idempotent.
+   */
+  endActivityPresentation() {
+    const hadActivity = !!this.presentationState.activity;
+    this.presentationState = reduceMediaPresentation(this.presentationState, {
+      type: MEDIA_PRESENTATION_ACTION.EXIT,
+    });
+    if (!hadActivity) return this.presentationMode();
+    this.applyEffectiveVolume();
+    if (this.dom?.overlay) {
+      this.dom.overlay.style.transform = '';
+      this.dom.overlay.style.width = '';
+      this.dom.overlay.style.height = '';
+      this.dom.overlay.style.removeProperty('--ts-scale');
+      this.quadTransform = ''; // force a homography rewrite on the next frame
+    }
+    this.floatingPresenter?.refresh('exit');
+    this.syncOverlay();
+    return this.presentationMode();
+  }
+
+  /** Hide/restore the floating player without touching playback or audio. */
+  setFloatingHidden(hidden) {
+    this.presentationState = reduceMediaPresentation(this.presentationState, {
+      type: hidden ? MEDIA_PRESENTATION_ACTION.HIDE : MEDIA_PRESENTATION_ACTION.RESTORE,
+    });
+    this.syncOverlay();
+    this.refreshFloatingLayout(hidden ? 'hide' : 'restore');
+    return this.presentationMode();
+  }
+
+  /** Enlarge/reduce the floating player (presentation only). */
+  setFloatingExpanded(expanded) {
+    this.presentationState = reduceMediaPresentation(this.presentationState, {
+      type: MEDIA_PRESENTATION_ACTION.SET_EXPANDED,
+      expanded: expanded === true,
+    });
+    this.syncOverlay();
+    this.refreshFloatingLayout('expand');
+    return this.presentationMode();
+  }
+
   /** Push the effective volume to the current engine (used on every engine
-   * creation, slider change and mix change). */
+   * creation, slider change and mix change). Records whether the provider can
+   * accept the command and whether it has been acknowledged yet; degraded
+   * providers are reported honestly instead of being simulated. */
   applyEffectiveVolume() {
     const engine = this.engine;
-    if (!engine || engine.degraded) return false; // degraded providers expose no volume API
-    if (typeof engine.setVolume !== 'function') return false;
-    try {
-      engine.setVolume(this.effectiveVolume());
-      return true;
-    } catch {
+    const generation = this.audioControl.generation + 1;
+    if (!engine) {
+      this.audioControl = { supported: null, status: 'idle', reason: 'no_engine', at: Date.now(), generation };
       return false;
     }
+    if (engine.degraded || typeof engine.setVolume !== 'function') {
+      this.audioControl = { supported: false, status: 'unavailable', reason: 'provider', at: Date.now(), generation };
+      return false;
+    }
+    try {
+      engine.setVolume(this.effectiveVolume());
+    } catch {
+      this.audioControl = { supported: true, status: 'error', reason: 'command_failed', at: Date.now(), generation };
+      return false;
+    }
+    if (this.engine !== engine) {
+      return true; // superseded while the command was in flight
+    }
+    this.audioControl = {
+      supported: true,
+      status: engine.ready === false ? 'pending' : 'applied',
+      reason: null,
+      at: Date.now(),
+      generation,
+    };
+    return true;
+  }
+
+  /**
+   * Provider ready callbacks report that the current activity audio policy
+   * was applied after initialization (SDK handshake). A stale engine never
+   * changes the bookkeeping: only the current playback owner is acknowledged.
+   */
+  acknowledgeAudio(engine) {
+    if (!engine || engine !== this.engine) return false;
+    if (engine.degraded) {
+      this.audioControl = {
+        supported: false,
+        status: 'unavailable',
+        reason: 'provider',
+        at: Date.now(),
+        generation: this.audioControl.generation,
+      };
+      return false;
+    }
+    this.audioControl = {
+      supported: true,
+      status: engine.ready === false ? 'pending' : 'applied',
+      reason: null,
+      at: Date.now(),
+      generation: this.audioControl.generation,
+    };
+    return true;
+  }
+
+  /** Read-only capability/acknowledgment snapshot for controls and gates. */
+  audioControlState() {
+    return { ...this.audioControl };
+  }
+
+  /**
+   * Honest limitation notice for providers without reliable programmatic
+   * audio control (Twitch clips, SDK-fallback embeds, degraded Vimeo). The
+   * floating UI shows this instead of a false "Muted" indicator; the native
+   * player controls remain the user's path. Null when the provider is
+   * controllable. This is the documented AC3/AC4/AC12 exception.
+   */
+  audioLimitationNotice() {
+    const engine = this.engine;
+    if (!engine) return null;
+    const unsupported = engine.degraded || typeof engine.setVolume !== 'function';
+    if (!unsupported) return null;
+    return 'Use the player\u2019s own audio controls \u2014 automatic mute unavailable';
+  }
+
+  /** Whether the current provider can be muted/restored programmatically. */
+  audioControlAvailable() {
+    const engine = this.engine;
+    return !!(engine && !engine.degraded && typeof engine.setVolume === 'function');
   }
 
   /**
@@ -718,6 +1039,17 @@ export class TheaterScreenUI {
       now: safe.now && typeof safe.now === 'object' ? safe.now : null,
       queue: Array.isArray(safe.queue) ? safe.queue : [],
     };
+    // Track current-item existence for the floating presentation selector:
+    // paused/loading/error items are still "current" and float; an empty
+    // authoritative bill shows no empty player or restore chip.
+    const hadItem = this.presentationState.hasItem;
+    this.presentationState = reduceMediaPresentation(this.presentationState, {
+      type: MEDIA_PRESENTATION_ACTION.SET_ITEM,
+      hasItem: !!this.state.now,
+    });
+    if (hadItem !== this.presentationState.hasItem) {
+      this.refreshFloatingLayout('item');
+    }
     const serverNowMs = Number(serverNow);
     if (Number.isFinite(serverNowMs) && serverNowMs > 0) {
       this.serverDelta = serverNowMs - Date.now();
@@ -806,7 +1138,10 @@ export class TheaterScreenUI {
   updateScreenQuad(quad, worldAspect = 1) {
     this.quad = Array.isArray(quad) && quad.length >= 4 ? quad : null;
     if (!this.quad) this.quadTransform = '';
-    if (this.dom?.overlay && this.quad && !this.watching) {
+    // World-quad homography is the PRIMARY presentation only. A floating
+    // surface keeps its CSS geometry, and a null quad (hosted racer race,
+    // first frame) must never hide floating media.
+    if (this.dom?.overlay && this.quad && this.presentationMode() === PRESENTATION_MODE.PRIMARY && !this.watching) {
       let { w, h } = fitOverlaySize(this.quad, worldAspect);
       // Twitch's embed has a minimum window size; a larger logical overlay is
       // mapped onto the same quad by the homography below, so the picture is
@@ -882,13 +1217,17 @@ export class TheaterScreenUI {
     if (document.activeElement?.id === 'chat-input') document.activeElement.blur();
     if (this.dom?.overlay) {
       if (this.watching) {
-        this.dom.overlay.style.transform = '';
-        this.quadTransform = ''; // inline transform cleared -> force a rewrite on exit
-        // Hand sizing back to the cinema-stage CSS: inline width/height from
-        // the projected-quad fitting would override it.
-        this.dom.overlay.style.width = '';
-        this.dom.overlay.style.height = '';
-        this.dom.overlay.style.removeProperty('--ts-scale');
+        // Hand geometry back to the cinema-stage CSS only when the primary
+        // presentation owns the surface; floating/hidden keep their own.
+        if (this.presentationMode() === PRESENTATION_MODE.PRIMARY) {
+          this.dom.overlay.style.transform = '';
+          this.quadTransform = ''; // inline transform cleared -> force a rewrite on exit
+          // Hand sizing back to the cinema-stage CSS: inline width/height from
+          // the projected-quad fitting would override it.
+          this.dom.overlay.style.width = '';
+          this.dom.overlay.style.height = '';
+          this.dom.overlay.style.removeProperty('--ts-scale');
+        }
       } else {
         this.dom.overlay.style.aspectRatio = '';
       }
@@ -1084,6 +1423,7 @@ export class TheaterScreenUI {
   teardownEngine() {
     const engine = this.engine;
     this.engine = null;
+    this.audioControl = { supported: null, status: 'idle', reason: 'no_engine', at: Date.now(), generation: this.audioControl.generation + 1 };
     this.awaitingGesture = false;
     this.twitchOffline = false;
     this.lastPositionSec = null;
@@ -1231,6 +1571,7 @@ export class TheaterScreenUI {
       },
     };
     this.engine = engine;
+    this.acknowledgeAudio(engine); // pending until metadata; entry mute already applied to the element
 
     video.addEventListener('playing', () => {
       if (this.engine !== engine) return;
@@ -1256,6 +1597,8 @@ export class TheaterScreenUI {
     const begin = () => {
       if (this.engine !== engine || token !== this.loadToken) return;
       engine.ready = true;
+      this.acknowledgeAudio(engine);
+      this.refreshFloatingLayout('metadata');
       const target = this.targetPosition();
       if (target > 0.5 && isSeekSupported(item)) engine.seek(target);
       if (this.state?.now?.playing !== false) this.playVideoElement(video);
@@ -1332,6 +1675,7 @@ export class TheaterScreenUI {
       ready: false,
     };
     this.engine = engine;
+    this.acknowledgeAudio(engine); // pending until onReady applies the policy
 
     const playerState = () => {
       try {
@@ -1358,7 +1702,16 @@ export class TheaterScreenUI {
         width: '100%',
         height: '100%',
         videoId: item.videoId,
-        playerVars: { autoplay: 1, playsinline: 1, controls: 0, rel: 0, disablekb: 1 },
+        // Entry mute must precede playback: a muted playerVars start avoids an
+        // audible blip before the SDK handshake applies the activity policy.
+        playerVars: {
+          autoplay: 1,
+          playsinline: 1,
+          controls: 0,
+          rel: 0,
+          disablekb: 1,
+          mute: this.effectiveVolume() <= 0 ? 1 : 0,
+        },
         events: {
           onReady: () => {
             if (this.engine !== engine || token !== this.loadToken) return;
@@ -1377,6 +1730,7 @@ export class TheaterScreenUI {
             try {
               applyVolume(this.effectiveVolume());
             } catch {}
+            this.acknowledgeAudio(engine);
             const target = this.targetPosition();
             if (target > 0.5) {
               try {
@@ -1497,7 +1851,7 @@ export class TheaterScreenUI {
     // off (the default) the embed itself starts muted instead of autoplaying
     // audibly; sound on keeps the old unmuted embed.
     const embed = buildEmbedUrl('vimeo', item.videoId);
-    iframe.src = this.masterSound
+    iframe.src = this.effectiveVolume() > 0
       ? (embed || item.url)
       : (embed ? `${embed}&muted=1` : item.url);
     iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture');
@@ -1546,6 +1900,7 @@ export class TheaterScreenUI {
       },
     };
     this.engine = engine;
+    this.acknowledgeAudio(engine);
     this.setOverlayState('loading');
 
     try {
@@ -1589,6 +1944,7 @@ export class TheaterScreenUI {
       try {
         await player.setMuted(this.effectiveVolume() <= 0);
       } catch {}
+      this.acknowledgeAudio(engine);
       try {
         await player.play();
       } catch {
@@ -1640,6 +1996,7 @@ export class TheaterScreenUI {
       facts,
     };
     this.engine = engine;
+    this.acknowledgeAudio(engine); // pending until the Player SDK READY event
 
     let player;
     const applyVolume = () => {
@@ -1725,6 +2082,7 @@ export class TheaterScreenUI {
       facts.ready = true;
       this.twitchOffline = false;
       applyVolume();
+      this.acknowledgeAudio(engine);
       if (item.twitchType === 'video') {
         const target = this.targetPosition();
         if (Number.isFinite(target) && target > 0.5) engine.seek(target);
@@ -1888,6 +2246,7 @@ export class TheaterScreenUI {
     overlay.classList.remove('ts-state-idle', 'ts-state-loading', 'ts-state-playing', 'ts-state-error');
     overlay.classList.add(`ts-state-${next}`);
     this.renderCaption();
+    this.floatingChrome?.sync();
   }
 
   renderCaption() {
@@ -1916,10 +2275,39 @@ export class TheaterScreenUI {
     el.textContent = text;
   }
 
+  /**
+   * Presentation selector. Primary shows the projected world quad or the
+   * cinema stage; floating/hidden are activity presentations that ignore the
+   * quad; waiting (activity with no current item) shows nothing at all — no
+   * empty player and no restore chip.
+   */
   syncOverlay() {
     const overlay = this.dom?.overlay;
     if (!overlay) return;
-    overlay.classList.toggle('ts-hidden', !(this.roomActive && (!!this.quad || this.watching)));
+    const mode = this.presentationMode();
+    const floating = mode === PRESENTATION_MODE.FLOATING || mode === PRESENTATION_MODE.HIDDEN;
+    const primaryVisible = mode === PRESENTATION_MODE.PRIMARY && (!!this.quad || this.watching);
+    const visible = this.roomActive && (floating || primaryVisible);
+    overlay.classList.toggle('ts-hidden', !visible);
+    overlay.classList.toggle('ts-floating', this.roomActive && floating);
+    overlay.classList.toggle('ts-floating-hidden', this.roomActive && mode === PRESENTATION_MODE.HIDDEN);
+    overlay.classList.toggle(
+      'ts-floating-expanded',
+      this.roomActive && mode === PRESENTATION_MODE.FLOATING && this.presentationState.expanded === true,
+    );
+    this.floatingChrome?.sync();
+  }
+
+  /** Move keyboard/pointer focus back to the game surface (chrome "Back to game"). */
+  returnFocusToGame() {
+    if (typeof this.onReturnGameFocus === 'function') {
+      this.onReturnGameFocus();
+      return;
+    }
+    if (typeof document !== 'undefined') {
+      const canvas = document.querySelector('canvas');
+      canvas?.focus?.();
+    }
   }
 
   showGestureBadge() {
@@ -2224,8 +2612,7 @@ export class TheaterScreenUI {
 
     this.dom.volumeInput.addEventListener('input', () => {
       const pct = Number(this.dom.volumeInput.value);
-      this.volume = Number.isFinite(pct) ? Math.min(1, Math.max(0, pct / 100)) : 1;
-      this.applyEffectiveVolume(); // LOCAL only — never sent; applies user volume x mix gain
+      this.setUserVolume(Number.isFinite(pct) ? Math.min(1, Math.max(0, pct / 100)) : 1);
     });
 
     this.dom.iptvSelect.addEventListener('change', () => {

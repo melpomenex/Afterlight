@@ -144,6 +144,9 @@ export function findAnchorForSlot(activityDef, slot) {
  * @param {Function} [options.toast]
  * @param {Function} [options.getRoomId]
  * @param {Function} [options.onStateChange]
+ * @param {Function} [options.beforeJoin] (activityDef, { role }) runs BEFORE the
+ *   join frame is sent so a provisional media presentation token exists for
+ *   every admission path, including non-interaction joins.
  * @returns {object}
  */
 export function createParticipationController({
@@ -156,6 +159,7 @@ export function createParticipationController({
   toast = null,
   getRoomId = null,
   onStateChange = null,
+  beforeJoin = null,
 } = {}) {
   let state = 'idle'; // 'idle' | 'joining' | 'participating' | 'watching' | 'queued' | 'leaving'
   let currentActivity = null;
@@ -230,6 +234,15 @@ export function createParticipationController({
 
       const actTitle = activityDef.title || activityDef.id;
       toast?.('Joining Activity', `Joining ${actTitle}... Press E or Esc to cancel.`, 'ACTIVITY');
+
+      // Acquire/adopt the provisional presentation token before the join
+      // frame leaves the client: no synchronous admission result can race
+      // past media floating setup.
+      try {
+        beforeJoin?.(activityDef, { role });
+      } catch (err) {
+        console.warn('[ParticipationController] beforeJoin failed:', err);
+      }
 
       try {
         net?.sendActivityJoin?.({

@@ -17,6 +17,8 @@ import { ChatPanel } from './ui/chatPanel.js';
 import { CallClient } from './net/calls.js';
 import { CallPanel } from './ui/callPanel.js';
 import { TheaterScreenUI } from './ui/theaterScreen.js';
+import { createAppFullscreen } from './ui/appFullscreen.js';
+import { createPointerLockBridge } from './ui/pointerLockBridge.js';
 import { createPlaceSelector } from './ui/placeSelector.js';
 import { createUpdatePrompt } from './ui/updatePrompt.js';
 import { createLeaderboardDialog } from './ui/leaderboard.js';
@@ -33,6 +35,11 @@ import { createPlaceRuntime } from './places/runtime.js';
 import { resolveRoomRequest } from './places/travelState.js';
 import { createTheaterAdapter, registerTheaterAdapter } from './places/theaterAdapter.js';
 import { createActivityRuntime } from './activities/runtime.js';
+import { getActivityMediaPolicy } from './activities/registry.js';
+import {
+  HOST_RESERVATION_SELECTORS,
+  collectFloatingReservations,
+} from './ui/floatingMediaReservations.js';
 import { createActivityViewLease } from './activities/viewLease.js';
 import {
   captureRendererPolicy,
@@ -91,7 +98,7 @@ import { getPlaceController } from './places/registry.js';
 import { createSeatController } from './social/seating.js';
 import { createInteractionRegistry, registerCoreInteractions } from './social/interactions.js';
 import { createCameraSeam } from './activities/cameraSeam.js';
-import { resolveEscapeAction, isTypingTarget, ESCAPE_TARGETS } from './activities/inputSeam.js';
+import { resolveEscapeAction, isTypingTarget, isMediaUiEvent, ESCAPE_TARGETS } from './activities/inputSeam.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -339,6 +346,20 @@ const theaterUI = new TheaterScreenUI(net);
 // The cinema view's "Stand up" button hands the request to the game: the
 // player must actually leave the chair, not just the big screen.
 theaterUI.onStandUpRequest = () => standUp();
+// Floating chrome "Back to game" returns keyboard focus to the world canvas
+// (tabindex -1: programmatically focusable, never part of the tab order).
+theaterUI.onReturnGameFocus = () => renderer.domElement.focus();
+// One labeled action for "Turn on sound and unmute stream": runs the app's
+// own Sound handler, then the floating speaker unmutes the stream.
+theaterUI.requestMasterSound = () => {
+  if (!muted) return true;
+  $('sound').click();
+  return !muted;
+};
+// Pointer-lock integration contract (5.4): no shipped game uses lock today;
+// this bridge only ever acts on an explicit canvas gesture and never on
+// automatic presentation changes.
+const pointerLock = createPointerLockBridge({ getCanvas: () => renderer.domElement });
 
 // Conferencing: opt-in audio/video/screen call panel (P8)
 const callClient = new CallClient(net);
@@ -535,10 +556,25 @@ let activeSpawns = { spawn: [0, 3], companionSpawn: [0.8, 4] };
 const theaterAdapter = createTheaterAdapter({ ui: theaterUI });
 registerTheaterAdapter(theaterAdapter);
 
+// Floating-media developer rollback (6.6): `?floating-media=off` or the
+// localStorage flag disables acquisition entirely and restores primary
+// presentation/audio on the same engine — no data or protocol migration.
+const floatingMediaRollback = (() => {
+  try {
+    if (new URLSearchParams(location.search).get('floating-media') === 'off') return true;
+  } catch {}
+  try {
+    return localStorage.getItem('afterlight-floating-media') === 'off';
+  } catch {
+    return false;
+  }
+})();
+
 // Place activities runtime (Phase 1, place activities program):
 // Coordinates activity lifecycles in the active place without adding a second rAF.
 const activityRuntime = createActivityRuntime({
   net,
+  isFloatingMediaEnabled: () => !floatingMediaRollback,
   getActiveCamera: () => activeCamera,
   getCanvas: () => renderer.domElement,
   getRenderer: () => renderer,
@@ -594,8 +630,41 @@ const activityRuntime = createActivityRuntime({
     clearJumpMomentum();
   },
   toast: (title, body, tag) => toast(title, body, tag),
+  // Floating mini-game media (add-floating-minigame-media D2): the runtime's
+  // presentation lease drives the one existing theater surface. Entering a
+  // game steps out of cinema so the game HUD is visible; exiting restores the
+  // current primary presentation without recreating playback.
+  onMediaPresentationEnter: (lease) => {
+    if (theaterUI.isWatching()) theaterUI.setWatchMode(false);
+    theaterUI.beginActivityPresentation(lease.token);
+  },
+  onMediaPresentationReplace: (lease) => {
+    theaterUI.replaceActivityPresentation(lease.token);
+  },
+  onMediaPresentationExit: () => {
+    theaterUI.endActivityPresentation();
+  },
 });
 const participation = activityRuntime.participation;
+
+// Floating media reservations (4.4): host chat/action controls plus the
+// active activity's declared critical HUD/touch regions. Bounded to eight and
+// measured on entry/resize — never every animation frame.
+theaterUI.floatingReservations = () => {
+  const act = participation.currentActivity;
+  const policy = act?.type ? getActivityMediaPolicy(act.type) : null;
+  const selectors = [
+    ...HOST_RESERVATION_SELECTORS,
+    ...(policy?.reservedSelectors || []),
+  ];
+  const extra = [];
+  if (typeof policy?.reservedRects === 'function') {
+    try {
+      extra.push(...(policy.reservedRects() || []));
+    } catch {}
+  }
+  return collectFloatingReservations(document, { selectors, extra });
+};
 
 // Direct challenges + nearby tables (phase 6 social layer). Accept only
 // highlights a table — never travels, sits, or joins.
@@ -751,6 +820,14 @@ if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
       open: net.transport?.isOpen?.() ?? null,
     }),
     theaterPlayback: () => theaterUI.debugPlaybackEvents(),
+    // Read-only theater ownership handle for browser gates (identity checks
+    // only; never mutates playback). See scripts/floating-media-gate-browser.mjs.
+    theater: () => theaterUI,
+    floatingMediaEnabled: () => !floatingMediaRollback,
+    // Pointer-lock contract hooks (5.4): the harnesses call the explicit
+    // request from inside a real canvas gesture; nothing is automatic.
+    pointerLock: () => pointerLock,
+    requestPointerLock: () => pointerLock.requestFromGesture(),
     tp: (x, z) => {
       player.position.set(Number(x) || 0, 0, Number(z) || 0);
       target = null;
@@ -1294,21 +1371,20 @@ function interact() {
     return;
   }
 
-  // Summit Run loads BEFORE joining (6.1): activities declaring
-  // beginParticipation take the E press; other games fall through to the
-  // generic immediate join below.
+  // Single activity entry route (3.2): the runtime acquires the floating
+  // presentation token BEFORE lazy loading or a direct join, so media floats
+  // from the first instant and a rejection releases it again.
   if (nearest?.type === 'activity') {
     const actId = nearest.activityId ?? nearest.id;
     if (actId === 'orpheum-kart-royale') {
       startKartAttempt({ generation: activityRuntime.activeGeneration ?? 0, attemptId: Date.now(), route: 'cold' });
       startKartSpan('interaction');
     }
-    if (activityRuntime.beginParticipationFor(nearest)) {
-      if (actId === 'orpheum-kart-royale') {
-        endKartSpan('interaction');
-      }
-      return;
+    const entry = activityRuntime.enterActivity(nearest);
+    if (actId === 'orpheum-kart-royale') {
+      endKartSpan('interaction');
     }
+    if (entry.handled) return;
   }
 
   if (!nearest) {
@@ -1483,6 +1559,26 @@ function toggleSettings() {
 $('settings').onclick = toggleSettings;
 $('resume').onclick = toggleSettings;
 $('settings-dialog').addEventListener('cancel', (e) => { e.preventDefault(); toggleSettings(); });
+
+// Application-root fullscreen (5.3): documentElement owns the canvas, the
+// floating media surface and native dialogs, so one browser fullscreen keeps
+// the whole game usable. Canvas-only / provider-native fullscreen is outside
+// this combined mode (documented in the settings note).
+const appFullscreen = createAppFullscreen({
+  onChange: (active) => {
+    const btn = $('fullscreen-toggle');
+    if (btn) {
+      btn.textContent = active ? 'Exit fullscreen' : 'Go fullscreen';
+      btn.setAttribute('aria-pressed', String(active));
+    }
+  },
+});
+$('fullscreen-toggle').onclick = async () => {
+  const result = await appFullscreen.toggle();
+  if (!result.ok) {
+    toast('Fullscreen unavailable', 'The browser declined fullscreen — the game keeps playing in the window.');
+  }
+};
 function setCameraMode(mode) {
   cameraMode = cameraSeam.setWorldMode(mode);
   activeCamera = cameraSeam.resolveActiveCamera({ isoCamera: camera, fpCamera });
@@ -1530,6 +1626,12 @@ $('atmosphere').onchange = () => { particles.visible = $('atmosphere').checked; 
 
 // --- KEYBOARD CONTROLS ---
 window.addEventListener('keydown', (e) => {
+  // Floating media controls own their keys: Tab/Enter/Space/arrows must not
+  // reach gameplay, including capture-phase activity handlers.
+  if (isMediaUiEvent(e)) return;
+  // The browser's pointer-lock unlock gesture consumes this Escape: it must
+  // not also leave the activity or open settings.
+  if (e.code === 'Escape' && pointerLock.consumeUnlockEscape()) return;
   if ((isTypingTarget(e.target) || e.target.closest('#call-panel')) && e.code !== 'Escape') return;
 
   if (participation.isParticipating && e.code === 'KeyF') {
@@ -1633,6 +1735,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('keyup', (e) => {
+  if (isMediaUiEvent(e)) return; // media chrome never releases a game action
   keys.delete(e.code);
   if (participation.isParticipating && e.code === 'KeyF') {
     e.preventDefault();
@@ -1652,6 +1755,14 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 window.addEventListener('blur', () => {
+  keys.clear();
+  clearJumpMomentum();
+  activityRuntime.neutralizeInput?.();
+});
+// Focusing the floating media chrome neutralizes any held game action, so a
+// suppressed keyup on the canvas cannot leave steering/charging/firing stuck.
+document.addEventListener('focusin', (e) => {
+  if (!isMediaUiEvent(e)) return;
   keys.clear();
   clearJumpMomentum();
   activityRuntime.neutralizeInput?.();

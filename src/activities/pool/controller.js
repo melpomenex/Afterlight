@@ -26,6 +26,7 @@ import {
   POCKETS,
 } from '../../../shared/pool/physics.js';
 import { needsCalledPocket } from '../../../shared/pool/rules.js';
+import { isMediaUiEvent, mediaUiHasFocus } from '../inputSeam.js';
 
 export function createPoolController({
   tablePosition = [-8.6, 0, -4.5],
@@ -532,6 +533,7 @@ export function createPoolController({
   // Global Keyboard Event Handlers
   function onKeyDown(e) {
     if (!active) return;
+    if (isMediaUiEvent(e)) return;
     if (rulesModalOpen) {
       if (e.code === 'Escape') {
         rulesModalOpen = false;
@@ -573,6 +575,7 @@ export function createPoolController({
 
   function onKeyUp(e) {
     if (!active) return;
+    if (isMediaUiEvent(e)) return; // media chrome controls never release a shot
     heldKeys.delete(e.code);
 
     if (e.code === 'KeyF') {
@@ -803,8 +806,8 @@ export function createPoolController({
         updatePowerDisplay();
       }
 
-      // Gamepad polling
-      if (typeof navigator !== 'undefined' && navigator.getGamepads) {
+      // Gamepad polling (neutral while media controls own focus)
+      if (!mediaUiHasFocus() && typeof navigator !== 'undefined' && navigator.getGamepads) {
         const gamepads = navigator.getGamepads();
         const gp = gamepads ? gamepads[0] : null;
         if (gp) {

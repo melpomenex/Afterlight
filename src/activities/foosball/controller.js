@@ -19,6 +19,7 @@ import {
   clampRodState,
   getRecommendedRod,
 } from '../../../shared/foosballModel.js';
+import { isMediaUiEvent, mediaUiHasFocus } from '../inputSeam.js';
 
 export function createFoosballController({
   slot = 0,
@@ -203,6 +204,7 @@ export function createFoosballController({
   // Keyboard handlers
   function onKeyDown(e) {
     if (!active) return;
+    if (isMediaUiEvent(e)) return;
     if (e.target?.tagName === 'INPUT' || e.target?.tagName === 'TEXTAREA') return;
 
     if (e.code === 'KeyW' || e.code === 'ArrowUp') {
@@ -239,6 +241,7 @@ export function createFoosballController({
 
   function onKeyUp(e) {
     if (!active) return;
+    if (isMediaUiEvent(e)) return;
     if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.up = false;
     else if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.down = false;
     else if (e.code === 'Space' || e.code === 'Enter') keys.kick = false;
@@ -352,8 +355,8 @@ export function createFoosballController({
       if (keys.up) dy -= 1.0;
       if (keys.down) dy += 1.0;
 
-      // Gamepad polling
-      if (typeof navigator !== 'undefined' && navigator.getGamepads) {
+      // Gamepad polling (neutral while media controls own focus)
+      if (!mediaUiHasFocus() && typeof navigator !== 'undefined' && navigator.getGamepads) {
         const pads = navigator.getGamepads();
         const pad = pads[0];
         if (pad) {

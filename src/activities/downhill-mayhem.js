@@ -124,6 +124,7 @@ export function createDownhillMayhemInstance({
   audioMixer = null,
   toast = null,
   runGraphicsTransaction = null,
+  notifyPresentationTerminal = null,
 } = {}) {
   if (!activityDef || activityDef.type !== 'downhill-mayhem') {
     throw new Error('downhill-mayhem module requires a downhill-mayhem activity definition');
@@ -235,6 +236,7 @@ export function createDownhillMayhemInstance({
             runGraphicsTransaction,
             retentionEnabled: prepEnabled,
             getDistance: () => throttler.getDistance(),
+            notifyPresentationTerminal,
           });
           if (disposed) {
             instance.dispose();
@@ -538,7 +540,10 @@ export function createDownhillMayhemInstance({
     },
 
     beginParticipation() {
-      if (disposed) return Promise.resolve(false);
+      if (disposed) {
+        notifyPresentationTerminal?.('disposed');
+        return Promise.resolve(false);
+      }
       if (pendingActivation) {
         return controllerPromise
           ? controllerPromise.then((inst) => inst?.beginParticipation() ?? true)
@@ -557,16 +562,19 @@ export function createDownhillMayhemInstance({
         if (disposed || activationEpoch !== epoch) {
           pendingActivation = false;
           inst?.cancelActivation?.();
+          notifyPresentationTerminal?.('cancelled');
           return false;
         }
         if (!inst) {
           pendingActivation = false;
+          notifyPresentationTerminal?.('load-failed');
           return false;
         }
         return inst.beginParticipation().then((ok) => {
           if (disposed || activationEpoch !== epoch) {
             pendingActivation = false;
             inst.cancelActivation?.();
+            notifyPresentationTerminal?.('cancelled');
             return false;
           }
           pendingActivation = inst.pendingActivation ?? false;
@@ -581,6 +589,7 @@ export function createDownhillMayhemInstance({
           console.warn('[DownhillMayhem] beginParticipation failed:', error);
           pendingActivation = false;
           cancelActivation();
+          notifyPresentationTerminal?.('failed');
           toast?.('Downhill Mayhem', 'The cabinet could not start — try again in a moment.');
           return false;
         });
@@ -590,6 +599,9 @@ export function createDownhillMayhemInstance({
       activationEpoch += 1;
       pendingActivation = false;
       controller?.cancelActivation?.();
+      if (getParticipation?.()?.isOccupied !== true) {
+        notifyPresentationTerminal?.('cancelled');
+      }
     },
 
     /** Summary frames drive the cabinet; full snapshots belong to the rider. */
@@ -695,5 +707,9 @@ export function createDownhillMayhemInstance({
 registerActivityModule('downhill-mayhem', {
   initialize(context) {
     return createDownhillMayhemInstance(context);
+  },
+  // Downhill Mayhem HUD/touch regions (src/activities/downhill/hud.css).
+  mediaPolicy: {
+    reservedSelectors: ['.dm-panel', '.dm-actions', '.dm-audience-actions'],
   },
 });

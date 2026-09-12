@@ -24,6 +24,46 @@ export const ESCAPE_TARGETS = Object.freeze({
   NONE: 'none',
 });
 
+/** Floating media chrome (add-floating-minigame-media D6). */
+export const MEDIA_UI_SELECTOR = '#floating-media, #floating-media-restore';
+
+const nodeInMediaUi = (node) => {
+  if (!node || typeof node !== 'object') return false;
+  if (node.id === 'floating-media' || node.id === 'floating-media-restore') return true;
+  if (typeof node.closest === 'function') {
+    try {
+      return !!node.closest(MEDIA_UI_SELECTOR);
+    } catch {
+      return false;
+    }
+  }
+  return false;
+};
+
+/**
+ * Whether a DOM event originated inside the floating media chrome. Applies to
+ * every game input path (main.js, table controllers, hosted game forwarding)
+ * BEFORE the game acts, so media clicks/keys never aim, shoot or steer.
+ */
+export function isMediaUiEvent(event) {
+  if (!event) return false;
+  if (typeof event.composedPath === 'function') {
+    let path = null;
+    try {
+      path = event.composedPath();
+    } catch {
+      path = null; // detached target: fall through to the target check
+    }
+    if (Array.isArray(path) && path.some(nodeInMediaUi)) return true;
+  }
+  return nodeInMediaUi(event.target);
+}
+
+/** Whether keyboard focus currently sits inside the floating media chrome. */
+export function mediaUiHasFocus(doc = typeof document !== 'undefined' ? document : null) {
+  return nodeInMediaUi(doc?.activeElement);
+}
+
 /**
  * Determine what action Escape should take based on the strict hierarchy.
  *

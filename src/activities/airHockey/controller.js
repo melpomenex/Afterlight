@@ -12,6 +12,7 @@
 
 import * as THREE from 'three';
 import { MAX_MALLET_SPEED } from '../../../shared/airHockeyModel.js';
+import { isMediaUiEvent, mediaUiHasFocus } from '../inputSeam.js';
 
 export function createAirHockeyController({
   tablePosition = [5.8, 0, 7.0],
@@ -125,6 +126,7 @@ export function createAirHockeyController({
 
   function onKeyDown(e) {
     if (!enabled) return;
+    if (isMediaUiEvent(e)) return;
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
     if (e.code in keys) {
@@ -135,6 +137,7 @@ export function createAirHockeyController({
 
   function onKeyUp(e) {
     if (!enabled) return;
+    if (isMediaUiEvent(e)) return;
     if (e.code in keys) {
       keys[e.code] = false;
       e.preventDefault();
@@ -251,7 +254,7 @@ export function createAirHockeyController({
 
       // Check gamepad analog stick
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-      const gp = gamepads[0] || gamepads[1];
+      const gp = mediaUiHasFocus() ? null : (gamepads[0] || gamepads[1]);
       let padDx = 0;
       let padDy = 0;
 

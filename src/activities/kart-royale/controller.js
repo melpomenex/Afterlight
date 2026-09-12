@@ -36,6 +36,9 @@ export function createKartRoyaleController({
   preparation = null,
   retentionEnabled = false,
   getDistance = null,
+  notifyPresentationTerminal = null,
+  // Injected seam: the floating-media input guard (dependency-free module).
+  isMediaUiEvent = null,
 } = {}) {
   if (!activityDef || activityDef.type !== 'kart-royale') {
     throw new Error('kart-royale controller requires a kart-royale activity definition');
@@ -170,12 +173,15 @@ export function createKartRoyaleController({
   }
 
   function onKeyDown(event) {
+    // Media chrome keys (Tab/Enter/Space/arrows) never reach the race host.
+    if (typeof isMediaUiEvent === 'function' && isMediaUiEvent(event)) return;
     if (!host) return;
     host.input.handleKeyDown(event);
     consume(event);
   }
 
   function onKeyUp(event) {
+    if (typeof isMediaUiEvent === 'function' && isMediaUiEvent(event)) return;
     if (!host) return;
     if (consumeEntryKeyUp && (event.code === 'KeyE' || event.key === 'e' || event.key === 'E')) {
       consumeEntryKeyUp = false;
@@ -583,6 +589,11 @@ export function createKartRoyaleController({
     } else {
       handleViewRelease(reason);
     }
+    // Admission already released the presentation through participation
+    // state; a failure/cancel before that point releases it explicitly.
+    if (participation()?.isOccupied !== true) {
+      notifyPresentationTerminal?.(reason);
+    }
   }
 
   function cancelActivation() {
@@ -618,6 +629,9 @@ export function createKartRoyaleController({
     presentationReady = false;
     bootPromise = null;
     hadAdmission = false;
+    if (participation()?.isOccupied !== true) {
+      notifyPresentationTerminal?.('dispose');
+    }
   }
 
   async function beginParticipation() {

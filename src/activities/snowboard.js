@@ -98,6 +98,7 @@ export function createSnowboardInstance({
   acquireView = null,
   releaseView = null,
   net = null,
+  notifyPresentationTerminal = null,
 } = {}) {
   if (!activityDef || activityDef.type !== 'snowboard-race') {
     throw new Error('snowboard module requires a snowboard-race activity definition');
@@ -169,6 +170,7 @@ export function createSnowboardInstance({
           releaseView,
           generation,
           getPlayer,
+          notifyPresentationTerminal,
         }))
         .then((instance) => {
           controller = instance;
@@ -392,9 +394,15 @@ export function createSnowboardInstance({
      * beginParticipation.
      */
     beginParticipation() {
-      if (disposed) return Promise.resolve(false);
+      if (disposed) {
+        notifyPresentationTerminal?.('disposed');
+        return Promise.resolve(false);
+      }
       return loadController().then((instance) => {
-        if (!instance) return false;
+        if (!instance) {
+          notifyPresentationTerminal?.('load-failed');
+          return false;
+        }
         try {
           sessionStorage.setItem(
             'afterlight-activity-hint',
@@ -407,6 +415,7 @@ export function createSnowboardInstance({
           // A start can fail mid-init (graphics reset, stale chunk). Never
           // leak an unhandled rejection to the page.
           console.warn('[Snowboard] beginParticipation failed:', error);
+          notifyPresentationTerminal?.('failed');
           return false;
         });
     },
@@ -531,5 +540,9 @@ export function createSnowboardInstance({
 registerActivityModule('snowboard-race', {
   initialize(context) {
     return createSnowboardInstance(context);
+  },
+  // Summit Run HUD/touch regions (src/activities/snowboard/hud.css).
+  mediaPolicy: {
+    reservedSelectors: ['.sbx-top-hud', '.sbx-bottom-hud', '.sbx-actions', '.sbx-touch'],
   },
 });

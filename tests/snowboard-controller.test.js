@@ -99,3 +99,19 @@ test('load retries until acknowledged, follows seat identity, and accepts Phoeni
   } finally { c.dispose(); }
   assert.equal(disposed, true, 'ack listener is removed');
 });
+
+test('presentation terminal notification fires once on dispose without a seat', async () => {
+  const terminals = [];
+  const activityDef = { id: 'summit-run', courseDocument, capacities: { players: 8 } };
+  const p = { isParticipating: false, isJoining: false, currentActivity: null, state: 'idle' };
+  const c = await createSnowboardController({
+    activityDef,
+    getParticipation: () => p,
+    acquireView: () => ({ ok: true }),
+    releaseView: () => {},
+    notifyPresentationTerminal: (reason) => terminals.push(reason),
+  });
+  c.exit('load-cancelled');
+  c.dispose();
+  assert.deepEqual(terminals, ['load-cancelled', 'dispose'], 'the provisional floating token is released exactly once per terminal path');
+});

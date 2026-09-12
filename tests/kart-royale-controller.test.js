@@ -84,7 +84,7 @@ function installBrowserStubs() {
   };
 }
 
-function makeSeams() {
+function makeSeams({ notifyPresentationTerminal = null } = {}) {
   const state = {
     joined: null,
     participating: false,
@@ -116,6 +116,7 @@ function makeSeams() {
     getRenderer: () => renderer,
     generation: 4,
     toast: (title, body, tag) => toasts.push({ title, body, tag }),
+    notifyPresentationTerminal,
   });
   return { controller, state, acquisitions, releases, toasts, participation };
 }
@@ -385,6 +386,77 @@ test('dispose removes disconnect listener', async () => {
     assert.equal(disconnectListeners.length, 1);
     controller.dispose();
     assert.equal(disconnectListeners.length, 0);
+  } finally {
+    stubs.restore();
+  }
+});
+
+// --- floating media presentation terminal notifications (task 3.3) -----------
+
+test('lease: a failed boot reports a terminal notification after leaving the session', async () => {
+  const stubs = installBrowserStubs();
+  const terminals = [];
+  try {
+    const { controller, state } = makeSeams({ notifyPresentationTerminal: (reason) => terminals.push(reason) });
+    await controller.beginParticipation();
+    state.participating = true;
+    state.currentActivity = KART_ROYALE_ACTIVITY_DEFINITION;
+    controller.update(0, 1 / 60);
+    for (let i = 0; i < 6; i++) {
+      await new Promise((r) => setTimeout(r, 25));
+      controller.update((i + 1) / 60, 1 / 60);
+    }
+    assert.equal(state.participating, false);
+    assert.ok(terminals.includes('load-failed'), `expected load-failed in ${JSON.stringify(terminals)}`);
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('lease: cancel before ready reports a terminal notification', async () => {
+  const stubs = installBrowserStubs();
+  const terminals = [];
+  try {
+    const { controller, state } = makeSeams({ notifyPresentationTerminal: (reason) => terminals.push(reason) });
+    await controller.beginParticipation();
+    state.participating = true;
+    state.currentActivity = KART_ROYALE_ACTIVITY_DEFINITION;
+    controller.update(0, 1 / 60); // boot in flight (import fails asynchronously in Node)
+    const cancelled = controller.cancelActivation();
+    assert.equal(cancelled, true);
+    assert.ok(terminals.includes('cancel'), `expected cancel in ${JSON.stringify(terminals)}`);
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('lease: repeated begin before admission never reports a terminal and keeps the attempt', async () => {
+  const stubs = installBrowserStubs();
+  const terminals = [];
+  try {
+    const { controller, state } = makeSeams({ notifyPresentationTerminal: (reason) => terminals.push(reason) });
+    assert.equal(await controller.beginParticipation(), true);
+    const again = await controller.beginParticipation();
+    assert.equal(again, true, 'repeated entry reuses the pending activation');
+    assert.deepEqual(terminals, [], 'no spurious terminal notification');
+    state.participating = true;
+    state.currentActivity = KART_ROYALE_ACTIVITY_DEFINITION;
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('lease: dispose without admission reports dispose once', () => {
+  const stubs = installBrowserStubs();
+  const terminals = [];
+  try {
+    const { controller } = makeSeams({ notifyPresentationTerminal: (reason) => terminals.push(reason) });
+    controller.dispose();
+    controller.dispose();
+    assert.deepEqual(terminals, ['dispose'], 'idempotent disposal notifies exactly once');
   } finally {
     stubs.restore();
   }

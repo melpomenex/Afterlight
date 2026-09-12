@@ -22,6 +22,7 @@
  */
 
 import { registerActivityModule } from './registry.js';
+import { isMediaUiEvent } from './inputSeam.js';
 import {
   createScreenPipeline,
   createVisibilityThrottler,
@@ -87,6 +88,7 @@ export function createKartRoyaleInstance({
   scheduleGraphicsJob = null,
   runGraphicsTransaction = null,
   cancelGraphicsJobs = null,
+  notifyPresentationTerminal = null,
 } = {}) {
   if (!activityDef || activityDef.type !== 'kart-royale') {
     throw new Error('kart-royale module requires a kart-royale activity definition');
@@ -212,6 +214,8 @@ export function createKartRoyaleInstance({
             preparation,
             retentionEnabled: prepRolloutEnabled,
             getDistance: () => throttler.getDistance(),
+            notifyPresentationTerminal,
+            isMediaUiEvent,
           });
           if (disposed) {
             instance.dispose();
@@ -441,7 +445,10 @@ export function createKartRoyaleInstance({
      * admission and takes over presentation when its seat is accepted.
      */
     beginParticipation() {
-      if (disposed) return Promise.resolve(false);
+      if (disposed) {
+        notifyPresentationTerminal?.('disposed');
+        return Promise.resolve(false);
+      }
       if (pendingActivation) {
         return controllerPromise
           ? controllerPromise.then((inst) => inst?.beginParticipation() ?? true)
@@ -457,16 +464,21 @@ export function createKartRoyaleInstance({
         if (disposed || activationEpoch !== epoch) {
           pendingActivation = false;
           inst?.cancelActivation?.();
+          notifyPresentationTerminal?.('cancelled');
           return false;
         }
         if (!inst) {
           pendingActivation = false;
+          // Lazy import failed: release the provisional floating token now,
+          // not on a later frame.
+          notifyPresentationTerminal?.('load-failed');
           return false;
         }
         return inst.beginParticipation().then((ok) => {
           if (disposed || activationEpoch !== epoch) {
             pendingActivation = false;
             inst.cancelActivation?.();
+            notifyPresentationTerminal?.('cancelled');
             return false;
           }
           pendingActivation = inst.pendingActivation ?? false;
@@ -481,6 +493,7 @@ export function createKartRoyaleInstance({
           console.warn('[KartRoyale] beginParticipation failed:', error);
           pendingActivation = false;
           cancelActivation();
+          notifyPresentationTerminal?.('failed');
           toast?.('Kart Royale', 'The cabinet could not start — try again in a moment.');
           return false;
         });
@@ -491,6 +504,11 @@ export function createKartRoyaleInstance({
       pendingActivation = false;
       cancelGraphicsJobs?.();
       controller?.cancelActivation?.();
+      // Cancelled before/without admission: nothing will change participation
+      // state, so the floating presentation is released here.
+      if (getParticipation?.()?.isOccupied !== true) {
+        notifyPresentationTerminal?.('cancelled');
+      }
     },
 
     /** Occupancy frames drive the cabinet display; nothing else is consumed. */
@@ -565,5 +583,9 @@ export function createKartRoyaleInstance({
 registerActivityModule('kart-royale', {
   initialize(context) {
     return createKartRoyaleInstance(context);
+  },
+  // Hosted HUD/touch regions (games/kart-royale/src/ui/ui.css).
+  mediaPolicy: {
+    reservedSelectors: ['.kr-hud', '.kr-bottom'],
   },
 });

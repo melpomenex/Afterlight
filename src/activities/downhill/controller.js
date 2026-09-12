@@ -27,6 +27,7 @@ import { createDownhillAudio } from './audio.js';
 import { createDownhillHud } from './hud.js';
 import { createDownhillSceneAdapter } from './scene.js';
 import { recordEntrySample } from '../downhillReadinessMetrics.js';
+import { isMediaUiEvent } from '../inputSeam.js';
 
 const HEARTBEAT_MS = 33;
 const LOADED_RETRY_MS = 1500;
@@ -101,6 +102,7 @@ export function createDownhillController({
   getDistance = null,
   loadHostModule = defaultLoadHostModule,
   loadCourseDocument = defaultLoadCourseDocument,
+  notifyPresentationTerminal = null,
 } = {}) {
   if (!activityDef || activityDef.type !== 'downhill-mayhem') {
     throw new Error('downhill controller requires a downhill-mayhem activity definition');
@@ -265,6 +267,7 @@ export function createDownhillController({
   }
 
   function onKeyDown(event) {
+    if (isMediaUiEvent(event)) return; // media chrome keys never steer the rider
     if (!viewHeld || isTyping()) return;
     if (event.code === 'Escape') {
       consume(event);
@@ -291,6 +294,7 @@ export function createDownhillController({
   }
 
   function onKeyUp(event) {
+    if (isMediaUiEvent(event)) return;
     if (!viewHeld) return;
     keys.delete(event.code);
     if (event.code === 'Space') hopEdge = false;
@@ -1370,6 +1374,11 @@ export function createDownhillController({
       });
     }
     if (typeof onExit === 'function') onExit(reason);
+    // Admission already released the presentation through participation
+    // state; failure/cancel before that point releases it explicitly.
+    if (participation()?.isOccupied !== true) {
+      notifyPresentationTerminal?.(reason);
+    }
   }
 
   function cancelActivation() {
@@ -1405,6 +1414,9 @@ export function createDownhillController({
     audio?.dispose?.();
     audio = null;
     interpolator.clear?.();
+    if (participation()?.isOccupied !== true) {
+      notifyPresentationTerminal?.('dispose');
+    }
   }
 
   async function beginParticipation() {
