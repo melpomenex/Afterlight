@@ -14,7 +14,7 @@ defmodule Afterlight.Theater.Errors do
   def reasons, do: @reasons
 
   def text("invalid_url"),
-    do: "That link is not something the projector can play. Try YouTube, Vimeo, a direct video file, or an .m3u8 stream."
+    do: "That link is not something the projector can play. Try YouTube, Vimeo, Twitch, a direct video file, or an .m3u8 stream."
 
   def text("no_file_chosen"),
     do: "Pick a file from that torrent first \u2014 paste the magnet and choose from its file list."

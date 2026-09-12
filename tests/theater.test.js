@@ -4,6 +4,7 @@ import { Storage } from '../server/storage.js';
 import { TheaterManager } from '../server/theater.js';
 import {
   applyTheaterAction,
+  buildTwitchEmbedUrl,
   classifySource,
   createTheaterState,
   effectivePositionSec,
@@ -43,6 +44,68 @@ test('classifySource accepts mkv as a file needing preparation', () => {
   const mkv = classifySource('https://example.com/movie.mkv');
   assert.equal(mkv.kind, 'file');
   assert.equal(mkv.needsPrepare, true);
+});
+
+test('classifySource accepts twitch channels, VODs, and clips', () => {
+  const channel = classifySource('https://www.twitch.tv/shroud');
+  assert.equal(channel.kind, 'twitch');
+  assert.equal(channel.twitchType, 'channel');
+  assert.equal(channel.twitchId, 'shroud');
+  assert.equal(channel.url, 'https://www.twitch.tv/shroud');
+
+  const bare = classifySource('https://twitch.tv/some_channel_99/');
+  assert.equal(bare.twitchType, 'channel');
+  assert.equal(bare.twitchId, 'some_channel_99');
+
+  const mobile = classifySource('https://m.twitch.tv/some_channel_99');
+  assert.equal(mobile.twitchType, 'channel');
+
+  const vod = classifySource('https://www.twitch.tv/videos/40464143');
+  assert.equal(vod.kind, 'twitch');
+  assert.equal(vod.twitchType, 'video');
+  assert.equal(vod.twitchId, '40464143');
+
+  const clip = classifySource('https://clips.twitch.tv/JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf');
+  assert.equal(clip.kind, 'twitch');
+  assert.equal(clip.twitchType, 'clip');
+  assert.equal(clip.twitchId, 'JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf');
+
+  const channelClip = classifySource('https://www.twitch.tv/shroud/clip/IncredulousAbstemiousFennelImGlitch');
+  assert.equal(channelClip.twitchType, 'clip');
+  assert.equal(channelClip.twitchId, 'IncredulousAbstemiousFennelImGlitch');
+});
+
+test('classifySource rejects non-content twitch pages', () => {
+  assert.equal(classifySource('https://www.twitch.tv/directory'), null);
+  assert.equal(classifySource('https://www.twitch.tv/settings'), null);
+  assert.equal(classifySource('https://www.twitch.tv/videos'), null, 'the VOD index is not a VOD');
+  assert.equal(classifySource('https://player.twitch.tv/?channel=shroud'), null, 'embed URLs are not share links');
+  assert.equal(classifySource('https://www.twitch.tv/'), null);
+  assert.equal(classifySource('https://www.twitch.tv/shr'), null, 'too short to be a channel');
+  assert.equal(classifySource('https://www.twitch.tv/shroud/this-is-not-a-clip'), null);
+  assert.equal(classifySource('https://clips.twitch.tv/'), null);
+});
+
+test('buildTwitchEmbedUrl builds official embeds with a hostname parent', () => {
+  assert.equal(
+    buildTwitchEmbedUrl('channel', 'shroud', 'localhost'),
+    'https://player.twitch.tv/?channel=shroud&parent=localhost&autoplay=true',
+  );
+  assert.equal(
+    buildTwitchEmbedUrl('video', '40464143', 'game-beige-pi.vercel.app'),
+    'https://player.twitch.tv/?video=v40464143&parent=game-beige-pi.vercel.app&autoplay=true',
+  );
+  assert.equal(
+    buildTwitchEmbedUrl('clip', 'JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf', 'localhost'),
+    'https://clips.twitch.tv/embed?clip=JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf&parent=localhost&autoplay=true',
+  );
+  // A full origin is reduced to its hostname; unknown types and blank parents refuse.
+  assert.match(
+    buildTwitchEmbedUrl('channel', 'shroud', 'https://example.com:5173/watch'),
+    /[?&]parent=example\.com&/,
+  );
+  assert.equal(buildTwitchEmbedUrl('channel', 'shroud', ''), null);
+  assert.equal(buildTwitchEmbedUrl('nope', 'x', 'localhost'), null);
 });
 
 test('classifySource rejects non-playable inputs', () => {
@@ -87,6 +150,23 @@ test('add to an idle screen starts playing immediately with an empty queue', () 
   assert.equal(res.state.now.title, 'Movie Night');
   assert.equal(res.state.now.by, 'Tester');
   assert.deepEqual(res.state.queue, []);
+});
+
+test('adding a twitch link carries its type and defaults its title', () => {
+  const res = addUrl(createTheaterState(), 'https://www.twitch.tv/shroud');
+  assert.equal(res.error, null);
+  assert.equal(res.state.now.kind, 'twitch');
+  assert.equal(res.state.now.twitchType, 'channel');
+  assert.equal(res.state.now.twitchId, 'shroud');
+  assert.equal(res.state.now.title, 'A Twitch stream');
+
+  const played = applyTheaterAction(
+    createTheaterState(),
+    { op: 'channel', url: 'https://clips.twitch.tv/JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf' },
+    'Tester', T0,
+  );
+  assert.equal(played.state.now.twitchType, 'clip');
+  assert.equal(played.state.now.twitchId, 'JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf');
 });
 
 test('add while something plays joins the queue', () => {
@@ -221,6 +301,35 @@ test('seek clamps negatives to zero, rejects NaN, and refuses live channels', ()
     applyTheaterAction(live, { op: 'seek', positionSec: 5 }, 'Tester', T0 + 1).error,
     'seek_unsupported',
   );
+});
+
+test('seek is refused for live twitch channels and clips but allowed for VODs', () => {
+  const live = applyTheaterAction(
+    createTheaterState(),
+    { op: 'channel', url: 'https://www.twitch.tv/shroud' }, 'Tester', T0,
+  ).state;
+  assert.equal(
+    applyTheaterAction(live, { op: 'seek', positionSec: 5 }, 'Tester', T0 + 1).error,
+    'seek_unsupported',
+  );
+
+  const clip = applyTheaterAction(
+    createTheaterState(),
+    { op: 'channel', url: 'https://clips.twitch.tv/JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf' },
+    'Tester', T0,
+  ).state;
+  assert.equal(
+    applyTheaterAction(clip, { op: 'seek', positionSec: 5 }, 'Tester', T0 + 1).error,
+    'seek_unsupported',
+  );
+
+  const vod = applyTheaterAction(
+    createTheaterState(),
+    { op: 'channel', url: 'https://www.twitch.tv/videos/40464143' }, 'Tester', T0,
+  ).state;
+  const vodSeek = applyTheaterAction(vod, { op: 'seek', positionSec: 42 }, 'Tester', T0 + 1);
+  assert.equal(vodSeek.error, null);
+  assert.equal(vodSeek.state.now.positionSec, 42);
 });
 
 test('ended and failed reports are guarded by the current item id', () => {
@@ -445,6 +554,26 @@ test('normalizeTheaterState keeps magnet torrents (with picks) playable and shap
   // A torrent whose pick was lost can never play, so it is dropped.
   const dropped = normalizeTheaterState({ now: { url: magnet, title: 'S' } }, T0);
   assert.equal(dropped.now, null);
+});
+
+test('normalizeTheaterState re-derives twitch type/id from the URL', () => {
+  const state = normalizeTheaterState({
+    now: {
+      url: 'https://www.twitch.tv/videos/40464143', twitchType: 'channel', twitchId: 'spoofed',
+      title: 'VOD', playing: true, positionSec: 30, updatedAt: 42,
+    },
+    queue: [{
+      url: 'https://clips.twitch.tv/JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf',
+      title: 'Clip', twitchType: 'channel', twitchId: 'also-spoofed',
+    }],
+  }, T0);
+
+  assert.equal(state.now.kind, 'twitch');
+  assert.equal(state.now.twitchType, 'video', 'stored type is never trusted');
+  assert.equal(state.now.twitchId, '40464143');
+  assert.equal(state.now.positionSec, 30);
+  assert.equal(state.queue[0].twitchType, 'clip');
+  assert.equal(state.queue[0].twitchId, 'JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf');
 });
 
 test('normalizeTheaterState passes a valid state through unchanged', () => {

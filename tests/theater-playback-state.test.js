@@ -8,8 +8,12 @@ import assert from 'node:assert/strict';
 
 import {
   PLAYBACK_ACTION,
+  TWITCH_CLIP_GUARD_SEC,
+  isSourceFatalFailure,
   nextPlaybackAction,
+  shouldAdvanceTwitchClip,
   shouldRetryPlayerReady,
+  twitchEngineState,
   updateProgress,
 } from '../src/ui/theaterPlaybackState.js';
 
@@ -131,4 +135,51 @@ test('shouldRetryPlayerReady: one bounded rebuild per item, never while ready or
     shouldRetryPlayerReady({ ready: false, waitedMs: 30_000, timeoutMs: 9000, alreadyRetried: true }),
     false,
   );
+});
+
+test('twitch evidence is never room-wide fatal', () => {
+  assert.equal(isSourceFatalFailure({ engineKind: 'twitch' }), false);
+  assert.equal(isSourceFatalFailure({ engineKind: 'twitch', name: 'NotFoundError' }), false);
+  assert.equal(
+    isSourceFatalFailure({ engineKind: 'twitch', code: 100, fatal: true, videoError: true }),
+    false,
+  );
+  // The existing taxonomy is untouched.
+  assert.equal(isSourceFatalFailure({ engineKind: 'youtube', code: 150 }), true);
+  assert.equal(isSourceFatalFailure({ engineKind: 'vimeo', name: 'PrivacyError' }), true);
+  assert.equal(isSourceFatalFailure({ engineKind: 'file', videoError: true }), true);
+});
+
+test('twitchEngineState maps coarse player facts with fixed precedence', () => {
+  assert.equal(twitchEngineState({}), 'loading');
+  assert.equal(twitchEngineState({ ready: true }), 'ready');
+  assert.equal(twitchEngineState({ ready: true, paused: true }), 'paused');
+  assert.equal(twitchEngineState({ ready: true, playing: true }), 'playing');
+  assert.equal(
+    twitchEngineState({ ready: true, playing: true, offline: true }),
+    'loading',
+    'an offline channel is not playing and is left alone',
+  );
+  assert.equal(
+    twitchEngineState({ playing: true, blocked: true }),
+    'unstarted',
+    'blocked autoplay asks for the start gesture',
+  );
+  assert.equal(twitchEngineState({ ended: true, playing: true }), 'ended');
+});
+
+test('shouldAdvanceTwitchClip only fires for unreported clips at the guard', () => {
+  const clip = { kind: 'twitch', twitchType: 'clip' };
+  assert.equal(shouldAdvanceTwitchClip({ item: clip, elapsedSec: TWITCH_CLIP_GUARD_SEC - 1 }), false);
+  assert.equal(shouldAdvanceTwitchClip({ item: clip, elapsedSec: TWITCH_CLIP_GUARD_SEC }), true);
+  assert.equal(
+    shouldAdvanceTwitchClip({ item: clip, elapsedSec: 500, reported: true }),
+    false,
+    'a sent report (including an early skip) silences the guard',
+  );
+  assert.equal(shouldAdvanceTwitchClip({ item: { kind: 'twitch', twitchType: 'channel' }, elapsedSec: 500 }), false);
+  assert.equal(shouldAdvanceTwitchClip({ item: { kind: 'twitch', twitchType: 'video' }, elapsedSec: 500 }), false);
+  assert.equal(shouldAdvanceTwitchClip({ item: { kind: 'file' }, elapsedSec: 500 }), false);
+  assert.equal(shouldAdvanceTwitchClip({ item: clip, elapsedSec: Number.NaN }), false);
+  assert.equal(shouldAdvanceTwitchClip({}), false);
 });

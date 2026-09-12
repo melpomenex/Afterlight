@@ -12,7 +12,7 @@
     {
       "file": "theater-model.json",
       "module": "Afterlight.Parity.Reference.Theater",
-      "caseCount": 115,
+      "caseCount": 135,
       "hazards": {
         "url-whatwg": [
           "classify/*"

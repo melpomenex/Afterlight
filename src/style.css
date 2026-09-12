@@ -1294,6 +1294,9 @@ details.place-group > summary.place-group-label:focus-visible,
   border: 0;
   background: #000;
 }
+/* Twitch's own player chrome (play/unmute/quality) needs clicks; only in the
+   cinema stage, where the screen is the content and nothing passes through. */
+body.theater-watching #theater-screen .ts-twitch-mount { pointer-events: auto; }
 #theater-screen .ts-state-layer { position: absolute; inset: 0; }
 #theater-screen.ts-state-idle .ts-state-layer {
   /* faint static shimmer while the screen sleeps, softened to avoid high-frequency 3D moiré */

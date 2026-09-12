@@ -98,3 +98,17 @@ test('resolvedPlayback uses playbackUrl when ready', () => {
   assert.equal(r.engine, 'hls');
   assert.equal(r.url, '/api/theater/media/med_abc/index.m3u8');
 });
+
+test('resolvedPlayback routes twitch items to the twitch engine, never direct', () => {
+  for (const twitchType of ['channel', 'video', 'clip']) {
+    const r = resolvedPlayback({
+      kind: 'twitch',
+      twitchType,
+      twitchId: twitchType === 'clip' ? 'SomeClip-slug' : '40464143',
+      url: 'https://www.twitch.tv/example',
+    });
+    assert.equal(r.waiting, false);
+    assert.equal(r.engine, 'twitch');
+    assert.equal(r.url, 'https://www.twitch.tv/example');
+  }
+});

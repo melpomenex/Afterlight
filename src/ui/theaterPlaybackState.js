@@ -25,6 +25,8 @@ export const PLAYBACK_ACTION = Object.freeze({
 
 export const DEFAULT_STALL_MS = 4000;
 export const DEFAULT_SEEK_THRESHOLD_SEC = 1.5;
+/** Twitch clips are at most 60 s long; the room advances by 60 + margin. */
+export const TWITCH_CLIP_GUARD_SEC = 75;
 const PROGRESS_EPSILON_SEC = 0.25;
 
 /**
@@ -84,11 +86,53 @@ export function isSourceFatalFailure(failure = {}) {
     return name === 'NotFoundError' || name === 'PrivacyError' || name === 'PasswordError';
   }
 
+  // Twitch's official player exposes no documented fatal-source event, so
+  // every Twitch symptom (blocked autoplay, offline channel, network trouble)
+  // stays local: never advance the shared bill on ambiguous evidence.
+  if (kind === 'twitch') return false;
+
   if (kind === 'file' || kind === 'direct' || kind === 'hls' || kind === 'torrent' || kind === 'video') {
     return failure.videoError === true || failure.fatal === true;
   }
 
   return false;
+}
+
+/**
+ * Normalized supervision state for the Twitch adapter from the coarse facts
+ * its player API exposes (it has no buffering event). Precedence, highest
+ * first: ended, blocked autoplay, offline, playing, paused, ready, loading.
+ * An offline channel maps to `loading` so supervision leaves it alone while
+ * Twitch shows its offline card.
+ *
+ * @param {{ ended?: boolean, blocked?: boolean, offline?: boolean,
+ *           playing?: boolean, paused?: boolean, ready?: boolean }} facts
+ * @returns {'ended'|'unstarted'|'loading'|'playing'|'paused'|'ready'}
+ */
+export function twitchEngineState(facts = {}) {
+  if (facts.ended) return 'ended';
+  if (facts.blocked) return 'unstarted';
+  if (facts.offline) return 'loading';
+  if (facts.playing) return 'playing';
+  if (facts.paused) return 'paused';
+  if (facts.ready) return 'ready';
+  return 'loading';
+}
+
+/**
+ * The bounded clip guard: a Twitch clip's non-interactive player emits no
+ * end event, so the room advances it after the maximum clip length plus a
+ * margin. Skipping first is the normal path; this only prevents a wedged
+ * bill. Once a report has been sent for the item id, the guard stays quiet.
+ *
+ * @param {{ item?: object|null, elapsedSec?: number, reported?: boolean }} input
+ * @returns {boolean} true when the caller should report the clip ended
+ */
+export function shouldAdvanceTwitchClip(input = {}) {
+  const { item, elapsedSec, reported = false } = input;
+  if (reported) return false;
+  if (!item || item.kind !== 'twitch' || item.twitchType !== 'clip') return false;
+  return Number.isFinite(elapsedSec) && elapsedSec >= TWITCH_CLIP_GUARD_SEC;
 }
 
 /**

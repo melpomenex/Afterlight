@@ -21,6 +21,9 @@ const ACTOR = 'parity_actor';
 
 const MAGNET = 'magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Sintel';
 const PICK = { torrentName: 'Sintel', fileIndex: 1, filePath: 'Sintel/sintel.mp4', fileBytes: 1_293_149_503 };
+const TWITCH_CHANNEL = 'https://www.twitch.tv/shroud';
+const TWITCH_VOD = 'https://www.twitch.tv/videos/40464143';
+const TWITCH_CLIP = 'https://clips.twitch.tv/JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf';
 
 function add(url, title, extra = {}) {
   return { op: 'add', url, ...(title !== undefined ? { title } : {}), ...extra };
@@ -78,6 +81,18 @@ function build() {
     ['https://www.youtube.com/watch?v=toolongvideoid12345', null],
     ['https://www.youtube.com/watch?v=', null],
     ['https://player.vimeo.com/video/123456789', { kind: 'vimeo', videoId: '123456789' }],
+    [TWITCH_CHANNEL, { kind: 'twitch' }],
+    ['https://twitch.tv/some_channel_99/', { kind: 'twitch' }],
+    ['https://m.twitch.tv/some_channel_99', { kind: 'twitch' }],
+    [TWITCH_VOD, { kind: 'twitch' }],
+    [TWITCH_CLIP, { kind: 'twitch' }],
+    ['https://www.twitch.tv/shroud/clip/IncredulousAbstemiousFennelImGlitch', { kind: 'twitch' }],
+    ['https://www.twitch.tv/directory', null],
+    ['https://www.twitch.tv/videos', null],
+    ['https://www.twitch.tv/settings', null],
+    ['https://player.twitch.tv/?channel=shroud', null],
+    ['https://www.twitch.tv/shr', null],
+    ['https://clips.twitch.tv/', null],
   ];
   // Expected values are RECORDED from the real JS (never hand-authored):
   // parity fixtures must pin what the implementation does, not what we
@@ -213,6 +228,24 @@ function build() {
   cases.push(recordCall({ id: 'reducer/channel-playlist-use-import', fn: applyTheaterAction, args: [base(), { op: 'channel', url: 'https://www.youtube.com/playlist?list=PL1234567890abcdef' }, ACTOR], nowMs: T1 }));
   cases.push(recordCall({ id: 'reducer/channel-invalid', fn: applyTheaterAction, args: [base(), { op: 'channel', url: 'nope' }, ACTOR], nowMs: T1 }));
 
+  // twitch: channels/clips start live, only VODs seek, fields ride the item
+  cases.push(recordCall({ id: 'reducer/add-twitch-channel', fn: applyTheaterAction, args: [createTheaterState(), add(TWITCH_CHANNEL), ACTOR], nowMs: T0 }));
+  cases.push(recordCall({ id: 'reducer/add-twitch-vod', fn: applyTheaterAction, args: [createTheaterState(), add(TWITCH_VOD, 'A VOD'), ACTOR], nowMs: T0 }));
+  cases.push(recordCall({ id: 'reducer/add-twitch-clip', fn: applyTheaterAction, args: [createTheaterState(), add(TWITCH_CLIP), ACTOR], nowMs: T0 }));
+  cases.push(recordCall({ id: 'reducer/channel-twitch-clip', fn: applyTheaterAction, args: [base(), { op: 'channel', url: TWITCH_CLIP }, ACTOR], nowMs: T1 }));
+  cases.push(recordCall({ id: 'reducer/seek-twitch-channel-unsupported', fn: applyTheaterAction, args: [(() => {
+    const r = withFrozenClock(T0, () => applyTheaterAction(createTheaterState(), add(TWITCH_CHANNEL), ACTOR, T0));
+    return r.state;
+  })(), { op: 'seek', positionSec: 10 }, ACTOR], nowMs: T1 }));
+  cases.push(recordCall({ id: 'reducer/seek-twitch-clip-unsupported', fn: applyTheaterAction, args: [(() => {
+    const r = withFrozenClock(T0, () => applyTheaterAction(createTheaterState(), add(TWITCH_CLIP), ACTOR, T0));
+    return r.state;
+  })(), { op: 'seek', positionSec: 10 }, ACTOR], nowMs: T1 }));
+  cases.push(recordCall({ id: 'reducer/seek-twitch-vod', fn: applyTheaterAction, args: [(() => {
+    const r = withFrozenClock(T0, () => applyTheaterAction(createTheaterState(), add(TWITCH_VOD), ACTOR, T0));
+    return r.state;
+  })(), { op: 'seek', positionSec: 42.5 }, ACTOR], nowMs: T1 }));
+
   // newItemId with pinned clock and seed
   cases.push(recordCall({ id: 'reducer/new-item-id-pinned', fn: newItemId, args: [T0], seed: 0.123456789 }));
 
@@ -273,6 +306,10 @@ function build() {
       queue: Array.from({ length: 55 }, (_, i) => ({ id: `itm_q${i}`, kind: 'file', url: `${FILE}?v=${i}`, title: `q${i}`, playing: true, positionSec: i, updatedAt: T0 })),
     }],
     ['unknown-kind-dropped', { now: null, queue: [{ id: 'itm_z', kind: 'alien', url: 'https://x.example/a' }, { id: 'itm_keep', kind: 'file', url: FILE, title: 'keep' }] }],
+    ['twitch-fields-rederived', {
+      now: { id: 'itm_t', kind: 'twitch', url: TWITCH_VOD, title: 'V', playing: true, positionSec: 5, updatedAt: T0, twitchType: 'channel', twitchId: 'spoofed' },
+      queue: [{ id: 'itm_c', kind: 'twitch', url: TWITCH_CLIP, title: 'C', twitchType: 'video', twitchId: 'spoofed' }],
+    }],
   ];
   for (const [name, raw] of raws) {
     cases.push(recordCall({ id: `normalize/${name}`, fn: normalizeTheaterState, args: [raw], nowMs: T0 }));

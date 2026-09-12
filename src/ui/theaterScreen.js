@@ -34,9 +34,11 @@ import {
   KIND_LABELS,
   THEATER_LIMITS,
   buildEmbedUrl,
+  buildTwitchEmbedUrl,
   classifySource,
   defaultTitle,
   effectivePositionSec,
+  isSeekSupported,
   theaterErrorText,
 } from '../../shared/theaterModel.js';
 import {
@@ -54,7 +56,9 @@ import {
   PLAYBACK_ACTION,
   isSourceFatalFailure,
   nextPlaybackAction,
+  shouldAdvanceTwitchClip,
   shouldRetryPlayerReady,
+  twitchEngineState,
   updateProgress,
 } from './theaterPlaybackState.js';
 
@@ -64,6 +68,12 @@ const SYNC_SEEK_THRESHOLD_SEC = 1.5;
 const DRIFT_CHECK_INTERVAL_MS = 2000;
 const SDK_TIMEOUT_MS = 8000;
 const YT_READY_TIMEOUT_MS = 9000; // widget-API handshake bound before one rebuild
+const TWITCH_READY_TIMEOUT_MS = 9000; // player-API handshake bound before one rebuild
+const TWITCH_SDK_URL = 'https://player.twitch.tv/js/embed/v1.js';
+// Twitch refuses embedded windows smaller than 400x300 CSS px; the overlay is
+// sized up and the homography maps the larger element onto the same quad.
+const TWITCH_EMBED_MIN_W = 400;
+const TWITCH_EMBED_MIN_H = 300;
 const PLAYLIST_RESOLVE_TIMEOUT_MS = 20_000; // server fetch timeout + grace
 const PLAYLIST_PREVIEW_ROWS = 5; // titles shown before "… and N more"
 const IPTV_LISTS_KEY = 'afterlight-iptv-lists';
@@ -407,6 +417,33 @@ async function ensureVimeoSdk() {
   throw new Error('Vimeo player SDK missing after load');
 }
 
+/** The hostname Twitch must see as the embedding parent (no scheme or port). */
+function twitchParentHost() {
+  try {
+    const host = typeof window !== 'undefined' ? window.location?.hostname : '';
+    return host || 'localhost';
+  } catch {
+    return 'localhost';
+  }
+}
+
+let twitchSdkPromise = null;
+
+function ensureTwitchSdk() {
+  if (typeof window === 'undefined') return Promise.reject(new Error('no window'));
+  if (window.Twitch && window.Twitch.Player) return Promise.resolve(window.Twitch);
+  if (!twitchSdkPromise) {
+    twitchSdkPromise = loadScript(TWITCH_SDK_URL).then(() => {
+      if (window.Twitch && window.Twitch.Player) return window.Twitch;
+      throw new Error('Twitch player SDK missing after load');
+    });
+    twitchSdkPromise.catch(() => {
+      twitchSdkPromise = null; // allow retry on the next item
+    });
+  }
+  return twitchSdkPromise;
+}
+
 /**
  * Non-reversible short fingerprint of a grant token for `?debug=1`
  * diagnostics only (never the token itself). Lets cross-client checks prove
@@ -453,6 +490,12 @@ export class TheaterScreenUI {
     // One YouTube player rebuild is allowed per item when the widget-API
     // handshake never completes (production postMessage origin race).
     this.youtubeRetryItemId = null;
+    // Same bounded rebuild budget for the Twitch player API handshake.
+    this.twitchRetryItemId = null;
+    // Items whose interactive API never came up run on the plain embed; kept
+    // so a later rebuild (e.g. a sound toggle) does not restart the timeout.
+    this.twitchFallbackItemId = null;
+    this.twitchOffline = false; // live channel OFFLINE card (local, never shared)
     this.loadToken = 0; // guards async engine loads against races
     this.volume = 1; // 0..1, local only — never part of shared state
     this.mixGain = 1; // local atmosphere/voice mix factor (task 4.1 D7); user volume stays untouched
@@ -543,6 +586,8 @@ export class TheaterScreenUI {
       this.teardownEngine();
       this.loadedItemId = null; // force a reload path on reactivation
       this.youtubeRetryItemId = null; // fresh retry budget on re-entry
+      this.twitchRetryItemId = null;
+      this.twitchFallbackItemId = null;
       this.awaitingGesture = false;
       this.awaitingTorrentGrant = null;
       this.net?.clearTorrentGrants?.(); // grants are room-bound
@@ -591,6 +636,20 @@ export class TheaterScreenUI {
    */
   setMasterSound(enabled) {
     this.masterSound = enabled === true;
+    // A degraded Twitch embed (clip or SDK fallback) exposes no volume API
+    // and bakes its mute state into the URL, so flipping the master gate is
+    // the one transition that reloads it — audibly on, silently off.
+    const engine = this.engine;
+    if (engine?.kind === 'twitch' && engine.degraded
+      && typeof engine.muted === 'boolean'
+      && engine.muted !== (this.effectiveVolume() <= 0)
+      && this.dom && this.state?.now) {
+      this.teardownEngine();
+      this.loadedItemId = null;
+      this.loadedPlayKey = null;
+      this.loadCurrent();
+      return false;
+    }
     return this.applyEffectiveVolume();
   }
 
@@ -729,6 +788,8 @@ export class TheaterScreenUI {
     if (playKey !== this.loadedPlayKey) {
       // A different item gets a fresh handshake-retry budget.
       if (now.id !== this.youtubeRetryItemId) this.youtubeRetryItemId = null;
+      if (now.id !== this.twitchRetryItemId) this.twitchRetryItemId = null;
+      if (now.id !== this.twitchFallbackItemId) this.twitchFallbackItemId = null;
       this.reportedForId = null;
       this.loadCurrent();
     } else {
@@ -746,7 +807,17 @@ export class TheaterScreenUI {
     this.quad = Array.isArray(quad) && quad.length >= 4 ? quad : null;
     if (!this.quad) this.quadTransform = '';
     if (this.dom?.overlay && this.quad && !this.watching) {
-      const { w, h } = fitOverlaySize(this.quad, worldAspect);
+      let { w, h } = fitOverlaySize(this.quad, worldAspect);
+      // Twitch's embed has a minimum window size; a larger logical overlay is
+      // mapped onto the same quad by the homography below, so the picture is
+      // unchanged and the player no longer sees a sub-minimum frame.
+      if (this.state?.now?.kind === 'twitch') {
+        const floor = Math.max(1, TWITCH_EMBED_MIN_W / w, TWITCH_EMBED_MIN_H / h);
+        if (floor > 1) {
+          w = Math.round(w * floor);
+          h = Math.round(h * floor);
+        }
+      }
       // Track the quad closely (relative tolerance, not the old fixed 2px,
       // which let the mapped scale drift far from 1:1 without a re-raster).
       if (Math.abs(w - this.overlayW) > Math.max(2, this.overlayW * 0.03) ||
@@ -918,11 +989,30 @@ export class TheaterScreenUI {
 
   tickDriftCheck() {
     const now = this.state?.now;
-    if (!this.roomActive || !now || !this.engine || this.engine.degraded || !this.engine.ready) return;
+    if (!this.roomActive || !now) return;
     const ts = Date.now();
     if (ts - this.lastDriftCheckMs < DRIFT_CHECK_INTERVAL_MS) return;
     this.lastDriftCheckMs = ts;
+    // Clips run on a non-interactive embed (a degraded engine), so the guard
+    // must run before the sync-engine gate below.
+    this.tickClipGuard(now);
+    if (!this.engine || this.engine.degraded || !this.engine.ready) return;
     this.enforceSync(ts);
+  }
+
+  /**
+   * Twitch clips expose no end event, so the pure guard advances the bill
+   * after the maximum clip length plus margin. reportEnded is idempotent per
+   * item id, so a skip that already moved the bill cannot fire it twice.
+   */
+  tickClipGuard(now) {
+    if (!shouldAdvanceTwitchClip({
+      item: now,
+      elapsedSec: this.targetPosition(),
+      reported: this.reportedForId === now.id,
+    })) return;
+    this.recordPlaybackEvent('clip-guard', { itemId: now.id });
+    this.reportEnded();
   }
 
   /**
@@ -955,8 +1045,8 @@ export class TheaterScreenUI {
       nowMs,
       lastProgressAt: this.lastProgressAt,
       needsGesture: this.awaitingGesture,
-      // Live IPTV cannot seek; prepared HLS can.
-      seekAllowed: !(now.kind === 'hls' && !now.playbackUrl),
+      // Live sources (HLS, Twitch channels/clips) cannot seek.
+      seekAllowed: isSeekSupported(now),
       seekThresholdSec: SYNC_SEEK_THRESHOLD_SEC,
     });
     if (action !== PLAYBACK_ACTION.NONE) {
@@ -995,6 +1085,7 @@ export class TheaterScreenUI {
     const engine = this.engine;
     this.engine = null;
     this.awaitingGesture = false;
+    this.twitchOffline = false;
     this.lastPositionSec = null;
     this.lastProgressAt = null;
     this.hideGestureBadge();
@@ -1047,6 +1138,9 @@ export class TheaterScreenUI {
       case 'vimeo':
         this.startVimeoEngine(now, token);
         break;
+      case 'twitch':
+        this.startTwitchEngine(now, token);
+        break;
       default:
         switch (now.kind) {
           case 'file':
@@ -1063,6 +1157,9 @@ export class TheaterScreenUI {
             break;
           case 'vimeo':
             this.startVimeoEngine(now, token);
+            break;
+          case 'twitch':
+            this.startTwitchEngine(now, token);
             break;
           default:
             // Unknown engine kind: not source evidence — keep the room's item
@@ -1160,7 +1257,7 @@ export class TheaterScreenUI {
       if (this.engine !== engine || token !== this.loadToken) return;
       engine.ready = true;
       const target = this.targetPosition();
-      if (target > 0.5 && !(item.kind === 'hls' && !item.playbackUrl)) engine.seek(target);
+      if (target > 0.5 && isSeekSupported(item)) engine.seek(target);
       if (this.state?.now?.playing !== false) this.playVideoElement(video);
       else engine.pause();
     };
@@ -1505,6 +1602,268 @@ export class TheaterScreenUI {
     }
   }
 
+  /**
+   * Twitch source engine (design D4). Channels and VODs use the official
+   * interactive player (lazy SDK) so the shared clock can drive them; clips
+   * always use the non-interactive clip embed, and an SDK load failure falls
+   * back to the plain embed. VODs are seekable; live channels attach at the
+   * live edge. Twitch has no fatal-source event, so trouble stays local.
+   */
+  async startTwitchEngine(item, token) {
+    if (item.twitchType === 'clip' || this.twitchFallbackItemId === item.id) {
+      this.startTwitchIframeEngine(item, token);
+      return;
+    }
+
+    let Twitch = null;
+    try {
+      Twitch = await ensureTwitchSdk();
+    } catch (err) {
+      console.warn('theater: Twitch SDK unavailable, falling back to the plain embed', err);
+    }
+    if (token !== this.loadToken) return;
+    if (!Twitch || !Twitch.Player) {
+      this.startTwitchIframeEngine(item, token);
+      return;
+    }
+
+    const mount = document.createElement('div');
+    mount.className = 'ts-twitch-mount';
+    this.dom.mediaHost.append(mount);
+    const facts = { ready: false, playing: false, paused: false, ended: false, blocked: false, offline: false };
+    const engine = {
+      kind: 'twitch',
+      player: null,
+      mount,
+      degraded: false,
+      ready: false,
+      facts,
+    };
+    this.engine = engine;
+
+    let player;
+    const applyVolume = () => {
+      const v = this.effectiveVolume();
+      try {
+        player.setVolume(v);
+      } catch {}
+      try {
+        player.setMuted(v <= 0);
+      } catch {}
+    };
+
+    try {
+      const options = {
+        width: '100%',
+        height: '100%',
+        parent: [twitchParentHost()],
+        autoplay: true,
+        muted: this.effectiveVolume() <= 0,
+      };
+      if (item.twitchType === 'video') options.video = item.twitchId;
+      else options.channel = item.twitchId;
+      player = new Twitch.Player(mount, options);
+    } catch (err) {
+      console.warn('theater: Twitch player creation failed', err);
+      if (token === this.loadToken) this.localPlaybackProblem();
+      return;
+    }
+    engine.player = player;
+
+    const EV = Twitch.Player || {};
+    const on = (name, handler) => {
+      if (!name) return;
+      try {
+        player.addEventListener(name, handler);
+      } catch {}
+    };
+
+    engine.getTime = () => {
+      if (item.twitchType !== 'video') return null; // live streams have no position
+      try {
+        const t = player.getCurrentTime?.();
+        return Number.isFinite(t) ? t : null;
+      } catch {
+        return null;
+      }
+    };
+    engine.getState = () => twitchEngineState(facts);
+    engine.seek = (sec) => {
+      if (item.twitchType !== 'video') return;
+      try {
+        player.seek(sec);
+      } catch {}
+    };
+    engine.play = () => {
+      try {
+        player.play();
+      } catch {}
+    };
+    engine.pause = () => {
+      try {
+        player.pause();
+      } catch {}
+    };
+    engine.setVolume = () => applyVolume();
+    engine.destroy = () => {
+      if (engine.readyTimer) {
+        clearTimeout(engine.readyTimer);
+        engine.readyTimer = null;
+      }
+      try {
+        mount.remove();
+      } catch {}
+    };
+
+    on(EV.READY, () => {
+      if (this.engine !== engine || token !== this.loadToken) return;
+      if (engine.readyTimer) {
+        clearTimeout(engine.readyTimer);
+        engine.readyTimer = null;
+      }
+      engine.ready = true;
+      facts.ready = true;
+      this.twitchOffline = false;
+      applyVolume();
+      if (item.twitchType === 'video') {
+        const target = this.targetPosition();
+        if (Number.isFinite(target) && target > 0.5) engine.seek(target);
+      }
+      if (this.state?.now?.playing !== false) engine.play();
+    });
+    on(EV.PLAYING, () => {
+      if (this.engine !== engine) return;
+      facts.playing = true;
+      facts.paused = false;
+      facts.blocked = false;
+      this.hideGestureBadge();
+      this.setOverlayState('playing');
+    });
+    on(EV.PLAY, () => {
+      if (this.engine !== engine) return;
+      facts.playing = true;
+      facts.paused = false;
+      facts.blocked = false;
+    });
+    on(EV.PAUSE, () => {
+      if (this.engine !== engine) return;
+      facts.playing = false;
+      facts.paused = true;
+    });
+    on(EV.ENDED, () => {
+      if (this.engine !== engine) return;
+      facts.ended = true;
+      facts.playing = false;
+      this.reportEnded();
+    });
+    on(EV.OFFLINE, () => {
+      if (this.engine !== engine) return;
+      facts.offline = true;
+      facts.playing = false;
+      this.twitchOffline = true;
+      this.recordPlaybackEvent('twitch-offline', { itemId: item.id, channel: item.twitchId });
+      this.setOverlayState('loading');
+    });
+    on(EV.ONLINE, () => {
+      if (this.engine !== engine) return;
+      facts.offline = false;
+      facts.playing = false;
+      this.twitchOffline = false;
+      this.setOverlayState('loading');
+      if (this.state?.now?.playing !== false) engine.play();
+    });
+    on(EV.PLAYBACK_BLOCKED, () => {
+      if (this.engine !== engine) return;
+      facts.blocked = true;
+      facts.playing = false;
+      this.recordPlaybackEvent('twitch-playback-blocked', { itemId: item.id });
+      this.showGestureBadge();
+    });
+
+    // Same bounded handshake watchdog as YouTube: rebuild once per item, then
+    // keep the problem local (never a room-wide failure report).
+    engine.readyTimer = setTimeout(() => {
+      engine.readyTimer = null;
+      if (this.engine !== engine || token !== this.loadToken || engine.ready) return;
+      this.recordPlaybackEvent('twitch-ready-timeout');
+      const retry = shouldRetryPlayerReady({
+        ready: false,
+        waitedMs: TWITCH_READY_TIMEOUT_MS,
+        timeoutMs: TWITCH_READY_TIMEOUT_MS,
+        alreadyRetried: this.twitchRetryItemId === item.id,
+      });
+      if (retry) {
+        this.twitchRetryItemId = item.id;
+        this.teardownEngine();
+        this.loadedItemId = null;
+        this.loadedPlayKey = null;
+        this.setOverlayState('loading');
+        this.loadCurrent();
+      } else {
+        // The interactive API never completed its handshake (blocked,
+        // rate-limited, or an unsupported browser). Fall back to Twitch's
+        // official non-interactive embed for the same content: it renders
+        // Twitch's own player instead of a local error card. Local only —
+        // the shared bill is never touched.
+        this.twitchFallbackItemId = item.id;
+        this.recordPlaybackEvent('twitch-embed-fallback', { itemId: item.id });
+        this.teardownEngine();
+        this.loadedItemId = null;
+        this.loadedPlayKey = null;
+        this.startTwitchIframeEngine(item, token);
+      }
+    }, TWITCH_READY_TIMEOUT_MS);
+  }
+
+  /**
+   * Non-interactive Twitch embed: clips (Twitch exposes no player API for
+   * them) and the fallback when the SDK cannot load. It autoplays but cannot
+   * be controlled, so it runs degraded — the shared clock is not enforced.
+   */
+  startTwitchIframeEngine(item, token) {
+    if (token !== this.loadToken) return;
+    const embed = buildTwitchEmbedUrl(item.twitchType, item.twitchId, twitchParentHost());
+    if (!embed) {
+      this.localPlaybackProblem();
+      return;
+    }
+    // The embed bakes its mute state into the URL and exposes no volume API:
+    // remember it so a master-gate change can rebuild the embed audibly.
+    const muted = this.effectiveVolume() <= 0;
+    const iframe = document.createElement('iframe');
+    iframe.src = muted ? `${embed}&muted=true` : embed;
+    iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture');
+    iframe.setAttribute('allowfullscreen', '');
+    iframe.setAttribute('title', this.titleFor(item) || 'Twitch player');
+    this.dom.mediaHost.append(iframe);
+
+    const engine = {
+      kind: 'twitch',
+      iframe,
+      degraded: true,
+      muted,
+      ready: true, // the embed loads without an API to confirm or control
+      getTime: () => null,
+      getState: () => null,
+      seek: () => {},
+      play: () => {},
+      pause: () => {},
+      setVolume: () => {},
+      destroy: () => {
+        try {
+          iframe.remove();
+        } catch {}
+      },
+    };
+    this.engine = engine;
+    this.recordPlaybackEvent('engine-start', {
+      itemKind: 'twitch',
+      engine: item.twitchType === 'clip' ? 'twitch-clip-embed' : 'twitch-embed-fallback',
+    });
+    // No event exists to confirm playback; show the item as running.
+    this.setOverlayState('playing');
+  }
+
   playVideoElement(video) {
     try {
       const p = video.play();
@@ -1544,7 +1903,10 @@ export class TheaterScreenUI {
       if (prep === PREPARE_STATUS.PROBING) prepLine = 'Inspecting media…';
       else if (prep === PREPARE_STATUS.PREPARING || prep === PREPARE_STATUS.PENDING) prepLine = 'Preparing video…';
       const waiting = now?.kind === 'torrent' ? this.torrentStatusText(now.infohash) : '';
-      const base = prepLine || (waiting ? waiting : 'Warming up the projector…');
+      const offline = this.twitchOffline && now?.kind === 'twitch' && now.twitchType === 'channel'
+        ? 'The channel is offline — waiting for the stream'
+        : '';
+      const base = prepLine || waiting || offline || 'Warming up the projector…';
       text = now ? `${base} ${this.titleFor(now)}` : base;
     } else if (this.overlayState === 'error') {
       text = `Couldn't play: ${this.errorTitle || (now ? this.titleFor(now) : '') || 'unknown item'}`;
@@ -1583,7 +1945,7 @@ export class TheaterScreenUI {
     if (!engine) return;
     const now = this.state?.now;
     const target = this.targetPosition();
-    const seekAllowed = !(now?.kind === 'hls' && !now?.playbackUrl);
+    const seekAllowed = isSeekSupported(now);
     if (seekAllowed && Number.isFinite(target) && target > 0.5) {
       try {
         engine.seek(Math.max(0, target));
@@ -1731,7 +2093,7 @@ export class TheaterScreenUI {
 
       <div class="panel theater-now-panel" id="theater-now-panel"></div>
 
-      <label class="micro" for="theater-url-input">ADD BY URL (YOUTUBE · PLAYLIST · VIMEO · .MP4 · .M3U8 · MAGNET)</label>
+      <label class="micro" for="theater-url-input">ADD BY URL (YOUTUBE · PLAYLIST · VIMEO · TWITCH · .MP4 · .M3U8 · MAGNET)</label>
       <div class="theater-add-row">
         <input type="text" id="theater-url-input" maxlength="${THEATER_LIMITS.URL_MAX}"
           placeholder="Paste a video, stream, or magnet link…" autocomplete="off" spellcheck="false">
@@ -2106,6 +2468,14 @@ export class TheaterScreenUI {
       this.setAddStatus('A YouTube playlist — Add reads it and queues its videos together.');
     } else if (classified?.kind === 'youtube' && classified.listId) {
       this.setAddStatus('A YouTube video that belongs to a playlist — Add will ask which one you want.');
+    } else if (classified?.kind === 'twitch') {
+      if (classified.twitchType === 'channel') {
+        this.setAddStatus('A Twitch channel — plays live for the room; live streams cannot be rewound.');
+      } else if (classified.twitchType === 'clip') {
+        this.setAddStatus('A Twitch clip — plays once and is not synchronized; skip it when it is done.');
+      } else {
+        this.setAddStatus('A Twitch VOD — plays on the shared clock like any video.');
+      }
     }
   }
 
@@ -2570,6 +2940,16 @@ export class TheaterScreenUI {
           line.textContent = status;
           panel.append(line);
         }
+      } else if (now.kind === 'twitch' && now.twitchType === 'clip') {
+        const line = document.createElement('div');
+        line.className = 'micro theater-clip-note';
+        line.textContent = 'Twitch clip — not synchronized; use Skip when it is done.';
+        panel.append(line);
+      } else if (now.kind === 'twitch' && now.twitchType === 'channel') {
+        const line = document.createElement('div');
+        line.className = 'micro theater-clip-note';
+        line.textContent = 'Live Twitch channel — plays at the live edge; no rewinding.';
+        panel.append(line);
       }
     } else {
       const empty = document.createElement('div');
@@ -2613,10 +2993,13 @@ export class TheaterScreenUI {
 
     // Transport
     const hasNow = !!now;
+    // A Twitch clip runs on a non-interactive embed: the bill's pause and
+    // seek cannot reach it, so the booth offers Skip instead.
+    const twitchClip = hasNow && now.kind === 'twitch' && now.twitchType === 'clip';
     this.dom.btnToggle.textContent = now?.playing ? 'Pause' : 'Resume';
-    this.dom.btnToggle.disabled = !hasNow;
+    this.dom.btnToggle.disabled = !hasNow || twitchClip;
     this.dom.btnSkip.disabled = !hasNow;
-    const seekable = hasNow && now.kind !== 'hls';
+    const seekable = hasNow && isSeekSupported(now);
     this.dom.btnBack.disabled = !seekable;
     this.dom.btnFwd.disabled = !seekable;
     this.dom.btnClear.disabled = !hasNow && !queue.length;

@@ -1,6 +1,6 @@
 ## Purpose
 
-The screen in The Orpheum plays shared media for everyone in the room: YouTube and Vimeo videos, direct video files, HLS streams, and torrent files, driven by one authoritative shared bill. This capability covers what a connected player sees the screen do end to end — on join, on queue changes, and on failures — under the current gateway-and-sidecar architecture.
+The screen in The Orpheum plays shared media for everyone in the room: YouTube, Vimeo, and Twitch content, direct video files, HLS streams, and torrent files, driven by one authoritative shared bill. This capability covers what a connected player sees the screen do end to end — on join, on queue changes, and on failures — under the current gateway-and-sidecar architecture.
 
 ## Requirements
 
@@ -20,7 +20,7 @@ When a player enters the theater, the client SHALL apply the authoritative bill 
 - **THEN** the screen shows its idle state and the booth controls are available
 
 ### Requirement: Every supported source kind plays from a connected client
-A connected client SHALL be able to make the room's screen play each supported source kind end to end: a YouTube or Vimeo link, a direct media file URL (`.mp4`/`.webm`), an HLS playlist URL (`.m3u8`), and a magnet link resolved to a picked file (per the torrent capability). Submitting a source through the booth and playing it SHALL result in audible/visible playback on the submitting client and on other occupants' clients, or a readable error — never a silent no-op.
+A connected client SHALL be able to make the room's screen play each supported source kind end to end: a YouTube or Vimeo link, a direct media file URL (`.mp4`/`.webm`), an HLS playlist URL (`.m3u8`), a magnet link resolved to a picked file (per the torrent capability), and a Twitch channel, VOD, or clip link (whose live, VOD, and clip transport semantics are governed by the `twitch-streaming` capability). Submitting a source through the booth and playing it SHALL result in audible/visible playback on the submitting client and on other occupants' clients, or a readable error — never a silent no-op.
 
 #### Scenario: Queue and play each source kind
 - **WHEN** a connected player submits, in turn, a YouTube watch URL, an `.mp4` URL, and an `.m3u8` URL, playing each
@@ -29,6 +29,10 @@ A connected client SHALL be able to make the room's screen play each supported s
 #### Scenario: Magnet resolves to playback
 - **WHEN** a connected player pastes a magnet link, the metadata resolves, and they pick a video file from the picker
 - **THEN** the picked file plays on the shared screen via a granted stream, with load progress shown while the swarm is being reached
+
+#### Scenario: Twitch link plays for the room
+- **WHEN** a connected player submits a Twitch channel, VOD, or clip link
+- **THEN** the item plays on the shared screen for the room with the transport semantics of its Twitch type, or is rejected with a readable message
 
 ### Requirement: Room-wide bill changes arrive live
 When any occupant changes the shared bill (add, play now, skip, remove, or playback control), every connected occupant in the theater SHALL see the resulting screen change within the broadcast cadence (about two seconds) without reloading. A client SHALL NOT be able to mistake an unacknowledged bill change for success: the booth SHALL either reflect the change or surface a readable error.

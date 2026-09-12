@@ -25,6 +25,43 @@ defmodule Afterlight.Theater.Reducer do
 
   @vimeo_hosts MapSet.new(["vimeo.com", "www.vimeo.com", "player.vimeo.com"])
 
+  @twitch_hosts MapSet.new(["twitch.tv", "www.twitch.tv", "m.twitch.tv"])
+  @twitch_clip_hosts MapSet.new(["clips.twitch.tv"])
+  @twitch_channel_re ~r"\A/([A-Za-z0-9_]{4,25})/?\z"
+  @twitch_clip_slug_re ~r"\A/([A-Za-z0-9_-]{5,100})/?\z"
+  @twitch_channel_clip_re ~r"\A/([A-Za-z0-9_]{4,25})/clip/([A-Za-z0-9_-]{5,100})/?\z"
+  @twitch_vod_re ~r"\A/videos/(\d{6,})/?\z"
+  # Channel-shaped routes that are pages, not live channels.
+  @twitch_reserved_paths MapSet.new([
+                           "videos",
+                           "directory",
+                           "downloads",
+                           "settings",
+                           "subscriptions",
+                           "inventory",
+                           "wallet",
+                           "drops",
+                           "friends",
+                           "search",
+                           "following",
+                           "communities",
+                           "collections",
+                           "event",
+                           "events",
+                           "jobs",
+                           "turbo",
+                           "bits",
+                           "store",
+                           "prime",
+                           "login",
+                           "signup",
+                           "oauth2",
+                           "embed",
+                           "team",
+                           "user",
+                           "p"
+                         ])
+
   @video_ext_re ~r/\.(mp4|webm|m4v|mov|ogv|ogg|mkv|avi|wmv|flv|ts|m2ts)$/i
   @http_url_re ~r{\Ahttps?://}i
   # JS \s = [\f\n\r\t\v\u0020\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]
@@ -93,6 +130,7 @@ defmodule Afterlight.Theater.Reducer do
   def default_title("hls"), do: "Live channel"
   def default_title("file"), do: "A video link"
   def default_title("torrent"), do: "A torrent stream"
+  def default_title("twitch"), do: "A Twitch stream"
   def default_title(_kind), do: "Something to watch"
 
   def clean_text(value, max \\ @title_max)
@@ -146,6 +184,14 @@ defmodule Afterlight.Theater.Reducer do
       %{kind: "file", url: url, needs_prepare: needs} ->
         %{"kind" => "file", "url" => url, "needsPrepare" => needs}
 
+      %{kind: "twitch", url: url, twitch_type: twitch_type, twitch_id: twitch_id} ->
+        %{
+          "kind" => "twitch",
+          "url" => url,
+          "twitchType" => twitch_type,
+          "twitchId" => twitch_id
+        }
+
       %{kind: other, url: url} ->
         %{"kind" => other, "url" => url}
     end
@@ -176,6 +222,10 @@ defmodule Afterlight.Theater.Reducer do
           cond do
             MapSet.member?(@youtube_hosts, host) -> classify_youtube(url, host, path, params)
             MapSet.member?(@vimeo_hosts, host) -> classify_vimeo(url, path)
+
+            MapSet.member?(@twitch_hosts, host) or MapSet.member?(@twitch_clip_hosts, host) ->
+              classify_twitch(url, host, path)
+
             String.ends_with?(String.downcase(path), ".m3u8") -> %{kind: "hls", url: url}
             Regex.match?(@video_ext_re, path) ->
               %{kind: "file", url: url, needs_prepare: extension_needs_prepare?(url)}
@@ -428,7 +478,7 @@ defmodule Afterlight.Theater.Reducer do
       if is_binary(item_id) and item_id != "" and item_id != Map.get(now, "id") do
         error("item_mismatch")
       else
-        if Map.get(now, "kind") == "hls" and is_nil(Map.get(now, "playbackUrl")) do
+        if not is_seek_supported?(now) do
           error("seek_unsupported")
         else
           pos = js_to_number(Map.get(action, "positionSec", :absent))
@@ -578,6 +628,7 @@ defmodule Afterlight.Theater.Reducer do
         "title" => clean_or(Map.get(raw_now, "title"), @title_max, default_title(classified.kind))
       }
       |> Map.merge(pick)
+      |> Map.merge(twitch_fields(classified))
       |> Map.merge(%{
         "playing" => Map.get(raw_now, "playing") != false,
         "positionSec" =>
@@ -611,6 +662,7 @@ defmodule Afterlight.Theater.Reducer do
                 clean_or(Map.get(entry, "title"), @title_max, default_title(classified.kind))
             }
             |> Map.merge(pick)
+            |> Map.merge(twitch_fields(classified))
             |> Map.merge(%{
               "queuedBy" => clean_or(Map.get(entry, "queuedBy"), @name_max, "Someone")
             })
@@ -780,6 +832,13 @@ defmodule Afterlight.Theater.Reducer do
 
   defp pick_for(_entry, _classified), do: %{}
 
+  # Twitch type/id are re-derived from the URL (never trusted from storage).
+  defp twitch_fields(%{kind: "twitch", twitch_type: type, twitch_id: id}) do
+    %{"twitchType" => type, "twitchId" => id}
+  end
+
+  defp twitch_fields(_classified), do: %{}
+
   def sanitize_torrent_pick(raw) when not is_map(raw) or is_struct(raw), do: nil
 
   def sanitize_torrent_pick(raw) do
@@ -822,17 +881,22 @@ defmodule Afterlight.Theater.Reducer do
       "queuedBy" => clean_or(queued_by, @name_max, "Someone")
     }
 
-    if classified.kind == "torrent" do
-      p = pick || %{}
+    cond do
+      classified.kind == "torrent" ->
+        p = pick || %{}
 
-      Map.merge(base, %{
-        "infohash" => classified.infohash,
-        "fileIndex" => Map.get(p, "fileIndex"),
-        "filePath" => Map.get(p, "filePath"),
-        "fileBytes" => Map.get(p, "fileBytes")
-      })
-    else
-      Map.merge(base, initial_prepare_fields(classified))
+        Map.merge(base, %{
+          "infohash" => classified.infohash,
+          "fileIndex" => Map.get(p, "fileIndex"),
+          "filePath" => Map.get(p, "filePath"),
+          "fileBytes" => Map.get(p, "fileBytes")
+        })
+
+      classified.kind == "twitch" ->
+        Map.merge(base, twitch_fields(classified))
+
+      true ->
+        Map.merge(base, initial_prepare_fields(classified))
     end
   end
 
@@ -879,15 +943,23 @@ defmodule Afterlight.Theater.Reducer do
     }
 
     base =
-      if Map.get(item, "kind") == "torrent" do
-        Map.merge(base, %{
-          "infohash" => Map.get(item, "infohash"),
-          "fileIndex" => Map.get(item, "fileIndex"),
-          "filePath" => Map.get(item, "filePath"),
-          "fileBytes" => Map.get(item, "fileBytes")
-        })
-      else
-        base
+      cond do
+        Map.get(item, "kind") == "torrent" ->
+          Map.merge(base, %{
+            "infohash" => Map.get(item, "infohash"),
+            "fileIndex" => Map.get(item, "fileIndex"),
+            "filePath" => Map.get(item, "filePath"),
+            "fileBytes" => Map.get(item, "fileBytes")
+          })
+
+        Map.get(item, "kind") == "twitch" ->
+          Map.merge(base, %{
+            "twitchType" => Map.get(item, "twitchType"),
+            "twitchId" => Map.get(item, "twitchId")
+          })
+
+        true ->
+          base
       end
 
     base = Map.merge(base, copy_prepare_fields(item))
@@ -911,15 +983,23 @@ defmodule Afterlight.Theater.Reducer do
       "queuedBy" => Map.get(current, "queuedBy")
     }
 
-    if Map.get(current, "kind") == "torrent" do
-      Map.merge(base, %{
-        "infohash" => Map.get(current, "infohash"),
-        "fileIndex" => Map.get(current, "fileIndex"),
-        "filePath" => Map.get(current, "filePath"),
-        "fileBytes" => Map.get(current, "fileBytes")
-      })
-    else
-      Map.merge(base, copy_prepare_fields(current))
+    cond do
+      Map.get(current, "kind") == "torrent" ->
+        Map.merge(base, %{
+          "infohash" => Map.get(current, "infohash"),
+          "fileIndex" => Map.get(current, "fileIndex"),
+          "filePath" => Map.get(current, "filePath"),
+          "fileBytes" => Map.get(current, "fileBytes")
+        })
+
+      Map.get(current, "kind") == "twitch" ->
+        Map.merge(base, %{
+          "twitchType" => Map.get(current, "twitchType"),
+          "twitchId" => Map.get(current, "twitchId")
+        })
+
+      true ->
+        Map.merge(base, copy_prepare_fields(current))
     end
   end
 
@@ -1222,6 +1302,61 @@ defmodule Afterlight.Theater.Reducer do
       _ -> nil
     end
   end
+
+  defp classify_twitch(url, host, path) do
+    if MapSet.member?(@twitch_clip_hosts, host) do
+      classify_twitch_clip_host(url, path)
+    else
+      classify_twitch_page(url, path)
+    end
+  end
+
+  defp classify_twitch_clip_host(url, path) do
+    case Regex.run(@twitch_clip_slug_re, path) do
+      [_, slug] -> %{kind: "twitch", url: url, twitch_type: "clip", twitch_id: slug}
+      _ -> nil
+    end
+  end
+
+  defp classify_twitch_page(url, path) do
+    case Regex.run(@twitch_vod_re, path) do
+      [_, id] ->
+        %{kind: "twitch", url: url, twitch_type: "video", twitch_id: id}
+
+      _ ->
+        case Regex.run(@twitch_channel_clip_re, path) do
+          [_, _channel, slug] ->
+            %{kind: "twitch", url: url, twitch_type: "clip", twitch_id: slug}
+
+          _ ->
+            case Regex.run(@twitch_channel_re, path) do
+              [_, channel] ->
+                if MapSet.member?(@twitch_reserved_paths, ascii_downcase(channel)) do
+                  nil
+                else
+                  %{kind: "twitch", url: url, twitch_type: "channel", twitch_id: channel}
+                end
+
+              _ ->
+                nil
+            end
+        end
+    end
+  end
+
+  @doc """
+  Whether the shared bill's seek op applies to an item. Live HLS channels,
+  Twitch live channels, and Twitch clips have no controllable timeline.
+  """
+  def is_seek_supported?(item) when is_map(item) do
+    cond do
+      Map.get(item, "kind") == "hls" and is_nil(Map.get(item, "playbackUrl")) -> false
+      Map.get(item, "kind") == "twitch" and Map.get(item, "twitchType") in ["channel", "clip"] -> false
+      true -> true
+    end
+  end
+
+  def is_seek_supported?(_item), do: false
 
   defp path_id(path, regex) do
     case Regex.run(regex, path) do

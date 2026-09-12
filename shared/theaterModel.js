@@ -2,14 +2,13 @@
  * Pure model for the shared theater screen (The Orpheum).
  *
  * Everything here is side-effect free so both the server (validation,
- * state application) and the tests (node --test) can rely on it, mirroring
- * shared/gardenModel.js. The client adds rendering on top; it never
- * invents shared state.
+ * state application) and the tests (node --test) can rely on it. The client
+ * adds rendering on top; it never invents shared state.
  *
  * State shape:
  *   {
  *     now: null | {
- *       id, kind: 'youtube'|'vimeo'|'file'|'hls'|'torrent', url, title,
+ *       id, kind: 'youtube'|'vimeo'|'file'|'hls'|'torrent'|'twitch', url, title,
  *       playing: boolean,
  *       positionSec: number,   // position valid AT updatedAt
  *       updatedAt: number,     // server Date.now() of last timeline write
@@ -17,8 +16,10 @@
  *       queuedBy: string,      // who put it in the queue (carried on advance)
  *       // torrent items only — the resolve→pick outcome (see torrentModel):
  *       fileIndex: number, filePath: string, fileBytes: number,
+ *       // twitch items only — channel|video|clip + its identifier:
+ *       twitchType: string, twitchId: string,
  *     },
- *     queue: [ { id, kind, url, title, queuedBy, (torrent pick fields) } ],
+ *     queue: [ { id, kind, url, title, queuedBy, (torrent/twitch fields) } ],
  *   }
  */
 
@@ -45,6 +46,7 @@ export const KIND_LABELS = {
   file: 'Video file',
   hls: 'Live stream (HLS)',
   torrent: 'Torrent stream',
+  twitch: 'Twitch',
 };
 
 export function defaultTitle(kind) {
@@ -54,6 +56,7 @@ export function defaultTitle(kind) {
     case 'hls': return 'Live channel';
     case 'file': return 'A video link';
     case 'torrent': return 'A torrent stream';
+    case 'twitch': return 'A Twitch stream';
     default: return 'Something to watch';
   }
 }
@@ -63,6 +66,20 @@ const YOUTUBE_HOSTS = new Set([
   'youtube-nocookie.com', 'www.youtube-nocookie.com', 'youtu.be', 'www.youtu.be',
 ]);
 const VIDEO_EXT = /\.(mp4|webm|m4v|mov|ogv|ogg|mkv|avi|wmv|flv|ts|m2ts)$/i;
+
+const TWITCH_HOSTS = new Set(['twitch.tv', 'www.twitch.tv', 'm.twitch.tv']);
+const TWITCH_CLIP_HOSTS = new Set(['clips.twitch.tv']);
+const TWITCH_CHANNEL_RE = /^\/([A-Za-z0-9_]{4,25})\/?$/;
+const TWITCH_CLIP_SLUG_RE = /^\/([A-Za-z0-9_-]{5,100})\/?$/;
+const TWITCH_CHANNEL_CLIP_RE = /^\/([A-Za-z0-9_]{4,25})\/clip\/([A-Za-z0-9_-]{5,100})\/?$/;
+const TWITCH_VOD_RE = /^\/videos\/(\d{6,})\/?$/;
+// Channel-shaped routes that are pages, not live channels.
+const TWITCH_RESERVED_PATHS = new Set([
+  'videos', 'directory', 'downloads', 'settings', 'subscriptions', 'inventory',
+  'wallet', 'drops', 'friends', 'search', 'following', 'communities', 'collections',
+  'event', 'events', 'jobs', 'turbo', 'bits', 'store', 'prime', 'login', 'signup',
+  'oauth2', 'embed', 'team', 'user', 'p',
+]);
 
 /**
  * Classify a user-supplied URL. Returns null for anything the screen must
@@ -125,10 +142,82 @@ export function classifySource(rawUrl) {
     return null;
   }
 
+  if (TWITCH_HOSTS.has(host) || TWITCH_CLIP_HOSTS.has(host)) {
+    return classifyTwitch(url, host, path);
+  }
+
   if (path.toLowerCase().endsWith('.m3u8')) return { kind: 'hls', url };
   if (VIDEO_EXT.test(path)) {
     const needsPrepare = extensionNeedsPrepare(url);
     return { kind: 'file', url, needsPrepare };
+  }
+  return null;
+}
+
+/**
+ * Classify a Twitch share link as a channel, VOD, or clip. Pages that do not
+ * name live content (directory, settings, player embeds) return null so they
+ * surface the ordinary unsupported-link error instead of reaching the bill.
+ */
+function classifyTwitch(url, host, path) {
+  if (TWITCH_CLIP_HOSTS.has(host)) {
+    const m = path.match(TWITCH_CLIP_SLUG_RE);
+    return m ? { kind: 'twitch', url, twitchType: 'clip', twitchId: m[1] } : null;
+  }
+  const vod = path.match(TWITCH_VOD_RE);
+  if (vod) return { kind: 'twitch', url, twitchType: 'video', twitchId: vod[1] };
+  const channelClip = path.match(TWITCH_CHANNEL_CLIP_RE);
+  if (channelClip) return { kind: 'twitch', url, twitchType: 'clip', twitchId: channelClip[2] };
+  const channel = path.match(TWITCH_CHANNEL_RE);
+  if (channel && !TWITCH_RESERVED_PATHS.has(channel[1].toLowerCase())) {
+    return { kind: 'twitch', url, twitchType: 'channel', twitchId: channel[1] };
+  }
+  return null;
+}
+
+/**
+ * Whether the shared bill's seek op applies to an item. Live HLS channels,
+ * Twitch live channels, and Twitch clips have no controllable timeline.
+ */
+export function isSeekSupported(item) {
+  if (!item) return false;
+  if (item.kind === 'hls' && !item.playbackUrl) return false;
+  if (item.kind === 'twitch' && (item.twitchType === 'channel' || item.twitchType === 'clip')) return false;
+  return true;
+}
+
+/** Strip anything but the host from a serving origin (Twitch's `parent`). */
+function cleanParent(value) {
+  if (typeof value !== 'string') return '';
+  let host = value.trim();
+  if (!host) return '';
+  if (host.includes('://')) {
+    try {
+      host = new URL(host).hostname;
+    } catch {
+      return '';
+    }
+  }
+  host = host.split('/')[0].split('?')[0].split('#')[0].split(':')[0].toLowerCase();
+  return host;
+}
+
+/**
+ * Official Twitch embed URL (iframe src) for a classified Twitch source.
+ * VOD ids carry the `v` prefix in the iframe URL; `parent` must be the
+ * hostname serving the game (never scheme, port, or path).
+ */
+export function buildTwitchEmbedUrl(twitchType, twitchId, parent) {
+  const host = cleanParent(parent);
+  if (!host || typeof twitchId !== 'string' || !twitchId) return null;
+  if (twitchType === 'channel') {
+    return `https://player.twitch.tv/?channel=${encodeURIComponent(twitchId)}&parent=${encodeURIComponent(host)}&autoplay=true`;
+  }
+  if (twitchType === 'video') {
+    return `https://player.twitch.tv/?video=v${encodeURIComponent(twitchId)}&parent=${encodeURIComponent(host)}&autoplay=true`;
+  }
+  if (twitchType === 'clip') {
+    return `https://clips.twitch.tv/embed?clip=${encodeURIComponent(twitchId)}&parent=${encodeURIComponent(host)}&autoplay=true`;
   }
   return null;
 }
@@ -165,9 +254,12 @@ function makeItem(classified, title, queuedBy, nowMs, pick = null) {
     videoId: classified.videoId || null,
     title: cleanText(title) || defaultTitle(classified.kind),
     queuedBy: cleanText(queuedBy, 40) || 'Someone',
-    // Torrent items carry their chosen file; other kinds keep nulls.
+    // Torrent items carry their chosen file; twitch items their type/id.
     ...(classified.kind === 'torrent'
       ? { infohash: classified.infohash, fileIndex: pick.fileIndex, filePath: pick.filePath, fileBytes: pick.fileBytes }
+      : {}),
+    ...(classified.kind === 'twitch'
+      ? { twitchType: classified.twitchType, twitchId: classified.twitchId }
       : {}),
     ...initialPrepareFields(classified),
   };
@@ -182,6 +274,9 @@ function startNow(item, actor, nowMs) {
     title: item.title,
     ...(item.kind === 'torrent'
       ? { infohash: item.infohash, fileIndex: item.fileIndex, filePath: item.filePath, fileBytes: item.fileBytes }
+      : {}),
+    ...(item.kind === 'twitch'
+      ? { twitchType: item.twitchType, twitchId: item.twitchId }
       : {}),
     ...copyPrepareFields(item),
     playing: true,
@@ -304,6 +399,9 @@ export function applyTheaterAction(prevState, action, actor, nowMs = Date.now())
         ...(current.kind === 'torrent'
           ? { infohash: current.infohash, fileIndex: current.fileIndex, filePath: current.filePath, fileBytes: current.fileBytes }
           : {}),
+        ...(current.kind === 'twitch'
+          ? { twitchType: current.twitchType, twitchId: current.twitchId }
+          : {}),
         ...copyPrepareFields(current),
       });
     }
@@ -347,8 +445,9 @@ export function applyTheaterAction(prevState, action, actor, nowMs = Date.now())
   if (op === 'seek') {
     if (!state.now) return ack('nothing_playing');
     if (action.itemId && action.itemId !== state.now.id) return ack('item_mismatch');
-    // Live HLS channel flips cannot seek; prepared compatibility HLS can.
-    if (state.now.kind === 'hls' && !state.now.playbackUrl) return ack('seek_unsupported');
+    // Live HLS channels and live/clip Twitch items have no controllable
+    // timeline; prepared compatibility HLS and Twitch VODs can seek.
+    if (!isSeekSupported(state.now)) return ack('seek_unsupported');
     const pos = Number(action.positionSec);
     if (!Number.isFinite(pos)) return ack('invalid_position');
     state.now.positionSec = Math.max(0, pos);
@@ -393,7 +492,7 @@ export function applyTheaterAction(prevState, action, actor, nowMs = Date.now())
 /** Readable message for a reducer error reason (client + server reuse). */
 export function theaterErrorText(reason) {
   switch (reason) {
-    case 'invalid_url': return 'That link is not something the projector can play. Try YouTube, Vimeo, a direct video file, or an .m3u8 stream.';
+    case 'invalid_url': return 'That link is not something the projector can play. Try YouTube, Vimeo, Twitch, a direct video file, or an .m3u8 stream.';
     case 'no_file_chosen': return 'Pick a file from that torrent first \u2014 paste the magnet and choose from its file list.';
     case 'url_too_long': return 'That link is far too long to pin to the marquee.';
     case 'queue_full': return 'The queue reel is full. Remove something first.';
@@ -507,6 +606,10 @@ export function normalizeTheaterState(raw, nowMs = Date.now()) {
       fileBytes: pick.fileBytes,
     };
   };
+  // Twitch type/id are re-derived from the URL (never trusted from storage).
+  const twitchFor = (classified) => (classified.kind === 'twitch'
+    ? { twitchType: classified.twitchType, twitchId: classified.twitchId }
+    : {});
 
   if (raw.now && typeof raw.now === 'object') {
     const classified = classifySource(raw.now.url);
@@ -522,6 +625,7 @@ export function normalizeTheaterState(raw, nowMs = Date.now()) {
         videoId: classified.videoId || null,
         title: cleanText(raw.now.title) || defaultTitle(classified.kind),
         ...pick,
+        ...twitchFor(classified),
         ...sanitizePrepareFields(raw.now, classified),
         playing: raw.now.playing !== false,
         positionSec: Number.isFinite(Number(raw.now.positionSec)) && Number(raw.now.positionSec) >= 0
@@ -548,6 +652,7 @@ export function normalizeTheaterState(raw, nowMs = Date.now()) {
         videoId: classified.videoId || null,
         title: cleanText(entry.title) || defaultTitle(classified.kind),
         ...pick,
+        ...twitchFor(classified),
         ...sanitizePrepareFields(entry, classified),
         queuedBy: cleanText(entry.queuedBy, 40) || 'Someone',
       });

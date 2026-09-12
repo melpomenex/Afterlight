@@ -461,6 +461,132 @@
       }
     },
     {
+      "id": "classify/https_www.twitch.tv_shroud",
+      "fn": "classifySource",
+      "args": [
+        "https://www.twitch.tv/shroud"
+      ],
+      "expected": {
+        "kind": "twitch",
+        "url": "https://www.twitch.tv/shroud",
+        "twitchType": "channel",
+        "twitchId": "shroud"
+      }
+    },
+    {
+      "id": "classify/https_twitch.tv_some_channel_99_",
+      "fn": "classifySource",
+      "args": [
+        "https://twitch.tv/some_channel_99/"
+      ],
+      "expected": {
+        "kind": "twitch",
+        "url": "https://twitch.tv/some_channel_99/",
+        "twitchType": "channel",
+        "twitchId": "some_channel_99"
+      }
+    },
+    {
+      "id": "classify/https_m.twitch.tv_some_channel_99",
+      "fn": "classifySource",
+      "args": [
+        "https://m.twitch.tv/some_channel_99"
+      ],
+      "expected": {
+        "kind": "twitch",
+        "url": "https://m.twitch.tv/some_channel_99",
+        "twitchType": "channel",
+        "twitchId": "some_channel_99"
+      }
+    },
+    {
+      "id": "classify/https_www.twitch.tv_videos_40464143",
+      "fn": "classifySource",
+      "args": [
+        "https://www.twitch.tv/videos/40464143"
+      ],
+      "expected": {
+        "kind": "twitch",
+        "url": "https://www.twitch.tv/videos/40464143",
+        "twitchType": "video",
+        "twitchId": "40464143"
+      }
+    },
+    {
+      "id": "classify/https_clips.twitch.tv_JoyousGeniusRabbit",
+      "fn": "classifySource",
+      "args": [
+        "https://clips.twitch.tv/JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf"
+      ],
+      "expected": {
+        "kind": "twitch",
+        "url": "https://clips.twitch.tv/JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf",
+        "twitchType": "clip",
+        "twitchId": "JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf"
+      }
+    },
+    {
+      "id": "classify/https_www.twitch.tv_shroud_clip_Incredul",
+      "fn": "classifySource",
+      "args": [
+        "https://www.twitch.tv/shroud/clip/IncredulousAbstemiousFennelImGlitch"
+      ],
+      "expected": {
+        "kind": "twitch",
+        "url": "https://www.twitch.tv/shroud/clip/IncredulousAbstemiousFennelImGlitch",
+        "twitchType": "clip",
+        "twitchId": "IncredulousAbstemiousFennelImGlitch"
+      }
+    },
+    {
+      "id": "classify/https_www.twitch.tv_directory",
+      "fn": "classifySource",
+      "args": [
+        "https://www.twitch.tv/directory"
+      ],
+      "expected": null
+    },
+    {
+      "id": "classify/https_www.twitch.tv_videos",
+      "fn": "classifySource",
+      "args": [
+        "https://www.twitch.tv/videos"
+      ],
+      "expected": null
+    },
+    {
+      "id": "classify/https_www.twitch.tv_settings",
+      "fn": "classifySource",
+      "args": [
+        "https://www.twitch.tv/settings"
+      ],
+      "expected": null
+    },
+    {
+      "id": "classify/https_player.twitch.tv_channel_shroud",
+      "fn": "classifySource",
+      "args": [
+        "https://player.twitch.tv/?channel=shroud"
+      ],
+      "expected": null
+    },
+    {
+      "id": "classify/https_www.twitch.tv_shr",
+      "fn": "classifySource",
+      "args": [
+        "https://www.twitch.tv/shr"
+      ],
+      "expected": null
+    },
+    {
+      "id": "classify/https_clips.twitch.tv_",
+      "fn": "classifySource",
+      "args": [
+        "https://clips.twitch.tv/"
+      ],
+      "expected": null
+    },
+    {
       "id": "reducer/seed-state",
       "kind": "script",
       "steps": [
@@ -3855,6 +3981,311 @@
       }
     },
     {
+      "id": "reducer/add-twitch-channel",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": null,
+          "queue": []
+        },
+        {
+          "op": "add",
+          "url": "https://www.twitch.tv/shroud"
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "state": {
+          "now": {
+            "id": "<gen:0>",
+            "kind": "twitch",
+            "url": "https://www.twitch.tv/shroud",
+            "videoId": null,
+            "title": "A Twitch stream",
+            "twitchType": "channel",
+            "twitchId": "shroud",
+            "playing": true,
+            "positionSec": 0,
+            "updatedAt": 1700000000000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": []
+        },
+        "error": null
+      }
+    },
+    {
+      "id": "reducer/add-twitch-vod",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": null,
+          "queue": []
+        },
+        {
+          "op": "add",
+          "url": "https://www.twitch.tv/videos/40464143",
+          "title": "A VOD"
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "state": {
+          "now": {
+            "id": "<gen:0>",
+            "kind": "twitch",
+            "url": "https://www.twitch.tv/videos/40464143",
+            "videoId": null,
+            "title": "A VOD",
+            "twitchType": "video",
+            "twitchId": "40464143",
+            "playing": true,
+            "positionSec": 0,
+            "updatedAt": 1700000000000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": []
+        },
+        "error": null
+      }
+    },
+    {
+      "id": "reducer/add-twitch-clip",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": null,
+          "queue": []
+        },
+        {
+          "op": "add",
+          "url": "https://clips.twitch.tv/JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf"
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "state": {
+          "now": {
+            "id": "<gen:0>",
+            "kind": "twitch",
+            "url": "https://clips.twitch.tv/JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf",
+            "videoId": null,
+            "title": "A Twitch stream",
+            "twitchType": "clip",
+            "twitchId": "JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf",
+            "playing": true,
+            "positionSec": 0,
+            "updatedAt": 1700000000000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": []
+        },
+        "error": null
+      }
+    },
+    {
+      "id": "reducer/channel-twitch-clip",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": {
+            "id": "<gen:0>",
+            "kind": "youtube",
+            "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "videoId": "dQw4w9WgXcQ",
+            "title": "Never Gonna Give You Up",
+            "playing": true,
+            "positionSec": 0,
+            "updatedAt": 1700000000000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": [
+            {
+              "id": "<gen:1>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:2>",
+              "kind": "youtube",
+              "url": "https://youtu.be/abc12345678",
+              "videoId": "abc12345678",
+              "title": "Second",
+              "queuedBy": "parity_actor"
+            }
+          ]
+        },
+        {
+          "op": "channel",
+          "url": "https://clips.twitch.tv/JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf"
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000060000,
+      "expected": {
+        "state": {
+          "now": {
+            "id": "<gen:3>",
+            "kind": "twitch",
+            "url": "https://clips.twitch.tv/JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf",
+            "videoId": null,
+            "title": "A Twitch stream",
+            "twitchType": "clip",
+            "twitchId": "JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf",
+            "playing": true,
+            "positionSec": 0,
+            "updatedAt": 1700000060000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": [
+            {
+              "id": "<gen:1>",
+              "kind": "file",
+              "url": "https://example.com/media/clip.mp4",
+              "videoId": null,
+              "title": "A video link",
+              "queuedBy": "parity_actor"
+            },
+            {
+              "id": "<gen:2>",
+              "kind": "youtube",
+              "url": "https://youtu.be/abc12345678",
+              "videoId": "abc12345678",
+              "title": "Second",
+              "queuedBy": "parity_actor"
+            }
+          ]
+        },
+        "error": null
+      }
+    },
+    {
+      "id": "reducer/seek-twitch-channel-unsupported",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": {
+            "id": "<gen:0>",
+            "kind": "twitch",
+            "url": "https://www.twitch.tv/shroud",
+            "videoId": null,
+            "title": "A Twitch stream",
+            "twitchType": "channel",
+            "twitchId": "shroud",
+            "playing": true,
+            "positionSec": 0,
+            "updatedAt": 1700000000000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": []
+        },
+        {
+          "op": "seek",
+          "positionSec": 10
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000060000,
+      "expected": {
+        "state": null,
+        "error": "seek_unsupported"
+      }
+    },
+    {
+      "id": "reducer/seek-twitch-clip-unsupported",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": {
+            "id": "<gen:0>",
+            "kind": "twitch",
+            "url": "https://clips.twitch.tv/JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf",
+            "videoId": null,
+            "title": "A Twitch stream",
+            "twitchType": "clip",
+            "twitchId": "JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf",
+            "playing": true,
+            "positionSec": 0,
+            "updatedAt": 1700000000000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": []
+        },
+        {
+          "op": "seek",
+          "positionSec": 10
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000060000,
+      "expected": {
+        "state": null,
+        "error": "seek_unsupported"
+      }
+    },
+    {
+      "id": "reducer/seek-twitch-vod",
+      "fn": "applyTheaterAction",
+      "args": [
+        {
+          "now": {
+            "id": "<gen:0>",
+            "kind": "twitch",
+            "url": "https://www.twitch.tv/videos/40464143",
+            "videoId": null,
+            "title": "A Twitch stream",
+            "twitchType": "video",
+            "twitchId": "40464143",
+            "playing": true,
+            "positionSec": 0,
+            "updatedAt": 1700000000000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": []
+        },
+        {
+          "op": "seek",
+          "positionSec": 42.5
+        },
+        "parity_actor"
+      ],
+      "nowMs": 1700000060000,
+      "expected": {
+        "state": {
+          "now": {
+            "id": "<gen:0>",
+            "kind": "twitch",
+            "url": "https://www.twitch.tv/videos/40464143",
+            "videoId": null,
+            "title": "A Twitch stream",
+            "twitchType": "video",
+            "twitchId": "40464143",
+            "playing": true,
+            "positionSec": 42.5,
+            "updatedAt": 1700000060000,
+            "by": "parity_actor",
+            "queuedBy": "parity_actor"
+          },
+          "queue": []
+        },
+        "error": null
+      }
+    },
+    {
       "id": "reducer/new-item-id-pinned",
       "fn": "newItemId",
       "args": [
@@ -5425,6 +5856,64 @@
             "url": "https://example.com/media/clip.mp4",
             "videoId": null,
             "title": "keep",
+            "queuedBy": "Someone"
+          }
+        ]
+      }
+    },
+    {
+      "id": "normalize/twitch-fields-rederived",
+      "fn": "normalizeTheaterState",
+      "args": [
+        {
+          "now": {
+            "id": "itm_t",
+            "kind": "twitch",
+            "url": "https://www.twitch.tv/videos/40464143",
+            "title": "V",
+            "playing": true,
+            "positionSec": 5,
+            "updatedAt": 1700000000000,
+            "twitchType": "channel",
+            "twitchId": "spoofed"
+          },
+          "queue": [
+            {
+              "id": "itm_c",
+              "kind": "twitch",
+              "url": "https://clips.twitch.tv/JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf",
+              "title": "C",
+              "twitchType": "video",
+              "twitchId": "spoofed"
+            }
+          ]
+        }
+      ],
+      "nowMs": 1700000000000,
+      "expected": {
+        "now": {
+          "id": "itm_t",
+          "kind": "twitch",
+          "url": "https://www.twitch.tv/videos/40464143",
+          "videoId": null,
+          "title": "V",
+          "twitchType": "video",
+          "twitchId": "40464143",
+          "playing": true,
+          "positionSec": 5,
+          "updatedAt": 1700000000000,
+          "by": "Someone",
+          "queuedBy": "Someone"
+        },
+        "queue": [
+          {
+            "id": "itm_c",
+            "kind": "twitch",
+            "url": "https://clips.twitch.tv/JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf",
+            "videoId": null,
+            "title": "C",
+            "twitchType": "clip",
+            "twitchId": "JoyousGeniusRabbitHeyGirl-9owuUeWU12SCXVzf",
             "queuedBy": "Someone"
           }
         ]
