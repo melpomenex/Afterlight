@@ -229,6 +229,10 @@ export function createPoolInstance({
       return controller.setShotCharging(pressed);
     },
 
+    neutralizeInput() {
+      controller.neutralizeInput?.();
+    },
+
     /**
      * Active-only frame loop update.
      */

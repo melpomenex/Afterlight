@@ -320,6 +320,16 @@ export function createFoosballController({
       pointerActive = false;
     },
 
+    /** Focus entering the media chrome must not leave a rod key held. */
+    neutralizeInput() {
+      keys.up = false;
+      keys.down = false;
+      keys.left = false;
+      keys.right = false;
+      keys.kick = false;
+      pointerActive = false;
+    },
+
     setSlot(newSlot) {
       slot = newSlot;
       updateHUD();

@@ -632,7 +632,17 @@ export function createPoolController({
   }
 
   function onBlur() {
+    neutralizeInput();
+  }
+
+  /**
+   * Neutralize every held action without firing: focus moving into the
+   * floating media chrome (or window blur) must not leave a charge charging
+   * or an aim key held when its keyup is delivered elsewhere.
+   */
+  function neutralizeInput() {
     heldKeys.clear();
+    hasAimTarget = false;
     cancelShotCharging();
   }
 
@@ -688,6 +698,7 @@ export function createPoolController({
 
     setShotCharging,
     cancelShotCharging,
+    neutralizeInput,
 
     calculateImpact(cueX, cueZ, angle, simState) {
       return calculateImpact(cueX, cueZ, angle, simState || currentSim);

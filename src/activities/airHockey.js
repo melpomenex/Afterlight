@@ -129,6 +129,10 @@ export function createAirHockeyInstance({
     controller,
     audio,
 
+    neutralizeInput() {
+      controller.neutralizeInput?.();
+    },
+
     getSimState() {
       return simState;
     },

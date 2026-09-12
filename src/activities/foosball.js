@@ -105,6 +105,10 @@ export function createFoosballInstance({
     controller,
     audio,
 
+    neutralizeInput() {
+      controller.neutralizeInput?.();
+    },
+
     getSimState() {
       return simState;
     },

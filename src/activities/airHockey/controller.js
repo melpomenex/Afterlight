@@ -224,6 +224,11 @@ export function createAirHockeyController({
       }
     },
 
+    /** Focus entering the media chrome must not leave a mallet key held. */
+    neutralizeInput() {
+      Object.keys(keys).forEach(k => { keys[k] = false; });
+    },
+
     setStatus(status, text) {
       matchStatus = status;
       if (statusBanner) {

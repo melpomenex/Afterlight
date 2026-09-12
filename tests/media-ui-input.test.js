@@ -109,3 +109,59 @@ test('pool: media chrome F events never charge or fire; normal F still shoots', 
     globalThis.window = previousWindow;
   }
 });
+
+test('pool: media focus neutralization cancels a held charge without firing', async () => {
+  const { createPoolInstance } = await import('../src/activities/pool.js');
+  const listeners = [];
+  const previousWindow = globalThis.window;
+  globalThis.window = {
+    addEventListener: (type, fn, capture) => listeners.push({ type, fn, capture }),
+    removeEventListener: () => {},
+  };
+  const gameTarget = { tagName: 'CANVAS', closest: () => null };
+  const fakeKeyEvent = (target) => ({
+    code: 'KeyF',
+    target,
+    cancelable: true,
+    preventDefault() {},
+    stopImmediatePropagation() {},
+    stopPropagation() {},
+  });
+  try {
+    const inputs = [];
+    const activityDef = { id: 'pool', type: 'pool' };
+    const instance = createPoolInstance({
+      activityDef,
+      getParticipation: () => ({
+        isParticipating: true,
+        currentActivity: activityDef,
+        currentSlot: 0,
+        sessionId: 'session',
+        lease: 'lease',
+      }),
+      net: { sendActivityInput: (input) => inputs.push(input) },
+    });
+    try {
+      instance.update(0, 0);
+      instance.acceptResult({ result: 'ready' });
+      const keydowns = listeners.filter((l) => l.type === 'keydown').map((l) => l.fn);
+      const keyups = listeners.filter((l) => l.type === 'keyup').map((l) => l.fn);
+
+      for (const fn of keydowns) fn(fakeKeyEvent(gameTarget));
+      assert.equal(instance.controller.isCharging, true, 'F starts the charge');
+      instance.update(0.5, 0.5);
+      assert.ok(instance.controller.shotPower > 0.35, 'power grew');
+
+      // Focus enters the floating chrome: held input is neutralized.
+      instance.neutralizeInput();
+      assert.equal(instance.controller.isCharging, false, 'the charge is cancelled, not fired');
+      assert.equal(instance.controller.shotPower, 0.35, 'power returns to baseline');
+      for (const fn of keyups) fn(fakeKeyEvent(gameTarget));
+      assert.equal(inputs.length, 0, 'the suppressed release never fires a shot');
+    } finally {
+      instance.dispose();
+    }
+  } finally {
+    globalThis.window = previousWindow;
+  }
+});
