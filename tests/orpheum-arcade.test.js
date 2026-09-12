@@ -195,6 +195,32 @@ test('Orpheum accessible routes have >= 1.2m width and connect all cabinets to s
   }
 });
 
+test('Orpheum proscenium clearance leaves the Pong approach lane walkable', () => {
+  // The solid proscenium band (fix-theater-geometry-clipping) ends at the
+  // anchor clearance line; the queue lane east of the seats and west of the
+  // cabinet collision must stay continuously walkable from the machines to
+  // the travel gate.
+  const theaterDef = getPlaceDefinition('theater');
+  const world = buildDistrict(theaterDef);
+  const b = theaterDef.bounds;
+  const isFree = (x, z) => (
+    x > b.minX && x < b.maxX &&
+    z > b.minZ && z < b.maxZ &&
+    !world.obstacles.some(o => Math.abs(x - o.x) < o.w && Math.abs(z - o.z) < o.d)
+  );
+
+  const pong = ORPHEUM_ACTIVITIES.find(act => act.id === 'orpheum-pong');
+  assert.ok(pong, 'Pong activity declared');
+  for (let z = -7.35; z <= 0.0001; z += 0.1) {
+    assert.ok(isFree(9.3, z), `Pong approach lane [9.3, ${z.toFixed(2)}] is walkable`);
+  }
+  for (const anchor of pong.participantAnchors) {
+    for (const dismount of anchor.dismount ?? []) {
+      assert.ok(isFree(dismount.x, dismount.z), `dismount [${dismount.x}, ${dismount.z}] stays walkable`);
+    }
+  }
+});
+
 test('Movie screen sightlines remain unobstructed from all theater seats', () => {
   const theaterDef = getPlaceDefinition('theater');
   const world = buildDistrict(theaterDef);

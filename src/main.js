@@ -11,7 +11,7 @@ import { buildMarketWorld } from './world/marketWorld.js';
 import { buildGardenWorld } from './world/gardenWorld.js';
 import { districts, buildDistrict, readExploration } from './districts.js';
 import { getPlaceActivities, getPlaceDefinition } from '../shared/placeDefinitions.js';
-import { gateItemsFor } from './places/worldFactory.js';
+import { gateItemsFor, gateVisualBoxesFor } from './places/worldFactory.js';
 import { getBoundsForRoom, isWalkable, clampClickTarget, projectToMinimap } from './world/bounds.js';
 import { UIManager } from './ui/marketModal.js';
 import { ChatPanel } from './ui/chatPanel.js';
@@ -452,12 +452,12 @@ function getOrCreateDistrictWorld(distId) {
   const gateGeo = new THREE.BoxGeometry(1, 1, 1);
   const gateMat = new THREE.MeshStandardMaterial({ color: '#c5b478', emissive: '#857545', emissiveIntensity: 0.6 });
   const archMat = new THREE.MeshStandardMaterial({ color: '#2b3d3e', roughness: 0.6 });
-  for (const gx of [-10.7, 10.7]) {
-    const arch = new THREE.Mesh(gateGeo, archMat); arch.position.set(gx, 2.5, 0); arch.scale.set(0.6, 5, 2.4); world.group.add(arch);
-    const portal = new THREE.Mesh(gateGeo, gateMat); portal.position.set(gx, 1.8, 0); portal.scale.set(0.1, 3.4, 1.8); world.group.add(portal);
+  for (const gate of gateVisualBoxesFor(def)) {
+    const slab = new THREE.Mesh(gateGeo, gate.role === 'arch' ? archMat : gateMat);
+    slab.position.set(gate.x, gate.y, gate.z);
+    slab.scale.set(gate.w, gate.h, gate.d);
+    world.group.add(slab);
   }
-  const southArch = new THREE.Mesh(gateGeo, archMat); southArch.position.set(0, 2.5, 8.8); southArch.scale.set(2.4, 5, 0.6); world.group.add(southArch);
-  const southPortal = new THREE.Mesh(gateGeo, gateMat); southPortal.position.set(0, 1.8, 8.8); southPortal.scale.set(1.8, 3.4, 0.1); world.group.add(southPortal);
 
   world.ownedResources.geometries.push(gateGeo);
   world.ownedResources.materials.push(gateMat, archMat);

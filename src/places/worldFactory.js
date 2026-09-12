@@ -155,6 +155,24 @@ export function gateItemsFor(def) {
   return items;
 }
 
+// Generic legacy gate visual volumes: the dark arch slab and its glowing
+// portal for every declared exit. Side gates (west/east) are thin in x; the
+// axial market gate is thin in z. main.js renders exactly these boxes, and a
+// builder that opts into solid gate slabs blocks the same volumes, so the
+// rendered slab and its collision can never drift apart.
+export function gateVisualBoxesFor(def) {
+  const boxes = [];
+  for (const exit of def.exits ?? []) {
+    const [gx, gz] = exit.position;
+    const side = Math.abs(gx) >= Math.abs(gz);
+    boxes.push(
+      { role: 'arch', x: gx, y: 2.5, z: gz, w: side ? 0.6 : 2.4, h: 5, d: side ? 2.4 : 0.6 },
+      { role: 'portal', x: gx, y: 1.8, z: gz, w: side ? 0.1 : 1.8, h: 3.4, d: side ? 1.8 : 0.1 },
+    );
+  }
+  return boxes;
+}
+
 // Builds one place world. The definition is validated (reporting its id)
 // before any geometry exists, and a builder failure disposes exactly the
 // resources this factory tracked — never shared module caches or other

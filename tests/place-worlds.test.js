@@ -8,7 +8,7 @@ import {
   getPlaceDefinition,
 } from '../shared/placeDefinitions.js';
 import { registerPlaceBuilder } from '../src/places/registry.js';
-import { buildPlaceWorld, gateItemsFor } from '../src/places/worldFactory.js';
+import { buildPlaceWorld, gateItemsFor, gateVisualBoxesFor } from '../src/places/worldFactory.js';
 import { buildDistrict } from '../src/districts.js';
 
 // The fixture builder is deliberately tiny: one prop and one collision box,
@@ -71,6 +71,17 @@ test('gate items reproduce the exact legacy copy from the declared exits', () =>
   assert.equal(courtGates[0].targetDistrict, 'theater', 'court west gate wraps around to the theater');
   assert.equal(courtGates[0].title, 'Gate to The Orpheum');
   assert.equal(courtGates[1].targetDistrict, 'canal');
+});
+
+test('legacy gate visuals return the exact historical arch and portal volumes', () => {
+  assert.deepEqual(gateVisualBoxesFor(getPlaceDefinition('theater')), [
+    { role: 'arch', x: -10.7, y: 2.5, z: 0, w: 0.6, h: 5, d: 2.4 },
+    { role: 'portal', x: -10.7, y: 1.8, z: 0, w: 0.1, h: 3.4, d: 1.8 },
+    { role: 'arch', x: 10.7, y: 2.5, z: 0, w: 0.6, h: 5, d: 2.4 },
+    { role: 'portal', x: 10.7, y: 1.8, z: 0, w: 0.1, h: 3.4, d: 1.8 },
+    { role: 'arch', x: 0, y: 2.5, z: 8.8, w: 2.4, h: 5, d: 0.6 },
+    { role: 'portal', x: 0, y: 1.8, z: 8.8, w: 1.8, h: 3.4, d: 0.1 },
+  ]);
 });
 
 function worldFingerprint(def) {

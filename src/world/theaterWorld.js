@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { theaterMaterials } from './theaterTextures.js';
 import { THEATER_CHANDELIER } from './theaterChandelierGeometry.js';
+import { gateVisualBoxesFor } from '../places/worldFactory.js';
 
 // The Orpheum auditorium. Large forms first: north wall and proscenium,
 // coffered ceiling over the stage, grand arch, seat rows, projection booth.
@@ -22,8 +23,72 @@ import { THEATER_CHANDELIER } from './theaterChandelierGeometry.js';
 // Seat rows sit at z = 0.3 / 2.5 / 4.7: shifted south of the screen wall so
 // the player spawn (-9, 0) and the Kiln companion spawn (-8.2, 1) stay clear
 // of the outermost seats while keeping two cross-aisles between the rows.
+//
+// Solid scenery contract: every form tall enough to enter the standing eye
+// band and reachable inside the walkable area is declared in
+// THEATER_SOLID_VOLUMES and blocked from that table, and the rendered gate
+// arches come from gateVisualBoxesFor(def) so collision can never drift from
+// the slabs. The first-person camera (near = 0.1) is only kept out of
+// geometry by these obstacles — keep the tables and the visuals in sync
+// (tests/theater-scenery.test.js asserts the coverage and clearance).
+
+// Floor coverings as pure data so footprints stay auditable: the retired
+// lobby darts oche, for example, used to cross the Summit Run bay runner.
+// `kind` picks the render treatment — textured `carpet`, flat `runner` with a
+// full brass frame, or plain `rug` with its inset trim — and `border` names
+// the trim style so the renderer and any overlap test share one source.
+export const THEATER_FLOOR_PADS = Object.freeze([
+  Object.freeze({ id: 'house-carpet', kind: 'carpet', x: 0, z: -.1, w: 18.6, d: 14.0 }),
+  Object.freeze({ id: 'lobby-carpet', kind: 'carpet', x: 0, z: 8, w: 18.6, d: 2 }),
+  Object.freeze({ id: 'arcade-runner', kind: 'runner', x: 9.1, z: -4.5, w: 3.8, d: 7.8, color: '#1e2430', border: 'full' }),
+  Object.freeze({ id: 'summit-runner', kind: 'runner', x: 9.1, z: 2.6, w: 3.8, d: 3.4, color: '#1e2430', border: 'full' }),
+  Object.freeze({ id: 'pool-runner', kind: 'runner', x: -8.6, z: -4.5, w: 3.4, d: 4.8, color: '#1e2430', border: 'full' }),
+  Object.freeze({ id: 'air-hockey-bay', kind: 'runner', x: 5.8, z: 7.0, w: 3.2, d: 2.4, color: '#1e2430', border: 'full' }),
+  Object.freeze({ id: 'foosball-bay', kind: 'runner', x: -5.8, z: 7.0, w: 3.2, d: 2.4, color: '#1c2826', border: 'full' }),
+  Object.freeze({ id: 'piano-rug', kind: 'rug', x: -2.2, z: 5.8, w: 1.7, d: .9, color: '#2c2018', border: 'z-inset' }),
+  Object.freeze({ id: 'photo-pad', kind: 'rug', x: 2.4, z: 8.15, w: 1.6, d: 1.1, color: '#3a1c22', border: 'north-inset' }),
+]);
+
+// Solid scenic footprints (full extents) that receive collision in addition
+// to the props that already declare their own: the architectural wall lines
+// and every tall fixture inside the walkable band. The scenery tests assert
+// each one is obstacle-covered with at least the 0.38 actor/near-plane
+// clearance, so the first-person camera can never enter these forms. Low
+// litter, floor pads and stage steps deliberately stay out of this list.
+export const THEATER_SOLID_VOLUMES = Object.freeze([
+  Object.freeze({ id: 'north-wall', x: 0, z: -9.55, w: 23.4, d: .3 }),
+  Object.freeze({ id: 'south-wall', x: 0, z: 10.15, w: 23.4, d: .3 }),
+  Object.freeze({ id: 'west-wall', x: -11.5, z: -1.4, w: .3, d: 15.6 }),
+  Object.freeze({ id: 'east-marquee', x: 11.12, z: -4.65, w: .24, d: 3.5 }),
+  Object.freeze({ id: 'east-sconce-north', x: 11.33, z: -4.5, w: .3, d: .45 }),
+  Object.freeze({ id: 'east-sconce-mid', x: 11.33, z: 2.8, w: .3, d: .45 }),
+  Object.freeze({ id: 'east-sconce-south', x: 11.33, z: 6.4, w: .3, d: .45 }),
+  Object.freeze({ id: 'exit-casing-en', x: 11.08, z: 2.6, w: .3, d: .45 }),
+  Object.freeze({ id: 'exit-casing-es', x: 11.08, z: -2.6, w: .3, d: .45 }),
+  Object.freeze({ id: 'exit-casing-wn', x: -11.08, z: 2.6, w: .3, d: .45 }),
+  Object.freeze({ id: 'exit-casing-ws', x: -11.08, z: -2.6, w: .3, d: .45 }),
+  Object.freeze({ id: 'proscenium-east-pier', x: 8.55, z: -8.45, w: 1.6, d: 1.2 }),
+  Object.freeze({ id: 'proscenium-west-pier', x: -8.55, z: -8.45, w: 1.6, d: 1.2 }),
+  Object.freeze({ id: 'proscenium-east-reveal', x: 7.3, z: -8.65, w: .8, d: 1.5 }),
+  Object.freeze({ id: 'proscenium-west-reveal', x: -7.3, z: -8.65, w: .8, d: 1.5 }),
+  Object.freeze({ id: 'proscenium-east-drape', x: 9.35, z: -8.9, w: 1.8, d: 1.8 }),
+  Object.freeze({ id: 'proscenium-west-drape', x: -9.35, z: -8.9, w: 1.8, d: 1.8 }),
+]);
+
+// Projection booth footprint (full extents). The booth stands south of the
+// market gate at (0, 8.8): its north face stays behind the gate arch's south
+// face (z = 9.1) so the arch and its glowing portal are never embedded in the
+// booth, and the lens/beam origin hang just in front of the body.
+export const THEATER_PROJECTION_BOOTH = Object.freeze({ x: 0, z: 9.85, w: 2.3, d: 1.0 });
+
+// Center x of the west gallery's gilded panel mouldings (0.06 thick, so the
+// box spans -11.45..-11.39). The wood panel's east face is x = -11.47:
+// keeping the moulding fully proud of it means no trim or wall face is ever
+// coplanar, which is what made the trim flicker.
+export const THEATER_WEST_MOULDING_X = -11.42;
+
 export function buildTheaterScenery(ctx) {
-  const { group, block, box, glow, material, colors, items, animated, random } = ctx;
+  const { group, block, box, glow, material, colors, items, animated, random, def } = ctx;
   const M = theaterMaterials();
   const ownedLights = ctx.owned?.lights ?? [];
   const GOLD = colors.brass;
@@ -94,11 +159,35 @@ export function buildTheaterScenery(ctx) {
     return sprite;
   }
 
+  // --- Solid scenic volumes: the shell and tall fixtures the actor and the
+  // first-person camera (near = 0.1) must never enter. Gate slabs come from
+  // the shared visual helper so rendered arch and collision cannot drift.
+  for (const volume of THEATER_SOLID_VOLUMES) block(volume.x, volume.z, volume.w, volume.d);
+  for (const gate of gateVisualBoxesFor(def)) {
+    if (gate.role === 'arch') block(gate.x, gate.z, gate.w, gate.d);
+  }
+
   // --- Floor: polished stone under a patterned house carpet --------------
   texBox(0, .12, .4, 27.0, .02, 23.0, M?.marble, .3);
-  const carpetMain = texBox(0, .152, -.1, 18.6, .03, 14.0, M?.carpet, .3);
-  const carpetLobby = texBox(0, .152, 8, 18.6, .03, 2, M?.carpet, .3);
-  carpetMain.renderOrder = 1; carpetLobby.renderOrder = 1;
+  for (const pad of THEATER_FLOOR_PADS) {
+    if (pad.kind === 'carpet') {
+      const carpet = texBox(pad.x, .152, pad.z, pad.w, .03, pad.d, M?.carpet, .3);
+      carpet.renderOrder = 1;
+      continue;
+    }
+    box(pad.x, .178, pad.z, pad.w, pad.kind === 'runner' ? .025 : .02, pad.d, pad.color);
+    if (pad.border === 'full') {
+      box(pad.x, .196, pad.z - pad.d / 2, pad.w, .02, .045, colors.brass);
+      box(pad.x, .196, pad.z + pad.d / 2, pad.w, .02, .045, colors.brass);
+      box(pad.x - pad.w / 2, .196, pad.z, .045, .02, pad.d, colors.brass);
+      box(pad.x + pad.w / 2, .196, pad.z, .045, .02, pad.d, colors.brass);
+    } else if (pad.border === 'z-inset') {
+      box(pad.x, .196, pad.z - pad.d / 2 + .05, pad.w, .02, .03, colors.brass);
+      box(pad.x, .196, pad.z + pad.d / 2 - .05, pad.w, .02, .03, colors.brass);
+    } else if (pad.border === 'north-inset') {
+      box(pad.x, .196, pad.z - pad.d / 2 + .05, pad.w, .02, .03, colors.brass);
+    }
+  }
   for (const x of [-9.15, 9.15]) box(x, .172, 1.6, .07, .025, 15.4, GOLD);
   for (const z of [-7.0, 6.95]) box(0, .172, z, 18.5, .025, .07, GOLD);
   for (const z of [-1.35, 1.4, 3.6, 5.85]) {
@@ -143,7 +232,7 @@ export function buildTheaterScenery(ctx) {
     box(0, y, -7.14, 14.9, h, .12, '#c69a58');
   }
   for (const sx of [-1, 1]) {
-    box(sx * 7.3, 3.1, -7.95, .8, 5.8, 1.7, '#2b2015');
+    box(sx * 7.3, 3.1, -8.65, .8, 5.8, 1.5, '#2b2015');
     box(sx * 6.94, 3.1, -7.14, .12, 5.8, .12, '#c69a58');
     raw(new THREE.CylinderGeometry(.85, 1.05, 5.5, 14), M?.velvetCurtain, sx * 7.15, 3.0, -7.7);
     for (let f = -1; f <= 1; f++) {
@@ -208,19 +297,22 @@ export function buildTheaterScenery(ctx) {
   for (let x = -11.2; x <= 11.2; x += .5) box(x, 10.86, -9.34, .2, .3, .22, '#c69a58');
 
   // --- Proscenium: wide piers, gilded arch, drapery ----------------------
+  // The side assembly is pulled north of z = -7.8 so it can be made solid
+  // without swallowing the Pong cabinet's standing anchors at (9.3, -7.35)
+  // and (9.3, -6.65); the drapery would otherwise reach z = -7.6.
   for (const s of [-1, 1]) {
-    box(s * 8.55, 3.5, -7.95, 1.6, 7.0, 1.7, '#33231a');
-    box(s * 8.55, 6.68, -7.45, 1.8, .5, .7, '#c69a58');
-    box(s * 8.55, .4, -7.5, 1.8, .8, .8, '#c69a58');
-    box(s * 7.9, 3.5, -7.6, .3, 7.2, .55, '#caa066');
+    box(s * 8.55, 3.5, -8.45, 1.6, 7.0, 1.2, '#33231a');
+    box(s * 8.55, 6.68, -7.95, 1.8, .5, .7, '#c69a58');
+    box(s * 8.55, .4, -8.0, 1.8, .8, .8, '#c69a58');
+    box(s * 7.9, 3.5, -8.1, .3, 7.2, .55, '#caa066');
     texBox(s * 8.9, 3.5, -8.35, .8, 6.4, .3, M?.gilt, 1.1);
     // Heavy side drape with vertical fold ridges.
-    raw(new THREE.CylinderGeometry(.72, .9, 5.6, 14), M?.velvetCurtain, s * 9.35, 3.0, -8.5);
+    raw(new THREE.CylinderGeometry(.72, .9, 5.6, 14), M?.velvetCurtain, s * 9.35, 3.0, -8.9);
     for (let f = -2; f <= 2; f++) {
-      raw(new THREE.CylinderGeometry(.12, .16, 5.4, 8), M?.velvetCurtain, s * (8.85 + f * .24), 3.0, -8.05 - Math.abs(f) * .06);
+      raw(new THREE.CylinderGeometry(.12, .16, 5.4, 8), M?.velvetCurtain, s * (8.85 + f * .24), 3.0, -8.45 - Math.abs(f) * .06);
     }
-    box(s * 9.35, 5.9, -8.5, 1.7, .28, 1.3, '#5a1722');
-    box(s * 9.35, 6.08, -8.4, 1.8, .12, .5, '#c69a58');
+    box(s * 9.35, 5.9, -8.9, 1.7, .28, 1.3, '#5a1722');
+    box(s * 9.35, 6.08, -8.8, 1.8, .12, .5, '#c69a58');
   }
   const arch = raw(new THREE.TorusGeometry(8.05, .55, 10, 48, Math.PI), M?.goldTrim ?? material(GOLD), 0, 6.0, -8.7);
   arch.scale.set(1, .28, 1);
@@ -358,11 +450,15 @@ export function buildTheaterScenery(ctx) {
     }
   }
   // Gilded panel mouldings frame each bay between the pilasters.
+  // Gilded panel mouldings frame each bay between the pilasters. They sit
+  // proud of the wood panel's east face (x = -11.47); keeping the whole box
+  // off that plane prevents the trim surface from z-fighting the paneling.
+  const westMouldingX = THEATER_WEST_MOULDING_X;
   for (const z of [-7.1, -4.1, -1.1, 1.9, 4.9]) {
-    box(-11.5, 1.9, z, .06, .1, 1.9, '#c69a58');
-    box(-11.5, 1.0, z, .06, .1, 1.9, '#c69a58');
-    box(-11.5, 1.45, z - .95, .06, .9, .1, '#c69a58');
-    box(-11.5, 1.45, z + .95, .06, .9, .1, '#c69a58');
+    box(westMouldingX, 1.9, z, .06, .1, 1.9, '#c69a58');
+    box(westMouldingX, 1.0, z, .06, .1, 1.9, '#c69a58');
+    box(westMouldingX, 1.45, z - .95, .06, .9, .1, '#c69a58');
+    box(westMouldingX, 1.45, z + .95, .06, .9, .1, '#c69a58');
   }
   // Wall sconces between the pilasters.
   for (const z of [-7.1, -4.1, -1.1, 1.9, 4.9]) {
@@ -417,18 +513,21 @@ export function buildTheaterScenery(ctx) {
   }
 
   // --- Projection booth: raised rear-center platform throwing straight
-  // down the room axis at the screen center, over the audience. The beam
-  // is a translucent additive cone with its own material (the static batch
-  // only takes opaque boxes) and stays invisible until the projector is
-  // restored — its base color must never read as a lit stick at rest.
-  box(0, 1.7, 9.35, 2.3, 3.4, 1.7, colors.dark); block(0, 9.35, 2.3, 1.7);
-  box(0, 3.47, 9.35, 2, .14, 1.4, '#33393c');
-  box(0, 3.69, 9.2, .6, .3, .6, '#33393c');
-  box(0, 4.09, 9.2, .55, .5, .8, '#22282b');
+  // down the room axis at the screen center, over the audience. It stands
+  // behind the market gate arch (see THEATER_PROJECTION_BOOTH). The beam is a
+  // translucent additive cone with its own material (the static batch only
+  // takes opaque boxes) and stays invisible until the projector is restored —
+  // its base color must never read as a lit stick at rest.
+  const booth = THEATER_PROJECTION_BOOTH;
+  box(booth.x, 1.7, booth.z, booth.w, 3.4, booth.d, colors.dark);
+  block(booth.x, booth.z, booth.w, booth.d);
+  box(booth.x, 3.47, booth.z + .05, 2, .14, 1.0, '#33393c');
+  box(0, 3.69, 9.6, .6, .3, .6, '#33393c');
+  box(0, 4.09, 9.65, .55, .5, .8, '#22282b');
   const lens = new THREE.Mesh(new THREE.CylinderGeometry(.14, .14, .45, 10), material(colors.brass));
-  lens.rotation.x = Math.PI / 2; lens.position.set(0, 4.09, 8.72); group.add(lens);
-  const lensDot = glow(0, 4.09, 8.6, .18, .18, .12, '#ffe9c0', 0);
-  const beamOrigin = new THREE.Vector3(0, 4.09, 8.72);
+  lens.rotation.x = Math.PI / 2; lens.position.set(0, 4.09, 9.33); group.add(lens);
+  const lensDot = glow(0, 4.09, 9.17, .18, .18, .12, '#ffe9c0', 0);
+  const beamOrigin = new THREE.Vector3(0, 4.09, 9.11);
   const beamDir = new THREE.Vector3(0, 3.1, -8.25).sub(beamOrigin);
   const beamLen = beamDir.length();
   const beamMat = new THREE.MeshBasicMaterial({
@@ -546,16 +645,11 @@ export function buildTheaterScenery(ctx) {
   // --- Arcade wall (east): the canonical cabinets (activity runtime) line
   // this wall at x = 10.42, fronts facing west, z = -7.4 / -5.7 / -3.85 /
   // -1.8 (north end clears the proscenium side drape and the east gate arch
-  // at z -1.2..+1.2). The inset runner carpet, brass borders and emissive floor studs
-  // frame that row; positions are clear of all 45 seat sightlines to the
-  // movie screen, the east travel gate at (10.7, 0), and leave >= 1.2m
-  // accessible routes on the stand side.
-  box(9.1, .178, -4.5, 3.8, .025, 7.8, '#1e2430');
-  box(7.2, .196, -4.5, .045, .02, 7.8, colors.brass);
-  box(11.0, .196, -4.5, .045, .02, 7.8, colors.brass);
-  box(9.1, .196, -.6, 3.8, .02, .045, colors.brass);
-  box(9.1, .196, -8.4, 3.8, .02, .045, colors.brass);
-
+  // at z -1.2..+1.2). The runner carpet and its brass frame live in
+  // THEATER_FLOOR_PADS ('arcade-runner'); the emissive floor studs frame that
+  // row; positions are clear of all 45 seat sightlines to the movie screen,
+  // the east travel gate at (10.7, 0), and leave >= 1.2m accessible routes on
+  // the stand side.
   const arcadeStuds = [];
   for (const x of [7.6, 9.7]) {
     for (const z of [-7.4, -5.7, -3.85, -1.8]) {
@@ -570,15 +664,11 @@ export function buildTheaterScenery(ctx) {
 
   // --- Summit Run bay (add-multiplayer-snowboard-arcade 2.3): the fifth
   // machine stands alone at (10.42, 2.6), south of the east gate arch, where
-  // the four-machine row cannot reach. Same runner-carpet framing as the main
-  // row plus its own wall-side queue studs; the rider queue line (manifest
-  // anchors, x = 9.3, z 0.35..5.25) runs along the open promenade between the
-  // bay and the seat rows, with cross-aisle dismounts at z = 1.4 / 3.6.
-  box(9.1, .178, 2.6, 3.8, .025, 3.4, '#1e2430');
-  box(9.1, .196, .9, 3.8, .02, .045, colors.brass);
-  box(9.1, .196, 4.3, 3.8, .02, .045, colors.brass);
-  box(7.2, .196, 2.6, .045, .02, 3.4, colors.brass);
-  box(11.0, .196, 2.6, .045, .02, 3.4, colors.brass);
+  // the four-machine row cannot reach. Its runner pad is in THEATER_FLOOR_PADS
+  // ('summit-runner'), plus its own wall-side queue studs; the rider queue line
+  // (manifest anchors, x = 9.3, z 0.35..5.25) runs along the open promenade
+  // between the bay and the seat rows, with cross-aisle dismounts at
+  // z = 1.4 / 3.6.
   const summitStuds = [];
   for (const z of [0.35, 1.05, 1.75, 2.45, 3.15, 3.85, 4.55, 5.25]) {
     summitStuds.push(glow(9.7, .18, z, .12, .06, .12, '#7acbd4', .6));
@@ -604,15 +694,10 @@ export function buildTheaterScenery(ctx) {
 
   // --- West Billiards Lounge (Flagship Pool, Tasks 5.1-5.5) ---
   // Symmetrical counterpart to the east arcade wing: centered at x = -8.6,
-  // z = -4.5. Runner carpet and brass borders frame the table area; a spectator
-  // bench and wall cue rack line the west perimeter wall (x = -10.8 to -11.2);
-  // and a suspended brass billiards pendant hangs above. Sightlines from all
-  // 48 auditorium seats remain 100% unobstructed.
-  box(-8.6, .178, -4.5, 3.4, .025, 4.8, '#1e2430');
-  box(-8.6, .196, -2.1, 3.4, .02, .045, colors.brass);
-  box(-8.6, .196, -6.9, 3.4, .02, .045, colors.brass);
-  box(-6.9, .196, -4.5, .045, .02, 4.8, colors.brass);
-  box(-10.3, .196, -4.5, .045, .02, 4.8, colors.brass);
+  // z = -4.5. Its runner pad is in THEATER_FLOOR_PADS ('pool-runner'); a
+  // spectator bench and wall cue rack line the west perimeter wall
+  // (x = -10.8 to -11.2); and a suspended brass billiards pendant hangs above.
+  // Sightlines from all 48 auditorium seats remain 100% unobstructed.
 
   // Spectator bench against west wall
   box(-10.8, .35, -4.5, .4, .45, 2.2, '#3a271d');
@@ -634,40 +719,22 @@ export function buildTheaterScenery(ctx) {
 
   // --- Air Hockey Table Bay (Phase 4, Task 6.2) ---
   // Located in the rear east promenade at x = 5.8, z = 7.0.
-  // Framed with dark navy runner carpet and brass borders, clear of
-  // Row 3 seats (z = 4.7), ticket pedestal, and waste bin.
-  box(5.8, .178, 7.0, 3.2, .025, 2.4, '#1e2430');
-  box(5.8, .196, 5.8, 3.2, .02, .045, colors.brass);
-  box(5.8, .196, 8.2, 3.2, .02, .045, colors.brass);
-  box(4.2, .196, 7.0, .045, .02, 2.4, colors.brass);
-  box(7.4, .196, 7.0, .045, .02, 2.4, colors.brass);
+  // Its pad is THEATER_FLOOR_PADS ('air-hockey-bay'), clear of Row 3 seats
+  // (z = 4.7), ticket pedestal, and waste bin.
   block(5.8, 7.0, 2.2, 1.2);
 
   // --- Foosball Table Bay (Phase 4, Task 6.4) ---
   // Located in the rear west promenade at x = -5.8, z = 7.0.
-  // Symmetrical counterpart to the air hockey bay; framed with dark emerald
-  // runner carpet and brass borders, clear of Row 3 seats (z = 4.7).
-  box(-5.8, .178, 7.0, 3.2, .025, 2.4, '#1c2826');
-  box(-5.8, .196, 5.8, 3.2, .02, .045, colors.brass);
-  box(-5.8, .196, 8.2, 3.2, .02, .045, colors.brass);
-  box(-7.4, .196, 7.0, .045, .02, 2.4, colors.brass);
-  box(-4.2, .196, 7.0, .045, .02, 2.4, colors.brass);
+  // Symmetrical counterpart to the air hockey bay; its pad is
+  // THEATER_FLOOR_PADS ('foosball-bay'), clear of Row 3 seats (z = 4.7).
   block(-5.8, 7.0, 2.0, 1.2);
 
-  // --- Lobby darts oche (Task 9.6) at [8.4, 3.6], west of Summit Run (x≈10.42)
-  // and east of Row 2/3 seats (x=8.15). Low runner only — no extra collision.
-  box(8.55, .178, 3.6, 1.1, .02, 1.6, '#2a1c18');
-  box(8.55, .196, 2.85, 1.1, .02, .035, colors.brass);
-  box(8.55, .196, 4.35, 1.1, .02, .035, colors.brass);
+  // --- Lobby piano rug (Task 9.7) at [-2.2, 5.8], behind Row 3, clear of
+  // cinema. The pad and its inset brass trim are THEATER_FLOOR_PADS
+  // ('piano-rug'); the piano activity stands on it.
 
-  // --- Lobby piano rug (Task 9.7) at [-2.2, 5.8], behind Row 3, clear of cinema.
-  box(-2.2, .178, 5.8, 1.7, .02, 0.9, '#2c2018');
-  box(-2.2, .196, 5.4, 1.7, .02, .03, colors.brass);
-  box(-2.2, .196, 6.2, 1.7, .02, .03, colors.brass);
-
-  // --- Photo booth pad (Task 9.8) at [2.4, 8.2], south of the projector (z=9.35).
-  box(2.4, .178, 8.15, 1.6, .02, 1.1, '#3a1c22');
-  box(2.4, .196, 7.65, 1.6, .02, .03, colors.brass);
+  // --- Photo booth pad (Task 9.8) at [2.4, 8.2], south of the projector
+  // (z=9.35). THEATER_FLOOR_PADS ('photo-pad') owns the pad and its north trim.
 
   // --- Air: soft god-rays from the stage haze plus the candle pulse ------
   const shaftMat = new THREE.MeshBasicMaterial({

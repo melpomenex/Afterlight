@@ -163,6 +163,17 @@ Builder rules (see `AGENTS.md` §6/§7 for the underlying contracts):
 - `block(x, z, w, d)` stores **half-extents plus 0.38 clearance**; never add
   the clearance twice. Every interactable needs a clear standing spot within
   the 2-unit interaction radius.
+- Tall scenic forms inside the walkable area must be solid: the first-person
+  camera renders at `near = 0.1` and is only kept out of geometry by
+  collision, so every prop reaching the standing eye band (walls, piers,
+  drapery, counters, wall sconces, gate arches) needs a matching `block()`.
+  Author those footprints as data beside the scenery — the Orpheum keeps
+  `THEATER_FLOOR_PADS` (footprint overlap audit) and `THEATER_SOLID_VOLUMES`
+  (obstacle coverage plus 0.38 clearance tests) in
+  `src/world/theaterWorld.js`, and takes its gate-arch volumes from
+  `gateVisualBoxesFor(def)` in `src/places/worldFactory.js` so the rendered
+  slab and its collision share one source. Low litter and floor coverings
+  stay non-blocking (`tests/theater-scenery.test.js` is the exemplar gate).
 - Animated meshes must stay out of the static instanced batch: the factory
   batches opaque, non-emissive direct box children, so put dynamic objects in
   a subgroup or register an `animated.push((time, done) => …)` callback.
