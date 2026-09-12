@@ -2,7 +2,7 @@ defmodule Afterlight.Conferencing.Feature do
   @moduledoc """
   Conferencing feature flag and knobs. The flag defaults OFF; with it off
   no call surface should be active. Enabling it must not alter game rooms,
-  economy, theater playback, or watch-together.
+  theater playback, or watch-together.
   """
 
   @app :afterlight

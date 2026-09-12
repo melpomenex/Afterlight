@@ -108,37 +108,16 @@ defmodule Afterlight.Accounts.DomainTest do
     assert OutboxRelay.unpublished_count() == 0
   end
 
-  test "CHECK constraints reject negative coins and reserved_coins" do
-    {token, claims} = issue("guest_check1")
-    {:ok, %{player: player}} = Accounts.create_guest_session(token, claims)
-
-    assert_raise Postgrex.Error, fn ->
-      Repo.query!("UPDATE players SET coins = -1 WHERE id = $1", [player.id])
-    end
-
-    assert_raise Postgrex.Error, fn ->
-      Repo.query!("UPDATE players SET reserved_coins = -1 WHERE id = $1", [player.id])
-    end
-
-    assert_raise Postgrex.Error, fn ->
-      Repo.query!("UPDATE players SET xp = -1 WHERE id = $1", [player.id])
-    end
-
-    assert_raise Postgrex.Error, fn ->
-      Repo.query!("UPDATE players SET reputation = -1 WHERE id = $1", [player.id])
-    end
-  end
-
   test "partial unique index allows historical duplicates and blocks active case variants" do
     now = Accounts.now_ms()
 
-    insert_player!("guest_hist_a", "MistyPepper94", false, now)
-    insert_player!("guest_hist_b", "MistyPepper94", false, now)
+    insert_player!("guest_hist_a", "MistyCompass94", false, now)
+    insert_player!("guest_hist_b", "MistyCompass94", false, now)
 
-    insert_player!("guest_live_a", "MossyRadish42", true, now)
+    insert_player!("guest_live_a", "CopperLantern42", true, now)
 
     assert_raise Postgrex.Error, fn ->
-      insert_player!("guest_live_b", "mossyradish42", true, now)
+      insert_player!("guest_live_b", "copperlantern42", true, now)
     end
   end
 
@@ -165,8 +144,6 @@ defmodule Afterlight.Accounts.DomainTest do
       domain: "players",
       snapshot_sha256: "abc",
       player_count: 1,
-      coins_sum: 0,
-      xp_sum: 0,
       imported_at: 1,
       source_path: "/tmp/x"
     }
@@ -190,13 +167,6 @@ defmodule Afterlight.Accounts.DomainTest do
       %{
         id: id,
         nickname: nickname,
-        coins: 0,
-        xp: 0,
-        level: 1,
-        reputation: 0,
-        reserved_coins: 0,
-        inventory: %{"seeds" => %{}, "produce" => %{}, "reservedProduce" => %{}, "sprinklers" => 0},
-        materials: %{},
         current_room: "market",
         last_seen: last_seen,
         active: active,

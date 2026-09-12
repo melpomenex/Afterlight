@@ -47,7 +47,6 @@ defmodule Afterlight.Application do
     if Application.get_env(:afterlight, :start_domain_supervisors, true) do
       [
         Afterlight.Accounts.Supervisor,
-        Afterlight.EconomyGroup.Supervisor,
         Afterlight.Theater.Supervisor,
         Afterlight.TheaterMedia.Supervisor,
         Afterlight.World.Supervisor,

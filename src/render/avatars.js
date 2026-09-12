@@ -55,7 +55,7 @@ export function createNicknameSprite(nickname) {
   return sprite;
 }
 
-export function createGardenerAvatar(playerId, nickname = 'Gardener') {
+export function createPlayerAvatar(playerId, nickname = 'Visitor') {
   const group = new THREE.Group();
   const palette = generatePlayerPalette(playerId);
 
@@ -64,7 +64,6 @@ export function createGardenerAvatar(playerId, nickname = 'Gardener') {
   const hatMat = getMat(palette.hat, 0.75, 0.1);
   const bootsMat = getMat(palette.boots, 0.65, 0.3);
   const leatherMat = getMat('#563a24', 0.6, 0.2);
-  const brassMat = getMat('#b78d50', 0.45, 0.6);
   const eyeMat = new THREE.MeshStandardMaterial({ color: '#d8f8e3', emissive: '#acf7d5', emissiveIntensity: 2.2 });
 
   // 1. Torso & Coat
@@ -102,7 +101,7 @@ export function createGardenerAvatar(playerId, nickname = 'Gardener') {
   strapAcross.scale.set(0.68, 0.05, 0.04);
   group.add(strapAcross);
 
-  // 4. Head (stylized robot/gardener head)
+  // 4. Head (stylized robot head)
   const head = new THREE.Mesh(boxGeo, coatMat);
   head.position.set(0, 1.45, 0);
   head.scale.set(0.72, 0.46, 0.54);
@@ -123,7 +122,7 @@ export function createGardenerAvatar(playerId, nickname = 'Gardener') {
     group.add(eye);
   }
 
-  // 5. Gardening Hat (brim + crown)
+  // 5. Wide-brim cap (brim + crown)
   const hatBrim = new THREE.Mesh(cylGeo, hatMat);
   hatBrim.position.set(0, 1.7, 0);
   hatBrim.scale.set(0.65, 0.06, 0.65);
@@ -158,23 +157,7 @@ export function createGardenerAvatar(playerId, nickname = 'Gardener') {
     arm.add(glove);
   }
 
-  // 7. Watering Can prop (attached to right hand)
-  const canGroup = new THREE.Group();
-  canGroup.position.set(0.42, 0.65, 0.2);
-  const canBody = new THREE.Mesh(cylGeo, brassMat);
-  canBody.scale.set(0.12, 0.25, 0.12);
-  canGroup.add(canBody);
-
-  const canSpout = new THREE.Mesh(cylGeo, brassMat);
-  canSpout.position.set(0, 0.12, 0.16);
-  canSpout.rotation.x = 0.6;
-  canSpout.scale.set(0.03, 0.22, 0.03);
-  canGroup.add(canSpout);
-
-  canGroup.visible = false;
-  group.add(canGroup);
-
-  // 8. Animated Legs & Boots
+  // 7. Animated Legs & Boots
   const legs = [];
   for (const lx of [-0.18, 0.18]) {
     const leg = new THREE.Group();
@@ -195,7 +178,7 @@ export function createGardenerAvatar(playerId, nickname = 'Gardener') {
     legs.push(leg);
   }
 
-  // 9. Overhead Nickname Tag
+  // 8. Overhead Nickname Tag
   const nameSprite = createNicknameSprite(nickname);
   group.add(nameSprite);
 
@@ -211,11 +194,7 @@ export function createGardenerAvatar(playerId, nickname = 'Gardener') {
     arms,
     rig,
     emote: null,
-    canGroup,
     nameSprite,
-    setWateringCan(visible) {
-      canGroup.visible = visible;
-    },
     updateNickname(newName) {
       group.remove(nameSprite);
       const newSprite = createNicknameSprite(newName);
@@ -238,7 +217,7 @@ export class RemotePlayersManager {
     if (!data || !data.id) return;
     let entry = this.players.get(data.id);
     if (!entry) {
-      const avatar = createGardenerAvatar(data.id, data.nickname || 'Gardener');
+      const avatar = createPlayerAvatar(data.id, data.nickname || 'Visitor');
       avatar.position.set(data.x ?? 0, 0, data.z ?? 0);
       avatar.rotation.y = data.rotY ?? 0;
       this.scene.add(avatar);

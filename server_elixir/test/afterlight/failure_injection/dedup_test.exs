@@ -23,7 +23,7 @@ defmodule Afterlight.FailureInjection.DedupTest do
 
   test "duplicate delivery: exactly one effect via dedup receipts" do
     actor = actor_for("guest_fi_dedup")
-    payload = %{op: :market_buy, item: "copper", qty: 1}
+    payload = %{op: :account_rename, name: "Deduped"}
     calls = :counters.new(1, [])
 
     fun = fn ->

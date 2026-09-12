@@ -195,7 +195,8 @@ export class LoadClient {
       if (pending.length) this.durable.noteRejection(pending[0], reason);
     }
 
-    if (frame.type === MSG_TYPES.ACTION_RESULT && frame.request_id) {
+    // Durable acks are any reply carrying the envelope's request_id.
+    if (frame.request_id) {
       const pending = this.durable.noteAck(frame.request_id, {
         revision: frame.revision ?? null,
         replay: frame.replay === true,

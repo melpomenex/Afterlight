@@ -28,11 +28,8 @@ defmodule Afterlight.Parity do
   @fixture_files [
     {"theater-model.json", Afterlight.Parity.Reference.Theater},
     {"torrent-model.json", Afterlight.Parity.Reference.Torrent},
-    {"market.json", Afterlight.Parity.Reference.Market},
-    {"contracts.json", Afterlight.Parity.Reference.Contracts},
-    {"garden-crops.json", Afterlight.Parity.Reference.Garden},
     {"iptv-xmltv.json", Afterlight.Parity.Reference.Catalog},
-    {"identity-nodes-machines.json", Afterlight.Parity.Reference.Misc},
+    {"identity-misc.json", Afterlight.Parity.Reference.Misc},
     {"world.json", Afterlight.Parity.Reference.World},
     {"chat-relay.json", Afterlight.Parity.Reference.Chat}
   ]

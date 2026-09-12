@@ -6,7 +6,7 @@ config :afterlight,
   ecto_repos: [Afterlight.Repo],
   telemetry_enabled: true,
   conferencing_enabled: false,
-  # Set BEFORELIGHT_OBS_TEST=1 to skip economy/theater domain supervisors when
+  # Set BEFORELIGHT_OBS_TEST=1 to skip durable domain supervisors when
   # running observability-only tests against a partial migration DB.
   start_domain_supervisors: System.get_env("BEFORELIGHT_OBS_TEST") != "1"
 

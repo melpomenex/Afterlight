@@ -1,0 +1,618 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "nick/default-seed-0",
+      "fn": "generateDefaultNickname",
+      "args": [
+        0
+      ],
+      "seed": 0,
+      "expected": "Quietundefined10"
+    },
+    {
+      "id": "nick/default-seed-0.1",
+      "fn": "generateDefaultNickname",
+      "args": [
+        0.1
+      ],
+      "seed": 0.1,
+      "expected": "GleamingSparrow77"
+    },
+    {
+      "id": "nick/default-seed-0.5",
+      "fn": "generateDefaultNickname",
+      "args": [
+        0.5
+      ],
+      "seed": 0.5,
+      "expected": "QuietPiston88"
+    },
+    {
+      "id": "nick/default-seed-0.999",
+      "fn": "generateDefaultNickname",
+      "args": [
+        0.999
+      ],
+      "seed": 0.999,
+      "expected": "SteadyQuarry32"
+    },
+    {
+      "id": "nick/sanitize-0",
+      "fn": "sanitizeNickname",
+      "args": [
+        "plain"
+      ],
+      "expected": "plain"
+    },
+    {
+      "id": "nick/sanitize-1",
+      "fn": "sanitizeNickname",
+      "args": [
+        "  spaced   name  "
+      ],
+      "expected": "spaced name"
+    },
+    {
+      "id": "nick/sanitize-2",
+      "fn": "sanitizeNickname",
+      "args": [
+        "<b>Bold</b>name"
+      ],
+      "expected": "Boldname"
+    },
+    {
+      "id": "nick/sanitize-3",
+      "fn": "sanitizeNickname",
+      "args": [
+        "control\u0001char"
+      ],
+      "expected": "controlchar"
+    },
+    {
+      "id": "nick/sanitize-4",
+      "fn": "sanitizeNickname",
+      "args": [
+        "idemi_"
+      ],
+      "expected": "idemi_"
+    },
+    {
+      "id": "nick/sanitize-5",
+      "fn": "sanitizeNickname",
+      "args": [
+        "🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟"
+      ],
+      "seed": 0.42,
+      "expected": "AutumnalPrism43"
+    },
+    {
+      "id": "nick/sanitize-6",
+      "fn": "sanitizeNickname",
+      "args": [
+        "ab🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟"
+      ],
+      "seed": 0.42,
+      "expected": "AutumnalPrism43"
+    },
+    {
+      "id": "nick/sanitize-7",
+      "fn": "sanitizeNickname",
+      "args": [
+        "ABABABABABABABABABABABAB"
+      ],
+      "expected": "ABABABABABABABABABAB"
+    },
+    {
+      "id": "nick/sanitize-8",
+      "fn": "sanitizeNickname",
+      "args": [
+        ""
+      ],
+      "seed": 0.42,
+      "expected": "AutumnalPrism43"
+    },
+    {
+      "id": "nick/sanitize-9",
+      "fn": "sanitizeNickname",
+      "args": [
+        "a"
+      ],
+      "seed": 0.42,
+      "expected": "AutumnalPrism43"
+    },
+    {
+      "id": "nick/sanitize-utf16-keep-ascii",
+      "fn": "sanitizeNickname",
+      "args": [
+        "Hello🌟🌟🌟🌟🌟🌟WorldExtra"
+      ],
+      "expected": "HelloWorldExtra"
+    },
+    {
+      "id": "nick/ascii-only-after-sanitize",
+      "fn": "sanitizeNickname",
+      "args": [
+        "Bright🌟Lantern!!! Café"
+      ],
+      "expected": "BrightLantern Caf"
+    },
+    {
+      "id": "nick/dup-ladder-exhausted",
+      "fn": "resolveDuplicateNickname",
+      "args": [
+        "wren",
+        [
+          "wren",
+          "wren2",
+          "wren3",
+          "wren4",
+          "wren5",
+          "wren6",
+          "wren7",
+          "wren8",
+          "wren9",
+          "wren10",
+          "wren11",
+          "wren12",
+          "wren13",
+          "wren14",
+          "wren15",
+          "wren16",
+          "wren17",
+          "wren18",
+          "wren19",
+          "wren20",
+          "wren21",
+          "wren22",
+          "wren23",
+          "wren24",
+          "wren25",
+          "wren26",
+          "wren27",
+          "wren28",
+          "wren29",
+          "wren30",
+          "wren31",
+          "wren32",
+          "wren33",
+          "wren34",
+          "wren35",
+          "wren36",
+          "wren37",
+          "wren38",
+          "wren39",
+          "wren40",
+          "wren41",
+          "wren42",
+          "wren43",
+          "wren44",
+          "wren45",
+          "wren46",
+          "wren47",
+          "wren48",
+          "wren49",
+          "wren50",
+          "wren51",
+          "wren52",
+          "wren53",
+          "wren54",
+          "wren55",
+          "wren56",
+          "wren57",
+          "wren58",
+          "wren59",
+          "wren60",
+          "wren61",
+          "wren62",
+          "wren63",
+          "wren64",
+          "wren65",
+          "wren66",
+          "wren67",
+          "wren68",
+          "wren69",
+          "wren70",
+          "wren71",
+          "wren72",
+          "wren73",
+          "wren74",
+          "wren75",
+          "wren76",
+          "wren77",
+          "wren78",
+          "wren79",
+          "wren80",
+          "wren81",
+          "wren82",
+          "wren83",
+          "wren84",
+          "wren85",
+          "wren86",
+          "wren87",
+          "wren88",
+          "wren89",
+          "wren90",
+          "wren91",
+          "wren92",
+          "wren93",
+          "wren94",
+          "wren95",
+          "wren96",
+          "wren97",
+          "wren98",
+          "wren99"
+        ]
+      ],
+      "seed": 0.5,
+      "expected": "wren550"
+    },
+    {
+      "id": "nick/dup-free-base",
+      "fn": "resolveDuplicateNickname",
+      "args": [
+        "wren",
+        [
+          "other"
+        ]
+      ],
+      "expected": "wren"
+    },
+    {
+      "id": "nick/dup-two",
+      "fn": "resolveDuplicateNickname",
+      "args": [
+        "wren",
+        [
+          "wren"
+        ]
+      ],
+      "expected": "wren2"
+    },
+    {
+      "id": "nick/dup-ladder-mid",
+      "fn": "resolveDuplicateNickname",
+      "args": [
+        "wren",
+        [
+          "wren",
+          "wren2"
+        ]
+      ],
+      "expected": "wren3"
+    },
+    {
+      "id": "nick/dup-case",
+      "fn": "resolveDuplicateNickname",
+      "args": [
+        "Wren",
+        [
+          "wren"
+        ]
+      ],
+      "expected": "Wren2"
+    },
+    {
+      "id": "nick/dup-historical-ignored",
+      "fn": "resolveDuplicateNickname",
+      "args": [
+        "MistyCompass94",
+        [
+          "liveOther"
+        ]
+      ],
+      "expected": "MistyCompass94"
+    },
+    {
+      "id": "palette/0",
+      "fn": "generatePlayerPalette",
+      "args": [
+        "guest_abc123"
+      ],
+      "expected": {
+        "coat": "#445e38",
+        "apron": "#b8b498",
+        "hat": "#314427",
+        "boots": "#1f2b18"
+      }
+    },
+    {
+      "id": "palette/1",
+      "fn": "generatePlayerPalette",
+      "args": [
+        "Astral🌟Id"
+      ],
+      "expected": {
+        "coat": "#3a5449",
+        "apron": "#c2bca3",
+        "hat": "#2d3f37",
+        "boots": "#202924"
+      }
+    },
+    {
+      "id": "palette/2",
+      "fn": "generatePlayerPalette",
+      "args": [
+        "🎯🎯"
+      ],
+      "expected": {
+        "coat": "#806835",
+        "apron": "#ccc4a7",
+        "hat": "#544320",
+        "boots": "#2e2411"
+      }
+    },
+    {
+      "id": "palette/3",
+      "fn": "generatePlayerPalette",
+      "args": [
+        ""
+      ],
+      "expected": {
+        "coat": "#7a4e32",
+        "apron": "#b8a682",
+        "hat": "#473d32",
+        "boots": "#2b231c"
+      }
+    },
+    {
+      "id": "palette/4",
+      "fn": "generatePlayerPalette",
+      "args": [
+        "x"
+      ],
+      "expected": {
+        "coat": "#7a4e32",
+        "apron": "#b8a682",
+        "hat": "#473d32",
+        "boots": "#2b231c"
+      }
+    },
+    {
+      "id": "yt/classic-renderers",
+      "fn": "extractPlaylistVideos",
+      "args": [
+        "<html><script>var ytInitialData = {\"title\":\"Parity List\",\"contents\":[{\"playlistVideoRenderer\":{\"videoId\":\"vid00000001\",\"title\":{\"runs\":[{\"text\":\"One\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"vid00000002\",\"title\":{\"runs\":[{\"text\":\"Two\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"vid00000001\",\"title\":{\"runs\":[{\"text\":\"One Again\"}]}}}]};</script></html>"
+      ],
+      "expected": {
+        "title": "A YouTube playlist",
+        "videos": [
+          {
+            "videoId": "vid00000001",
+            "title": "One"
+          },
+          {
+            "videoId": "vid00000002",
+            "title": "Two"
+          }
+        ]
+      }
+    },
+    {
+      "id": "yt/lockup-view-models",
+      "fn": "extractPlaylistVideos",
+      "args": [
+        "<html><script>var ytInitialData = {\"header\":{\"pageHeaderViewModel\":{\"metadata\":{\"contentPageViewModel\":{\"title\":{\"content\":\"Lockups\"}}}}},\"contents\":[{\"lockupViewModel\":{\"contentType\":\"LOCKUP_CONTENT_TYPE_VIDEO\",\"contentId\":\"lock00000001\",\"metadata\":{\"lockupMetadataViewModel\":{\"title\":{\"content\":\"L1\"}}}}},{\"lockupViewModel\":{\"contentType\":\"LOCKUP_CONTENT_TYPE_PLAYLIST\",\"contentId\":\"PLxxx\"}},{\"lockupViewModel\":{\"contentType\":\"LOCKUP_CONTENT_TYPE_VIDEO\",\"contentId\":\"lock00000002\",\"metadata\":{\"lockupMetadataViewModel\":{\"title\":{\"content\":\"L2\"}}}}}]};</script></html>"
+      ],
+      "expected": {
+        "title": "A YouTube playlist",
+        "videos": [
+          {
+            "videoId": "lock00000001",
+            "title": "L1"
+          },
+          {
+            "videoId": "lock00000002",
+            "title": "L2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "yt/no-initial-data",
+      "fn": "extractPlaylistVideos",
+      "args": [
+        "<html>nothing</html>"
+      ],
+      "expected": {
+        "reason": "playlist_unreadable"
+      }
+    },
+    {
+      "id": "yt/damaged-json",
+      "fn": "extractPlaylistVideos",
+      "args": [
+        "<script>var ytInitialData = {broken;;</script>"
+      ],
+      "expected": {
+        "reason": "playlist_unreadable"
+      }
+    },
+    {
+      "id": "yt/dedupe-keeps-first",
+      "fn": "extractPlaylistVideos",
+      "args": [
+        "<html><script>var ytInitialData = {\"contents\":[{\"playlistVideoRenderer\":{\"videoId\":\"v000000000\",\"title\":{\"runs\":[{\"text\":\"V0\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000001\",\"title\":{\"runs\":[{\"text\":\"V1\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000002\",\"title\":{\"runs\":[{\"text\":\"V2\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000003\",\"title\":{\"runs\":[{\"text\":\"V3\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000004\",\"title\":{\"runs\":[{\"text\":\"V4\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000005\",\"title\":{\"runs\":[{\"text\":\"V5\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000006\",\"title\":{\"runs\":[{\"text\":\"V6\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000007\",\"title\":{\"runs\":[{\"text\":\"V7\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000008\",\"title\":{\"runs\":[{\"text\":\"V8\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000009\",\"title\":{\"runs\":[{\"text\":\"V9\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000010\",\"title\":{\"runs\":[{\"text\":\"V10\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000011\",\"title\":{\"runs\":[{\"text\":\"V11\"}]}}},{\"playlistVideoRenderer\":{\"videoId\":\"v000000000\",\"title\":{\"runs\":[{\"text\":\"Dup\"}]}}}]};</script></html>"
+      ],
+      "expected": {
+        "title": "A YouTube playlist",
+        "videos": [
+          {
+            "videoId": "v000000000",
+            "title": "V0"
+          },
+          {
+            "videoId": "v000000001",
+            "title": "V1"
+          },
+          {
+            "videoId": "v000000002",
+            "title": "V2"
+          },
+          {
+            "videoId": "v000000003",
+            "title": "V3"
+          },
+          {
+            "videoId": "v000000004",
+            "title": "V4"
+          },
+          {
+            "videoId": "v000000005",
+            "title": "V5"
+          },
+          {
+            "videoId": "v000000006",
+            "title": "V6"
+          },
+          {
+            "videoId": "v000000007",
+            "title": "V7"
+          },
+          {
+            "videoId": "v000000008",
+            "title": "V8"
+          },
+          {
+            "videoId": "v000000009",
+            "title": "V9"
+          },
+          {
+            "videoId": "v000000010",
+            "title": "V10"
+          },
+          {
+            "videoId": "v000000011",
+            "title": "V11"
+          }
+        ]
+      }
+    },
+    {
+      "id": "yt/mix-id-rd",
+      "fn": "isYouTubeMixId",
+      "args": [
+        "RD12345678901"
+      ],
+      "expected": true
+    },
+    {
+      "id": "yt/mix-id-ul",
+      "fn": "isYouTubeMixId",
+      "args": [
+        "UL12345678901"
+      ],
+      "expected": true
+    },
+    {
+      "id": "yt/mix-id-no",
+      "fn": "isYouTubeMixId",
+      "args": [
+        "PL12345678901"
+      ],
+      "expected": false
+    },
+    {
+      "id": "yt/listid-short",
+      "fn": "looksLikePlaylistId",
+      "args": [
+        "PL123456789"
+      ],
+      "expected": false
+    },
+    {
+      "id": "yt/listid-chars",
+      "fn": "looksLikePlaylistId",
+      "args": [
+        "PL12345678901"
+      ],
+      "expected": true
+    },
+    {
+      "id": "yt/listid-bad-chars",
+      "fn": "looksLikePlaylistId",
+      "args": [
+        "PL12345/8901!!"
+      ],
+      "expected": false
+    },
+    {
+      "id": "protocol/parse-valid",
+      "fn": "parse",
+      "args": [
+        "{\"type\":\"movement\",\"x\":1.5,\"z\":-2}"
+      ],
+      "expected": {
+        "type": "movement",
+        "x": 1.5,
+        "z": -2
+      }
+    },
+    {
+      "id": "protocol/parse-truncated",
+      "fn": "parse",
+      "args": [
+        "{\"type\":\"movement\""
+      ],
+      "expected": null
+    },
+    {
+      "id": "protocol/parse-not-json",
+      "fn": "parse",
+      "args": [
+        "hello"
+      ],
+      "expected": null
+    },
+    {
+      "id": "protocol/parse-empty",
+      "fn": "parse",
+      "args": [
+        ""
+      ],
+      "expected": null
+    },
+    {
+      "id": "protocol/parse-primitive",
+      "fn": "parse",
+      "args": [
+        "42"
+      ],
+      "expected": 42
+    },
+    {
+      "id": "protocol/serialize-roundtrip",
+      "fn": "roundtripMsg",
+      "args": [
+        {
+          "type": "theater_state",
+          "theater": {
+            "now": null,
+            "queue": []
+          },
+          "serverNow": 1700000000000
+        }
+      ],
+      "expected": {
+        "type": "theater_state",
+        "theater": {
+          "now": null,
+          "queue": []
+        },
+        "serverNow": 1700000000000
+      }
+    },
+    {
+      "id": "protocol/serialize-integral-float",
+      "fn": "serializeMsg",
+      "args": [
+        {
+          "type": "movement",
+          "x": 1,
+          "z": -0.5
+        }
+      ],
+      "expected": "{\"type\":\"movement\",\"x\":1,\"z\":-0.5}"
+    }
+  ]
+}

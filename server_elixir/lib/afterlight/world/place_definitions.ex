@@ -14,10 +14,10 @@ defmodule Afterlight.World.PlaceDefinitions do
   catalog.
 
   Wire room compatibility is deliberately untouched: `Afterlight.World.Rooms`
-  still resolves any public room string, including unknown legacy ids and
-  personal gardens. Only ids present here receive directory/atmosphere
-  features. Personal gardens (`"garden:<owner>"`) are never projected and
-  are rejected by validation — the directory must never enumerate them.
+  still resolves any public room string, including unknown legacy ids. Only
+  ids present here receive directory/atmosphere features. Retired
+  `"garden:<owner>"` ids are never projected and are rejected by validation
+  defensively — the directory must never enumerate them.
   """
 
   use GenServer
@@ -152,7 +152,7 @@ defmodule Afterlight.World.PlaceDefinitions do
   @doc """
   Pure validation of a decoded projection document. Named errors:
   `{:invalid_schema_version, v}`, `:missing_entries`, `{:invalid_entries, term}`,
-  `{:too_many_entries, n}`, `{:duplicate_id, id}`, `{:private_garden_id, id}`,
+  `{:too_many_entries, n}`, `{:duplicate_id, id}`, `{:retired_garden_id, id}`,
   `{:invalid_entry, id, [problems]}`, `{:invalid_presets, id, [problems]}`,
   `{:too_many_presets, n}`.
   """
@@ -396,7 +396,7 @@ defmodule Afterlight.World.PlaceDefinitions do
         {:error, {:duplicate_id, id}}
 
       String.starts_with?(id, @garden_prefix) ->
-        {:error, {:private_garden_id, id}}
+        {:error, {:retired_garden_id, id}}
 
       true ->
         case validate_entry(entry) do

@@ -25,19 +25,15 @@ export class Storage {
         const raw = fs.readFileSync(this.filePath, 'utf8');
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === 'object') {
+          // Retired gardening/economy sections (gardens, orders, trades,
+          // marketMultipliers, nodes, machines) are carried through verbatim:
+          // no reader consumes them, but the protected snapshot must never
+          // be rewritten with its history dropped. `players` keeps whatever
+          // fields a save already has for the same reason.
           return {
+            ...parsed,
             version: parsed.version || 1,
-            players: parsed.players || {},
-            gardens: parsed.gardens || {},
-            orders: parsed.orders || [],
-            trades: parsed.trades || [],
-            marketMultipliers: parsed.marketMultipliers || {},
-            // Additive fields (crafting/gathering loop); default on read so
-            // pre-existing state files load unchanged.
-            nodes: isPlainObject(parsed.nodes) ? parsed.nodes : {},
-            machines: isPlainObject(parsed.machines) ? parsed.machines : {},
-            // Additive field (theater district); normalized on read so a
-            // corrupt or missing section defaults to an idle screen.
+            players: isPlainObject(parsed.players) ? parsed.players : {},
             theater: normalizeTheaterState(parsed.theater),
           };
         }
@@ -48,12 +44,6 @@ export class Storage {
     return {
       version: 1,
       players: {},
-      gardens: {},
-      orders: [],
-      trades: [],
-      marketMultipliers: {},
-      nodes: {},
-      machines: {},
       theater: normalizeTheaterState(undefined),
     };
   }
@@ -71,44 +61,13 @@ export class Storage {
     }
   }
 
-  /**
-   * Additive player defaults, applied on every read: gathered materials and
-   * crafted-but-unplaced sprinkler kits. Old players without these fields
-   * load cleanly; corrupt fields are repaired to safe values.
-   */
-  normalizePlayer(player) {
-    if (!player) return player;
-    if (!isPlainObject(player.materials)) player.materials = {};
-    for (const key of Object.keys(player.materials)) {
-      const count = Number(player.materials[key]);
-      if (!Number.isFinite(count) || count <= 0) delete player.materials[key];
-      else player.materials[key] = Math.floor(count);
-    }
-    if (!isPlainObject(player.inventory)) player.inventory = {};
-    const sprinklers = Number(player.inventory.sprinklers);
-    player.inventory.sprinklers = Number.isFinite(sprinklers) && sprinklers > 0 ? Math.floor(sprinklers) : 0;
-    return player;
-  }
-
   getPlayer(id) {
-    const player = this.state.players[id] || null;
-    return player ? this.normalizePlayer(player) : null;
+    return this.state.players[id] || null;
   }
 
   savePlayer(player) {
     if (!player || !player.id) return;
-    this.normalizePlayer(player);
     this.state.players[player.id] = player;
-    this.save();
-  }
-
-  getGarden(playerId) {
-    return this.state.gardens[playerId] || null;
-  }
-
-  saveGarden(playerId, gardenData) {
-    if (!playerId) return;
-    this.state.gardens[playerId] = gardenData;
     this.save();
   }
 

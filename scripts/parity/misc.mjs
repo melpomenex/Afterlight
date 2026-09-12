@@ -1,7 +1,7 @@
 /**
  * Parity fixtures for shared/identity.js (nickname + palette hazards),
- * server/nodes.js + server/machines.js (restoration), server/youtubePlaylist.js
- * (pure extraction core), and shared/protocol.js (parse/serialize).
+ * server/youtubePlaylist.js (pure extraction core), and shared/protocol.js
+ * (parse/serialize).
  *
  * Random-fallback masking: sanitizeNickname / resolveDuplicateNickname fall
  * back to generated names when input is too short or the dedup ladder
@@ -15,11 +15,9 @@ import {
   resolveDuplicateNickname,
   sanitizeNickname,
 } from '../../shared/identity.js';
-import { NodesManager } from '../../server/nodes.js';
-import { isMillRestoredInState, MachinesManager } from '../../server/machines.js';
 import { isYouTubeMixId, looksLikePlaylistId, extractPlaylistVideos } from '../../server/youtubePlaylist.js';
 import { parse, serialize } from '../../shared/protocol.js';
-import { recordCall, recordScript } from './harness.mjs';
+import { recordCall } from './harness.mjs';
 
 const T0 = 1_700_000_000_000;
 
@@ -50,33 +48,6 @@ function nickList(set) {
   return [...set];
 }
 
-function stubStorage() {
-  return { state: {}, save() {} };
-}
-
-function newNodesManager() {
-  return new NodesManager(stubStorage());
-}
-
-function newMachinesManager() {
-  return new MachinesManager(stubStorage());
-}
-
-// Named step helpers (the recorded fn name is the Elixir dispatch key)
-const nodesHarvest = (mgr, nodeId, now) => mgr.harvest(nodeId, now);
-const nodesIsDepleted = (mgr, nodeId, now) => ({ depleted: mgr.isDepleted(nodeId, now) });
-const nodesReap = (mgr, at) => {
-  mgr.reapExpired(at);
-  return { nodes: mgr.storage.state.nodes };
-};
-const nodesDistrictStates = (mgr) => {
-  mgr.harvest('trestle_timber_cache', T0);
-  return mgr.getStatesForDistrict('trestle', T0 + 1000);
-};
-const millContribute = (mgr, p, material, quantity) => mgr.contribute(p, material, quantity, T0);
-const millWheat = (mgr, p, quantity) => mgr.millWheat(p, quantity);
-const millCraft = (mgr, p, fixture) => mgr.craft(p, fixture);
-const millSnapshot = (mgr) => mgr.mill;
 const roundtripMsg = (msg) => parse(serialize(msg));
 const serializeMsg = (msg) => serialize(msg);
 
@@ -94,15 +65,6 @@ const lockupRenderer = (videoId, title) => ({
     metadata: { lockupMetadataViewModel: { title: { content: title } } },
   },
 });
-
-function player(materials, produce = {}) {
-  return {
-    id: 'p1', nickname: 'Parity', coins: 100, xp: 0, level: 1, reputation: 10,
-    reservedCoins: 0, materials, inventory: { seeds: {}, produce, reservedProduce: {}, sprinklers: 0 },
-    currentRoom: 'market', lastSeen: T0,
-  };
-}
-
 function build() {
   const cases = [];
 
@@ -139,7 +101,7 @@ function build() {
   cases.push(recordCall({
     id: 'nick/ascii-only-after-sanitize',
     fn: sanitizeNickname,
-    args: ['Mossy🌟Radish!!! Café'],
+    args: ['Bright🌟Lantern!!! Café'],
   }));
   const ladder = nickList(new Set(['wren', ...Array.from({ length: 98 }, (_, i) => `wren${i + 2}`)]));
   const exhaustedSeed = 0.5;
@@ -156,93 +118,12 @@ function build() {
   cases.push(recordCall({
     id: 'nick/dup-historical-ignored',
     fn: resolveDup,
-    args: ['MistyPepper94', nickList(new Set(['liveOther']))],
+    args: ['MistyCompass94', nickList(new Set(['liveOther']))],
   }));
   const palettes = ['guest_abc123', 'Astral🌟Id', '\u{1F3AF}\u{1F3AF}', '', 'x'];
   for (const [i, id] of palettes.entries()) {
     cases.push(recordCall({ id: `palette/${i}`, fn: generatePlayerPalette, args: [id] }));
   }
-
-  // ------------------------------------------------------------------
-  // nodes — depletion boundaries, respawn, reap (fixed clock)
-  // ------------------------------------------------------------------
-  const NODE = 'foundry_copper_cache';
-  cases.push(recordScript({
-    id: 'nodes/harvest-and-deplete',
-    steps: [
-      { fn: newNodesManager, args: [] },
-      { fn: nodesHarvest, args: ['<prev>', NODE, T0] },
-      { fn: nodesIsDepleted, args: ['<prev>', NODE, T0 + 1] },
-      { fn: nodesIsDepleted, args: ['<prev>', NODE, T0 + 179_999] },
-      { fn: nodesIsDepleted, args: ['<prev>', NODE, T0 + 180_000] },
-      { fn: nodesHarvest, args: ['<prev>', NODE, T0 + 1000] },
-      { fn: nodesReap, args: ['<prev>', T0 + 180_001] },
-    ],
-    keepPrev: true,
-  }));
-  cases.push(recordScript({
-    id: 'nodes/unknown-node',
-    steps: [
-      { fn: newNodesManager, args: [] },
-      { fn: nodesHarvest, args: ['<prev>', 'made_up_node', T0] },
-    ],
-    keepPrev: true,
-  }));
-  cases.push(recordScript({
-    id: 'nodes/district-states',
-    steps: [
-      { fn: newNodesManager, args: [] },
-      { fn: nodesDistrictStates, args: ['<prev>'] },
-    ],
-    keepPrev: true,
-  }));
-
-  // ------------------------------------------------------------------
-  // machines — contribute clamps, restore-in-same-step, mill order, craft
-  // ------------------------------------------------------------------
-  cases.push(recordScript({
-    id: 'mill/contribute-clamp-matrix',
-    steps: [
-      { fn: newMachinesManager, args: [] },
-      { fn: millContribute, args: ['<prev>', player({ copper: 3, timber: 0, glass: 0 }), 'copper', 2] },
-      { fn: millContribute, args: ['<prev>', player({ copper: 3, timber: 0, glass: 0 }), 'copper', 5] },
-      { fn: millContribute, args: ['<prev>', player({ copper: 1 }), 'gold', 1] },
-      { fn: millContribute, args: ['<prev>', player({ copper: 1 }), 'copper', 0] },
-      { fn: millContribute, args: ['<prev>', player({ copper: 1 }), 'copper', 1.5] },
-      { fn: millContribute, args: ['<prev>', player({ timber: 4 }), 'timber', 4] },
-      { fn: millContribute, args: ['<prev>', player({ glass: 4 }), 'glass', 4] },
-      { fn: millContribute, args: ['<prev>', player({ copper: 1 }), 'copper', 1] },
-      { fn: millSnapshot, args: ['<prev>'] },
-    ],
-    keepPrev: true,
-  }));
-
-  cases.push(recordScript({
-    id: 'mill/wheat-consume-order',
-    steps: [
-      { fn: newMachinesManager, args: [] },
-      { fn: millSnapshot, args: ['<prev>'] },
-      { fn: millWheat, args: ['<prev>', player({}, { wheat_C: 2, wheat_B: 2, wheat_A: 1, wheat_Aplus: 3 }), 5] },
-      { fn: millWheat, args: ['<prev>', player({}, { wheat_Aplus: 1 }), 2] },
-      { fn: millWheat, args: ['<prev>', player({}), 1] },
-    ],
-    keepPrev: true,
-  }));
-
-  cases.push(recordScript({
-    id: 'mill/craft-sprinkler',
-    steps: [
-      { fn: newMachinesManager, args: [] },
-      { fn: millCraft, args: ['<prev>', player({ copper: 2, glass: 2 }), 'sprinkler'] },
-      { fn: millCraft, args: ['<prev>', player({ copper: 2, glass: 1 }), 'sprinkler'] },
-      { fn: millCraft, args: ['<prev>', player({ copper: 9, glass: 9 }), 'ladder'] },
-    ],
-    keepPrev: true,
-  }));
-
-  cases.push(recordCall({ id: 'mill/restored-predicate', fn: isMillRestoredInState, args: [{ machines: { mill: { status: 'restored' } } }] }));
-  cases.push(recordCall({ id: 'mill/restored-predicate-broken', fn: isMillRestoredInState, args: [{ machines: { mill: { status: 'broken' } } }] }));
-  cases.push(recordCall({ id: 'mill/restored-predicate-empty', fn: isMillRestoredInState, args: [{}] }));
 
   // ------------------------------------------------------------------
   // youtubePlaylist — pure extraction core
@@ -300,9 +181,8 @@ export const miscHazards = {
   'libm-trig': ['nick/default-seed-*'],
   'generated-ids': ['nick/dup-ladder-exhausted', 'nick/sanitize-5', 'nick/sanitize-8', 'nick/sanitize-9'],
   'ascii-folding': ['nick/ascii-only-after-sanitize', 'nick/dup-case'],
-  'error-strings': ['nodes/*', 'mill/*', 'yt/*'],
+  'error-strings': ['yt/*'],
   'key-order': ['yt/classic-renderers', 'yt/lockup-view-models'],
-  'timestamps': ['nodes/*'],
-  'number-coercion': ['mill/contribute-clamp-matrix', 'protocol/parse-*'],
+  'number-coercion': ['protocol/parse-*'],
   'json-roundtrip': ['protocol/*'],
 };

@@ -71,8 +71,6 @@ defmodule Afterlight.Theater.Import do
       domain: "theater",
       snapshot_sha256: hash,
       player_count: 0,
-      coins_sum: 0,
-      xp_sum: 0,
       imported_at: now_ms,
       source_path: source_path,
       meta: %{"now" => 0, "queue" => 0, "idle" => true}
@@ -155,8 +153,6 @@ defmodule Afterlight.Theater.Import do
         domain: "theater",
         snapshot_sha256: hash,
         player_count: 0,
-        coins_sum: 0,
-        xp_sum: 0,
         imported_at: now_ms,
         source_path: source_path,
         meta: %{"now" => imported_now, "queue" => imported_queue}

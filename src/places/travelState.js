@@ -34,7 +34,7 @@ export const NETWORK_PHASES = Object.freeze({
 /**
  * Resolve a requested room id against the known destinations.
  * - Absent/empty request stays the default place (The Orpheum).
- * - Market and personal gardens keep their existing adapters.
+ * - The Market Court keeps its existing adapter.
  * - A known public place definition resolves to itself.
  * - Anything else is unknown: the fallback is Theater — never market under
  *   a mismatched wire id — and `status: 'unknown'` lets the runtime explain
@@ -47,27 +47,11 @@ export function resolveRoomRequest(requested, { hasDefinition = () => false, the
   if (requested === ROOMS.MARKET) {
     return { status: 'ok', requested, roomId: requested, kind: 'market', def: null, fallback: false };
   }
-  if (ROOMS.isGarden(requested)) {
-    return { status: 'ok', requested, roomId: requested, kind: 'garden', def: null, fallback: false };
-  }
   const def = hasDefinition(requested);
   if (def) {
     return { status: 'ok', requested, roomId: requested, kind: 'place', def, fallback: false };
   }
   return { status: 'unknown', requested, roomId: theaterId, kind: 'place', def: null, fallback: true };
-}
-
-/**
- * The typed second argument a world's update() receives. A garden bed
- * snapshot must never masquerade as a district completion flag: garden rooms
- * receive their beds (possibly null before the first GARDEN_STATE), and
- * every other room receives a strict boolean completion value.
- */
-export function worldUpdateInput({ isGardenRoom = false, gardenBeds = null, completed = false } = {}) {
-  if (isGardenRoom) {
-    return { kind: 'garden', value: gardenBeds ?? null };
-  }
-  return { kind: 'district', value: completed === true };
 }
 
 /**
@@ -130,18 +114,14 @@ export function createNetworkStatus(roomId = null) {
 
 /**
  * Safe spawn points for the player and Kiln in a resolved destination.
- * Places declare their own spawns; market and the personal garden keep
- * their historical entrance coordinates (identical to the legacy
- * hard-coded values and the world bounds' spawn fields).
+ * Places declare their own spawns; the Market Court keeps its historical
+ * entrance coordinates (identical to the world bounds' spawn field).
  */
 export function actorSpawnsFor(resolution) {
   if (resolution?.kind === 'place' && resolution.def) {
     const spawn = resolution.def.spawn ?? [-9, 0];
     const companion = resolution.def.companionSpawn ?? [spawn[0] + 0.8, spawn[1] + 1];
     return { spawn, companionSpawn: companion };
-  }
-  if (resolution?.kind === 'garden') {
-    return { spawn: [-9.5, 0], companionSpawn: [-8.7, 1] };
   }
   return { spawn: [0, 3], companionSpawn: [0.8, 4] };
 }

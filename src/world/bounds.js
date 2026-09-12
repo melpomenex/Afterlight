@@ -12,16 +12,6 @@ export const WORLD_BOUNDS = {
     minZ: -9.5,
     maxZ: 10.3,
     spawn: [0, 3],
-    exitGarden: [10.7, 0],
-  },
-  garden: {
-    id: 'garden',
-    minX: -11.5,
-    maxX: 11.5,
-    minZ: -10.0,
-    maxZ: 10.5,
-    spawn: [-9.5, 0],
-    exitMarket: [-10.7, 0],
   },
 };
 
@@ -46,11 +36,9 @@ export function registerPlaceBounds(def) {
 const exitPosition = (def, exitId, fallback) => def.exits?.find(exit => exit.id === exitId)?.position ?? fallback;
 
 export function getBoundsForRoom(roomId) {
-  // Checked before the manifest: `garden` the room id keeps its personal
-  // cultivation bounds, while `garden` the Glass Garden district retains the
-  // existing behavior for ?room=garden shorthand.
+  // The Market Court keeps its bespoke square bounds; every other room is a
+  // registered public place (or the defensive default below).
   if (!roomId || roomId === 'market') return WORLD_BOUNDS.market;
-  if (roomId.startsWith('garden:') || roomId === 'garden') return WORLD_BOUNDS.garden;
   const def = registeredPlaces.get(roomId);
   if (def) {
     return {

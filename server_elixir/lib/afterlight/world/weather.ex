@@ -1,8 +1,8 @@
 defmodule Afterlight.World.Weather do
   @moduledoc """
-  Current world weather for garden tick (`RAIN` only waters beds).
-
-  Updated by gateway relay until P6 owns weather outright.
+  Current world weather. Presentation-only after the gardening retirement:
+  the garden tick that consumed `RAIN` is gone, and Node remains the rotation
+  writer while this process keeps the current value for `welcome`.
   """
 
   use GenServer

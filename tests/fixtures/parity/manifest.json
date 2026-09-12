@@ -71,85 +71,6 @@
       }
     },
     {
-      "file": "market.json",
-      "module": "Afterlight.Parity.Reference.Market",
-      "caseCount": 283,
-      "hazards": {
-        "rounding": [
-          "sell-price/*",
-          "seed-price/*",
-          "multiplier/*",
-          "book/fee-half-even-divergence-tv125",
-          "book/rounds-price-and-quantity"
-        ],
-        "tofixed": [
-          "multiplier/*"
-        ],
-        "sorting": [
-          "book/price-time-priority"
-        ],
-        "error-strings": [
-          "book/cancel-and-invalid"
-        ],
-        "int-float-fields": [
-          "book/rounds-price-and-quantity"
-        ],
-        "generated-ids": [
-          "book/*"
-        ]
-      }
-    },
-    {
-      "file": "contracts.json",
-      "module": "Afterlight.Parity.Reference.Contracts",
-      "caseCount": 9,
-      "hazards": {
-        "rounding": [
-          "generate/*",
-          "fulfill/acquisition-order"
-        ],
-        "generated-ids": [
-          "generate/*"
-        ],
-        "key-order": [
-          "fulfill/acquisition-order"
-        ],
-        "timestamps": [
-          "generate/*",
-          "tick/*"
-        ],
-        "error-strings": [
-          "fulfill/*"
-        ]
-      }
-    },
-    {
-      "file": "garden-crops.json",
-      "module": "Afterlight.Parity.Reference.Garden",
-      "caseCount": 48,
-      "hazards": {
-        "float-accumulation": [
-          "tick/*"
-        ],
-        "rounding-boundaries": [
-          "quality/*",
-          "stage/*"
-        ],
-        "int-float-fields": [
-          "tick/*",
-          "harvest/*"
-        ],
-        "error-strings": [
-          "harvest/*",
-          "tick/null-bed"
-        ],
-        "timestamps": [
-          "stage/*",
-          "harvest/*"
-        ]
-      }
-    },
-    {
       "file": "iptv-xmltv.json",
       "module": "Afterlight.Parity.Reference.Catalog",
       "caseCount": 48,
@@ -177,9 +98,9 @@
       }
     },
     {
-      "file": "identity-nodes-machines.json",
+      "file": "identity-misc.json",
       "module": "Afterlight.Parity.Reference.Misc",
-      "caseCount": 54,
+      "caseCount": 45,
       "hazards": {
         "bitops32": [
           "palette/*"
@@ -202,19 +123,13 @@
           "nick/dup-case"
         ],
         "error-strings": [
-          "nodes/*",
-          "mill/*",
           "yt/*"
         ],
         "key-order": [
           "yt/classic-renderers",
           "yt/lockup-view-models"
         ],
-        "timestamps": [
-          "nodes/*"
-        ],
         "number-coercion": [
-          "mill/contribute-clamp-matrix",
           "protocol/parse-*"
         ],
         "json-roundtrip": [

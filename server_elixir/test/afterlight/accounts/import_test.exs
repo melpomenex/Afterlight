@@ -14,8 +14,8 @@ defmodule Afterlight.Accounts.ImportTest do
   test "idempotent second run against the same snapshot" do
     path =
       snapshot(%{
-        "guest_imp_a" => player("guest_imp_a", 10, 3),
-        "guest_imp_b" => player("guest_imp_b", 4, 1)
+        "guest_imp_a" => player("guest_imp_a", "QuietLantern"),
+        "guest_imp_b" => player("guest_imp_b", "SignalKeeper")
       })
 
     {:ok, :imported, meta} = Import.run(path)
@@ -28,48 +28,29 @@ defmodule Afterlight.Accounts.ImportTest do
   end
 
   test "count validation failure aborts" do
-    path = snapshot(%{"guest_bad" => Map.delete(player("guest_bad", 1, 0), "id")})
+    path = snapshot(%{"guest_bad" => Map.delete(player("guest_bad", "Bad"), "id")})
     # Missing id will fail the create inside the transaction.
     assert {:error, :validation, _} = Import.run(path)
   end
 
-  test "normalizePlayer quirk fixtures" do
+  test "player normalization keeps identity and current room" do
     raw = %{
       "id" => "guest_norm1",
       "nickname" => "Quirk",
-      "coins" => 2.9,
-      "xp" => 1,
-      "level" => 1,
-      "inventory" => %{},
-      "currentRoom" => "market",
+      "currentRoom" => "theater",
       "lastSeen" => 50
     }
 
     normalized = Normalize.player(raw)
-    assert normalized["materials"] == %{}
-    assert normalized["inventory"]["sprinklers"] == 0
-    assert normalized["reservedCoins"] == 0
+    assert normalized["id"] == "guest_norm1"
+    assert normalized["currentRoom"] == "theater"
 
-    path =
-      snapshot(%{
-        "guest_norm1" => raw,
-        "guest_norm2" => %{
-          "id" => "guest_norm2",
-          "nickname" => "Dusty",
-          "coins" => 1,
-          "xp" => 0,
-          "level" => 1,
-          "materials" => %{"copper" => 1.8, "bad" => 0, "nan" => "x"},
-          "inventory" => %{"sprinklers" => -3},
-          "currentRoom" => "market",
-          "lastSeen" => 1
-        }
-      })
+    path = snapshot(%{"guest_norm1" => raw, "guest_norm2" => player("guest_norm2", "Dusty")})
 
     {:ok, :imported, _} = Import.run(path)
     {:ok, p} = Ash.get(Player, "guest_norm2", authorize?: false)
-    assert p.materials == %{"copper" => 1}
-    assert p.inventory["sprinklers"] == 0
+    assert p.nickname == "Dusty"
+    assert p.current_room == "market"
   end
 
   test "partial file is a success no-op" do
@@ -83,24 +64,46 @@ defmodule Afterlight.Accounts.ImportTest do
   end
 
   test "snapshot-hash mismatch detection" do
-    path = snapshot(%{"guest_h1" => player("guest_h1", 1, 0)})
+    path = snapshot(%{"guest_h1" => player("guest_h1", "Alpha")})
     {:ok, :imported, _} = Import.run(path)
-    other = snapshot(%{"guest_h2" => player("guest_h2", 2, 0)})
+    other = snapshot(%{"guest_h2" => player("guest_h2", "Beta")})
     assert {:error, :hash_mismatch, _} = Import.run(other)
   end
 
-  test "legacy field set round-trip after import" do
-    rec = player("guest_rt1", 9, 4)
-    rec = Map.merge(rec, %{"materials" => %{"timber" => 2}, "inventory" => %{"seeds" => %{"radish" => 1}, "produce" => %{}, "reservedProduce" => %{}, "sprinklers" => 2}})
+  test "retained field set round-trip after import" do
+    rec = player("guest_rt1", "RoundTrip")
     path = snapshot(%{"guest_rt1" => rec})
     {:ok, :imported, _} = Import.run(path)
     {:ok, p} = Ash.get(Player, "guest_rt1", authorize?: false)
     legacy = Normalize.to_legacy_player(p)
     assert legacy["id"] == rec["id"]
     assert legacy["nickname"] == rec["nickname"]
-    assert legacy["coins"] == rec["coins"]
-    assert legacy["materials"]["timber"] == 2
-    assert legacy["inventory"]["sprinklers"] == 2
+    assert legacy["currentRoom"] == "market"
+  end
+
+  test "legacy economy fields in a snapshot are ignored, never imported" do
+    rec =
+      player("guest_legacy", "Legacy")
+      |> Map.merge(%{
+        "coins" => 99,
+        "xp" => 500,
+        "level" => 6,
+        "reputation" => 3,
+        "reservedCoins" => 4,
+        "materials" => %{"copper" => 2},
+        "inventory" => %{"seeds" => %{"radish" => 3}, "produce" => %{}, "reservedProduce" => %{}, "sprinklers" => 1}
+      })
+
+    path = snapshot(%{"guest_legacy" => rec})
+    {:ok, :imported, _} = Import.run(path)
+    {:ok, p} = Ash.get(Player, "guest_legacy", authorize?: false)
+    assert p.nickname == "Legacy"
+
+    legacy = Normalize.to_legacy_player(p)
+    assert legacy["currentRoom"] == "market"
+    refute Map.has_key?(legacy, "coins")
+    refute Map.has_key?(legacy, "inventory")
+    refute Map.has_key?(legacy, "materials")
   end
 
   test "export_players requires freeze ack" do
@@ -109,17 +112,10 @@ defmodule Afterlight.Accounts.ImportTest do
     assert path == Export.write!(path, freeze_ack: true)
   end
 
-  defp player(id, coins, xp) do
+  defp player(id, nickname) do
     %{
       "id" => id,
-      "nickname" => "N#{id}",
-      "coins" => coins,
-      "xp" => xp,
-      "level" => 1,
-      "reputation" => 0,
-      "reservedCoins" => 0,
-      "inventory" => %{"seeds" => %{}, "produce" => %{}, "reservedProduce" => %{}, "sprinklers" => 0},
-      "materials" => %{},
+      "nickname" => nickname,
       "currentRoom" => "market",
       "lastSeen" => 1
     }

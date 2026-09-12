@@ -52,38 +52,6 @@ function buildCanalScenery(ctx) {
   group.add(wheel); animated.push((time, done) => { wheel.rotation.z = done ? time * .4 : 0; });
 }
 
-function buildGardenScenery(ctx) {
-  const { group, block, box, glow, random, animated } = ctx;
-  const glassMaterial = new THREE.MeshStandardMaterial({ color: '#b7d9b3', transparent: true, opacity: .13, metalness: .1, roughness: .3, depthWrite: false, side: THREE.DoubleSide });
-  for (const x of [-1, 7]) for (let z = -9; z <= -2; z += 1.4) box(x, 2.1, z, .1, 4.2, .1, '#789184');
-  for (let z = -9; z <= -2; z += 1.4) {
-    const beam = box(1, 4.8, z, 4.5, .12, .12, '#96a58b'); beam.rotation.z = .35;
-    const other = box(5, 4.8, z, 4.5, .12, .12, '#96a58b'); other.rotation.z = -.35;
-  }
-  for (const x of [1, 5]) { const glass = box(x, 4.8, -5.5, 4.25, .03, 7.4); glass.material = glassMaterial; glass.rotation.z = x === 1 ? .35 : -.35; }
-  for (const [x, z, w, d] of [[-6, -5, 3, 5], [3, 3.5, 5, 2], [8, 6, 2, 4]]) {
-    box(x, .35, z, w, .6, d, '#9b9270'); box(x, .68, z, w - .2, .1, d - .2, '#414b32'); block(x, z, w, d);
-    for (let i = 0; i < 50; i++) {
-      const px = x + (random() - .5) * (w - .4), pz = z + (random() - .5) * (d - .4), height = .4 + random() * .7;
-      box(px, .7 + height / 2, pz, .045, height, .045, '#627347');
-      const leaf = box(px, .8 + height, pz, .3, .12, .45, ['#779455', '#94a86a', '#536f42'][i % 3]); leaf.rotation.z = random();
-      if (i % 8 === 0) box(px, 1 + height, pz, .16, .14, .16, '#d2b28a');
-    }
-  }
-  for (const x of [-9, 9]) {
-    box(x, 1.1, -7, .35, 2.2, .35, '#6b5942'); block(x, -7, 1.5, 1.5);
-    for (let i = 0; i < 25; i++) box(x + (random() - .5) * 2.5, 2 + random() * 1.7, -7 + (random() - .5) * 2, .7, .5, .7, ['#667c49', '#819258', '#4e6b47'][i % 3]);
-  }
-  box(4, .75, -5, 2, 1.4, 1.2, '#a09776'); block(4, -5, 2, 1.2);
-  for (let i = 0; i < 6; i++) {
-    const seedling = glow(3.3 + i * .28, 1.55, -5, .1, .18, .2, '#b7ce86', .5);
-    animated.push((time, done) => {
-      seedling.material.emissiveIntensity = done ? 1.8 + Math.sin(time + i) * .25 : .3;
-      seedling.scale.y = done ? .35 : .18;
-    });
-  }
-}
-
 function buildStationScenery(ctx) {
   const { group, block, box, glow, material, colors, animated } = ctx;
   for (const z of [-5, -7]) box(0, .25, z, 23, .12, .12, '#9aa5a2');
@@ -422,7 +390,6 @@ function buildCourtScenery(ctx) {
 const DISTRICT_BUILDERS = {
   court: buildRainCourtScenery,
   canal: buildCanalScenery,
-  garden: buildGardenScenery,
   station: buildStationScenery,
   aqueduct: buildAqueductScenery,
   caldera: buildCalderaWorld,

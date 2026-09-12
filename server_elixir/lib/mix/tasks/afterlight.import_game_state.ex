@@ -30,7 +30,7 @@ defmodule Mix.Tasks.Afterlight.ImportGameState do
 
       {:ok, :imported, meta} ->
         Mix.shell().info(
-          "imported #{meta.count} players coins=#{meta.coins} xp=#{meta.xp} sha256=#{meta.hash}"
+          "imported #{meta.count} players sha256=#{meta.hash}"
         )
 
       {:error, :hash_mismatch, meta} ->

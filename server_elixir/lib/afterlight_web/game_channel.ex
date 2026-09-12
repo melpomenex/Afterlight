@@ -37,14 +37,13 @@ defmodule AfterlightWeb.GameChannel do
       `presence_update` is pushed to the joiner and the room receives
       `presence_join` (joiner excluded) — and is THEN forwarded to the
       Node shadow session so Node's `currentRoom` gating
-      (`garden_action` ownership, `node_harvest` district match,
-      theater/catalog room checks) keeps working. Node's join-time domain
+      (theater/catalog room checks) keeps working. Node's join-time domain
       snapshots relay back afterwards: the documented
       `join_room` → roster → snapshots ordering is preserved.
     * Node-emitted `presence_join`/`presence_leave`/`presence_update`
       frames are SUPPRESSED (World is the single writer of presence).
       `weather_update` and `welcome.weather` keep flowing from Node
-      unsuppressed — Node owns weather until the P6 group flip (D7).
+      unsuppressed — weather is presentation-only (D7).
     * world-owned client messages (`movement`, `emote`) are NOT relayed
       to Node (Node would double-broadcast the room's frames).
     * `set_nickname` is relayed (accounts stay Node's until P4); the
@@ -74,7 +73,6 @@ defmodule AfterlightWeb.GameChannel do
   alias Afterlight.Activities.Tournament
   alias Afterlight.Catalog
   alias Afterlight.Catalog.Gateway, as: CatalogGateway
-  alias Afterlight.EconomyGroup.Gateway, as: EconomyGateway
   alias Afterlight.Gateway.NodeProxy
   alias Afterlight.Gateway.RateLimit
   alias Afterlight.Gateway.Router
@@ -100,9 +98,7 @@ defmodule AfterlightWeb.GameChannel do
   # World membership (design D6 membership authority). hello/set_nickname
   # (accounts), chat (social), and ping stay ungated.
   @durable_types ~w(
-    garden_action market_buy market_sell order_place order_cancel
-    contract_complete node_harvest machine_contribute machine_mill
-    machine_craft theater_queue theater_control theater_channel
+    theater_queue theater_control theater_channel
     theater_playlist_resolve iptv_list_get iptv_list_remove
     epg_lookup
   )
@@ -114,17 +110,18 @@ defmodule AfterlightWeb.GameChannel do
   # Node frames suppressed while Social owns chat (D1/D6).
   @chat_server_types ~w(chat_message chat_dm chat_history chat_presence chat_error)
 
-  # Node frames suppressed while the economy group owns durable state.
-  @economy_server_types ~w(
-    garden_state inventory_state market_update contract_update trade_filled
-    node_state machine_update
-  )
-
   # Node frames suppressed while Theater owns playback snapshots.
   @theater_server_types ~w(theater_state)
 
   # Node frames suppressed while Catalog owns IPTV metadata snapshots.
   @catalog_server_types ~w(iptv_state)
+
+  # Retired garden/economy snapshots: never relayed to clients even if an
+  # older Node shadow still emits them (retirement tolerance).
+  @retired_server_types ~w(
+    garden_state inventory_state market_update contract_update node_state
+    machine_update trade_filled action_result
+  )
 
   @impl true
   def join(@topic, _payload, socket) do
@@ -142,7 +139,6 @@ defmodule AfterlightWeb.GameChannel do
             socket
             |> assign(:proxy_pid, proxy_pid)
             |> assign(:conn_ref, make_ref())
-            |> maybe_subscribe_economy()
 
           {:ok, %{guestId: guest_id}, socket}
         end
@@ -165,9 +161,6 @@ defmodule AfterlightWeb.GameChannel do
 
       {:world, type, payload} ->
         handle_world(type, payload || %{}, socket)
-
-      {:economy, type, payload} ->
-        handle_economy(type, payload || %{}, socket)
 
       {:chat, type, payload} ->
         handle_chat(type, payload || %{}, socket)
@@ -220,11 +213,6 @@ defmodule AfterlightWeb.GameChannel do
     deliver_world_frame(frame, nil, socket)
   end
 
-  def handle_info({:economy_frame, event, payload}, socket) do
-    push(socket, event, payload)
-    {:noreply, socket}
-  end
-
   def handle_info({:chat_push, event, payload}, socket) do
     push(socket, event, payload)
     {:noreply, socket}
@@ -256,13 +244,14 @@ defmodule AfterlightWeb.GameChannel do
         # chat domain is flipped (Node shadow frames are suppressed).
         {:noreply, socket}
 
-      Router.economy_phx?() and event in @economy_server_types ->
-        {:noreply, socket}
-
       Router.theater_phx?() and event in @theater_server_types ->
         {:noreply, socket}
 
       Router.catalog_phx?() and event in @catalog_server_types ->
+        {:noreply, socket}
+
+      event in @retired_server_types ->
+        # Retired gardening/economy snapshot: dropped, never surfaced.
         {:noreply, socket}
 
       Router.hello_phx?() and event == "welcome" ->
@@ -270,15 +259,6 @@ defmodule AfterlightWeb.GameChannel do
 
       event == "torrent_state" ->
         # Phoenix StatusRelay owns torrent_state while resolve is proxied.
-        {:noreply, socket}
-
-      event == "garden_state" ->
-        push(socket, "garden_state", fields)
-
-        if Router.chat_phx?() and not Router.economy_phx?() do
-          Social.send_history(self())
-        end
-
         {:noreply, socket}
 
       event == "welcome" ->
@@ -605,42 +585,6 @@ defmodule AfterlightWeb.GameChannel do
 
   defp handle_chat(_type, _payload, socket), do: {:noreply, socket}
 
-  ## Economy dispatch (P6 gardens/economy/restoration)
-
-  defp handle_economy(type, payload, socket) do
-    if Router.world_phx?() and not live_member?(socket) do
-      push(socket, "error", %{"message" => "room_unavailable"})
-      {:noreply, socket}
-    else
-      ctx = %{
-        guest_id: socket.assigns.guest_id,
-        world_room: socket.assigns[:world_room]
-      }
-
-      payload =
-        if type == "node_harvest" do
-          Map.put(payload, "currentRoom", room_wire(socket))
-        else
-          payload
-        end
-
-      case EconomyGateway.handle(type, payload, ctx) do
-        {:ok, replies} ->
-          socket =
-            Enum.reduce(replies, socket, fn {event, fields}, sock ->
-              push(sock, event, fields)
-              sock
-            end)
-
-          {:noreply, socket}
-
-        {:error, {event, fields}} ->
-          push(socket, event, fields)
-          {:noreply, socket}
-      end
-    end
-  end
-
   ## Hello dispatch (P6 welcome owner)
 
   defp handle_hello(payload, socket) do
@@ -684,6 +628,9 @@ defmodule AfterlightWeb.GameChannel do
     socket =
       if Router.chat_phx?() do
         Social.player_connected(guest_id, socket.assigns.conn_ref, self(), nickname)
+        # Phoenix-owned chat serves its own history after the join frames;
+        # the retired garden_state ordering shim no longer exists.
+        Social.send_history(self())
         assign(socket, :chat_registered, true)
       else
         socket
@@ -1369,7 +1316,8 @@ defmodule AfterlightWeb.GameChannel do
   # the token's verified identity claim. A hello whose guestId differs
   # from the claim is refused; a hello without one gets the claim
   # injected, so Node's session keying, self-echo filtering and
-  # `garden:<guestId>` room ids all stay continuous. The hello nickname
+  # `garden:`-prefixed room ids were retired with the personal gardens; the
+  # hello nickname pipeline is unchanged.
   # is remembered for the first world join; the Node-built `welcome`
   # (sanitized) supersedes it.
   defp relay(%{"type" => "hello"} = frame, socket) do
@@ -1627,16 +1575,6 @@ defmodule AfterlightWeb.GameChannel do
       %{wire_id: wire} -> wire
       _ -> nil
     end
-  end
-
-  defp maybe_subscribe_economy(socket) do
-    if Router.economy_phx?() do
-      guest_id = socket.assigns.guest_id
-      :ok = Phoenix.PubSub.subscribe(Afterlight.PubSub, "market:updates")
-      :ok = Phoenix.PubSub.subscribe(Afterlight.PubSub, "players:#{guest_id}")
-    end
-
-    socket
   end
 
   defp start_proxy(socket, guest_id) do

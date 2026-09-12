@@ -3,11 +3,10 @@
  *
  * The default input is hover-follow: in first person the view follows mouse
  * movement with no button held. This module persists the reversible choice to
- * the hold-and-drag gesture. Pure and storage-injected like the legacy-HUD
- * preference in placeHudPolicy.js: reading never throws and never rewrites
- * storage — a malformed stored value is ignored for the session — and a write
- * failure keeps the choice session-local and reports false (the caller must
- * not pretend otherwise).
+ * the hold-and-drag gesture. Pure and storage-injected: reading never throws
+ * and never rewrites storage — a malformed stored value is ignored for the
+ * session — and a write failure keeps the choice session-local and reports
+ * false (the caller must not pretend otherwise).
  */
 
 /** Storage key for the mouse-look preference. */

@@ -35,10 +35,20 @@ export function verifySocialPlace(id, seatCount, waypoints) {
   return {def,world,seats,draws,triangles,lights};
 }
 
+// Historical procedural seeds (old array index × 37) for every surviving
+// district; the retired Glass Garden (74) is gone from the route.
+const HISTORICAL_SEEDS = {
+  court: 0, canal: 37, station: 111, aqueduct: 148, caldera: 185, understory: 222,
+  saltworks: 259, rooftops: 296, mangrove: 333, trestle: 370, foundry: 407,
+  'frost-spire': 444, delta: 481, archives: 518, 'kiln-terrace': 555, theater: 592,
+};
+
 export function verifyLegacyEdges(){
+  const count = LEGACY_DISTRICT_IDS.length;
   LEGACY_DISTRICT_IDS.forEach((id,i)=>{
-    const d=getPlaceDefinition(id);assert.equal(d.seed,i*37);
-    assert.equal(d.exits.find(e=>e.id==='east').target,LEGACY_DISTRICT_IDS[(i+1)%17]);
-    assert.equal(d.exits.find(e=>e.id==='west').target,LEGACY_DISTRICT_IDS[(i+16)%17]);
+    const d=getPlaceDefinition(id);
+    assert.equal(d.seed, HISTORICAL_SEEDS[id], `${id} keeps its historical seed`);
+    assert.equal(d.exits.find(e=>e.id==='east').target, LEGACY_DISTRICT_IDS[(i+1)%count]);
+    assert.equal(d.exits.find(e=>e.id==='west').target, LEGACY_DISTRICT_IDS[(i-1+count)%count]);
   });
 }

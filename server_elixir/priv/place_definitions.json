@@ -262,23 +262,6 @@
       ]
     },
     {
-      "id": "garden",
-      "public": true,
-      "kind": "environment",
-      "bounds": {
-        "minX": -11.3,
-        "maxX": 11.3,
-        "minZ": -9.5,
-        "maxZ": 10.3
-      },
-      "atmosphere": {
-        "preset": null,
-        "weatherMode": "fixed",
-        "timeMode": "fixed"
-      },
-      "activities": []
-    },
-    {
       "id": "station",
       "public": true,
       "kind": "environment",

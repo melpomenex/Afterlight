@@ -11,9 +11,6 @@ defmodule Afterlight.Parity.Hazards do
   @formats %{
     Afterlight.Parity.Reference.Theater => ~r/^itm_[0-9a-z]+_[0-9a-z]+$/,
     Afterlight.Parity.Reference.Catalog => ~r/^iptv_[0-9a-z]+_[0-9a-z]+$/,
-    Afterlight.Parity.Reference.Market => ~r/^trade_[0-9a-z]+_[0-9a-z]+$/,
-    Afterlight.Parity.Reference.Contracts => ~r/^contract_[0-9a-z]+_[0-9]+$/,
-    Afterlight.Parity.Reference.Garden => nil,
     Afterlight.Parity.Reference.Torrent => nil,
     Afterlight.Parity.Reference.Misc => nil
   }
@@ -41,7 +38,7 @@ defmodule Afterlight.Parity.Hazards do
   half-even; trunc(x + 0.5) is half away from zero and diverges on negative
   fractions, e.g. Math.round(-2.7) === -3).
   """
-  def js_round(x) when is_float(x) or is_integer(x), do: Afterlight.Parity.Numeric.js_round(x)
+  def js_round(x) when is_float(x) or is_integer(x), do: :math.floor(x + 0.5)
 
   @doc """
   JS Number(x) coercion subset relevant to fixtures: numbers pass through,
@@ -50,7 +47,44 @@ defmodule Afterlight.Parity.Hazards do
   exercise these paths via error outcomes).
   """
   def js_to_number(n) when is_number(n), do: n
-  def js_to_number(value), do: Afterlight.Parity.Numeric.js_to_number(value)
+  def js_to_number(:absent), do: :nan
+  def js_to_number(""), do: 0
+
+  def js_to_number(<<char, rest::binary>>) when char in [?\s, ?\t, ?\n, ?\r] do
+    case String.trim(rest) do
+      "" -> 0
+      _ -> js_parse(rest)
+    end
+  end
+
+  def js_to_number(value) when is_binary(value), do: js_parse(value)
+  def js_to_number(nil), do: 0
+  def js_to_number(true), do: 1
+  def js_to_number(false), do: 0
+  def js_to_number(_), do: :nan
+
+  defp js_parse("0x" <> hex) do
+    case Integer.parse(hex, 16) do
+      {n, ""} -> n
+      _ -> :nan
+    end
+  end
+
+  defp js_parse(value) do
+    trimmed = String.trim(value)
+
+    case Float.parse(trimmed) do
+      {f, ""} ->
+        if f == trunc(f) and not (trimmed =~ "." or trimmed =~ "e" or trimmed =~ "E") do
+          trunc(f)
+        else
+          f
+        end
+
+      _ ->
+        :nan
+    end
+  end
 
   @doc "UTF-16 code-unit truncation (JS String.prototype.slice(0, max) semantics)."
   def utf16_truncate(value, max) when is_binary(value) do

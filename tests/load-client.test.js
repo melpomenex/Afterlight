@@ -28,10 +28,10 @@ describe('load_client metrics', () => {
 describe('load_client durable', () => {
   it('builds envelopes with request_id and expected_revision', () => {
     const t = new DurableCommandTracker();
-    const env = t.buildEnvelope('garden_action', { action: 'till' });
+    const env = t.buildEnvelope('set_nickname', { nickname: 'LoadTester' });
     assert.ok(env.request_id);
     assert.equal(env.expected_revision, 0);
-    assert.equal(env.type, 'garden_action');
+    assert.equal(env.type, 'set_nickname');
   });
 
   it('classifies error frames', () => {

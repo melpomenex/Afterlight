@@ -11,10 +11,10 @@ defmodule Afterlight.Gateway.Auth do
   player fields are never trusted.
 
   Transitional semantics, precisely: guestId continues to *identify*
-  (self-echo filtering, `garden:<guestId>` room ids, Node session keying),
-  but possession of a bare guestId no longer *authorizes* a connection —
-  the signed token does. Player-identity trust lands in P4/P6 when tokens
-  bind to durable session/player rows.
+  (self-echo filtering, Node session keying), but possession of a bare
+  guestId no longer *authorizes* a connection — the signed token does.
+  Player-identity trust lands in P4/P6 when tokens bind to durable
+  session/player rows.
 
   Tokens are NEVER logged (design risk item); logs carry correlation ids.
   """

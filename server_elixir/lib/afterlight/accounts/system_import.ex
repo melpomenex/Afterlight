@@ -6,8 +6,6 @@ defmodule Afterlight.Accounts.SystemImport do
   schema "system_imports" do
     field :snapshot_sha256, :string
     field :player_count, :integer
-    field :coins_sum, :integer
-    field :xp_sum, :integer
     field :imported_at, :integer
     field :source_path, :string
     field :meta, :map, default: %{}

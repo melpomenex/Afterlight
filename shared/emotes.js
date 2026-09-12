@@ -2,7 +2,7 @@ export const EMOTES = Object.freeze([
   { id: 'wave', label: 'Hello there', icon: '👋', hint: 'A little warmth goes a long way' },
   { id: 'dance', label: 'Rust shuffle', icon: '♫', hint: 'Still got some rhythm in these gears' },
   { id: 'cheer', label: 'We did it!', icon: '✦', hint: 'Small repairs. Big celebrations.' },
-  { id: 'heart', label: 'Much love', icon: '♡', hint: 'For your favorite fellow gardener' },
+  { id: 'heart', label: 'Much love', icon: '♡', hint: 'For your favorite fellow wanderer' },
   { id: 'bow', label: 'After you', icon: '❧', hint: 'A gracious little thank-you' },
   { id: 'shrug', label: 'Who knows?', icon: '¯\\_(ツ)_/¯', hint: 'Some mysteries can wait' },
 ]);

@@ -3,22 +3,24 @@
  */
 
 const ADJECTIVES = [
-  'Mossy', 'Quiet', 'Copper', 'Rainy', 'Amber', 'Misty', 'Rust', 'Golden',
-  'Silver', 'Fern', 'Bramble', 'Cobble', 'Thistle', 'Breezy', 'Dusky', 'Dappled',
-  'Dewy', 'Hedge', 'Orchard', 'Verdant', 'Gilded', 'Pebble', 'Autumnal', 'Gleaming',
+  'Quiet', 'Copper', 'Rainy', 'Amber', 'Misty', 'Rust', 'Golden', 'Silver',
+  'Cobble', 'Breezy', 'Dusky', 'Dappled', 'Gilded', 'Pebble', 'Gleaming', 'Iron',
+  'Slate', 'Cinder', 'Ember', 'Tidal', 'Steady', 'Bright', 'Hollow', 'Autumnal',
 ];
 
-const PRODUCE_NOUNS = [
-  'Radish', 'Turnip', 'Basil', 'Leek', 'Carrot', 'Kale', 'Tomato', 'Berry',
-  'Sorrel', 'Chive', 'Sprout', 'Fennel', 'Parsnip', 'Pepper', 'Clover', 'Borage',
-  'Sage', 'Mint', 'Beet', 'Chard',
+// Machine/urban nouns only: Afterlight is a city of lanterns, signals and
+// foundries, not a garden.
+const MACHINE_NOUNS = [
+  'Lantern', 'Kestrel', 'Compass', 'Signal', 'Beacon', 'Relay', 'Foundry', 'Quarry',
+  'Anvil', 'Cog', 'Piston', 'Whistle', 'Prism', 'Sparrow', 'Tram', 'Bellows',
+  'Lattice', 'Sprocket', 'Gantry', 'Conduit',
 ];
 
 export function generateDefaultNickname(seed = Math.random()) {
   const adjIdx = Math.floor(Math.abs(Math.sin(seed * 999)) * ADJECTIVES.length);
-  const nounIdx = Math.floor(Math.abs(Math.cos(seed * 888)) * PRODUCE_NOUNS.length);
+  const nounIdx = Math.floor(Math.abs(Math.cos(seed * 888)) * MACHINE_NOUNS.length);
   const num = Math.floor(Math.abs(Math.sin(seed * 777)) * 90) + 10;
-  return `${ADJECTIVES[adjIdx]}${PRODUCE_NOUNS[nounIdx]}${num}`;
+  return `${ADJECTIVES[adjIdx]}${MACHINE_NOUNS[nounIdx]}${num}`;
 }
 
 export function sanitizeNickname(input) {

@@ -274,9 +274,9 @@ test('players and IRC clients share the channel both directions', async () => {
     bot.send('NICK KilnBot', 'USER bot 0 * :Kiln Bot', 'JOIN #afterlight');
     await bot.waitFor(' 366 ');
 
-    const p1 = await gamePlayer(wsUrl, 'guest_chat_a', 'MossyRadish42');
+    const p1 = await gamePlayer(wsUrl, 'guest_chat_a', 'CopperLantern42');
     // The player must appear on IRC under their game nickname.
-    await bot.waitFor(':MossyRadish42!gardener@afterlight JOIN');
+    await bot.waitFor(':CopperLantern42!visitor@afterlight JOIN');
 
     // Game -> IRC.
     p1.sendChat('the mill is restored!');
@@ -310,9 +310,9 @@ test('direct messages stay private in both directions', async () => {
     bot.send('NICK KilnBot', 'USER bot 0 * :Kiln Bot', 'JOIN #afterlight');
     await bot.waitFor(' 366 ');
 
-    const p1 = await gamePlayer(wsUrl, 'guest_dm_a', 'QuietLeek');
-    const p2 = await gamePlayer(wsUrl, 'guest_dm_b', 'FernWatcher');
-    await bot.waitFor('FernWatcher!gardener@afterlight JOIN');
+    const p1 = await gamePlayer(wsUrl, 'guest_dm_a', 'QuietSignal');
+    const p2 = await gamePlayer(wsUrl, 'guest_dm_b', 'SignalWatcher');
+    await bot.waitFor('SignalWatcher!visitor@afterlight JOIN');
 
     // Player -> IRC bot, private.
     p1.sendChat('/msg KilnBot ping');
@@ -321,19 +321,19 @@ test('direct messages stay private in both directions', async () => {
     assert.ok(!messages(p2.inbox, MSG_TYPES.CHAT_DM).length, 'bystander sees no DM');
 
     // IRC bot -> player, private.
-    bot.send('PRIVMSG QuietLeek :pong, gardener');
+    bot.send('PRIVMSG QuietSignal :pong, visitor');
     await waitFor(() => messages(p1.inbox, MSG_TYPES.CHAT_DM)
-      .some(m => m.from === 'KilnBot' && m.text === 'pong, gardener'),
+      .some(m => m.from === 'KilnBot' && m.text === 'pong, visitor'),
       'bot DM reaches the player');
     assert.ok(!messages(p2.inbox, MSG_TYPES.CHAT_DM).length, 'still nothing to the bystander');
 
     // Player -> player by game nickname.
-    p1.sendChat('/msg FernWatcher meet you at the mill');
+    p1.sendChat('/msg SignalWatcher meet you at the mill');
     await waitFor(() => messages(p2.inbox, MSG_TYPES.CHAT_DM)
-      .some(m => m.from === 'QuietLeek' && m.text === 'meet you at the mill'),
+      .some(m => m.from === 'QuietSignal' && m.text === 'meet you at the mill'),
       'player-to-player DM delivered');
     assert.ok(messages(p1.inbox, MSG_TYPES.CHAT_DM)
-      .some(m => m.to === 'FernWatcher' && m.echo), 'sender gets an echo copy');
+      .some(m => m.to === 'SignalWatcher' && m.echo), 'sender gets an echo copy');
 
     // Unknown target: clear failure, delivered to nobody.
     const dmCountP2 = messages(p2.inbox, MSG_TYPES.CHAT_DM).length;
@@ -429,11 +429,11 @@ test('chat works with the IRC listener disabled', async () => {
   const { handle, wsUrl } = await listen({ ircDisabled: true });
   try {
     assert.equal(handle.irc.boundPort, null, 'no IRC port bound');
-    const p1 = await gamePlayer(wsUrl, 'guest_off_a', 'LoneGardener');
+    const p1 = await gamePlayer(wsUrl, 'guest_off_a', 'LoneWanderer');
     const p2 = await gamePlayer(wsUrl, 'guest_off_b', 'Sidekick');
     p1.sendChat('can anyone hear me?');
     await waitFor(() => messages(p2.inbox, MSG_TYPES.CHAT_MESSAGE)
-      .some(m => m.from === 'LoneGardener' && /can anyone hear/.test(m.text)),
+      .some(m => m.from === 'LoneWanderer' && /can anyone hear/.test(m.text)),
       'in-game relay works without IRC');
     assert.ok(messages(p1.inbox, MSG_TYPES.CHAT_MESSAGE)
       .filter(m => m.text?.includes('can anyone hear')).length === 1, 'echo still exactly once');

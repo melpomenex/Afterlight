@@ -26,7 +26,7 @@ The HTML files are standalone Archify documents. Their editable JSON specificati
 
 ## First implementation slice
 
-Build a Phoenix-hosted lobby with the existing Three.js world mounted as a JavaScript island. Connect two authenticated guest sessions through a Channels adapter, preserving travel/reconnect and remote avatars. Independently prove a two-to-eight participant Membrane call with TURN fallback. These experiments settle the two biggest integration risks before migrating the economy.
+Build a Phoenix-hosted lobby with the existing Three.js world mounted as a JavaScript island. Connect two authenticated guest sessions through a Channels adapter, preserving travel/reconnect and remote avatars. Independently prove a two-to-eight participant Membrane call with TURN fallback. These experiments settle the two biggest integration risks before the remaining domain migrations.
 
 ## Assumptions to revisit
 

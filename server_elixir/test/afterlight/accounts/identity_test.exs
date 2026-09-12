@@ -11,7 +11,7 @@ defmodule Afterlight.Accounts.IdentityTest do
   end
 
   test "post-sanitize nicknames are ASCII so SQL lower() and JS toLowerCase agree" do
-    for input <- ["Mossy🌟Radish!!! Café", "<b>Bold</b>name", "control\u0001char", "idemi_"] do
+    for input <- ["Bright🌟Lantern!!! Café", "<b>Bold</b>name", "control\u0001char", "idemi_"] do
       out = ReducerSupport.sanitize_nickname(input, fn -> 0.1 end)
       assert ReducerSupport.ascii_only?(out), inspect(out)
       assert String.downcase(out) == String.downcase(out, :ascii)
@@ -29,6 +29,6 @@ defmodule Afterlight.Accounts.IdentityTest do
   end
 
   test "historical names are ignored when omitted from the active set" do
-    assert ReducerSupport.resolve_duplicate_nickname("MistyPepper94", ["liveOther"]) == "MistyPepper94"
+    assert ReducerSupport.resolve_duplicate_nickname("MistyCompass94", ["liveOther"]) == "MistyCompass94"
   end
 end

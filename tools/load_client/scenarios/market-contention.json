@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "description": "Concurrent market contention — many actors, durable market commands",
+  "description": "Concurrent market-room contention — many actors, durable profile commands",
   "sessions": 40,
   "rooms": ["market"],
   "rampMs": 8000,

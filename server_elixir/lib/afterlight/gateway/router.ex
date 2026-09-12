@@ -24,7 +24,6 @@ defmodule Afterlight.Gateway.Router do
           | {:chat, type :: String.t(), payload :: map}
           | {:catalog, type :: String.t(), payload :: map}
           | {:theater, type :: String.t(), payload :: map}
-          | {:economy, type :: String.t(), payload :: map}
           | {:activity, type :: String.t(), payload :: map}
           | {:specialty, type :: String.t(), payload :: map}
           | {:relay, frame :: %{binary() => term}}
@@ -42,16 +41,9 @@ defmodule Afterlight.Gateway.Router do
     tournament_enroll tournament_withdraw tournament_checkin tournament_get
   )
 
-  @economy_types ~w(
-    garden_action market_buy market_sell order_place order_cancel contract_complete
-    node_harvest machine_contribute machine_mill machine_craft
-  )
-
   @node_relay_types ~w(
     hello set_nickname
     join_room movement emote chat_send
-    garden_action market_buy market_sell order_place order_cancel contract_complete
-    node_harvest machine_contribute machine_mill machine_craft
     theater_queue theater_control theater_channel theater_playlist_resolve
     iptv_list_get iptv_list_remove epg_lookup
   )
@@ -143,16 +135,7 @@ defmodule Afterlight.Gateway.Router do
   @spec theater_phx?() :: boolean
   def theater_phx?, do: theater_owner() == :phoenix
 
-  @doc "Single source of truth for the P6 economy/restoration flip: the `garden_action` routing row."
-  @spec economy_owner() :: disposition()
-  def economy_owner do
-    routing_table() |> Map.get("garden_action", :node)
-  end
-
-  @spec economy_phx?() :: boolean
-  def economy_phx?, do: economy_owner() == :phoenix
-
-  @doc "Single source of truth for the P6 hello/welcome flip: the `hello` routing row."
+  @doc "Single source of truth for the hello/welcome flip: the `hello` routing row."
   @spec hello_owner() :: disposition()
   def hello_owner do
     routing_table() |> Map.get("hello", :node)
@@ -178,9 +161,6 @@ defmodule Afterlight.Gateway.Router do
 
       :phoenix when type in @theater_types ->
         {:theater, type, payload || %{}}
-
-      :phoenix when type in @economy_types ->
-        {:economy, type, payload || %{}}
 
       :phoenix when type in @activity_types ->
         {:activity, type, payload || %{}}

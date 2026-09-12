@@ -29,14 +29,7 @@ defmodule Afterlight.Accounts.GatewayTest do
 
     player = %{
       "id" => "guest_gw_welcome",
-      "nickname" => "Fern",
-      "coins" => 1,
-      "xp" => 0,
-      "level" => 1,
-      "reputation" => 0,
-      "reservedCoins" => 0,
-      "inventory" => %{"seeds" => %{}, "produce" => %{}, "reservedProduce" => %{}, "sprinklers" => 0},
-      "materials" => %{},
+      "nickname" => "QuietLantern",
       "currentRoom" => "market",
       "lastSeen" => 1
     }
@@ -45,7 +38,7 @@ defmodule Afterlight.Accounts.GatewayTest do
     GatewayTest.FakeCore.inject_frame(up, %{"type" => "inventory_state", "player" => player})
 
     assert_push "welcome", %{"player" => ^player}
-    assert_push "inventory_state", %{"player" => ^player}
+    refute_push "inventory_state", _
     leave(socket)
   end
 

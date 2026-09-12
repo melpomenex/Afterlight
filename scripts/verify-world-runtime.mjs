@@ -465,9 +465,6 @@ async function runWorldLeg({ flavor, mk, ledger, worldOwner }) {
             player: mine(f.player?.id) || 'OTHER',
             weather: WEATHER_STATES.includes(f.weather) ? f.weather : 'invalid',
             snapshots: {
-              prices: f.prices != null,
-              contracts: f.contracts != null,
-              orderBook: f.orderBook != null,
               theater: f.theater != null,
               iptv: f.iptv != null,
             },
@@ -503,7 +500,7 @@ async function runWorldLeg({ flavor, mk, ledger, worldOwner }) {
           record({ type: 'error', message: String(f.message) });
           break;
         default:
-          break; // chat, garden, inventory, … are Node-owned in both legs and server-noisy: excluded from the diff
+          break; // chat and the retired economy snapshots are Node-owned in both legs and server-noisy: excluded from the diff
       }
     });
   };
@@ -556,7 +553,7 @@ async function runWorldLeg({ flavor, mk, ledger, worldOwner }) {
     if (WEATHER_STATES.includes(welcome.weather))
       ledger.pass(`${flavor}: welcome.weather is a valid rotation state`, `weather=${welcome.weather}`);
     else ledger.fail(`${flavor}: welcome.weather is a valid rotation state`, `got ${JSON.stringify(welcome.weather)}`);
-    const missingSnap = ['prices', 'contracts', 'orderBook', 'theater', 'iptv'].filter((k) => welcome[k] == null);
+    const missingSnap = ['theater', 'iptv'].filter((k) => welcome[k] == null);
     if (missingSnap.length === 0) ledger.pass(`${flavor}: welcome carries all Node snapshot fields`);
     else ledger.fail(`${flavor}: welcome carries all Node snapshot fields`, `missing ${missingSnap.join(',')}`);
 
@@ -979,10 +976,10 @@ try {
       await errClient.waitFor((f) => f.type === 'welcome', { label: 'err-client welcome' });
       errClient.push('join_room', { roomId: 'market' });
       await errClient.waitFor((f) => f.type === 'presence_update', { label: 'err-client roster' });
-      errClient.push('market_buy', { cropId: 'parity_unknown_crop', quantity: 1 });
+      errClient.push('garden_action', { actionId: 'act_retired_probe', action: 'till', bedIndex: 0 });
       const err = await errClient.waitFor((f) => f.type === 'error', { label: 'bare error frame', timeoutMs: 5000 });
       const ok = typeof err.message === 'string' && err.message.length > 0;
-      regressions.push({ ok, name: 'error consumers: bare {type:"error", message} reaches the client with a stable reason', detail: `message=${JSON.stringify(err.message)}` });
+      regressions.push({ ok, name: 'error consumers: retired commands answer with a bare {type:"error", message}', detail: `message=${JSON.stringify(err.message)}` });
       errClient.close();
     } catch (e) {
       regressions.push({ ok: false, name: 'error consumers: bare {type:"error", message} reaches the client', detail: e.message });

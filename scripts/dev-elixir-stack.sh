@@ -33,7 +33,6 @@ echo "→ Phoenix gateway (port 4000)…"
   export AFTERLIGHT_CHAT_OWNER=phoenix
   export AFTERLIGHT_THEATER_OWNER=phoenix
   export AFTERLIGHT_CATALOG_OWNER=phoenix
-  export AFTERLIGHT_ECONOMY_OWNER=phoenix
   export AFTERLIGHT_HELLO_OWNER=phoenix
   mix phx.server
 ) &

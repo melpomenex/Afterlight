@@ -13,7 +13,6 @@ import {
   createTransientInput,
   resetTransientInput,
   resolveRoomRequest,
-  worldUpdateInput,
   actorSpawnsFor,
 } from '../src/places/travelState.js';
 
@@ -242,38 +241,6 @@ test('absent request stays the default place without an invented fallback', () =
   assert.equal(h.presented.filter(p => p.startsWith('fallback')).length, 0);
 });
 
-test('a stale garden snapshot never becomes district completion state', () => {
-  const h = createHarness();
-  h.runtime.travel('court');
-
-  // A late GARDEN_STATE may refresh the cache while a district is active…
-  const gardenBeds = [{ stage: 5 }, { stage: 1 }];
-
-  // …but the typed update input for the active district is still a strict
-  // boolean: the bed snapshot cannot masquerade as restoration completion.
-  const input = worldUpdateInput({
-    isGardenRoom: false,
-    gardenBeds,
-    completed: false,
-  });
-  assert.deepEqual(input, { kind: 'district', value: false });
-  h.local.activeWorld.update(1, input.value);
-  assert.deepEqual(h.local.activeWorld.updates, [false], 'the district world received a boolean, not the beds');
-
-  // Garden rooms receive their beds explicitly (null before the first state).
-  assert.deepEqual(
-    worldUpdateInput({ isGardenRoom: true, gardenBeds: null }),
-    { kind: 'garden', value: null },
-  );
-  assert.deepEqual(
-    worldUpdateInput({ isGardenRoom: true, gardenBeds }),
-    { kind: 'garden', value: gardenBeds },
-  );
-  // And an uncompleted district never reads truthy by accident.
-  assert.equal(worldUpdateInput({ isGardenRoom: false, gardenBeds, completed: undefined }).value, false);
-  assert.equal(worldUpdateInput({ isGardenRoom: false, gardenBeds, completed: 'truthy junk' }).value, false);
-});
-
 test('reconnect and retry never rebuild geometry nor start capture', () => {
   const callAdapter = {
     leavingCalls: 0,
@@ -334,19 +301,25 @@ test('a failing venue controller cannot corrupt travel', () => {
   assert.equal(h.runtime.snapshot().activeController, null, 'the failed controller is not retained');
 });
 
-test('actorSpawnsFor keeps the historical market and garden entrances', () => {
+test('actorSpawnsFor keeps the historical market entrance', () => {
   assert.deepEqual(actorSpawnsFor({ kind: 'place', def: DEFS.court }).spawn, [-9, 0]);
-  assert.deepEqual(actorSpawnsFor({ kind: 'garden' }), { spawn: [-9.5, 0], companionSpawn: [-8.7, 1] });
   assert.deepEqual(actorSpawnsFor({ kind: 'market' }), { spawn: [0, 3], companionSpawn: [0.8, 4] });
   const noSpawn = actorSpawnsFor({ kind: 'place', def: { id: 'x' } });
   assert.deepEqual(noSpawn.spawn, [-9, 0], 'definitions without a spawn keep the legacy entrance');
 });
 
-test('resolveRoomRequest keeps market and personal gardens on their adapters', () => {
+test('resolveRoomRequest keeps market on its adapter and rejects retired ids', () => {
   const hasDefinition = (id) => DEFS[id] ?? null;
   assert.equal(resolveRoomRequest('market', { hasDefinition }).roomId, 'market');
-  assert.equal(resolveRoomRequest('garden:guest_1', { hasDefinition }).kind, 'garden');
-  assert.equal(resolveRoomRequest('garden:guest_1', { hasDefinition }).roomId, 'garden:guest_1');
+  // The retired Glass Garden resolves as unknown and visibly falls back.
+  const retired = resolveRoomRequest('garden', { hasDefinition });
+  assert.equal(retired.status, 'unknown');
+  assert.equal(retired.roomId, 'theater');
+  assert.equal(retired.fallback, true);
+  // Personal-garden wire ids are retired with the domain.
+  const personal = resolveRoomRequest('garden:guest_1', { hasDefinition });
+  assert.equal(personal.status, 'unknown');
+  assert.equal(personal.roomId, 'theater');
   const unknown = resolveRoomRequest('nope', { hasDefinition });
   assert.equal(unknown.status, 'unknown');
   assert.equal(unknown.roomId, 'theater');

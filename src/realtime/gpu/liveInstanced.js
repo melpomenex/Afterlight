@@ -1,6 +1,6 @@
 // Live instanced remote layer (wire-realtime-entity-backend Phases 3–4).
 // Experimental: ?rt_webgpu_fastpath=1 with the entity seam replaces full
-// gardener meshes with InstancedMesh proxies on the existing WebGL scene so
+// player meshes with InstancedMesh proxies on the existing WebGL scene so
 // EffectComposer + bloom stay unchanged. WebGPU scatter may run in parallel
 // for validation; visuals always come from the CPU instanced path today.
 

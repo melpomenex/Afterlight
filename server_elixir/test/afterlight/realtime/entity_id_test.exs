@@ -48,10 +48,10 @@ defmodule Afterlight.World.BinaryFlushTest do
     assert (flags &&& 1) == 1
     assert baseline == 6
 
-    # DENSE string table carries both guest ids
+    # DENSE string table carries both guest ids (sorted)
     <<8::8, 0::8, 0::16, 2::32-little, tlen::32-little, tpayload::binary-size(tlen),
       rest::binary>> = rest
-    assert <<2::32-little, 7::16-little, "guest_b", 7::16-little, "guest_a">> = tpayload
+    assert <<2::32-little, 7::16-little, "guest_a", 7::16-little, "guest_b">> = tpayload
 
     # DENSE spawn rows
     <<1::8, 0::8, 0::16, 2::32-little, slen::32-little, _spayload::binary-size(slen),

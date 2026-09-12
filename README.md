@@ -2,11 +2,11 @@
 
 Afterlight is a collection of beautiful shared places on the internet: a quiet, rain-soaked city where you wake up inside **The Orpheum** cinema, watch and play together with whoever is around, and wander from place to place — sit, chat, emote, run the projector. You are a small rust/gold maintenance robot, accompanied by **Kiln**; exploration, companionship, little discoveries and visible acts of restoration are the experience.
 
-**Accepted destinations today:** The Orpheum (`theater`), The Rain Court (`court`), The Desert Camp (`desert-camp`) and The High Awnings (`rooftops`) — listed first in the **Places** selector (<kbd>T</kbd>). The seventeen legacy districts, the Market Court and your personal garden remain reachable under "Legacy areas" and through their deep links.
+**Accepted destinations today:** The Orpheum (`theater`), The Rain Court (`court`), The Desert Camp (`desert-camp`) and The High Awnings (`rooftops`) — listed first in the **Places** selector (<kbd>T</kbd>). The sixteen legacy districts and the Market Court remain reachable under "Legacy areas" and through their deep links.
 
-The original market-garden life — planting, trading, restoration landmarks — is **retained legacy content**, fully playable and described below. It is no longer the game's identity, and nothing in it is a required objective.
+The original market-garden life — planting, trading, restoration landmarks — has been **retired**: the garden/economy domain is gone from the game, the code and the servers. What remains is the city itself, its shared places, and the restoration landmarks of the legacy districts.
 
-Preserves Afterlight's signature rain-soaked aesthetic: high isometric camera, layered wet paving, brick masonry, copper pipes, warm amber lanterns, drifting mist, restrained bloom, and translucent dark HUD overlays. All scenery, crops, and robot avatars are generated in code; no external 3D models or textures are required.
+Preserves Afterlight's signature rain-soaked aesthetic: high isometric camera, layered wet paving, brick masonry, copper pipes, warm amber lanterns, drifting mist, restrained bloom, and translucent dark HUD overlays. All scenery and robot avatars are generated in code; no external 3D models or textures are required.
 
 ---
 
@@ -64,11 +64,11 @@ node scripts/theater-streaming-smoke.mjs   # WS-level pass over the live stack
 
 …plus the real-browser checklist in `scripts/theater-streaming-pass.md` — a connected browser is the only proof that the screen actually plays.
 
-Open **http://localhost:5173** in one or more browser windows. You wake up inside **The Orpheum**, the city's cinema, in cinema view: the shared screen on stage with the town chat docked beside it. Press <kbd>Esc</kbd> (or a movement key) to step into the aisles, then travel — walk out of the gates, or press <kbd>T</kbd> and pick any place. The Market Court, your garden and the seventeen legacy districts are all still out there. When multiple players connect, they see each other with overhead nickname tags, custom procedural robot avatars, and synchronized movement. (`?room=market`, `?room=garden`, or any place id in the URL overrides the spawn point.)
+Open **http://localhost:5173** in one or more browser windows. You wake up inside **The Orpheum**, the city's cinema, in cinema view: the shared screen on stage with the town chat docked beside it. Press <kbd>Esc</kbd> (or a movement key) to step into the aisles, then travel — walk out of the gates, or press <kbd>T</kbd> and pick any place. The Market Court and the sixteen legacy districts are all still out there. When multiple players connect, they see each other with overhead nickname tags, custom procedural robot avatars, and synchronized movement. (`?room=market`, `?room=theater`, or any place id in the URL overrides the spawn point.)
 
 ### 3. Production Build & Tests
 
-- `npm test`: Runs the automated test suite (crop growth, quality grades, NPC pricing, double-auction order book, persistence, multi-client presence, gather nodes, machine restoration, milling, flour contracts, sprinkler simulation, the embedded IRC relay/bridge over real sockets, place definitions/travel, and the contextual HUD policy).
+- `npm test`: Runs the automated test suite (multi-client presence and room partitioning, movement/jump/camera math, the embedded IRC relay/bridge over real sockets, place definitions/travel, districts and restoration, the Orpheum screen/torrent/IPTV model, arcade activities, and the retained identity/HUD behavior).
 - `npm run build`: Bundles the client for production into `dist/`.
 - `npm run preview`: Serves the production build.
 
@@ -84,39 +84,9 @@ Live URLs: **https://game-beige-pi.vercel.app** (client) → **<PRODUCTION_WS_UR
 
 ---
 
-## The legacy gardener's loop (retained content)
+## The city, restored (retained landmarks)
 
-The market garden, the economy and the restoration landmarks live on unchanged for those who want them. They define no social objective: visiting the shared places never requires any of this. (History note: this loop *was* the game's original identity; the product has since shifted to shared places, and the garden/economy migration to the Phoenix stack remains in progress — see *Architecture & Server Authority*.)
-
-**Prepare → Plant → Tend → Harvest → Gather → Craft → Pack → Sell / Trade → Reinvest → Expand**
-
-1. **Your Market Garden**:
-   - Travel through the eastern gate of the Market Court (or click **Travel**) to enter your personal, server-persisted garden plot.
-   - Select your **Hoe** (<kbd>2</kbd>) to till empty beds into prepared soil.
-   - Select **Seeds** (<kbd>3</kbd>) to plant (press <kbd>3</kbd> repeatedly to cycle through Radish, Lettuce, Carrot, Kale, Basil, Tomato, Dew Strawberry).
-   - Select the **Watering Can** (<kbd>4</kbd>) and water beds (<kbd>E</kbd>) to keep soil moist. Soil darkens visibly when wet.
-   - Watch crops visibly advance through **5 distinct 3D growth stages**: Seed → Sprout → Juvenile → Mature → Harvestable.
-   - Select **Harvest** (<kbd>5</kbd>) to harvest mature crops into your satchel, receiving quality-graded produce (**C, B, A, A+**) and gardening XP. Repeat-harvest crops (Tomatoes, Strawberries) continue bearing after picking.
-
-2. **The Market Court & Economy**:
-   - Return to the shared Market Court where other gardeners gather.
-   - **Market Exchange Board** (<kbd>M</kbd> or interact at central chalkboard):
-     - **NPC Liquidity**: Instant spot sell of graded produce at dynamic bid prices.
-     - **Dynamic Pricing**: Market prices move based on recent supply and demand with bounds (0.4x to 2.5x base) and mean reversion.
-     - **Player Order Book**: Post limit BUY or SELL orders with price/time priority and atomic matching at maker prices (with a 2% town fee).
-   - **Town Seed Merchant**: Buy seed packets with your earnings.
-   - **Restaurant & Café Noticeboard**: Deliver high-grade produce to fulfill town contracts for bonus coins, reputation, and XP.
-
-3. **Gathering in the Outer Districts**:
-   - Material caches grow in three of the explorable biomes: **Copper Scrap** in the Rustfall Foundry, **Trestle Timber** at the Overgrown Trestle, and **Glass Shards** in the Glacial Glasshouse.
-   - Walk up to a glowing cache and press <kbd>E</kbd> to gather one unit into your server-side satchel. The cache is visibly stripped bare for everyone in the district and regrows after a few real minutes — even across server restarts.
-
-4. **The Great Mill & Machine Shop** (Market Court, southeast corner):
-   - The court's communal machine starts **broken**. Any gardener can contribute copper, timber, and glass at the mill or its workbench (<kbd>E</kbd>); restoration progress is shown on a HUD panel for everyone present.
-   - Once the community delivers all materials, the mill is **restored permanently** (server-persisted) — its sails turn, and a celebration greets the whole court.
-   - A restored mill grinds **wheat into flour** (<kbd>E</kbd> at the mill, or use the workbench dialog): one grain for one bag, deducted and credited server-side.
-   - **Flour** trades like produce: instant-sell it on the Market Exchange Board (it keeps no quality grade), and watch the Restaurant Noticeboard — **flour contracts** only rotate in while the mill is restored.
-   - **Sprinkler kits** are crafted at the workbench from copper and glass. Select the Sprinkler tool (<kbd>6</kbd>), stand at a bed to preview its coverage (the bed plus its orthogonal neighbors glow), and press <kbd>E</kbd> to place. Placed sprinklers water their beds automatically in the server simulation, so covered soil stays moist while you are away (up to 3 per garden).
+The shared places are the game's identity. The legacy districts keep their own quiet stories: each one has a field note to read and one restoration landmark to wake — a sluice valve, a signal beacon, the Orpheum projector, and more. They are optional, permanent, and stored in your local save (`afterlight-save`). There is no farming, trading or crafting loop anymore: no gardens, no coins, no market. The Market Court remains as a quiet square where the city's paths meet.
 
 ---
 
@@ -124,20 +94,12 @@ The market garden, the economy and the restoration landmarks live on unchanged f
 
 | Key / Action | Function |
 | --- | --- |
-| <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> / Arrows | Move gardener relative to camera (in first person: relative to your view) |
+| <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> / Arrows | Move relative to camera (in first person: relative to your view) |
 | Click / Tap ground | Walk to location |
 | Drag on the world | Turn your view (first person fallback; see Mouse look below) |
 | <kbd>Shift</kbd> | Run |
 | <kbd>Space</kbd> | Jump — hold it to bunny hop: chained hops keep your momentum and build speed (up to ~1.5× run) as long as the chain lasts. Obstacles still block mid-air. |
-| <kbd>1</kbd> | Hands / Inspect tool |
-| <kbd>2</kbd> | Hoe (Till soil) |
-| <kbd>3</kbd> | Seeds (Cycle active seed) |
-| <kbd>4</kbd> | Watering Can (Equip can & water beds) |
-| <kbd>5</kbd> | Harvest Shears |
-| <kbd>6</kbd> | Sprinkler Kit (Place on a bed to auto-water it + neighbors) |
-| <kbd>E</kbd> | Contextual interact with nearest bed, stall, gather node, the Great Mill, gate, or theater seat |
-| <kbd>I</kbd> | Open Satchel / Inventory — everywhere; in social places it opens labeled "optional legacy" |
-| <kbd>M</kbd> | Open Market Exchange Board — everywhere; in social places it opens labeled "optional legacy" |
+| <kbd>E</kbd> | Contextual interact with the nearest gate, seat, arcade table, landmark, or field note |
 | <kbd>T</kbd> / **Travel** | Open the **Places** selector — featured destinations first, every legacy area retained under "Legacy areas"; live occupancy counts where the server can answer ("—" means unknown) |
 | **Records** | Open the arcade **Records** dialog: your machine-local bests for each Orpheum cabinet plus the server-verified leaderboard, per rules version. Local bests are labeled **Pending** until the arcade's own referee records them — and **Unrecorded** if recording failed — so the board never claims a score it cannot back. **Profile** shows games, wins, streaks and bests keyed to your identity (renames keep the record; guests are this-browser only). Walkovers are not counted. |
 | **Tournament** | Open the Orpheum pool tournament board (also press <kbd>E</kbd> at the chalkboard by the west lounge table). Room-local four or eight players, single elimination. Check in within 60 seconds; labeled walkovers never count as played matches. No prizes, coins or XP. |
@@ -149,7 +111,7 @@ The market garden, the economy and the restoration landmarks live on unchanged f
 | Mouse Wheel | Zoom in / out (isometric views only) |
 | <kbd>Escape</kbd> | Journal & Settings (in cinema view: return to the game first) |
 
-**Contextual HUD.** Where you are decides what the HUD leads with. In the featured social places (The Orpheum, The Rain Court), the tool belt, the coins/reputation/XP pills, the Satchel/Market footer buttons and the Great Mill panel step back, and your avatar's hands empty — the garden remembers your last tool and hands it back when you return there. Nothing is deleted: <kbd>I</kbd> and <kbd>M</kbd> still work everywhere (labeled "optional legacy" in social places), coins and progression stay readable inside the Satchel and Gardener Pass dialogs, and cached balances keep updating out of sight. The farming tool keys <kbd>1</kbd>–<kbd>6</kbd> equip tools only in legacy contexts — the Market Court, your personal garden and the legacy districts — and the emote wheel always owns number keys while it is open. **Settings → Legacy gardener HUD** restores the classic full gardener presentation in every place: a presentation-only switch that changes no data.
+**Profile.** Your header profile shows your nickname and connection state; the ✎ Edit control opens a nickname-only **Visitor Pass**. Player names are generated from an industrial/afterlight word bank (e.g. `CopperLantern42`, `RustCompass17`) and can be changed at any time — no coins, levels or inventory.
 
 **Emotes.** Wave, Rust shuffle, Cheer, Much love, Bow, and Shrug animate your character for nearby players. Movement or jumping ends the pose. The wheel stops your walk target; it never pauses other players. Emotes also work seated, and leaving cinema view to choose keeps your seat.
 
@@ -163,7 +125,7 @@ The market garden, the economy and the restoration landmarks live on unchanged f
 
 Afterlight shares one live **town channel** (`#afterlight`) panel in the lower-right HUD. The channel is global — everyone in every district and room shares it; it is not private room conversation:
 
-- Press <kbd>Enter</kbd> (or <kbd>/</kbd>) to speak; press <kbd>Esc</kbd> to hand the keyboard back to the gardener. Typing never moves your robot.
+- Press <kbd>Enter</kbd> (or <kbd>/</kbd>) to speak; press <kbd>Esc</kbd> to hand the keyboard back to the game. Typing never moves your robot.
 - `/msg <name> <text>` whispers directly to another player or an IRC user/bot by nickname; `/me <action>` sends an action line; `/help` lists commands.
 - When the panel is collapsed, a small unread counter shows what you missed; recent history is delivered on connect.
 - The panel scales with your display on wide screens, and can be resized: drag the corner grip on its top-left edge, focus the grip and use the arrow keys, or double-click it to reset. Your size is remembered.
@@ -218,7 +180,7 @@ Notes:
 
 ## Legacy districts & restoration
 
-Beyond the Market Court and Cultivation Garden, Afterlight retains **17 distinct explorable atmospheric districts** representing diverse industrial, subterranean, aquatic, and alpine biomes. They are the city's history — every one still walkable, listed under "Legacy areas" in the Places selector. Players explore accompanied by **Kiln**, the cream-colored maintenance robot companion.
+Beyond the Market Court, Afterlight retains **16 distinct explorable atmospheric districts** representing diverse industrial, subterranean, aquatic, and alpine biomes. They are the city's history — every one still walkable, listed under "Legacy areas" in the Places selector. Players explore accompanied by **Kiln**, the cream-colored maintenance robot companion.
 
 Each biome features:
 - **Procedural 3D Architecture**: Unique materials, masonry, props, and ambient color palettes batched with `THREE.InstancedMesh`.
@@ -226,28 +188,26 @@ Each biome features:
 - **Field Notes**: Poetic lore plaques and journals offering quiet environmental storytelling.
 - **Landmark Restoration**: Interactive landmarks that awaken sectors permanently, updating persistent save data (`afterlight-save`) and lighting indicators.
 - **Minimap Schematics**: Custom vector floor plan radar schematics on the local HUD.
-- **Material Caches** (in the Foundry, Trestle, and Glasshouse): server-owned gather nodes that deplete on harvest and regrow on a timer, feeding the Market Court's machine shop.
 
-### The 17 Districts & Biomes:
+### The 16 Districts & Biomes:
 1. **The Rain Court** (`court`): Wet stone and warm windows where the journey began.
 2. **The Sluiceworks** (`canal`): Aqueduct channels crossed by an arched bridge.
-3. **The Glass Garden** (`garden`): Overgrown conservatory terraces with a seed nursery.
-4. **The Last Platform** (`station`): Abandoned tram station with an operable signal beacon.
-5. **The Sunken Aqueduct** (`aqueduct`): Subterranean cisterns and dripping limestone conduits.
-6. **The Boiler Caldera** (`caldera`): Basalt fissures, sulfur crusts, and geothermal steam flues.
-7. **The Spore Understory** (`understory`): Luminous mycelial forest with giant glowing shelf fungi.
-8. **The Bleached Saltworks** (`saltworks`): Crystalline brine evaporation terraces and wind pumps.
-9. **The High Awnings** (`rooftops`): Windward scaffolding, zinc gables, and spinning anemometers.
-10. **The Brackish Basin** (`mangrove`): Flooded masonry, stilt boardwalks, and tidal weirs.
-11. **The Overgrown Trestle** (`trestle`): Ancient iron railway viaduct gripped by canopy roots.
-12. **The Rustfall Foundry** (`foundry`): Red iron dust, blast furnaces, and crucible hearths.
-13. **The Glacial Glasshouse** (`frost-spire`): Shattered alpine conservatory with solar collectors.
-14. **The Reclaimed Marshes** (`delta`): Silt sandbars, cattails, and tidal channel beacons.
-15. **The Paper Catacombs** (`archives`): Sunken stone library holding centuries of preserved records.
-16. **The Solar Kiln** (`kiln-terrace`): Terracotta tile courtyards and parabolic sun concentrators.
-17. **The Orpheum** (`theater`): A velvet-seated cinema where the city watches together — see below.
+3. **The Last Platform** (`station`): Abandoned tram station with an operable signal beacon.
+4. **The Sunken Aqueduct** (`aqueduct`): Subterranean cisterns and dripping limestone conduits.
+5. **The Boiler Caldera** (`caldera`): Basalt fissures, sulfur crusts, and geothermal steam flues.
+6. **The Spore Understory** (`understory`): Luminous mycelial forest with giant glowing shelf fungi.
+7. **The Bleached Saltworks** (`saltworks`): Crystalline brine evaporation terraces and wind pumps.
+8. **The High Awnings** (`rooftops`): Windward scaffolding, zinc gables, and spinning anemometers.
+9. **The Brackish Basin** (`mangrove`): Flooded masonry, stilt boardwalks, and tidal weirs.
+10. **The Overgrown Trestle** (`trestle`): Ancient iron railway viaduct gripped by canopy roots.
+11. **The Rustfall Foundry** (`foundry`): Red iron dust, blast furnaces, and crucible hearths.
+12. **The Glacial Glasshouse** (`frost-spire`): Shattered alpine conservatory with solar collectors.
+13. **The Reclaimed Marshes** (`delta`): Silt sandbars, cattails, and tidal channel beacons.
+14. **The Paper Catacombs** (`archives`): Sunken stone library holding centuries of preserved records.
+15. **The Solar Kiln** (`kiln-terrace`): Terracotta tile courtyards and parabolic sun concentrators.
+16. **The Orpheum** (`theater`): A velvet-seated cinema where the city watches together — see below.
 
-Travel between districts seamlessly via physical east/west gateway conduits, or open the **Places** selector (<kbd>T</kbd> or the **Travel** button in the footer) and pick any destination — featured social places are listed first, and all seventeen districts, the Market Court and your personal garden are retained under "Legacy areas". Cards show a live occupancy count where the server can answer; "—" means the count is unknown, never a guess.
+Travel between districts seamlessly via physical east/west gateway conduits, or open the **Places** selector (<kbd>T</kbd> or the **Travel** button in the footer) and pick any destination — featured social places are listed first, and all sixteen districts and the Market Court are retained under "Legacy areas". Cards show a live occupancy count where the server can answer; "—" means the count is unknown, never a guess.
 
 ---
 
@@ -283,6 +243,7 @@ Summit Run loads its mountain on demand (cancellable), seats everyone at the sam
 
 - **YouTube** videos (watch links, `youtu.be`, Shorts), **Vimeo** videos
 - **YouTube playlists** (`youtube.com/playlist?list=…`) — see "Playlist night" below
+- **Twitch** live channels (`twitch.tv/<channel>`), VODs (`twitch.tv/videos/<id>`), and clips (`clips.twitch.tv/<slug>`) — see "Twitch night" below
 - **Direct video files** (`.mp4`, `.webm`, …) and **HLS streams** (`.m3u8`)
 - **Torrent magnets** (`magnet:?xt=urn:btih:…`) — see below
 - **IPTV**: add M3U/M3U8 playlists by pasting text, uploading a file, or fetching a URL — they land in the theater's **shared library**, so everyone in the room can browse them (see below). Browse channels in the **guide** — pick a **country** from the dropdown first, then narrow by that country's **categories** — and flip with **◂ / ▸**.
@@ -305,6 +266,16 @@ Paste a playlist link in the booth and the projector reads it for you: the game 
 - The reel fills what it can: if the queue can't take everything, you're told exactly how many were queued and how many didn't fit.
 - **Radio mixes never end**, so mix links (`list=RD…`) can't be imported — the video in the link can still be added. Private or deleted playlists are declined with a clear message.
 
+### Twitch night (live channels, VODs, clips)
+
+Paste a Twitch link in the booth and the projector plays it for the whole room through Twitch's official embed, like any other link.
+
+- **A channel link plays live.** Everyone attaches to the live edge; the shared clock has no position to seek to, so the booth's −30s/+30s buttons are off. If the channel goes offline, Twitch's offline card shows and the item keeps its place on the bill; when the broadcast ends, the reel moves on.
+- **A VOD link behaves like a video.** It plays on the shared clock: joining starts at the room's position, pause and seek move everyone together, and it auto-advances at the end.
+- **A clip is a short insert.** Twitch's clip player exposes no remote control, so the room can't pause or seek it; the booth marks it **not synchronized** and offers **Skip**. If nobody skips, the projector advances it after a minute (Twitch clips are at most 60 seconds), so a clip can never jam the screen.
+- Links are recognized live as you type: the status line under the URL box says which kind you pasted before you add it.
+- The embed is served from the hostname you are playing from (Twitch's `parent` rule), so `localhost`, preview hostnames, and the deployed site all work — use a hostname rather than a raw IP, and note Twitch requires SSL outside localhost.
+
 ### Torrent night (magnet links)
 
 Paste a magnet link in the booth and the projector resolves it for you: the game server reaches the swarm, lists the torrent's video files, and **you pick which one plays** — only then does it start (or queue) for the whole room. Torrents often carry several films or episodes, so nothing goes on the screen until a file is chosen; closing the picker leaves the bill untouched.
@@ -319,9 +290,9 @@ Queue behavior: items added while something plays line up in the queue and auto-
 
 ### Good to know
 
-- Only `http(s)` links and magnet links can be pinned to the screen; YouTube/Vimeo play through their official embeds, magnets resolve through the server's torrent engine (above), and everything else plays as a plain video stream.
+- Only `http(s)` links and magnet links can be pinned to the screen; YouTube/Vimeo/Twitch play through their official embeds, magnets resolve through the server's torrent engine (above), and everything else plays as a plain video stream.
 - Playlist imports by URL are fetched by the game server, so CORS-hostile playlist hosts work; if the server itself can't reach a URL, paste the text or upload the file instead.
-- Streams their hosts remove or region-block will show a notice and skip ahead. Live channels can't be rewound.
+- Streams their hosts remove or region-block will show a notice and skip ahead. Live channels — IPTV and Twitch — can't be rewound.
 - Whether other players can *hear* a video depends on each browser's autoplay rules; a "Tap to start" badge appears if the browser needs a click first. Volume is local.
 
 ---
@@ -341,7 +312,7 @@ The single authority map for every domain is [`docs/architecture/elixir/ownershi
 
 - **Supported stack:** the **Phoenix gateway** (`server_elixir/`) owns transport, world rooms/presence (dev flip) and the chat relay; the **Node specialty sidecar** retains torrent/IRC HTTP, theater uploads and a transitional relay for domains not yet ported.
 - **Theater & catalog:** The Orpheum's bill/timeline, playlist imports, IPTV library and EPG have live Phoenix (Ash/PostgreSQL) handlers, flipped by routing in dev; when flipped, the Node theater/catalog writers stand down and `data/iptv.json` / `data/epg.json` become read-only forensic originals.
-- **Market-garden domains (migration in progress):** coin balances, inventory, gathered materials, gather-node depletion, the Great Mill, sprinklers, crop maturation, order books and contracts are **still written by the legacy Node engine, relayed through the gateway**, until the gardens/economy cutover (P6, `add-ash-gardens-economy-restoration`) lands. That migration continues as compatibility/correctness work — import validation, transaction/concurrency proof and operator cutover are still open — with reduced product scope: the migration's value no longer depends on farming's prominence. Never present it as finished. The client only renders server state; items are never granted client-side.
+- **Gardening removed:** the market-garden/economy/restoration domain and its `Gardener` identity were retired in full (change `remove-gardening-domain`): no cultivation, gathering, crafting, trading, coins or XP remain in the code, the wire protocol or the databases. The Market Court stays as a quiet square, and the untouched snapshots (`data/game-state.json`, `data/iptv.json`, `data/epg.json`) remain read-only forensic originals.
 - **Durable persistence:** the legacy engine saves its domains atomically to `data/game-state.json`; flipped domains live in PostgreSQL. Original snapshots (`data/game-state.json`, `data/iptv.json`, `data/epg.json`) are never deleted; only the regenerable torrent payload cache may be cleared.
 - **Client Interpolation**: Remote players transmit movement at ~10 Hz and interpolate smoothly without jitter.
-- **Guest Identity**: Players receive an automatic persistent guest UUID and atmospheric nickname (e.g. `MossyRadish42`, `AmberCarrot24`), which can be customized at any time.
+- **Guest Identity**: Players receive an automatic persistent guest UUID and atmospheric nickname (e.g. `CopperLantern42`, `RustCompass17`), which can be customized at any time.

@@ -1,4 +1,7 @@
-# Afterlight: proposed Elixir architecture
+# Afterlight: proposed Elixir architecture (historical)
+
+> Historical design snapshot, superseded by [`docs/architecture/elixir/`](../docs/architecture/elixir/).
+> The gardening/economy domains named in these pages were retired by `remove-gardening-domain`.
 
 Status: design proposal, 2026-09-06. No application migration or deployment has been performed. Capacity figures below are planning assumptions, not measured results.
 

@@ -19,7 +19,6 @@ const ROOM_SCOPED_TYPES = new Set([
   // must never authorize the new room's stream (fix-torrent-playback-grant-
   // regression).
   'torrent_grant',
-  'garden_state',
   'welcome',
   // Room atmosphere (add-atmosphere-weather-system 2.2): snapshots are
   // room-scoped, so a queued old-room frame — even carrying a higher

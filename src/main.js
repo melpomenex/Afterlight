@@ -6,14 +6,13 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import './style.css';
 import { NetworkClient } from './net/client.js';
-import { createGardenerAvatar, createKilnCompanion, RemotePlayersManager, startEmote, stopEmote, updateEmote } from './render/avatars.js';
+import { createPlayerAvatar, createKilnCompanion, RemotePlayersManager, startEmote, stopEmote, updateEmote } from './render/avatars.js';
 import { buildMarketWorld } from './world/marketWorld.js';
-import { buildGardenWorld } from './world/gardenWorld.js';
 import { districts, buildDistrict, readExploration } from './districts.js';
 import { getPlaceActivities, getPlaceDefinition } from '../shared/placeDefinitions.js';
 import { gateItemsFor, gateVisualBoxesFor } from './places/worldFactory.js';
 import { getBoundsForRoom, isWalkable, clampClickTarget, projectToMinimap } from './world/bounds.js';
-import { UIManager } from './ui/marketModal.js';
+import { UIManager } from './ui/profileModal.js';
 import { ChatPanel } from './ui/chatPanel.js';
 import { CallClient } from './net/calls.js';
 import { CallPanel } from './ui/callPanel.js';
@@ -27,13 +26,11 @@ import { initTournamentBoard } from './ui/tournamentBoard.js';
 import { recordRun as recordLocalBest, applyRecordingStatus } from './activities/localBests.js';
 import { ARCADE_GAMES } from '../shared/leaderboardModel.js';
 import { MSG_TYPES, ROOMS } from '../shared/protocol.js';
-import { CROPS, CROP_LIST, GROWTH_STAGES } from '../shared/crops.js';
-import { MILL_REQUIREMENT } from '../shared/materials.js';
 import { FP_MODE, nextCameraMode, moveBasis, classifyDrag, applyLookDelta } from './cameraControl.js';
 import { readMouseLookPreference, writeMouseLookPreference } from './ui/mouseLookPreference.js';
 import { createJumpState, resetJump, stepJump, moveSpeedFor, HOP_CAP_RATIO } from './jump.js';
 import { createPlaceRuntime } from './places/runtime.js';
-import { resolveRoomRequest, worldUpdateInput } from './places/travelState.js';
+import { resolveRoomRequest } from './places/travelState.js';
 import { createTheaterAdapter, registerTheaterAdapter } from './places/theaterAdapter.js';
 import { createActivityRuntime } from './activities/runtime.js';
 import { createActivityViewLease } from './activities/viewLease.js';
@@ -93,14 +90,6 @@ import { createEnvironmentAudio, zoneProfileFor } from './audio/environmentAudio
 import { getPlaceController } from './places/registry.js';
 import { createSeatController } from './social/seating.js';
 import { createInteractionRegistry, registerCoreInteractions } from './social/interactions.js';
-import {
-  hudPolicy,
-  toolForDigit,
-  nextToolState,
-  applyHudPolicyToDom,
-  readLegacyUiPreference,
-  writeLegacyUiPreference,
-} from './ui/placeHudPolicy.js';
 import { createCameraSeam } from './activities/cameraSeam.js';
 import { resolveEscapeAction, isTypingTarget, ESCAPE_TARGETS } from './activities/inputSeam.js';
 
@@ -330,25 +319,7 @@ import('./realtime/wire.js').then(({ wireRealtime }) => {
   rtWire = wireRealtime({ net, remotePlayers, guestId: net.guestId, scene });
 }).catch(() => { /* module unavailable: legacy path */ });
 
-let activeTool = 'hands'; // 'hands' | 'hoe' | 'seed' | 'water' | 'harvest'
-let activeSeedIndex = 0;
-const seedKeys = CROP_LIST.map(c => c.id);
-
-const ui = new UIManager(net, {
-  onSelectTool: (tool, seedCropId) => {
-    setTool(tool);
-    if (seedCropId) {
-      activeSeedIndex = seedKeys.indexOf(seedCropId);
-      $('active-seed-label').textContent = CROPS[seedCropId]?.name || seedCropId;
-    }
-  },
-  // Closing the legacy exchange/satchel hands the keyboard back with nothing
-  // held — same hygiene as the Places selector and settings.
-  onLegacyDialogClosed: () => {
-    keys.clear();
-    clearJumpMomentum();
-  },
-});
+const ui = new UIManager(net);
 
 // Town chat: panel + input. While the input holds focus the game must not
 // react to typing, so focus changes clear any held movement keys.
@@ -385,7 +356,7 @@ const callPanel = new CallPanel(callClient, {
 });
 
 // Local player avatar & Kiln companion
-const player = createGardenerAvatar(net.guestId, net.nickname);
+const player = createPlayerAvatar(net.guestId, net.nickname);
 player.position.set(0, 0, 3);
 scene.add(player);
 
@@ -416,13 +387,10 @@ let exploration = loadExploration();
 
 // --- WORLDS SETUP ---
 const marketWorld = buildMarketWorld();
-const gardenWorld = buildGardenWorld();
 scene.add(marketWorld.group);
-scene.add(gardenWorld.group);
 // Worlds stay dark until travel activates them: the first committed
 // destination shows itself and every other group remains hidden.
 marketWorld.group.visible = false;
-gardenWorld.group.visible = false;
 
 const districtWorlds = new Map();
 
@@ -468,10 +436,6 @@ function getOrCreateDistrictWorld(distId) {
   world.group.visible = distId === currentRoomId;
   scene.add(world.group);
   districtWorlds.set(distId, world);
-  // Apply any gather-node state already received for this district.
-  if (nodeStatesByDistrict.has(distId)) {
-    world.setNodeStates?.(nodeStatesByDistrict.get(distId));
-  }
   return world;
 }
 
@@ -554,22 +518,9 @@ function toast(title, body, type = 'FIELD NOTE') {
 let currentRoomId = ROOMS.MARKET;
 let currentWorld = marketWorld;
 let currentBounds = getBoundsForRoom('market');
-let currentGardenBeds = null;
 // The active place's validated spawns; a seat dismount falls back to them
 // when every authored escape point is blocked.
 let activeSpawns = { spawn: [0, 3], companionSpawn: [0.8, 4] };
-
-// Gathering & crafting state mirrored from the server; the client only
-// renders what the server reports and never grants items locally.
-const nodeStatesByDistrict = new Map(); // districtId -> NODE_STATE node array
-let machineState = {
-  mill: {
-    status: 'broken',
-    required: { ...MILL_REQUIREMENT },
-    contributed: { copper: 0, timber: 0, glass: 0 },
-    restoredAt: null,
-  },
-};
 
 // --- PLACE RUNTIME: the tested transition coordinator behind setRoom ---
 // One active runtime owns travel (prepare before commit, transient input
@@ -866,45 +817,7 @@ const seats = createSeatController({
   ),
 });
 
-// --- PLACE CONTEXT HUD POLICY (deemphasize-legacy-farming F1) ---
-// Social places lead with place identity, people, chat, emotes and travel;
-// farming tools and coin progression step back but never disappear (I, M and
-// the Legacy areas remain). The policy derives only on successful place
-// activation — never from an inventory or network message — so async data
-// cannot reopen what a place hides. The saved preference rolls the whole
-// presentation back to the legacy HUD without touching any data.
-let activeHudPolicy = null;      // policy of the active place (hudPolicy shape)
-let rememberedLegacyTool = null; // held visual tool set aside on entering a social place
-let legacyUiHud = readLegacyUiPreference();
-
-const hudElements = {
-  contextRoot: document.body,
-  toolBelt: $('tool-belt'),
-  toolHint: $('hud-tool-hint'),
-  economyStats: document.querySelector('.player-stats-row'),
-  legacyButtons: [$('btn-inventory'), $('btn-market')],
-};
-
-function applyPlaceHud(res) {
-  activeHudPolicy = hudPolicy(res?.def ?? null, res?.roomId ?? null, { legacyUi: legacyUiHud });
-  applyHudPolicyToDom(activeHudPolicy, hudElements);
-  // Clearing to hands on entering a social place is presentation only: the
-  // choice is remembered and restored when the personal garden is re-entered,
-  // and inventory data is never read or written by either move.
-  const toolState = nextToolState({
-    policy: activeHudPolicy,
-    currentTool: activeTool,
-    rememberedTool: rememberedLegacyTool,
-  });
-  rememberedLegacyTool = toolState.rememberedTool;
-  if (toolState.tool !== activeTool) setTool(toolState.tool);
-}
-
-// The market modal re-asserts section visibility from this same policy, so a
-// welcome or inventory snapshot refreshes cached values without ever
-// revealing the panels the active place hides.
-ui.hudPolicyProvider = () => activeHudPolicy;
-
+// --- PLACE PRESENTATION ---
 function presentDestination(res) {
   // The runtime's active place is the game's active room from here on.
   currentRoomId = res.roomId;
@@ -921,17 +834,6 @@ function presentDestination(res) {
     $('map-path').setAttribute('d', mapPaths[res.roomId] || mapPaths.court);
     $('world').setAttribute('aria-label', `${res.def.name} — ${res.def.description}`);
     toast(res.def.name, res.def.description, 'ARRIVED IN DISTRICT');
-  } else if (res.kind === 'garden') {
-    scene.fog.color.set('#54645d');
-    scene.background.set('#222d2a');
-    sun.color.set('#ffe0a5');
-
-    $('location-title').textContent = "Your Market Garden";
-    $('district-tag').textContent = "CULTIVATION DISTRICT / 02";
-    $('map-label').textContent = "• MARKET GARDEN 02";
-    $('map-path').setAttribute('d', mapPaths.garden);
-    $('world').setAttribute('aria-label', 'Your Market Garden — tend your garden beds and harvest fresh crops');
-    toast("Your Garden Plot", "Tend your garden beds and harvest fresh crops.");
   } else {
     scene.fog.color.set('#54645d');
     scene.background.set('#222d2a');
@@ -941,16 +843,13 @@ function presentDestination(res) {
     $('district-tag').textContent = "MARKET SOCIAL DISTRICT / 01";
     $('map-label').textContent = "• MARKET COURT 01";
     $('map-path').setAttribute('d', mapPaths.market);
-    $('world').setAttribute('aria-label', 'The Market Court — trade produce, buy seeds, and fulfill town contracts');
-    toast("The Market Court", "Trade produce, buy seeds, and fulfill contracts.");
+    $('world').setAttribute('aria-label', 'The Market Court — a quiet square where the city paths meet');
+    toast("The Market Court", "A quiet square where the city's paths meet.");
   }
-
-  // The contextual HUD follows the place, on every successful activation.
-  applyPlaceHud(res);
 }
 
 // Exploration save follows the legacy contract: only registered places are
-// visited/current; market and the personal garden stay out of the save.
+// visited/current; the Market Court stays out of the save.
 function persistVisit(res) {
   if (res.kind !== 'place' || !res.def) return;
   if (!exploration.visited.includes(res.roomId)) {
@@ -986,7 +885,6 @@ const placeRuntime = createPlaceRuntime({
   // keeps freshly built groups invisible until travel shows them.
   build: (res) => {
     if (res.kind === 'place' && res.def) return getOrCreateDistrictWorld(res.roomId);
-    if (res.kind === 'garden') return gardenWorld;
     return marketWorld;
   },
   callAdapter: {
@@ -1086,7 +984,6 @@ const placeRuntime = createPlaceRuntime({
 const interactions = createInteractionRegistry();
 registerCoreInteractions(interactions, {
   travel: (roomId) => setRoom(roomId),
-  gardenRoom: () => ROOMS.gardenFor(net.guestId),
   seatControl: seats,
   readFieldNote: (item) => toast(item.sub, item.body, 'FIELD NOTE'),
   openScreen: () => theaterAdapter.openScreen(),
@@ -1097,13 +994,12 @@ function setRoom(roomId) {
   placeRuntime.travel(roomId);
 }
 
-// New gardeners wake up in The Orpheum, in cinema view — the shared screen
-// is the city's living room. ?room=<id> (e.g. ?room=market, ?room=garden)
+// New visitors wake up in The Orpheum, in cinema view — the shared screen
+// is the city's living room. ?room=<id> (e.g. ?room=market, ?room=theater)
 // overrides for deep links.
 const initialRoomParam = new URLSearchParams(window.location.search).get('room');
 let initialRoom = ROOMS.THEATER;
-if (initialRoomParam === 'garden') initialRoom = ROOMS.gardenFor(net.guestId);
-else if (initialRoomParam) initialRoom = initialRoomParam;
+if (initialRoomParam) initialRoom = initialRoomParam;
 setRoom(initialRoom);
 
 // --- NETWORK PACKET HANDLERS ---
@@ -1115,9 +1011,6 @@ net.on(MSG_TYPES.WELCOME, (msg) => {
     player.userData.updateNickname(msg.player.nickname);
   }
   if (msg.weather) updateWeatherDisplay(msg.weather);
-  if (msg.prices) ui.updateMarketView(msg.prices);
-  if (msg.orderBook) ui.updateMarketView(null, msg.orderBook);
-  if (msg.contracts) ui.updateContractsView(msg.contracts);
   if (msg.theater) theaterUI.applyState(msg.theater, msg.serverNow || Date.now());
 });
 
@@ -1134,8 +1027,7 @@ net.on(MSG_TYPES.PRESENCE_JOIN, (msg) => {
   if (rtWire?.consumePresenceJoin?.(msg)) return;
   if (msg.player && msg.player.id !== net.guestId) {
     remotePlayers.setPlayer(msg.player);
-    // Social places greet visitors; legacy contexts greet gardeners.
-    toast(activeHudPolicy?.copy.visitorArrival ?? 'Gardener Arrived', `${msg.player.nickname} entered the area.`);
+    toast('A Visitor Arrived', `${msg.player.nickname} entered the area.`);
   }
 });
 
@@ -1157,38 +1049,6 @@ net.on(MSG_TYPES.PRESENCE_UPDATE, (msg) => {
   }
 });
 
-net.on(MSG_TYPES.GARDEN_STATE, (msg) => {
-  currentGardenBeds = msg.beds;
-  gardenWorld.setFixtures?.(msg.fixtures || []);
-  gardenWorld.update(0, msg.beds);
-});
-
-net.on(MSG_TYPES.INVENTORY_STATE, (msg) => {
-  if (msg.player) {
-    ui.updatePlayerHUD(msg.player);
-    ui.updateInventoryView(msg.player);
-    ui.updateMarketView();
-    // Keep the machine shop dialog (contribution buttons, sprinkler craft)
-    // in step with the server-owned inventory.
-    ui.updateMachineShopView();
-  }
-});
-
-net.on(MSG_TYPES.MARKET_UPDATE, (msg) => {
-  if (msg.prices) ui.updateMarketView(msg.prices);
-  if (msg.orderBook) ui.updateMarketView(null, msg.orderBook);
-});
-
-net.on(MSG_TYPES.CONTRACT_UPDATE, (msg) => {
-  if (msg.contracts) ui.updateContractsView(msg.contracts);
-});
-
-net.on(MSG_TYPES.NODE_STATE, (msg) => {
-  if (!msg.roomId || !Array.isArray(msg.nodes)) return;
-  nodeStatesByDistrict.set(msg.roomId, msg.nodes);
-  districtWorlds.get(msg.roomId)?.setNodeStates?.(msg.nodes);
-});
-
 // Theater snapshots arrive on WELCOME and on every applied change; the
 // overlay also registers its own handler internally.
 net.on(MSG_TYPES.THEATER_STATE, (msg) => {
@@ -1201,74 +1061,9 @@ net.on(MSG_TYPES.ACTIVITY_EVENT, (msg) => activityRuntime.acceptEvent(msg));
 net.on(MSG_TYPES.ACTIVITY_RESULT, (msg) => activityRuntime.acceptResult(msg));
 net.on(MSG_TYPES.ACTIVITY_ERROR, (msg) => activityRuntime.acceptError(msg));
 
-net.on(MSG_TYPES.MACHINE_UPDATE, (msg) => {
-  if (!msg.machines?.mill) return;
-  const previousStatus = machineState?.mill?.status;
-  machineState = msg.machines;
-  ui.updateMachineShopView(machineState);
-  marketWorld.setMachineState?.(machineState);
-  updateMillPanel();
-  // Celebrate the community restoration with everyone present in the court.
-  if (previousStatus === 'broken' && machineState.mill.status === 'restored') {
-    chime([523, 659, 784, 1046]);
-    toast('The Great Mill Restored', 'The sails turn above the court. Wheat becomes flour for everyone.', 'RESTORATION COMPLETE');
-  }
-});
-
-net.on(MSG_TYPES.TRADE_FILLED, (msg) => {
-  const t = msg.trade;
-  chime([523, 659, 784]);
-  toast("Order Filled!", `Traded ${t.quantity}x ${t.cropId} @ ${t.price} ⛁`);
-});
-
 net.on(MSG_TYPES.WEATHER_UPDATE, (msg) => {
   updateWeatherDisplay(msg.weather);
 });
-
-net.on(MSG_TYPES.ACTION_RESULT, (msg) => {
-  if (msg.success) {
-    chime([440, 554]);
-    toast(msg.title || 'Garden', msg.message);
-  } else if (msg.message) {
-    toast(msg.title || 'Notice', msg.message);
-  }
-});
-
-// --- MILL PROGRESS PANEL (persistent HUD, market court only) ---
-let millPanelRoom = null;
-function updateMillPanel() {
-  const panel = $('mill-panel');
-  if (!panel) return;
-  const inCourt = currentRoomId === ROOMS.MARKET;
-  panel.style.display = inCourt ? 'block' : 'none';
-  millPanelRoom = currentRoomId;
-  if (!inCourt) return;
-
-  const mill = machineState?.mill;
-  const statusTag = $('mill-status-tag');
-  const lines = $('mill-progress-lines');
-  if (!mill) return;
-
-  if (mill.status === 'restored') {
-    statusTag.textContent = 'RESTORED';
-    statusTag.className = 'mill-tag restored';
-    lines.innerHTML = '<div class="mill-line">✦ The sails are turning. It grinds wheat into flour for everyone.</div>';
-    return;
-  }
-
-  statusTag.textContent = 'BROKEN';
-  statusTag.className = 'mill-tag broken';
-  let totalDone = 0, totalNeed = 0;
-  let html = '';
-  for (const [materialId, need] of Object.entries(mill.required || {})) {
-    const done = Math.min(mill.contributed?.[materialId] || 0, need);
-    totalDone += done;
-    totalNeed += need;
-    html += `<div class="mill-line"><span>${materialId}</span><b>${done}/${need}</b></div>`;
-  }
-  html = `<div class="mill-line mill-total"><span>restoration</span><b>${totalDone}/${totalNeed}</b></div>` + html;
-  lines.innerHTML = html;
-}
 
 net.on(MSG_TYPES.EMOTE_BROADCAST, (msg) => {
   if (msg.playerId === net.guestId || !isEmote(msg.emote)) return;
@@ -1280,10 +1075,10 @@ net.on(MSG_TYPES.EMOTE_BROADCAST, (msg) => {
 net.on(MSG_TYPES.WELCOME, () => chatPanel.setConnected(true));
 
 function updateWeatherDisplay(weather) {
-  // Legacy agricultural weather (World.Weather via weather_update/WELCOME)
-  // keeps feeding the HUD cache on legacy rooms, but it must never override
-  // an active place atmosphere's fog or caption (add-atmosphere-weather-system
-  // D1). No garden simulation is changed — only this presentation write.
+  // Legacy weather (World.Weather via weather_update/WELCOME) keeps feeding
+  // the HUD cache on legacy rooms, but it must never override an active place
+  // atmosphere's fog or caption (add-atmosphere-weather-system D1). Weather
+  // is presentation-only: no simulation consumes it.
   if (legacyWeatherDisplaySuppressed(atmosphereStateClient)) return;
   const icon = weather === 'rain' ? '☔' : weather === 'drizzle' ? '☂' : '☼';
   const label = weather === 'rain' ? 'HEAVY RAIN' : weather === 'drizzle' ? 'RAINY MIST' : 'CLEAR AFTER RAIN';
@@ -1462,46 +1257,6 @@ function bindAudioVolume(inputId, labelId, prefName) {
 bindAudioVolume('ambience-volume', 'ambience-value', 'ambience');
 bindAudioVolume('weather-volume', 'weather-value', 'weather');
 
-// Legacy gardener HUD: the reversible rollback for the contextual policy.
-// Flipping it re-applies the policy for the current place and persists the
-// preference; a storage failure simply keeps the choice for this session.
-$('legacy-hud').checked = legacyUiHud;
-$('legacy-hud').onchange = () => {
-  legacyUiHud = $('legacy-hud').checked;
-  writeLegacyUiPreference(legacyUiHud);
-  applyPlaceHud(placeRuntime.snapshot().resolution);
-};
-
-// --- TOOL SELECTION ---
-function setTool(toolName) {
-  activeTool = toolName;
-  document.querySelectorAll('.tool-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tool === toolName);
-  });
-  player.userData.setWateringCan(toolName === 'water');
-  const toolHints = {
-    hands: 'Tool: Hands & Inspect · Read crop stats',
-    hoe: 'Tool: Hoe · Till uncultivated beds',
-    seed: `Tool: Seeds (${CROPS[seedKeys[activeSeedIndex]].name}) · Plant in tilled beds`,
-    water: 'Tool: Watering Can · Replenish soil moisture',
-    harvest: 'Tool: Harvest Shears · Collect mature produce',
-    sprinkler: 'Tool: Sprinkler Kit · Press E on a bed to place (waters it + neighbors)',
-  };
-  $('hud-tool-hint').textContent = toolHints[toolName] || toolName;
-}
-
-document.querySelectorAll('.tool-btn').forEach(btn => {
-  btn.onclick = () => {
-    const t = btn.dataset.tool;
-    if (t === 'seed' && activeTool === 'seed') {
-      // Cycle active seed
-      activeSeedIndex = (activeSeedIndex + 1) % seedKeys.length;
-      $('active-seed-label').textContent = CROPS[seedKeys[activeSeedIndex]].name;
-    }
-    setTool(t);
-  };
-});
-
 // --- INTERACTION LOGIC ---
 // Sitting: the seat controller owns the pose (sit snap, folded legs, safe
 // dismount, wire flags) — the interaction registry routes seat items to it.
@@ -1557,8 +1312,7 @@ function interact() {
   }
 
   if (!nearest) {
-    toast("No Target Nearby", activeHudPolicy?.copy.noTargetHint
-      ?? "Approach a garden bed, market stall, or gateway to interact.");
+    toast("No Target Nearby", "Approach a gateway, seat, table or landmark to interact.");
     return;
   }
 
@@ -1587,96 +1341,9 @@ function interact() {
     }
     return;
   }
-
-  // Market stalls
-  if (nearest.type === 'market_board') {
-    ui.openMarket();
-    return;
-  }
-  if (nearest.type === 'seed_vendor') {
-    ui.openSeedVendor();
-    return;
-  }
-  if (nearest.type === 'contracts_board') {
-    ui.openContracts();
-    return;
-  }
-
-  // Material gather nodes (server-validated harvest; the client never grants)
-  if (nearest.type === 'material_node') {
-    net.send(MSG_TYPES.NODE_HARVEST, {
-      actionId: `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      nodeId: nearest.nodeId,
-    });
-    return;
-  }
-
-  // The Great Mill: restored mills grind wheat on E; broken mills open the
-  // machine shop so nearby materials can be contributed.
-  if (nearest.type === 'mill') {
-    if (machineState?.mill?.status === 'restored') {
-      net.send(MSG_TYPES.MACHINE_MILL, {
-        actionId: `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        quantity: 1,
-      });
-    } else {
-      ui.openMachineShop();
-    }
-    return;
-  }
-
-  // Machine shop workbench: contributions & sprinkler crafting
-  if (nearest.type === 'machine_bench') {
-    ui.openMachineShop();
-    return;
-  }
-
-  // Garden Bed Interaction
-  if (nearest.type === 'bed') {
-    const bedIndex = nearest.bedIndex;
-    const bed = currentGardenBeds ? currentGardenBeds[bedIndex] : null;
-
-    if (activeTool === 'hoe') {
-      net.sendGardenAction('till', bedIndex);
-      return;
-    }
-    if (activeTool === 'seed') {
-      const cropId = seedKeys[activeSeedIndex];
-      net.sendGardenAction('plant', bedIndex, cropId);
-      return;
-    }
-    if (activeTool === 'water') {
-      net.sendGardenAction('water', bedIndex);
-      return;
-    }
-    if (activeTool === 'harvest') {
-      net.sendGardenAction('harvest', bedIndex);
-      return;
-    }
-    if (activeTool === 'sprinkler') {
-      net.sendGardenAction('place_sprinkler', bedIndex);
-      return;
-    }
-
-    // Inspect tool (hands)
-    if (!bed || bed.stage === GROWTH_STAGES.EMPTY) {
-      toast(`Bed #${bedIndex + 1}`, "Unprepared soil. Select your Hoe (2) to till.");
-    } else if (bed.stage === GROWTH_STAGES.PREPARED) {
-      toast(`Bed #${bedIndex + 1}`, "Prepared soil. Select Seeds (3) to sow.");
-    } else {
-      const crop = CROPS[bed.cropId];
-      const stageNames = ['Empty', 'Prepared', 'Seed', 'Sprout', 'Juvenile', 'Mature', 'Harvestable'];
-      toast(
-        `${crop?.name || 'Crop'} (Bed #${bedIndex + 1})`,
-        `Stage: ${stageNames[bed.stage] || 'Growing'} · Moisture: ${Math.round((bed.moisture || 0) * 100)}% · Health: ${Math.round((bed.health || 1) * 100)}%`
-      );
-    }
-  }
 }
 
 $('interact').onclick = interact;
-$('btn-inventory').onclick = () => ui.openInventory();
-$('btn-market').onclick = () => ui.openMarket();
 
 // Places selector (T / Travel): featured destinations first, an expandable
 // Legacy areas group that retains every old destination, and live occupancy
@@ -1705,27 +1372,16 @@ function placeDestinations() {
       current: isCurrent,
     };
   });
-  const gardenRoom = ROOMS.gardenFor(net.guestId);
   entries.push(
     {
       roomId: ROOMS.MARKET,
       featured: false,
       micro: 'MARKET SOCIAL DISTRICT / 01',
       name: 'The Market Court',
-      description: 'Exchange harvests, buy seeds, and fulfill town contracts.',
+      description: 'A quiet square where the city paths meet.',
       badgeClass: currentRoomId === ROOMS.MARKET ? 'current' : 'visited',
       badgeText: currentRoomId === ROOMS.MARKET ? 'CURRENT' : 'CIVIC HUB',
       current: currentRoomId === ROOMS.MARKET,
-    },
-    {
-      roomId: gardenRoom,
-      featured: false,
-      micro: 'CULTIVATION PLOT',
-      name: 'Your Market Garden',
-      description: 'Till soil, sow crops, water, and harvest fresh produce.',
-      badgeClass: currentRoomId === gardenRoom ? 'current' : 'visited',
-      badgeText: currentRoomId === gardenRoom ? 'CURRENT' : 'PERSONAL PLOT',
-      current: currentRoomId === gardenRoom,
     },
   );
   return entries;
@@ -1746,7 +1402,7 @@ const placeSelector = createPlaceSelector({
   onClose: () => {
     paused = false;
     // Closing hands the keyboard back to the game with nothing held: keys
-    // pressed while the modal was up must not walk the gardener.
+    // pressed while the modal was up must not walk the player.
     keys.clear();
     clearJumpMomentum();
   },
@@ -1924,17 +1580,6 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
-  if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6'].includes(e.code)) {
-    // Tool digits only exist in legacy contexts; in social places the numbers
-    // stay with the emote wheel, which consumes them in the capture phase.
-    const tool = toolForDigit(e.code, {
-      enabled: activeHudPolicy ? activeHudPolicy.shortcuts.toolDigits : true,
-      emoteWheelOpen: !!emoteWheel?.isOpen,
-    });
-    if (tool) setTool(tool);
-    return;
-  }
-
   if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
     e.preventDefault();
   }
@@ -1943,8 +1588,6 @@ window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
   if (e.code === 'Space' && !paused && !seats.current && !participation.isParticipating) jumpQueued = true; // consumed by the frame loop
   if (e.code === 'KeyE') interact();
-  if (e.code === 'KeyI') ui.openInventory();
-  if (e.code === 'KeyM') ui.openMarket();
   // In The Orpheum, G opens the projection booth (screen controls, IPTV, guide).
   // preventDefault keeps the g from typing into the dialog's freshly focused URL input.
   if (e.code === 'KeyG' && currentRoomId === ROOMS.THEATER && !document.querySelector('dialog[open]')) {
@@ -2284,16 +1927,8 @@ function frame(now) {
     if (rtWire?.update) rtWire.update(dt, t);
     else remotePlayers.update(dt, t);
 
-    // Update active world with typed inputs: a personal garden room receives
-    // its bed snapshot, and every other world receives only its boolean
-    // completion — a stale garden snapshot can never masquerade as district
-    // restoration state.
-    const worldInput = worldUpdateInput({
-      isGardenRoom: ROOMS.isGarden(currentRoomId),
-      gardenBeds: currentGardenBeds,
-      completed: exploration.completed.includes(currentRoomId),
-    });
-    currentWorld.update?.(t, worldInput.value);
+    // Update active world with its boolean restoration completion.
+    currentWorld.update?.(t, exploration.completed.includes(currentRoomId));
 
     // The atmosphere controller rides the existing loop (no second rAF): it
     // samples the room's semantic state at the anchored server time and
@@ -2370,23 +2005,12 @@ function frame(now) {
       const distDef = districts.find(d => d.id === currentRoomId);
       if (distDef) {
         $('action-title').textContent = distDef.name;
-        $('action-sub').textContent = activeHudPolicy?.copy.idleActionHint
-          ?? "Explore sector with Kiln · Press T to travel";
+        $('action-sub').textContent = "Explore sector with Kiln · Press T to travel";
       } else {
-        $('action-title').textContent = currentRoomId === ROOMS.MARKET ? "Market Court" : "Your Market Garden";
-        $('action-sub').textContent = currentRoomId === ROOMS.MARKET ? "Explore stalls or travel to outer districts" : "Approach beds to till, plant, water, and harvest";
+        $('action-title').textContent = "Market Court";
+        $('action-sub').textContent = "Explore the square or travel to the outer districts";
       }
       $('interact').style.borderColor = '#9faa9240';
-    }
-
-    // Sprinkler coverage preview while aiming at a bed with tool 6
-    currentWorld.previewCoverage?.(
-      activeTool === 'sprinkler' && nearest?.type === 'bed' ? nearest.bedIndex : null
-    );
-
-    // Refresh the mill panel when the room changed (machine updates refresh it directly)
-    if (currentRoomId !== millPanelRoom) {
-      updateMillPanel();
     }
 
     refreshChallengeInvite();

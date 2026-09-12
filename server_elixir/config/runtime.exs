@@ -116,24 +116,6 @@ if config_env() != :test do
     end
 
   routing =
-    if System.get_env("AFTERLIGHT_ECONOMY_OWNER", "node") == "phoenix" do
-      Map.merge(routing, %{
-        "garden_action" => :phoenix,
-        "market_buy" => :phoenix,
-        "market_sell" => :phoenix,
-        "order_place" => :phoenix,
-        "order_cancel" => :phoenix,
-        "contract_complete" => :phoenix,
-        "node_harvest" => :phoenix,
-        "machine_contribute" => :phoenix,
-        "machine_mill" => :phoenix,
-        "machine_craft" => :phoenix
-      })
-    else
-      routing
-    end
-
-  routing =
     if System.get_env("AFTERLIGHT_HELLO_OWNER", "node") == "phoenix" do
       Map.merge(routing, %{"hello" => :phoenix})
     else

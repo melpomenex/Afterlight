@@ -1,37 +1,19 @@
 defmodule Afterlight.Parity.Reference.Misc do
   @moduledoc """
-  Parity reference for `shared/identity.js`, `server/nodes.js`,
-  `server/machines.js`, `server/youtubePlaylist.js` (pure core) and
-  `shared/protocol.js` (fixture file `identity-nodes-machines.json`).
+  Parity reference for `shared/identity.js`, `server/youtubePlaylist.js`
+  (pure core) and `shared/protocol.js` (fixture file `identity-misc.json`).
   TEST-SIDE PARITY REFERENCE — never authority.
 
   Ported surface (fixture fn names): `generateDefaultNickname`,
   `sanitizeNickname`, `resolveDuplicateNickname`, `generatePlayerPalette`,
-  `newNodesManager`, `nodesHarvest`, `nodesIsDepleted`, `nodesReap`,
-  `nodesDistrictStates`, `newMachinesManager`, `millContribute`,
-  `millWheat`, `millCraft`, `millSnapshot`, `isMillRestoredInState`,
   `extractPlaylistVideos`, `isYouTubeMixId`, `looksLikePlaylistId`,
   `parse`, `serialize`.
 
   ## JS-fidelity decisions
 
-  * **Manager threading (keepPrev).** The JS recorder pinned `"<prev>"` to
-    the step-0 manager instance and mutated it in place; managers are not
-    returned by later JS steps (`nodesHarvest` returns the harvest result,
-    `millSnapshot` returns the mill object, ...). The Elixir harness threads
-    the previous step's *result*, so each step fn keeps the CURRENT manager
-    in the process dictionary: `newNodesManager`/`newMachinesManager`
-    (always step 0) register it, mutating steps (harvest/reap/contribute)
-    store the updated manager, and a step whose first arg is not
-    manager-shaped resolves the manager from the registry. Call-style
-    cases never see a manager, and each script re-registers at step 0.
-    Cases run sequentially in one process (`async: false`), so this is
-    sound. The threaded manager VALUE mirrors the JSON-walked JS class
-    instance (`storage`/`depletions` for nodes, `storage`/`mill` for
-    machines) so it unifies with the fixture's manager expecteds.
   * **`generateDefaultNickname` OOB noun.** `Math.cos(0) * 20 = 20` indexes
     one past the 20-noun table → JS template-literal renders `undefined`;
-    the port reproduces `"Mossyundefined10"` for seed 0. Trig is
+    the port reproduces `"Quietundefined10"` for seed 0. Trig is
     `:math.sin`/`:math.cos` (same C libm; fixture seeds sit far from the
     floor boundaries).
   * **`resolveDuplicateNickname` set arg.** The JS recorder executed with a
@@ -66,22 +48,12 @@ defmodule Afterlight.Parity.Reference.Misc do
     insertion order is unrecoverable; sorted matches the recorded case).
   * **`parse`.** Malformed JSON → `nil` (JS `null`); `JSON.parse("42")` →
     `42` numeric primitive.
-
-  Known harness gap (documented, not worked around): the fixture's
-  `expected.prev` holds the final pinned manager while the harness threads
-  the previous step's RESULT into the case-level comparison, so the six
-  `nodes/*`/`mill/*` scripts fail their final `prev` comparison even
-  though every step matches. See the run report.
   """
 
   @behaviour Afterlight.Parity.Reference
 
   alias Afterlight.Accounts.ReducerSupport
   alias Afterlight.Parity.Hazards
-  alias Afterlight.Restoration.Machines
-  alias Afterlight.Restoration.Nodes
-
-  @t0 1_700_000_000_000
 
   ## -- shared/identity.js palette (sanitize/dedup live in ReducerSupport) --
 
@@ -111,71 +83,6 @@ defmodule Afterlight.Parity.Reference.Misc do
     do: ReducerSupport.resolve_duplicate_nickname(desired, active, case_rng())
 
   def run_case_fn("generatePlayerPalette", [id], _now_ms), do: generate_player_palette(id)
-
-  def run_case_fn("newNodesManager", [], _now_ms) do
-    state = Nodes.fresh_state()
-    Process.put({__MODULE__, :state_key}, :nodes_mgr)
-    Process.put({__MODULE__, :nodes_mgr}, state)
-    state
-  end
-
-  def run_case_fn("nodesHarvest", [mgr_arg, node_id, now], _now_ms) do
-    {state, result} = Nodes.harvest(resolve_nodes_mgr(mgr_arg), node_id, now)
-    store_nodes_mgr(state)
-    result
-  end
-
-  def run_case_fn("nodesIsDepleted", [mgr_arg, node_id, now], _now_ms) do
-    state = resolve_nodes_mgr(mgr_arg)
-    %{"depleted" => Nodes.is_depleted?(state, node_id, now)}
-  end
-
-  def run_case_fn("nodesReap", [mgr_arg, at], _now_ms) do
-    state = resolve_nodes_mgr(mgr_arg)
-    depletions = Nodes.reap_expired(state, at)["depletions"]
-    state = store_nodes_depletions(state, depletions)
-    store_nodes_mgr(state)
-    %{"nodes" => depletions}
-  end
-
-  def run_case_fn("nodesDistrictStates", [mgr_arg], _now_ms) do
-    {state, _} = Nodes.harvest(resolve_nodes_mgr(mgr_arg), "trestle_timber_cache", @t0)
-    store_nodes_mgr(state)
-    Nodes.states_for_district(state, "trestle", @t0 + 1000)
-  end
-
-  def run_case_fn("newMachinesManager", [], _now_ms) do
-    state = Machines.fresh_state()
-    Process.put({__MODULE__, :state_key}, :machines_mgr)
-    Process.put({__MODULE__, :machines_mgr}, state)
-    state
-  end
-
-  def run_case_fn("millContribute", [mgr_arg, player, material, quantity], _now_ms) do
-    {state, result} = Machines.contribute(resolve_machines_mgr(mgr_arg), player, material, quantity, @t0)
-    store_machines_mgr(state)
-    result
-  end
-
-  def run_case_fn("millWheat", [mgr_arg, player, quantity], _now_ms) do
-    {state, result} = Machines.mill_wheat(resolve_machines_mgr(mgr_arg), player, quantity)
-    store_machines_mgr(state)
-    result
-  end
-
-  def run_case_fn("millCraft", [mgr_arg, player, fixture], _now_ms) do
-    {state, result} = Machines.craft(resolve_machines_mgr(mgr_arg), player, fixture)
-    store_machines_mgr(state)
-    result
-  end
-
-  def run_case_fn("millSnapshot", [mgr_arg], _now_ms) do
-    Machines.snapshot(resolve_machines_mgr(mgr_arg)["mill"])
-  end
-
-  def run_case_fn("isMillRestoredInState", [state], _now_ms) do
-    Machines.mill_restored_in_state?(state)
-  end
 
   def run_case_fn("extractPlaylistVideos", [html], _now_ms), do: extract_playlist_videos(html)
 
@@ -230,31 +137,6 @@ defmodule Afterlight.Parity.Reference.Misc do
     do: utf16_hash31(rest, Bitwise.band(acc * 31 + code, 0xFFFFFFFF))
 
   defp utf16_hash31(<<>>, acc), do: acc
-
-  defp store_nodes_depletions(state, depletions) do
-    state
-    |> put_in(["storage", "state", "nodes"], depletions)
-    |> Map.put("depletions", depletions)
-  end
-
-  ## -- manager registry (keepPrev emulation) ------------------------------------
-
-  defp manager?(%{} = arg),
-    do: Map.has_key?(arg, "storage") and (Map.has_key?(arg, "depletions") or Map.has_key?(arg, "mill"))
-
-  defp manager?(_), do: false
-
-  defp resolve_nodes_mgr(arg) do
-    if manager?(arg), do: arg, else: Process.get({__MODULE__, :nodes_mgr})
-  end
-
-  defp store_nodes_mgr(state), do: Process.put({__MODULE__, :nodes_mgr}, state)
-
-  defp resolve_machines_mgr(arg) do
-    if manager?(arg), do: arg, else: Process.get({__MODULE__, :machines_mgr})
-  end
-
-  defp store_machines_mgr(state), do: Process.put({__MODULE__, :machines_mgr}, state)
 
   ## -- server/youtubePlaylist.js -------------------------------------------------
 

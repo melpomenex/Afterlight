@@ -33,7 +33,7 @@ defmodule Afterlight.Protocol.PayloadEncoderTest do
 
   test "fixture vectors match JS JSON.stringify recordings" do
     cases =
-      Parity.load_fixture("identity-nodes-machines.json")
+      Parity.load_fixture("identity-misc.json")
       |> Map.fetch!("cases")
       |> Enum.filter(fn c -> c["fn"] in ["serializeMsg", "roundtripMsg"] end)
 

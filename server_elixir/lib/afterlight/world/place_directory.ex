@@ -4,8 +4,8 @@ defmodule Afterlight.World.PlaceDirectory do
   (add-social-place-framework D8, task 3.3).
 
   A snapshot maps every PUBLIC manifest entry (the boot-validated
-  `Afterlight.World.PlaceDefinitions` projection — never personal gardens)
-  to the occupancy of its live room:
+  `Afterlight.World.PlaceDefinitions` projection) to the occupancy of its
+  live room:
 
     * occupancy counts unique roster identities in the authoritative
       `RoomServer` roster — the requester is included when present, a

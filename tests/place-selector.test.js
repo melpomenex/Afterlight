@@ -152,16 +152,14 @@ function createNet() {
 
 // --- harness ----------------------------------------------------------------
 
-// Mirrors the production provider's shape: two featured places, all legacy
-// districts, the market and the personal garden.
+// Mirrors the production provider's shape: two featured places, the legacy
+// districts and the Market Court (gardens retired).
 function sampleDestinations() {
   return [
     { roomId: 'theater', featured: true, micro: 'CINEMA DISTRICT / 20', name: 'The Orpheum', description: 'A grand old cinema.', badgeClass: 'current', badgeText: 'CURRENT', current: true },
     { roomId: 'court', featured: true, micro: 'LOWER DISTRICT / 04', name: 'The Rain Court', description: 'Wet stone, warm windows.', badgeClass: 'visited', badgeText: 'VISITED', current: false },
     { roomId: 'canal', featured: false, micro: 'WATER DISTRICT / 05', name: 'The Sluiceworks', description: 'Cross the canal.', badgeClass: 'unexplored', badgeText: 'UNEXPLORED', current: false },
-    { roomId: 'garden', featured: false, micro: 'UPPER TERRACES / 06', name: 'The Glass Garden', description: 'Something still grows.', badgeClass: 'restored', badgeText: '✦ RESTORED', current: false },
-    { roomId: 'market', featured: false, micro: 'MARKET SOCIAL DISTRICT / 01', name: 'The Market Court', description: 'Trade and contracts.', badgeClass: 'visited', badgeText: 'CIVIC HUB', current: false },
-    { roomId: 'garden:guest-1', featured: false, micro: 'CULTIVATION PLOT', name: 'Your Market Garden', description: 'Till, sow, water, harvest.', badgeClass: 'visited', badgeText: 'PERSONAL PLOT', current: false },
+    { roomId: 'market', featured: false, micro: 'MARKET SOCIAL DISTRICT / 01', name: 'The Market Court', description: 'A quiet square where the city paths meet.', badgeClass: 'visited', badgeText: 'CIVIC HUB', current: false },
   ];
 }
 
@@ -220,7 +218,7 @@ test('opening renders featured first and a collapsed legacy group that retains e
   assert.equal(legacy.children[0].textContent, 'LEGACY AREAS');
   const legacyNames = allCards(legacy).map(cardName);
   assert.deepEqual(legacyNames, [
-    'The Sluiceworks', 'The Glass Garden', 'The Market Court', 'Your Market Garden',
+    'The Sluiceworks', 'The Market Court',
   ]);
   // Every non-featured destination is still reachable: nothing old is lost.
   const allProvided = sampleDestinations().filter(d => !d.featured).map(d => d.name);
@@ -263,7 +261,7 @@ test('occupancy renders as honest text: counts, empty, and unknown — never a f
     { roomId: 'theater', occupancy: 3, observedAt: h.clock.nowMs },
     { roomId: 'court', occupancy: 0, observedAt: h.clock.nowMs },
     { roomId: 'canal', occupancy: null, observedAt: null },
-    // garden and the personal garden have no entry at all: unknown.
+    // The Market Court has an entry; retired garden ids do not.
   ]);
 
   const cards = allCards(h.container);
@@ -271,7 +269,6 @@ test('occupancy renders as honest text: counts, empty, and unknown — never a f
   assert.equal(countText(byName.get('The Orpheum')), '3 here');
   assert.equal(countText(byName.get('The Rain Court')), 'Empty right now');
   assert.equal(countText(byName.get('The Sluiceworks')), '—');
-  assert.equal(countText(byName.get('Your Market Garden')), '—');
 
   // Junk occupancy values are unknown, never coerced into a count.
   h.reply(h.requests().at(-1).payload.requestId, [
@@ -336,7 +333,7 @@ test('a malformed response is ignored and every destination button stays usable'
 
   // The one well-formed row in the junk reply still applies honestly; the
   // junk rows are skipped; nothing threw and no card was lost.
-  assert.deepEqual(allCards(h.container).map(countText), ['6 here', '—', '—', '—', '—', '—']);
+  assert.deepEqual(allCards(h.container).map(countText), ['6 here', '—', '—', '—']);
   theater.click();
   assert.deepEqual(h.calls.at(-1), ['travel', 'theater'], 'travel still works after malformed replies');
 });
@@ -375,12 +372,12 @@ test('selecting a legacy destination travels and closes through the same path', 
   h.selector.open();
 
   const [featured, legacy] = h.container.children;
-  const glassGarden = allCards(legacy).find(c => cardName(c) === 'The Glass Garden');
-  glassGarden.click();
+  const marketCourt = allCards(legacy).find(c => cardName(c) === 'The Market Court');
+  marketCourt.click();
   assert.deepEqual(h.calls, [
     ['onOpen'],
     ['onClose'],
-    ['travel', 'garden'],
+    ['travel', 'market'],
   ]);
   assert.equal(h.dialog.open, false);
   assert.equal(h.selector.isOpen(), false);

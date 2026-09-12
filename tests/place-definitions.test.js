@@ -43,14 +43,22 @@ registerPlaceBounds(PLACE_VIEW_FIXTURE);
 
 test('legacy identity survives the manifest migration intact', () => {
   assert.equal(districts, PLACE_DEFINITIONS, 'src/districts.js re-exports the shared manifest');
-  assert.deepEqual(districts.slice(0, 17).map(d => d.id), [...LEGACY_DISTRICT_IDS], 'order and ids are frozen');
-  assert.equal(LEGACY_DISTRICT_IDS.length, 17);
+  assert.deepEqual(districts.slice(0, 16).map(d => d.id), [...LEGACY_DISTRICT_IDS], 'order and ids are frozen');
+  assert.equal(LEGACY_DISTRICT_IDS.length, 16, 'the retired Glass Garden is gone from the route');
   assert.ok(Object.isFrozen(PLACE_DEFINITIONS) && Object.isFrozen(PLACE_DEFINITIONS[0]));
   assert.ok(Object.isFrozen(getPlaceDefinition('court').exits) && Object.isFrozen(getPlaceDefinition('court').bounds));
-  // Seeds are the explicit historical values: old array index × 37, zero for court.
-  for (const [index, def] of PLACE_DEFINITIONS.entries()) {
-    assert.equal(def.seed, index * 37, `${def.id} keeps its exact procedural seed`);
+  // Seeds are the explicit historical values (old array index × 37, zero for
+  // court); removing the Glass Garden never shifts a survivor.
+  const historicalSeeds = {
+    court: 0, canal: 37, station: 111, aqueduct: 148, caldera: 185, understory: 222,
+    saltworks: 259, rooftops: 296, mangrove: 333, trestle: 370, foundry: 407,
+    'frost-spire': 444, delta: 481, archives: 518, 'kiln-terrace': 555, theater: 592,
+    'desert-camp': 629,
+  };
+  for (const def of PLACE_DEFINITIONS) {
+    assert.equal(def.seed, historicalSeeds[def.id], `${def.id} keeps its exact procedural seed`);
   }
+  assert.equal(getPlaceDefinition('garden'), undefined, 'the retired district no longer resolves');
   assert.equal(getPlaceDefinition('theater').seed, 592);
 });
 
@@ -201,11 +209,13 @@ test('old saves normalize without losing valid progress or accepting unregistere
   assert.equal(readExploration({ current: 'kiln-terrace' }).current, 'kiln-terrace');
 });
 
-test('market and personal-garden bounds keep their explicit compatibility entries', () => {
+test('market bounds keep their explicit compatibility entry', () => {
   assert.equal(getBoundsForRoom('market'), WORLD_BOUNDS.market);
   assert.equal(getBoundsForRoom(undefined), WORLD_BOUNDS.market);
-  assert.equal(getBoundsForRoom('garden'), WORLD_BOUNDS.garden, '?room=garden shorthand keeps garden bounds');
-  assert.equal(getBoundsForRoom('garden:player-1'), WORLD_BOUNDS.garden);
+  // The retired personal/Glass Garden shorthand no longer has bespoke bounds;
+  // it takes the defensive default shape like any unknown room.
+  assert.equal(getBoundsForRoom('garden:player-1').id, 'garden:player-1');
+  assert.deepEqual(getBoundsForRoom('garden').spawn, [-9, 0]);
   // Registered public places now come from the manifest with identical values.
   assert.deepEqual(getBoundsForRoom('court'), {
     id: 'court', minX: -11.3, maxX: 11.3, minZ: -9.5, maxZ: 10.3,

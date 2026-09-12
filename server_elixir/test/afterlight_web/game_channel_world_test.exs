@@ -96,15 +96,15 @@ defmodule AfterlightWeb.GameChannelWorldTest do
 
       GatewayTest.FakeCore.inject_frame(up, %{"type" => "iptv_state", "lists" => []})
 
+      # A retired snapshot from an older shadow is dropped, never surfaced.
       GatewayTest.FakeCore.inject_frame(up, %{
         "type" => "garden_state",
-        "roomId" => "garden:#{guest}",
+        "roomId" => "garden:retired",
         "beds" => []
       })
 
       assert_push("theater_state", %{"theater" => %{}, "serverNow" => 1})
       assert_push("iptv_state", %{"lists" => []})
-      assert_push("garden_state", %{"roomId" => "garden:" <> ^guest})
 
       # Each exactly once — the suppression must not eat snapshots, and no
       # duplicate delivery may leak through either writer.
@@ -133,7 +133,7 @@ defmodule AfterlightWeb.GameChannelWorldTest do
         "weather" => "drizzle"
       })
 
-      # welcome.weather passes through unchanged (Node-built until P6).
+      # welcome.weather passes through unchanged (Node-built; presentation-only).
       assert_push("welcome", %{"weather" => "drizzle", "player" => %{"nickname" => "Wren"}})
 
       GatewayTest.FakeCore.inject_frame(up, %{"type" => "weather_update", "weather" => "drizzle"})
@@ -177,18 +177,19 @@ defmodule AfterlightWeb.GameChannelWorldTest do
 
       assert_push("welcome", %{"weather" => "rain", "player" => %{"nickname" => "Wren"}})
 
-      # Weather was never suppressed (Node owns it until P6, D7).
+      # Weather was never suppressed: Node owns the rotation, presentation-only (D7).
       GatewayTest.FakeCore.inject_frame(up, %{"type" => "weather_update", "weather" => "rain"})
       assert_push("weather_update", %{"weather" => "rain"})
 
-      # Shadow join snapshots still relay to the joiner.
+      # Shadow join snapshots still relay to the joiner; retired economy
+      # snapshots do not.
       GatewayTest.FakeCore.inject_frame(up, %{
         "type" => "node_state",
         "roomId" => "market",
         "nodes" => []
       })
 
-      assert_push("node_state", %{})
+      assert_no_push("node_state", 200)
     end)
   end
 
@@ -357,7 +358,7 @@ defmodule AfterlightWeb.GameChannelWorldTest do
       assert_receive {:fake_upstream_started, up, _headers}, 1_000
 
       # Crash-window rule: no join yet → refuse, retryable.
-      push(socket, "garden_action", %{"actionId" => "a1", "action" => "till", "bedIndex" => 0})
+      push(socket, "theater_queue", %{"actionId" => "a1", "action" => "till", "bedIndex" => 0})
       assert_push("error", %{"message" => "room_unavailable"})
 
       # After the join the shadow forward carries the command.
@@ -365,9 +366,9 @@ defmodule AfterlightWeb.GameChannelWorldTest do
       assert_push("presence_update", %{"players" => []})
       assert_receive {:fake_frame, ^up, _join}, 1_000
 
-      push(socket, "garden_action", %{"actionId" => "a2", "action" => "till", "bedIndex" => 0})
+      push(socket, "theater_queue", %{"actionId" => "a2", "action" => "till", "bedIndex" => 0})
       assert_receive {:fake_frame, ^up, action_json}, 1_000
-      assert Jason.decode!(action_json)["type"] == "garden_action"
+      assert Jason.decode!(action_json)["type"] == "theater_queue"
     end)
   end
 
@@ -381,7 +382,7 @@ defmodule AfterlightWeb.GameChannelWorldTest do
 
       # The identity joins a room on the losing transport first, so the
       # roster entry exists before the race.
-      push(first, "join_room", %{"roomId" => "garden:#{guest}"})
+      push(first, "join_room", %{"roomId" => "foundry"})
       assert_push("presence_update", %{"players" => []})
       assert_receive {:fake_frame, _up1, _join1}, 1_000
 
@@ -396,7 +397,7 @@ defmodule AfterlightWeb.GameChannelWorldTest do
       assert_push("error", %{"message" => "superseded"})
 
       # The winner (re)joins: the roster entry is adopted in place.
-      push(second, "join_room", %{"roomId" => "garden:#{guest}"})
+      push(second, "join_room", %{"roomId" => "foundry"})
       assert_push("presence_update", %{"players" => players})
       refute Enum.any?(players, &(&1["id"] == guest))
 
@@ -407,7 +408,7 @@ defmodule AfterlightWeb.GameChannelWorldTest do
       loser_ref = Process.monitor(first.channel_pid)
       assert_receive {:DOWN, ^loser_ref, :process, _pid, _reason}, 1_000
 
-      assert Afterlight.World.member?("garden:#{guest}", guest, second.assigns.conn_ref)
+      assert Afterlight.World.member?("foundry", guest, second.assigns.conn_ref)
 
       # Still no leave reached the surviving transport…
       assert_no_push("presence_leave", 200)
@@ -418,7 +419,7 @@ defmodule AfterlightWeb.GameChannelWorldTest do
       other = connect_guest(other_guest, "Fern")
       _hello_frame = hello(other, other_guest, "Fern")
 
-      push(other, "join_room", %{"roomId" => "garden:#{guest}"})
+      push(other, "join_room", %{"roomId" => "foundry"})
       assert_push("presence_update", %{"players" => other_roster})
 
       assert [%{"id" => ^guest, "nickname" => "Wren"}] =
@@ -479,7 +480,7 @@ defmodule AfterlightWeb.GameChannelWorldTest do
       # commands are refused without live World membership.
       socket2 = connect_guest(guest, "Wren")
       push(socket2, "hello", %{"guestId" => guest, "nickname" => "Wren"})
-      push(socket2, "garden_action", %{"actionId" => "a3", "action" => "till", "bedIndex" => 0})
+      push(socket2, "theater_queue", %{"actionId" => "a3", "action" => "till", "bedIndex" => 0})
       assert_push("error", %{"message" => "room_unavailable"})
 
       # The rejoin produces a fresh (empty) roster.
@@ -857,7 +858,7 @@ defmodule AfterlightWeb.GameChannelWorldTest do
         assert_push("place_directory", %{
           "requestId" => "req-slow",
           "entries" => [%{"roomId" => "probe-slow-dir", "occupancy" => nil, "observedAt" => nil}]
-        })
+        }, 1_000)
 
         _ = test_pid
       end)

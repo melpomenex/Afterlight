@@ -21,7 +21,7 @@ defmodule Afterlight.FailureInjection.DeployDrainTest do
     actor = Actor.session(player.id, session.id, session.token_hash)
     calls = :counters.new(1, [])
 
-    payload = %{op: :order_place, sku: "sprinkler"}
+    payload = %{op: :account_rename, name: "Drained"}
 
     fun = fn ->
       :counters.add(calls, 1, 1)

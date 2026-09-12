@@ -2,7 +2,8 @@ defmodule Afterlight.World.PlaceDirectoryTest do
   @moduledoc """
   Task 3.3: bounded, truthful public place summaries — unique occupant
   counts with the requester included, zero only for absent locally-known
-  public rooms, null on unreadable owners, gardens never enumerated, no
+  public rooms, null on unreadable owners, retired garden-prefixed rooms
+  never enumerated, no
   lazy room creation, and the 64-entry / 16KiB / deadline bounds.
   """
 
@@ -55,15 +56,15 @@ defmodule Afterlight.World.PlaceDirectoryTest do
     a = WorldTestHelper.recorder!(self(), :a)
     b = WorldTestHelper.recorder!(self(), :b)
 
-    {:ok, _} = RoomServer.join(pid, attrs("gardener_x", :cx, a))
-    {:ok, _} = RoomServer.join(pid, attrs("gardener_y", :cy, b))
+    {:ok, _} = RoomServer.join(pid, attrs("visitor_x", :cx, a))
+    {:ok, _} = RoomServer.join(pid, attrs("visitor_y", :cy, b))
 
     assert occupancy_of("probe-live-room") == 2
 
     # Duplicate connection (supersession, D8): same identity, newer conn —
     # the roster entry is replaced in place, the count stays put.
     c = WorldTestHelper.recorder!(self(), :c)
-    {:ok, _} = RoomServer.join(pid, attrs("gardener_x", :cx2, c))
+    {:ok, _} = RoomServer.join(pid, attrs("visitor_x", :cx2, c))
 
     assert occupancy_of("probe-live-room") == 2
   end
@@ -81,17 +82,17 @@ defmodule Afterlight.World.PlaceDirectoryTest do
     assert occupancy_of("probe-slow-room") == nil
   end
 
-  test "private gardens are never enumerated, even when live" do
+  test "retired garden-prefixed rooms are never enumerated, even when live" do
     clear_place_entries_override()
 
-    # A live personal garden room exists on this node.
-    {:ok, _room_pid, _roster} = World.join("garden:secret_gardener", "secret_gardener", :cg, self(), "Secret", nil)
+    # A live retired-namespace room exists on this node.
+    {:ok, _room_pid, _roster} = World.join("garden:secret_room", "secret_room", :cg, self(), "Secret", nil)
 
     entries = PlaceDirectory.snapshot()
     assert entries != []
     refute Enum.any?(entries, &String.starts_with?(&1["roomId"], "garden:"))
   after
-    World.leave("garden:secret_gardener", "secret_gardener", :cg, :travel)
+    World.leave("garden:secret_room", "secret_room", :cg, :travel)
   end
 
   test "bounds: no more than 64 entries and entries alone stay under 16KiB" do

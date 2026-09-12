@@ -9,15 +9,15 @@ defmodule Afterlight.Accounts.ReducerSupport do
   """
 
   @adjectives ~w(
-    Mossy Quiet Copper Rainy Amber Misty Rust Golden
-    Silver Fern Bramble Cobble Thistle Breezy Dusky Dappled
-    Dewy Hedge Orchard Verdant Gilded Pebble Autumnal Gleaming
+    Quiet Copper Rainy Amber Misty Rust Golden Silver
+    Cobble Breezy Dusky Dappled Gilded Pebble Gleaming Iron
+    Slate Cinder Ember Tidal Steady Bright Hollow Autumnal
   )
 
-  @produce_nouns ~w(
-    Radish Turnip Basil Leek Carrot Kale Tomato Berry
-    Sorrel Chive Sprout Fennel Parsnip Pepper Clover Borage
-    Sage Mint Beet Chard
+  @machine_nouns ~w(
+    Lantern Kestrel Compass Signal Beacon Relay Foundry Quarry
+    Anvil Cog Piston Whistle Prism Sparrow Tram Bellows
+    Lattice Sprocket Gantry Conduit
   )
 
   @doc "JS `Math.random` stand-in: a float in `(0, 1]`."
@@ -25,13 +25,13 @@ defmodule Afterlight.Accounts.ReducerSupport do
 
   def generate_default_nickname(seed) when is_number(seed) do
     adj_idx = trunc(abs(:math.sin(seed * 999)) * length(@adjectives))
-    noun_idx = trunc(abs(:math.cos(seed * 888)) * length(@produce_nouns))
+    noun_idx = trunc(abs(:math.cos(seed * 888)) * length(@machine_nouns))
     num = trunc(abs(:math.sin(seed * 777)) * 90) + 10
 
     # JS indexes past the array end render as "undefined" in the template
     # literal (seed 0: Math.cos(0) * 20 === 20).
     adj = Enum.at(@adjectives, adj_idx) || "undefined"
-    noun = Enum.at(@produce_nouns, noun_idx) || "undefined"
+    noun = Enum.at(@machine_nouns, noun_idx) || "undefined"
 
     "#{adj}#{noun}#{num}"
   end

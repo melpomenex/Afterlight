@@ -1,11 +1,6 @@
 /**
  * Shared network protocol constants and packet definitions.
  *
- * Inventory payloads (WELCOME, INVENTORY_STATE) carry the whole player
- * object, which additively includes:
- *   - `materials`: { [materialId]: count } — gathered copper/timber/glass
- *   - `inventory.sprinklers`: count of crafted, unplaced sprinkler kits
- *
  * Chat payloads (additive):
  *   - chat_send (C→S): { text } — raw line; the server parses /msg and /me
  *   - chat_history (S→C): { channel, messages: [{ channel, from, fromKind,
@@ -81,8 +76,8 @@
  *     owner could not be read within the deadline (or is remote) — never a
  *     fabricated count. observedAt is the server wall-clock ms of the
  *     observation (null when unknown). atmosphereLabel is optional static
- *     manifest metadata (the atmosphere preset key); activity, capacity
- *     and private gardens ("garden:<owner>") are never included.
+ *     manifest metadata (the atmosphere preset key); activity and capacity
+ *     are never included.
  *   Replies are snapshots, not a presence subscription: clients poll at
  *   most every 10s while the selector is open and treat data older than
  *   30s as unknown.
@@ -145,16 +140,6 @@ export const MSG_TYPES = {
   SET_NICKNAME: 'set_nickname',
   JOIN_ROOM: 'join_room',
   MOVEMENT: 'movement',
-  GARDEN_ACTION: 'garden_action',
-  MARKET_BUY: 'market_buy',
-  MARKET_SELL: 'market_sell',
-  ORDER_PLACE: 'order_place',
-  ORDER_CANCEL: 'order_cancel',
-  CONTRACT_COMPLETE: 'contract_complete',
-  NODE_HARVEST: 'node_harvest',
-  MACHINE_CONTRIBUTE: 'machine_contribute',
-  MACHINE_MILL: 'machine_mill',
-  MACHINE_CRAFT: 'machine_craft',
   THEATER_QUEUE: 'theater_queue',
   THEATER_CONTROL: 'theater_control',
   THEATER_CHANNEL: 'theater_channel',
@@ -188,12 +173,6 @@ export const MSG_TYPES = {
   PRESENCE_JOIN: 'presence_join',
   PRESENCE_LEAVE: 'presence_leave',
   PRESENCE_UPDATE: 'presence_update',
-  GARDEN_STATE: 'garden_state',
-  INVENTORY_STATE: 'inventory_state',
-  MARKET_UPDATE: 'market_update',
-  CONTRACT_UPDATE: 'contract_update',
-  NODE_STATE: 'node_state',
-  MACHINE_UPDATE: 'machine_update',
   THEATER_STATE: 'theater_state',
   THEATER_PLAYLIST_RESOLVED: 'theater_playlist_resolved',
   THEATER_IMPORT_RESULT: 'theater_import_result',
@@ -201,8 +180,6 @@ export const MSG_TYPES = {
   IPTV_LIST: 'iptv_list',
   EPG_SCHEDULE: 'epg_schedule',
   WEATHER_UPDATE: 'weather_update',
-  ACTION_RESULT: 'action_result',
-  TRADE_FILLED: 'trade_filled',
   EMOTE_BROADCAST: 'emote_broadcast',
   CHAT_HISTORY: 'chat_history',
   CHAT_MESSAGE: 'chat_message',
@@ -235,9 +212,6 @@ export const MSG_TYPES = {
 export const ROOMS = {
   MARKET: 'market',
   THEATER: 'theater',
-  gardenFor: (playerId) => `garden:${playerId}`,
-  isGarden: (roomId) => roomId?.startsWith('garden:'),
-  gardenOwner: (roomId) => roomId?.startsWith('garden:') ? roomId.slice('garden:'.length) : null,
 };
 
 export const WEATHER = {

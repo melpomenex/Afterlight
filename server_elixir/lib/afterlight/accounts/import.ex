@@ -64,8 +64,6 @@ defmodule Afterlight.Accounts.Import do
     rows = Enum.map(players, fn {_id, record} -> Normalize.player(record) end)
 
     snapshot_count = map_size(players)
-    coins_sum = Enum.reduce(rows, 0, fn row, acc -> acc + int(row["coins"]) end)
-    xp_sum = Enum.reduce(rows, 0, fn row, acc -> acc + int(row["xp"]) end)
 
     Repo.transaction(fn ->
       Enum.each(rows, fn row ->
@@ -78,13 +76,6 @@ defmodule Afterlight.Accounts.Import do
         attrs = %{
           id: row["id"],
           nickname: row["nickname"] || row["id"],
-          coins: int(row["coins"]),
-          xp: int(row["xp"]),
-          level: max(int(row["level"], 1), 1),
-          reputation: int(row["reputation"]),
-          reserved_coins: int(row["reservedCoins"]),
-          inventory: row["inventory"],
-          materials: row["materials"],
           current_room: row["currentRoom"] || "market",
           last_seen: int(row["lastSeen"]),
           shadow: true
@@ -101,20 +92,12 @@ defmodule Afterlight.Accounts.Import do
       imported =
         Repo.one!(from p in "players", where: p.id in ^ids, select: count(p.id))
 
-      imported_coins =
-        Repo.one!(from p in "players", where: p.id in ^ids, select: coalesce(sum(p.coins), 0))
-
-      imported_xp =
-        Repo.one!(from p in "players", where: p.id in ^ids, select: coalesce(sum(p.xp), 0))
-
-      if imported != snapshot_count or imported_coins != coins_sum or imported_xp != xp_sum do
+      if imported != snapshot_count do
         Repo.rollback(
           {:validation,
            %{
              snapshot_count: snapshot_count,
-             imported: imported,
-             coins: {coins_sum, imported_coins},
-             xp: {xp_sum, imported_xp}
+             imported: imported
            }}
         )
       end
@@ -123,8 +106,6 @@ defmodule Afterlight.Accounts.Import do
         domain: "players",
         snapshot_sha256: hash,
         player_count: snapshot_count,
-        coins_sum: coins_sum,
-        xp_sum: xp_sum,
         imported_at: System.system_time(:millisecond),
         source_path: source_path
       }
@@ -133,7 +114,7 @@ defmodule Afterlight.Accounts.Import do
         conflict_target: [:domain]
       )
 
-      %{count: snapshot_count, coins: coins_sum, xp: xp_sum, hash: hash}
+      %{count: snapshot_count, hash: hash}
     end)
     |> case do
       {:ok, meta} -> {:ok, :imported, meta}

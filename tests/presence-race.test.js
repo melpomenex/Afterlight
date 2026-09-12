@@ -17,7 +17,6 @@ if (typeof globalThis.WebSocket === 'undefined') {
 
 const TRACKED_TYPES = [
   MSG_TYPES.WELCOME,
-  MSG_TYPES.GARDEN_STATE,
   MSG_TYPES.PRESENCE_JOIN,
   MSG_TYPES.PRESENCE_LEAVE,
   MSG_TYPES.PRESENCE_UPDATE,
@@ -123,9 +122,9 @@ test('re-joining the current room does not duplicate presence joins', async () =
 test('JOIN_ROOM racing the handshake still joins the requested room', async () => {
   const storage = new Storage(`/tmp/test-presence-race-${Date.now()}.json`);
   const { handle, wsUrl } = await listen(storage);
-  const gardenRoom = ROOMS.gardenFor('guest_race_a');
+  const targetRoom = 'foundry';
 
-  // Client B visits A's garden through a plain socket and settles there.
+  // Client B visits the foundry through a plain socket and settles there.
   const wsB = new WebSocket(wsUrl);
   const inboxB = [];
   wsB.on('message', data => inboxB.push(parse(data)));
@@ -137,7 +136,7 @@ test('JOIN_ROOM racing the handshake still joins the requested room', async () =
   wsC.on('message', data => inboxC.push(parse(data)));
   wsC.on('error', () => {});
 
-  // Client A reproduces the page-load race: it requests the garden room
+  // Client A reproduces the page-load race: it requests the foundry room
   // while its socket does not exist yet, then connects.
   const clientA = new NetworkClient(wsUrl);
   clientA.guestId = 'guest_race_a';
@@ -146,28 +145,26 @@ test('JOIN_ROOM racing the handshake still joins the requested room', async () =
 
   try {
     wsB.on('open', () => {
-      wsB.send(serialize({ type: MSG_TYPES.HELLO, guestId: 'guest_race_b', nickname: 'QuietLeek' }));
-      wsB.send(serialize({ type: MSG_TYPES.JOIN_ROOM, roomId: gardenRoom }));
+      wsB.send(serialize({ type: MSG_TYPES.HELLO, guestId: 'guest_race_b', nickname: 'QuietSignal' }));
+      wsB.send(serialize({ type: MSG_TYPES.JOIN_ROOM, roomId: targetRoom }));
     });
     wsC.on('open', () => {
-      wsC.send(serialize({ type: MSG_TYPES.HELLO, guestId: 'guest_race_c', nickname: 'CompostKing' }));
+      wsC.send(serialize({ type: MSG_TYPES.HELLO, guestId: 'guest_race_c', nickname: 'CompassKeeper' }));
     });
-    await waitFor(
-      () => inboxB.some(m => m.type === MSG_TYPES.GARDEN_STATE && m.roomId === gardenRoom),
-      'B settled in the garden room'
-    );
+    await waitFor(() => inboxB.some(m => m.type === MSG_TYPES.WELCOME), 'B connected');
     await waitFor(() => inboxC.some(m => m.type === MSG_TYPES.WELCOME), 'C connected');
+    await new Promise(r => setTimeout(r, 150)); // B's join is settled
 
-    clientA.joinRoom(gardenRoom);
+    clientA.joinRoom(targetRoom);
     clientA.connect();
     await waitFor(() => clientA.connected, 'client A connected');
 
-    // The raced join reaches the server anyway: B, already in the garden,
+    // The raced join reaches the server anyway: B, already in the foundry,
     // sees A arrive. Without the onopen replay A would be stuck in the
-    // default room and invisible to the garden.
-    await waitFor(() => joinsFor(inboxB, 'guest_race_a').length > 0, 'B sees A join the garden');
+    // default room and invisible to the foundry.
+    await waitFor(() => joinsFor(inboxB, 'guest_race_a').length > 0, 'B sees A join the foundry');
     assert.equal(joinsFor(inboxB, 'guest_race_a').length, 1, 'exactly one presence_join for A');
-    await waitFor(() => seesPlayer(inboxA, 'guest_race_b'), 'A sees B in the garden roster');
+    await waitFor(() => seesPlayer(inboxA, 'guest_race_b'), 'A sees B in the foundry roster');
 
     // Presence is mutual and live in the requested room.
     clientA.sendMovement(-4.0, 2.0, 1.0, true);
@@ -175,12 +172,12 @@ test('JOIN_ROOM racing the handshake still joins the requested room', async () =
     wsB.send(serialize({ type: MSG_TYPES.MOVEMENT, x: 3.0, z: -1.5, rotY: 0.3, walking: true }));
     await waitFor(() => sawMovement(inboxA, 'guest_race_b', 3.0), 'A receives B movement');
 
-    // The market court does not overhear the garden, and vice versa.
+    // The market court does not overhear the foundry, and vice versa.
     wsC.send(serialize({ type: MSG_TYPES.MOVEMENT, x: 1.0, z: 1.0, rotY: 0.0, walking: true }));
     await new Promise(r => setTimeout(r, 250)); // several 10 Hz broadcast ticks
-    assert.ok(!sawMovement(inboxA, 'guest_race_c', 1.0), 'market movement does not reach the garden');
-    assert.ok(!sawMovement(inboxB, 'guest_race_c', 1.0), 'market movement does not reach the garden');
-    assert.ok(!sawMovement(inboxC, 'guest_race_a', -4.0), 'garden movement does not reach the market');
+    assert.ok(!sawMovement(inboxA, 'guest_race_c', 1.0), 'market movement does not reach the foundry');
+    assert.ok(!sawMovement(inboxB, 'guest_race_c', 1.0), 'market movement does not reach the foundry');
+    assert.ok(!sawMovement(inboxC, 'guest_race_a', -4.0), 'foundry movement does not reach the market');
   } finally {
     stopReconnecting(clientA);
     try { clientA.ws?.close(); } catch {}
@@ -197,9 +194,9 @@ test('joinRoom while disconnected re-binds the desired room and replays it on re
   // joined. The facade must replay the newest desiredRoom, not the stale one.
   const storage = new Storage(`/tmp/test-presence-rebind-${Date.now()}.json`);
   const { handle, wsUrl } = await listen(storage);
-  const gardenRoom = ROOMS.gardenFor('guest_rebind_a');
+  const targetRoom = 'foundry';
 
-  // Client B waits in A's garden.
+  // Client B waits in the foundry.
   const wsB = new WebSocket(wsUrl);
   const inboxB = [];
   wsB.on('message', data => inboxB.push(parse(data)));
@@ -213,9 +210,10 @@ test('joinRoom while disconnected re-binds the desired room and replays it on re
   try {
     wsB.on('open', () => {
       wsB.send(serialize({ type: MSG_TYPES.HELLO, guestId: 'guest_rebind_b', nickname: 'RebindWatch' }));
-      wsB.send(serialize({ type: MSG_TYPES.JOIN_ROOM, roomId: gardenRoom }));
+      wsB.send(serialize({ type: MSG_TYPES.JOIN_ROOM, roomId: targetRoom }));
     });
     await waitFor(() => inboxB.some(m => m.type === MSG_TYPES.WELCOME), 'B connected');
+    await new Promise(r => setTimeout(r, 150)); // B's join is settled
 
     // A joins the market, then loses the socket before ever being seen.
     clientA.joinRoom(ROOMS.MARKET);
@@ -225,13 +223,13 @@ test('joinRoom while disconnected re-binds the desired room and replays it on re
     clientA.ws.close();
     await waitFor(() => !clientA.connected, 'A disconnected');
 
-    // While disconnected, travel re-binds the desired room to the garden.
-    clientA.joinRoom(gardenRoom);
+    // While disconnected, travel re-binds the desired room to the foundry.
+    clientA.joinRoom(targetRoom);
     await waitFor(() => clientA.connected, 'A reconnected', 8000);
 
-    // The replayed JOIN_ROOM carried the garden, not the stale market.
-    await waitFor(() => joinsFor(inboxB, 'guest_rebind_a').length === 1, 'B sees A join the garden exactly once', 8000);
-    await waitFor(() => seesPlayer(inboxA, 'guest_rebind_b'), 'A sees the garden roster', 8000);
+    // The replayed JOIN_ROOM carried the foundry, not the stale market.
+    await waitFor(() => joinsFor(inboxB, 'guest_rebind_a').length === 1, 'B sees A join the foundry exactly once', 8000);
+    await waitFor(() => seesPlayer(inboxA, 'guest_rebind_b'), 'A sees the foundry roster', 8000);
     assert.ok(
       !inboxB.some(m => m.type === MSG_TYPES.PRESENCE_JOIN && m.player?.id === 'guest_rebind_a' && m.roomId === ROOMS.MARKET),
       'no stale market join was replayed',
@@ -248,14 +246,14 @@ test('joinRoom while disconnected re-binds the desired room and replays it on re
 test('reconnect restores room membership and presence flow without a reload', async () => {
   const storage = new Storage(`/tmp/test-presence-reconnect-${Date.now()}.json`);
   const { handle, wsUrl } = await listen(storage);
-  const gardenRoom = ROOMS.gardenFor('guest_rec_a');
+  const targetRoom = 'foundry';
 
-  // Client A races its garden join before the socket opens, like a fresh page.
+  // Client A races its foundry join before the socket opens, like a fresh page.
   const clientA = new NetworkClient(wsUrl);
   clientA.guestId = 'guest_rec_a';
   const inboxA = [];
   recordMessages(clientA, inboxA);
-  clientA.joinRoom(gardenRoom);
+  clientA.joinRoom(targetRoom);
   clientA.connect();
   await waitFor(() => clientA.connected, 'client A connected');
 
@@ -267,11 +265,11 @@ test('reconnect restores room membership and presence flow without a reload', as
 
   try {
     wsB.on('open', () => {
-      wsB.send(serialize({ type: MSG_TYPES.HELLO, guestId: 'guest_rec_b', nickname: 'FernWatcher' }));
-      wsB.send(serialize({ type: MSG_TYPES.JOIN_ROOM, roomId: gardenRoom }));
+      wsB.send(serialize({ type: MSG_TYPES.HELLO, guestId: 'guest_rec_b', nickname: 'SignalWatcher' }));
+      wsB.send(serialize({ type: MSG_TYPES.JOIN_ROOM, roomId: targetRoom }));
     });
-    await waitFor(() => joinsFor(inboxA, 'guest_rec_b').length > 0, 'A sees B join garden');
-    await waitFor(() => seesPlayer(inboxB, 'guest_rec_a'), 'B sees A in garden roster');
+    await waitFor(() => joinsFor(inboxA, 'guest_rec_b').length > 0, 'A sees B join the foundry');
+    await waitFor(() => seesPlayer(inboxB, 'guest_rec_a'), 'B sees A in the foundry roster');
 
     // Drop A's connection; the client must reconnect and re-join on its own.
     clientA.ws.close();
@@ -283,7 +281,7 @@ test('reconnect restores room membership and presence flow without a reload', as
     // Default retry delay is ~1s; the replayed JOIN_ROOM restores membership.
     await waitFor(() => clientA.connected, 'A reconnected', 8000);
     await waitFor(() => joinsFor(inboxB, 'guest_rec_a').length === 1, 'B sees A rejoin exactly once', 8000);
-    await waitFor(() => seesPlayer(inboxA, 'guest_rec_b'), 'A sees refreshed garden roster', 8000);
+    await waitFor(() => seesPlayer(inboxA, 'guest_rec_b'), 'A sees refreshed foundry roster', 8000);
 
     // Presence flow is functional again.
     clientA.sendMovement(2.0, 5.0, 0.0, true);

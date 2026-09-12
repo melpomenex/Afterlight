@@ -72,21 +72,6 @@ header {
   margin: 0 0 10px;
 }
 
-.player-stats-row {
-  display: flex;
-  gap: 8px;
-  pointer-events: auto;
-}
-.stat-pill {
-  font: bold 10px 'Space Mono', monospace;
-  background: #142527cc;
-  border: 1px solid #c8b78266;
-  padding: 4px 9px;
-  border-radius: 3px;
-  color: #e6d8b6;
-  backdrop-filter: blur(8px);
-}
-
 .panel {
   background: linear-gradient(120deg, #1b2b2de8, #132125e8);
   border: 1px solid #9faa9240;
@@ -220,34 +205,6 @@ footer {
   font-size: 11px;
 }
 
-.tool-belt {
-  display: flex;
-  gap: 6px;
-}
-.tool-btn {
-  padding: 8px 12px;
-  background: #142427d0;
-  color: #cbd4cc;
-  border: 1px solid #71877e55;
-  border-radius: 3px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.15s;
-}
-.tool-btn.active {
-  background: #25403f;
-  border-color: #c9b889;
-  color: #fffae8;
-  box-shadow: 0 0 10px #c9b88933;
-}
-.tool-btn:hover {
-  background: #2a3d3c;
-}
-
 .actions {
   display: flex;
   align-items: center;
@@ -298,85 +255,7 @@ kbd {
 .game-modal h2 { font-size: 26px; margin: 4px 0 6px; letter-spacing: -0.5px; }
 .modal-sub { font-size: 12px; color: #a4b4ad; margin-top: 0; margin-bottom: 18px; }
 
-/* Market Tabs */
-.market-tabs {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid #8ca09433;
-}
-.crop-tab {
-  padding: 7px 12px;
-  background: #1a2d30;
-  border: 1px solid #6c7e75;
-  color: #c4d0c7;
-  border-radius: 3px;
-  font-size: 11px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.crop-tab.active {
-  background: #395248;
-  border-color: #d2c08c;
-  color: #fff9e6;
-  font-weight: bold;
-}
-
-/* Market Grid */
-.market-main-grid {
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 16px;
-}
-.market-spot-card, .orderbook-card {
-  padding: 16px;
-}
-.spot-price-row {
-  display: flex;
-  justify-content: space-between;
-  margin: 14px 0;
-  background: #0e1c1ec0;
-  padding: 10px 12px;
-  border-radius: 3px;
-}
-.spot-price-row strong { font-size: 18px; color: #f2db9a; }
-.quality-selector {
-  display: flex;
-  gap: 6px;
-  margin: 8px 0 12px;
-}
-.quality-selector button {
-  padding: 5px 9px;
-  font-size: 10px;
-  background: #17282b;
-  border: 1px solid #586b62;
-  color: #b0c0b8;
-  border-radius: 2px;
-  cursor: pointer;
-}
-.quality-selector button.active {
-  border-color: #d2c08c;
-  background: #395248;
-  color: #fff;
-  font-weight: bold;
-}
-
-.qty-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.qty-row input, .order-form-row input, .order-form-row select {
-  background: #122122;
-  border: 1px solid #6b7f75;
-  color: #e6ebdf;
-  padding: 6px 8px;
-  border-radius: 3px;
-  width: 65px;
-}
-.action-btn, #btn-instant-sell, #btn-create-order {
+.action-btn {
   padding: 8px 14px;
   background: #bfaa78;
   color: #122020;
@@ -385,116 +264,8 @@ kbd {
   border-radius: 3px;
   cursor: pointer;
 }
-.action-btn:hover, #btn-instant-sell:hover, #btn-create-order:hover {
+.action-btn:hover {
   background: #d4bf88;
-}
-
-/* Order Book */
-.orderbook-split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin: 10px 0;
-}
-.orderbook-col {
-  background: #0f1c1ec0;
-  padding: 8px;
-  border-radius: 3px;
-  min-height: 110px;
-}
-.asks-title { color: #d68787; font-size: 7px; }
-.bids-title { color: #87d69b; font-size: 7px; }
-.book-list { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
-.book-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  font-family: 'Space Mono', monospace;
-  padding: 2px 4px;
-}
-.ask-row { color: #eb9e9e; }
-.bid-row { color: #9eebaa; }
-.empty-book { font-size: 9px; color: #768680; text-align: center; margin-top: 20px; }
-
-.create-order-box {
-  border-top: 1px solid #8ca09433;
-  padding-top: 10px;
-  margin-top: 8px;
-}
-.order-form-row {
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
-}
-
-/* Seeds & Contracts */
-.seed-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-.seed-card, .contract-card {
-  padding: 14px;
-  border-radius: 3px;
-}
-.seed-card-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 10px;
-}
-.seed-card-footer b { font-size: 16px; color: #ecd491; }
-.btn-buy-seed, .btn-fulfill-contract {
-  padding: 6px 12px;
-  background: #395248;
-  color: #ebfaee;
-  border: 1px solid #719080;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 10px;
-}
-.contract-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-.contract-reward {
-  font: bold 9px 'Space Mono', monospace;
-  color: #edd898;
-}
-
-/* Satchel Inventory */
-.inventory-sections {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin: 16px 0;
-}
-.inv-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 250px;
-  overflow-y: auto;
-}
-.inv-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #142223c0;
-  padding: 8px 12px;
-  border: 1px solid #6b7d7440;
-  border-radius: 3px;
-  cursor: pointer;
-}
-.inv-item:hover { border-color: #c9b88980; }
-.badge-grade {
-  font: bold 8px 'Space Mono', monospace;
-  background: #806835;
-  color: #fff9e6;
-  padding: 2px 6px;
-  border-radius: 2px;
 }
 
 .modal-footer {
@@ -534,13 +305,9 @@ kbd {
   .companion { left: 20px; bottom: 85px; min-width: 240px; }
   .interact { bottom: 85px; min-width: 240px; }
   footer { left: 20px; right: 20px; }
-  .market-main-grid { grid-template-columns: 1fr; }
-  .seed-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 600px) {
-  .tool-belt { flex-wrap: wrap; }
-  .tool-btn { font-size: 9px; padding: 6px 8px; }
   .actions { flex-wrap: wrap; }
   .actions button { font-size: 9px; padding: 6px 8px; }
   .companion { display: none; }
@@ -1171,72 +938,6 @@ details.place-group > summary.place-group-label:focus-visible,
   outline-offset: 2px;
 }
 
-/* --- THE GREAT MILL: HUD PANEL & MACHINE SHOP --- */
-.mill-panel {
-  position: absolute;
-  right: 30px;
-  top: 232px;
-  width: 195px;
-  padding: 12px 15px 12px;
-  border-top: 2px solid #b8a77888;
-  display: none;
-}
-.mill-panel .micro span.mill-tag { float: right; letter-spacing: 1px; }
-.mill-tag.broken { color: #d9a06b; }
-.mill-tag.restored { color: #93e9b6; }
-.mill-lines { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
-.mill-line {
-  display: flex;
-  justify-content: space-between;
-  font: 9px 'Space Mono', monospace;
-  letter-spacing: 0.5px;
-  color: #b9c6a4;
-  text-transform: uppercase;
-}
-.mill-line.mill-total { border-bottom: 1px solid #b9c6a41c; padding-bottom: 4px; color: #e6d8b6; }
-.mill-line b { color: #e7c889; font-weight: 500; }
-
-.machine-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-top: 14px;
-}
-.machine-card { padding: 14px; }
-.machine-card strong { display: block; font-size: 13px; color: #f0e6cf; margin-bottom: 2px; }
-.machine-card p { font-size: 10.5px; color: #a9b7b4; margin: 4px 0 10px; }
-.machine-hint { font-size: 10px; color: #a9b7b4; margin: 4px 0 8px; }
-.mill-restored-line { color: #93e9b6 !important; }
-.mill-material-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 0;
-  border-top: 1px solid #b9c6a41c;
-  font-size: 11px;
-  color: #dcd8c4;
-}
-.mill-mat-name { flex: 1; }
-.mill-mat-count { font: 10px 'Space Mono', monospace; color: #e7c889; }
-.mill-mat-held { font: 9px 'Space Mono', monospace; color: #8f9c8c; }
-.btn-contribute {
-  background: #2b4341;
-  border: 1px solid #9faa9240;
-  color: #e6d8b6;
-  border-radius: 3px 3px 8px 3px;
-  font-size: 9px;
-  padding: 4px 8px;
-  cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.btn-contribute:hover { background: #35514e; border-color: #c6b47a99; }
-
-@media (max-width: 900px) {
-  .mill-panel { display: none !important; }
-  .machine-grid { grid-template-columns: 1fr; }
-}
-
 /* --- TOWN CHAT PANEL (#afterlight) --- */
 .chat-panel {
   position: absolute;
@@ -1581,6 +1282,17 @@ details.place-group > summary.place-group-label:focus-visible,
   border: 0;
   background: #000;
   object-fit: contain;
+}
+#theater-screen .ts-twitch-mount {
+  position: absolute;
+  inset: 0;
+}
+#theater-screen .ts-twitch-mount iframe {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border: 0;
+  background: #000;
 }
 #theater-screen .ts-state-layer { position: absolute; inset: 0; }
 #theater-screen.ts-state-idle .ts-state-layer {
@@ -2092,7 +1804,6 @@ body.theater-watching footer,
 body.theater-watching #interact,
 body.theater-watching .nearby-activities,
 body.theater-watching .challenge-invite,
-body.theater-watching .mill-panel,
 body.theater-watching #toast,
 body.theater-watching .vignette { display: none !important; }
 
@@ -2110,7 +1821,6 @@ body.kr-racing footer,
 body.kr-racing #interact,
 body.kr-racing .nearby-activities,
 body.kr-racing .challenge-invite,
-body.kr-racing .mill-panel,
 body.kr-racing .vignette { display: none !important; }
 
 /*
@@ -2127,7 +1837,6 @@ body.dm-racing footer,
 body.dm-racing #interact,
 body.dm-racing .nearby-activities,
 body.dm-racing .challenge-invite,
-body.dm-racing .mill-panel,
 body.dm-racing .vignette { display: none !important; }
 
 /* The lifecycle-owned game root floats above the canvas; the game's own
@@ -2208,16 +1917,6 @@ body.theater-watching #chat-log {
 @media (max-width: 560px) {
   #btn-emote { position: fixed; right: 20px; top: 180px; z-index: 25; min-height: 44px; padding: 10px 16px; background: #162d30ed; border: 1px solid #c6b47a99; border-radius: 14px 4px; color: #eee1ba; }
 }
-
-/* --- PLACE CONTEXT HUD (deemphasize-legacy-farming) ---
-   body[data-hud-context] is written only on successful place activation,
-   from the policy in src/ui/placeHudPolicy.js. In social places the policy
-   marks the legacy farming/economy sections hidden; this rule keeps them out
-   of layout AND tab order even where their own display rules (flex tool
-   belt, stat pills) would otherwise beat the hidden attribute. Legacy
-   contexts — market, personal garden, the old districts — and the cinema
-   view (body.theater-watching) are untouched. */
-body[data-hud-context='social'] [data-hud-legacy] { display: none !important; }
 
 /* --- BILLIARDS / POOL ACTIVITY HUD (Flagship Pool, Tasks 5.1-5.5) --- */
 .pool-hud {

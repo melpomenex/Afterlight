@@ -1,7 +1,8 @@
 defmodule Afterlight.Accounts.Player do
   @moduledoc """
-  Shadow player row. In P4 Phoenix writes only `active` (session-derived).
-  Nickname/coins/inventory remain Node-authored until P6.
+  Player row: identity and current room only. The gardener-era economy
+  columns (coins, xp, level, reputation, reserved coins, inventory,
+  materials) were removed with the gardening retirement.
   """
 
   use Ash.Resource,
@@ -28,58 +29,6 @@ defmodule Afterlight.Accounts.Player do
 
     attribute :nickname, :string do
       allow_nil? false
-      public? true
-    end
-
-    attribute :coins, :integer do
-      allow_nil? false
-      default 0
-      public? true
-      constraints min: 0
-    end
-
-    attribute :xp, :integer do
-      allow_nil? false
-      default 0
-      public? true
-      constraints min: 0
-    end
-
-    attribute :level, :integer do
-      allow_nil? false
-      default 1
-      public? true
-      constraints min: 1
-    end
-
-    attribute :reputation, :integer do
-      allow_nil? false
-      default 0
-      public? true
-      constraints min: 0
-    end
-
-    attribute :reserved_coins, :integer do
-      allow_nil? false
-      default 0
-      public? true
-      constraints min: 0
-    end
-
-    attribute :inventory, :map do
-      allow_nil? false
-      default %{
-        "seeds" => %{},
-        "produce" => %{},
-        "reservedProduce" => %{},
-        "sprinklers" => 0
-      }
-      public? true
-    end
-
-    attribute :materials, :map do
-      allow_nil? false
-      default %{}
       public? true
     end
 
@@ -130,13 +79,6 @@ defmodule Afterlight.Accounts.Player do
       upsert? true
       upsert_fields [
         :nickname,
-        :coins,
-        :xp,
-        :level,
-        :reputation,
-        :reserved_coins,
-        :inventory,
-        :materials,
         :current_room,
         :last_seen,
         :shadow
@@ -145,13 +87,6 @@ defmodule Afterlight.Accounts.Player do
       accept [
         :id,
         :nickname,
-        :coins,
-        :xp,
-        :level,
-        :reputation,
-        :reserved_coins,
-        :inventory,
-        :materials,
         :current_room,
         :last_seen,
         :shadow

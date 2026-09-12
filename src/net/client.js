@@ -16,8 +16,13 @@ import {
   validateActivityResnapshot,
 } from '../../shared/activityProtocol.js';
 
-const GUEST_KEY = 'afterlight-gardener-guest-id';
-const NICK_KEY = 'afterlight-gardener-nickname';
+const GUEST_KEY = 'afterlight-guest-id';
+const NICK_KEY = 'afterlight-nickname';
+// Retired gardener-era keys: read once so an existing player keeps their
+// identity, then persisted under the new keys. Never deleted, so a code
+// rollback still finds the original value.
+const LEGACY_GUEST_KEY = 'afterlight-gardener-guest-id';
+const LEGACY_NICK_KEY = 'afterlight-gardener-nickname';
 
 /** Treat a torrent grant as unusable this long before its stated expiry. */
 const TORRENT_GRANT_SKEW_MS = 10_000;
@@ -136,9 +141,13 @@ export class NetworkClient {
     try {
       let id = localStorage.getItem(GUEST_KEY);
       if (!id || typeof id !== 'string') {
-        id = 'guest_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now().toString(36);
-        localStorage.setItem(GUEST_KEY, id);
+        // One-time migration from the retired gardener-era key.
+        id = localStorage.getItem(LEGACY_GUEST_KEY);
       }
+      if (!id || typeof id !== 'string') {
+        id = 'guest_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now().toString(36);
+      }
+      localStorage.setItem(GUEST_KEY, id);
       return id;
     } catch {
       return 'guest_' + Math.random().toString(36).substring(2, 11);
@@ -148,11 +157,13 @@ export class NetworkClient {
   getOrCreateNickname() {
     try {
       let name = localStorage.getItem(NICK_KEY);
+      if (!name) name = localStorage.getItem(LEGACY_NICK_KEY);
       if (!name) {
         name = generateDefaultNickname();
-        localStorage.setItem(NICK_KEY, name);
       }
-      return sanitizeNickname(name);
+      name = sanitizeNickname(name);
+      localStorage.setItem(NICK_KEY, name);
+      return name;
     } catch {
       return generateDefaultNickname();
     }
@@ -436,46 +447,6 @@ export class NetworkClient {
 
   uploadEpg(fileOrBlob, name) {
     return this.postToTheater('/api/theater/epg', { name }, fileOrBlob, 'application/octet-stream');
-  }
-
-  sendGardenAction(action, bedIndex, seedCropId = null) {
-    const actionId = `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    this.send(MSG_TYPES.GARDEN_ACTION, {
-      actionId,
-      action,
-      bedIndex,
-      seedCropId,
-    });
-    return actionId;
-  }
-
-  sendMarketBuy(cropId, quantity) {
-    this.send(MSG_TYPES.MARKET_BUY, { cropId, quantity });
-  }
-
-  sendMarketSell(cropId, quality, quantity) {
-    this.send(MSG_TYPES.MARKET_SELL, { cropId, quality, quantity });
-  }
-
-  sendOrderPlace(side, cropId, price, quantity, quality = 'B') {
-    const orderId = `ord_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    this.send(MSG_TYPES.ORDER_PLACE, {
-      orderId,
-      side,
-      cropId,
-      price,
-      quantity,
-      quality,
-    });
-    return orderId;
-  }
-
-  sendOrderCancel(orderId) {
-    this.send(MSG_TYPES.ORDER_CANCEL, { orderId });
-  }
-
-  sendContractComplete(contractId) {
-    this.send(MSG_TYPES.CONTRACT_COMPLETE, { contractId });
   }
 
   sendEmote(emote = 'wave') {

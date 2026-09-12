@@ -9,7 +9,7 @@
  * legacy dispatch runs exactly as before.
  */
 
-const KNOWN_CONTEXT_KEYS = ['travel', 'gardenRoom', 'seatControl', 'readFieldNote', 'openScreen'];
+const KNOWN_CONTEXT_KEYS = ['travel', 'seatControl', 'readFieldNote', 'openScreen'];
 
 export function createInteractionRegistry() {
   const handlers = new Map();
@@ -39,7 +39,6 @@ export function createInteractionRegistry() {
 /**
  * Register the framework-owned types against injected context:
  * - travel(targetRoomId): the runtime transition (same seam setRoom uses)
- * - gardenRoom(): the player's personal garden room id (existing adapter)
  * - seatControl: the seat controller from src/social/seating.js
  * - readFieldNote(item): legacy field-note presentation
  * - openScreen(item): specialized screen delegation (active venue adapter)
@@ -50,7 +49,6 @@ export function registerCoreInteractions(registry, context) {
   }
   registry.register('district_gate', (item) => context.travel(item.targetDistrict));
   registry.register('market_gate', () => context.travel('market'));
-  registry.register('garden_gate', () => context.travel(context.gardenRoom()));
   registry.register('seat', (item) => context.seatControl.sit(item));
   registry.register('field-note', (item) => context.readFieldNote(item));
   registry.register('theater_screen', (item) => context.openScreen(item));

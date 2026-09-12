@@ -133,7 +133,7 @@ export class ChatBridge {
       const conn = this.irc.createBridgeSession({
         id: `player:${playerId}`,
         nick,
-        username: 'gardener',
+        username: 'visitor',
         realname: player.nickname,
       });
       conn.bridgeMeta = { playerId };

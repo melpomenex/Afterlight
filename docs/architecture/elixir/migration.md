@@ -4,7 +4,7 @@
 
 ### 0. Baseline and parity fixtures
 
-Record a pinned repository revision and representative clean save fixtures, never production credentials. Exercise two-client travel/reconnect, gardens, market fills, restoration, chat/IRC, theater transport, playlist import, IPTV/EPG and torrent selection. Measure current room broadcast bytes, memory, event-loop lag and save latency. Export pure-JS reducer examples to language-neutral JSON with explicit clocks, random seeds, rounding and error outcomes. Elixir must reproduce these before taking ownership.
+Record a pinned repository revision and representative clean save fixtures, never production credentials. Exercise two-client travel/reconnect, chat/IRC, theater transport, playlist import, IPTV/EPG and torrent selection. Measure current room broadcast bytes, memory, event-loop lag and save latency. Export pure-JS reducer examples to language-neutral JSON with explicit clocks, random seeds, rounding and error outcomes. Elixir must reproduce these before taking ownership.
 
 Exit: inventory of protocol messages and persistence fields, repeatable fixture runner and baseline measurements. No performance claims before this gate.
 
@@ -16,7 +16,7 @@ Exit: real browser checks for travel, seated/airborne/emote states, focus cleari
 
 ### 2. Durable domains
 
-Port theater control first, then catalog imports, then the garden/economy/restoration transaction group. Inventory is shared across harvesting, crafting, contributions and market fills: those mutations must share one authority. A staged UI rollout does not permit split ownership of the same balance.
+Port theater control first, then catalog imports. The garden/economy/restoration group was removed rather than ported (`remove-gardening-domain`); no split ownership remains. A staged UI rollout never permits split ownership of any durable state.
 
 For each domain: disable writes briefly; snapshot JSON/catalog files with hashes; import idempotently into a staging schema; validate row counts, totals, reservations, queue picks, IDs and timestamps; switch routing; enable the new writer. Preserve originals as read-only backups. Port offline growth only after fixture parity across weather and restart boundaries. Browser exploration imports preserve existing progress, filter unknown IDs and cannot grant communal rewards.
 

@@ -11,9 +11,6 @@ config :afterlight,
     Afterlight.Catalog,
     Afterlight.Conferencing,
     Afterlight.Theater,
-    Afterlight.Gardens.Domain,
-    Afterlight.Economy.Domain,
-    Afterlight.Restoration.Domain,
     Afterlight.Activities.Domain
   ],
   accounts: [
@@ -26,7 +23,7 @@ config :afterlight,
   ]
 
 # P8 conferencing spike — OFF by default. Enabling this must not change
-# game rooms, economy, theater playback, or watch-together.
+# game rooms, theater playback, or watch-together.
 # Summit Run admission is disabled by default (add-multiplayer-snowboard-arcade 4.5);
 # operators enable via AFTERLIGHT_SNOWBOARD_ENABLED=1 in the runtime environment.
 config :afterlight, :snowboard_enabled, false

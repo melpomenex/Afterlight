@@ -15,8 +15,7 @@ import { SOCIAL_PLACE_OVERRIDES, DESERT_CAMP_DEFINITION } from './socialPlaceDef
 // layered on below.
 const LEGACY_DISPLAY = [
   { id: 'court', name: 'The Rain Court', district: 'LOWER DISTRICT / 04', subtitle: 'AFTER THE RAIN', color: '#657264', sun: '#ffe0a5', description: 'Wet stone, warm windows. Where your journey began.' },
-  { id: 'canal', name: 'The Sluiceworks', district: 'WATER DISTRICT / 05', subtitle: 'BENEATH THE MIST', color: '#466b70', sun: '#c3e6e1', description: 'Cross the canal and wake the sleeping waterworks.', objective: 'Open the sluice valve', action: 'Turn the sluice valve', done: 'Waterworks flowing', message: 'Water moves through the old channels again. Somewhere below, a garden drinks.', landmark: [7, -5], note: [-7, 5], noteTitle: 'A waterkeeper’s promise', noteBody: '“Keep the water moving. The roots above us are still alive.”', spawn: [-9, 0] },
-  { id: 'garden', name: 'The Glass Garden', district: 'UPPER TERRACES / 06', subtitle: 'WHERE GREEN RETURNS', color: '#78846a', sun: '#ffe6ad', description: 'An overgrown greenhouse above the city. Something still grows.', objective: 'Wake the seed nursery', action: 'Tend the seed nursery', done: 'Nursery awakened', message: 'The nursery lights up, sheltering a new generation of green. Kiln watches the leaves unfold.', landmark: [4, -5], note: [-6, 5], noteTitle: 'The last gardener', noteBody: '“A city is not empty while something is growing. Leave a little room for the wild.”', spawn: [-9, 0] },
+  { id: 'canal', name: 'The Sluiceworks', district: 'WATER DISTRICT / 05', subtitle: 'BENEATH THE MIST', color: '#466b70', sun: '#c3e6e1', description: 'Cross the canal and wake the sleeping waterworks.', objective: 'Open the sluice valve', action: 'Turn the sluice valve', done: 'Waterworks flowing', message: 'Water moves through the old channels again. Somewhere below, the cisterns refill.', landmark: [7, -5], note: [-7, 5], noteTitle: 'A waterkeeper’s promise', noteBody: '“Keep the water moving. The deep channels are still listening.”', spawn: [-9, 0] },
   { id: 'station', name: 'The Last Platform', district: 'TRANSIT DISTRICT / 07', subtitle: 'THE BLUE HOUR', color: '#424d70', sun: '#b4c5fa', description: 'An abandoned tram stop, and a signal waiting to be heard.', objective: 'Light the signal beacon', action: 'Send the home signal', done: 'Signal broadcasting', message: 'A warm signal reaches across the rooftops. If someone is out there, they know the city is waking.', landmark: [7, 5], note: [-6, 5], noteTitle: 'An unsent timetable', noteBody: '“Last service: whenever you are ready. There will always be a way home.”', spawn: [-9, 0] },
   { id: 'aqueduct', name: 'The Sunken Aqueduct', district: 'AQUEDUCT DISTRICT / 08', subtitle: 'DEEP RUNS THE WATER', color: '#384d52', sun: '#9ec4c0', description: 'Subterranean stone channels beneath the old city. Clear the silt sluice to let the cisterns breathe.', objective: 'Clear the silt sluice', action: 'Raise the silt gate', done: 'Cisterns breathing', message: 'Clear water rushes through the ancient conduit. The subterranean echoing returns to life.', landmark: [6, -4], note: [-6, 4], noteTitle: 'Cistern Overseer’s Log', noteBody: '“The masonry has held for three centuries. Give it clean water, and it will hold for three more.”', spawn: [-9, 0] },
   { id: 'caldera', name: 'The Boiler Caldera', district: 'GEOTHERMAL DISTRICT / 09', subtitle: 'HEAT FROM THE DEEP', color: '#4d3b38', sun: '#f7aa74', description: 'Steam vents hiss through dark basalt crevices. Regulate the geothermal manifold.', objective: 'Regulate the geothermal manifold', action: 'Turn the pressure manifold', done: 'Manifold regulated', message: 'Steam settles into a steady, resonant rhythm. Warm air rises toward the cold terraces above.', landmark: [5, -4], note: [-6, 5], noteTitle: 'Thermal Watchman', noteBody: '“Listen to the pressure before you touch a valve. The rock speaks if you have patience.”', spawn: [-9, 0] },
@@ -956,16 +955,41 @@ export const UNDERSTORY_ACTIVITIES = Object.freeze([
 // reproduces the old construction; `none` lets a builder own them.
 export const LEGACY_URBAN_BOUNDS = Object.freeze({ minX: -11.3, maxX: 11.3, minZ: -9.5, maxZ: 10.3 });
 
-// Legacy gate topology. The original seventeen districts form a closed route
-// (west = previous entry, east = next entry, wrapping around) and every one
-// of them keeps a south gate to the Market Court. Distances are exact legacy
+// Legacy gate topology. The original districts form a closed route (west =
+// previous entry, east = next entry, wrapping around) and every one of them
+// keeps a south gate to the Market Court. Distances are exact legacy
 // positions. Freezing the destinations here — instead of deriving them from
 // array order at build time — is what lets new places append without
-// silently rerouting existing gates.
+// silently rerouting existing gates. The retired Glass Garden (`garden`) is
+// gone from the route, so `canal` and `station` are now adjacent.
 export const LEGACY_DISTRICT_IDS = Object.freeze(LEGACY_DISPLAY.map(d => d.id));
 const WEST_GATE = Object.freeze([-10.7, 0]);
 const EAST_GATE = Object.freeze([10.7, 0]);
 const MARKET_GATE = Object.freeze([0, 8.8]);
+
+// Historical procedural seeds (old array index × 37, zero for court). Stored
+// explicitly so removing or appending a district can never shift the scenery
+// of the ones that remain. `garden`'s retired value stays recorded for
+// provenance; no live district uses it.
+const LEGACY_SEEDS = Object.freeze({
+  court: 0,
+  canal: 37,
+  garden: 74,
+  station: 111,
+  aqueduct: 148,
+  caldera: 185,
+  understory: 222,
+  saltworks: 259,
+  rooftops: 296,
+  mangrove: 333,
+  trestle: 370,
+  foundry: 407,
+  'frost-spire': 444,
+  delta: 481,
+  archives: 518,
+  'kiln-terrace': 555,
+  theater: 592,
+});
 
 // Minimap schematics for the legacy districts (moved from main.js so the
 // manifest stays the single source); market and personal garden keep their
@@ -987,7 +1011,6 @@ const LEGACY_MINIMAP_PATHS = {
   archives: 'M24 24H130V96H24Z M35 35H115 M35 50H115 M35 65H115 M35 80H115 M75 24V96',
   'kiln-terrace': 'M24 24H130V96H24Z M45 35H105V85H45Z M75 45A15 15 0 1 0 75 75A15 15 0 1 0 75 45 M24 60H45 M105 60H130',
   theater: 'M24 24H130V96H24Z M42 34H112 M42 38H112 M34 52H62 M70 52H120 M34 68H62 M70 68H120 M34 84H120 M121 29H125V55H121Z M121 61H125V73H121Z',
-  garden: 'M24 24H130V96H24Z M38 36H116V84H38Z M65 24V96',
 };
 
 // Exact legacy exits for one legacy district: closed west/east loop over
@@ -1012,16 +1035,16 @@ function deepFreeze(value) {
   return value;
 }
 
-// Layers the framework contract over one legacy display entry. Seeds are the
-// explicit historical values (old array index × 37, zero for court) so
-// procedural scenery never shifts when the public list grows.
-function defineLegacyPlace(display, index) {
+// Layers the framework contract over one legacy display entry. Seeds come
+// from the explicit historical table so procedural scenery never shifts when
+// the public list changes.
+function defineLegacyPlace(display) {
   const spawn = display.spawn ?? [-9, 0];
   const theater = display.id === 'theater';
   return deepFreeze({
     ...display,
     kind: theater ? 'venue' : 'environment',
-    seed: index * 37,
+    seed: LEGACY_SEEDS[display.id] ?? 0,
     bounds: { ...LEGACY_URBAN_BOUNDS },
     spawn,
     companionSpawn: [spawn[0] + 0.8, spawn[1] + 1],
@@ -1062,7 +1085,7 @@ export const PLACE_VIEW_FIXTURE = deepFreeze({
   id: 'tiny-view',
   name: 'The Pocket Stage',
   kind: 'view',
-  seed: LEGACY_DISTRICT_IDS.length * 37,
+  seed: 629, // historical fixture value; independent of the live district list
   bounds: Object.freeze({ minX: -3, maxX: 3, minZ: -2.5, maxZ: 2.5 }),
   spawn: [0, 0],
   companionSpawn: [0.8, 1],

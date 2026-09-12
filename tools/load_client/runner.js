@@ -4,7 +4,6 @@ import { fileURLToPath } from 'node:url';
 import { LoadClient } from './client.js';
 import { MetricsBundle } from './metrics.js';
 import { connectLiveViewSessions } from './liveview.js';
-import { MSG_TYPES } from '../../shared/protocol.js';
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const SCENARIOS_DIR = path.join(DIR, 'scenarios');
@@ -83,7 +82,9 @@ async function runDurableCommands(clients, config) {
   const n = config.durableCommandsPerClient ?? 1;
   for (const c of clients) {
     for (let i = 0; i < n; i++) {
-      c.sendDurable(MSG_TYPES.GARDEN_ACTION, { actionId: `a${i}`, action: 'till', bedIndex: 0 });
+      // Retained durable write: a profile rename (was garden_action before
+      // the gardening retirement). Exercises the same envelope/relay path.
+      c.sendDurable('set_nickname', { nickname: `${c.label ?? 'load'}_${i}`.slice(0, 20) });
     }
   }
 }

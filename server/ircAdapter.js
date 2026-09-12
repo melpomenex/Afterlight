@@ -189,7 +189,7 @@ export class IrcPhoenixAdapter {
     const conn = this.irc.createBridgeSession({
       id: `phoenix:${playerId}`,
       nick,
-      username: 'gardener',
+      username: 'visitor',
       realname: nickname,
     });
     conn.bridgeMeta = { playerId, phoenix: true };

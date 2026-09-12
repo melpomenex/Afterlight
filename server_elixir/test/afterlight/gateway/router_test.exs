@@ -4,9 +4,7 @@ defmodule Afterlight.Gateway.RouterTest do
   alias Afterlight.Gateway.Router
 
   @catalog_types ~w(
-    hello set_nickname join_room movement garden_action
-    market_buy market_sell order_place order_cancel contract_complete
-    node_harvest machine_contribute machine_mill machine_craft
+    hello set_nickname join_room movement
     emote chat_send theater_queue theater_control theater_channel
     theater_playlist_resolve torrent_resolve iptv_list_get iptv_list_remove
     epg_lookup ping
@@ -244,8 +242,8 @@ defmodule Afterlight.Gateway.RouterTest do
     test "relay dispatch normalizes atom keys and drops nothing" do
       :ok =
         GatewayTest.ConfigLock.with_lock(:routing, @base_routing, fn ->
-          assert {:relay, frame} = Router.dispatch("join_room", %{roomId: "garden:guest_abc"})
-          assert frame == %{"type" => "join_room", "roomId" => "garden:guest_abc"}
+          assert {:relay, frame} = Router.dispatch("join_room", %{roomId: "foundry"})
+          assert frame == %{"type" => "join_room", "roomId" => "foundry"}
           :ok
         end)
     end

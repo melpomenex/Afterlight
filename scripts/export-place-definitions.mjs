@@ -14,8 +14,10 @@
  * The projection is deliberately narrow — per public place: id, public flag,
  * kind, bounds and the atmosphere configuration — with a canonical key
  * order so byte comparisons are stable. Builder keys, display prose,
- * objectives, notes, minimap art and capability plumbing stay client-side,
- * and personal gardens (`garden:<owner>`) are never projected: the wire
+ * objectives, notes, minimap art and capability plumbing stay client-side.
+ * Personal gardens (`garden:<owner>`) were retired with the gardening
+ * domain: the wire never carries them, and the prefix stays rejected
+ * defensively.
  * room-id space stays open (Rooms.resolve accepts any public string), but
  * only these allow-listed ids receive directory/atmosphere features.
  *
@@ -56,7 +58,7 @@ const isFiniteIn = (v, min, max) => typeof v === 'number' && Number.isFinite(v) 
 export function projectPlace(definition) {
   const at = (ok, message) => { if (!ok) throw new Error(`${definition?.id ?? 'unknown place'}: ${message}`); };
   at(definition && typeof definition === 'object', 'definition is not an object');
-  at(typeof definition.id === 'string' && !definition.id.startsWith(GARDEN_PREFIX), `personal garden “${definition?.id}” is never part of the public projection`);
+  at(typeof definition.id === 'string' && !definition.id.startsWith(GARDEN_PREFIX), `retired garden-prefixed id “${definition?.id}” is never part of the public projection`);
   at(typeof definition.id === 'string' && /^[a-z0-9-]+$/.test(definition.id), 'id must be a kebab-case string');
   at(definition.kind === 'environment' || definition.kind === 'venue' || definition.kind === 'view', 'kind must be environment, venue or view');
 

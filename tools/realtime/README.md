@@ -156,7 +156,7 @@ async `device.lost`, validation errors, and checksum mismatch.
 ## Known limits (do not over-claim)
 
 - Post chain absent in both arms (see notice); no shadows; proxy boxes +
-  instanced vegetation, not gardener rigs — the harness isolates the
+  instanced vegetation, not player rigs — the harness isolates the
   dynamic-entity state path, it does not reproduce the live look.
 - Lifecycle churn: all N entities join at tick 0, none leave afterwards
   (join/leave paths are covered by the backends' own tests).

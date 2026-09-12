@@ -20,11 +20,10 @@ registerPlaceBuilder('tinyView', ({ box, block }) => {
 
 // The frozen legacy route, pinned before any new definition may append: each
 // district's east gate names the next entry and the route closes back onto
-// the court.
+// the court. The retired Glass Garden used to sit between canal and station.
 const GOLDEN_EDGES = [
   ['court', 'canal'],
-  ['canal', 'garden'],
-  ['garden', 'station'],
+  ['canal', 'station'],
   ['station', 'aqueduct'],
   ['aqueduct', 'caldera'],
   ['caldera', 'understory'],
@@ -41,14 +40,14 @@ const GOLDEN_EDGES = [
   ['theater', 'court'],
 ];
 
-test('the legacy topology is the exact golden 17-edge route with west, east and south gates', () => {
+test('the legacy topology is the exact golden route with west, east and south gates', () => {
   assert.deepEqual([...LEGACY_DISTRICT_IDS], GOLDEN_EDGES.map(([from]) => from));
   assert.deepEqual(
-    PLACE_DEFINITIONS.slice(0, 17).map(def => [def.id, def.exits.find(e => e.id === 'east').target]),
+    PLACE_DEFINITIONS.slice(0, 16).map(def => [def.id, def.exits.find(e => e.id === 'east').target]),
     GOLDEN_EDGES,
   );
-  assert.equal(LEGACY_DISTRICT_IDS.length, GOLDEN_EDGES.length, 'one east edge per place: a closed 17-edge loop');
-  for (const def of PLACE_DEFINITIONS.slice(0, 17)) {
+  assert.equal(LEGACY_DISTRICT_IDS.length, GOLDEN_EDGES.length, 'one east edge per place: a closed 16-edge loop');
+  for (const def of PLACE_DEFINITIONS.slice(0, 16)) {
     assert.equal(def.exits.length, 3, `${def.id} declares west, east and market exits`);
     const west = def.exits.find(e => e.id === 'west');
     const edgeIndex = GOLDEN_EDGES.findIndex(([from]) => from === def.id);
@@ -65,7 +64,7 @@ test('gate items reproduce the exact legacy copy from the declared exits', () =>
   assert.deepEqual(gateItemsFor(getPlaceDefinition('theater')), [
     { type: 'district_gate', x: -10.7, z: 0, targetDistrict: 'kiln-terrace', title: 'Gate to The Solar Kiln', sub: 'Westbound: TERRACOTTA DISTRICT / 19' },
     { type: 'district_gate', x: 10.7, z: 0, targetDistrict: 'court', title: 'Gate to The Rain Court', sub: 'Eastbound: LOWER DISTRICT / 04' },
-    { type: 'market_gate', x: 0, z: 8.8, targetDistrict: 'market', title: 'Return to Market Court', sub: 'Trade produce & visit your garden' },
+    { type: 'market_gate', x: 0, z: 8.8, targetDistrict: 'market', title: 'Return to Market Court', sub: 'Return to the city square' },
   ]);
   const courtGates = gateItemsFor(getPlaceDefinition('court'));
   assert.equal(courtGates[0].targetDistrict, 'theater', 'court west gate wraps around to the theater');
@@ -101,10 +100,10 @@ test('appending the fixture cannot shift seeds, recolor legacy scenery or rerout
   const canalBefore = worldFingerprint(getPlaceDefinition('canal'));
 
   // "Append" the fixture as change D will: a new entry after the frozen
-  // legacy block, with the next seed in the sequence.
+  // legacy block, with its own explicit seed.
   const appended = [...PLACE_DEFINITIONS, PLACE_VIEW_FIXTURE];
   assert.equal(appended.length, PLACE_DEFINITIONS.length + 1);
-  assert.equal(PLACE_VIEW_FIXTURE.seed, 17 * 37, 'the fixture takes the next seed without shifting legacy ones');
+  assert.equal(PLACE_VIEW_FIXTURE.seed, 629, 'the fixture keeps its explicit seed without shifting legacy ones');
   assert.deepEqual(PLACE_DEFINITIONS.map(d => d.seed), seedsBefore, 'the manifest keeps its exact seeds');
   assert.deepEqual(gateItemsFor(getPlaceDefinition('theater')), theaterGatesBefore, 'gate derivation never consults list order');
 

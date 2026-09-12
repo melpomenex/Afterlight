@@ -4,16 +4,14 @@ defmodule Afterlight.World.Rooms do
   wire room-id strings (design D1, task 1.2).
 
   Wire ids are the compatibility surface: clients join with today's exact
-  strings — `"market"`, `"theater"`, `` `"garden:<playerId>" ``, `"foundry"`,
-  `"trestle"`, `"frost-spire"` — and every payload keeps today's shapes.
-  Internally a room is the tuple `{district_id, instance_id}` with
-  `instance_id = "main"` for public rooms and `{"garden", player_id}` for
-  personal gardens; the tuple isolates the P4 identity decision from the
-  wire convention (D1).
+  strings — `"market"`, `"theater"`, `"foundry"`, `"trestle"`,
+  `"frost-spire"` — and every payload keeps today's shapes. Internally a
+  room is the tuple `{district_id, instance_id}` with `instance_id =
+  "main"`; the tuple isolates identity from the wire convention (D1).
 
   Node accepts any non-empty room string (rooms are open — protocol-catalog
-  §2 "any string accepted"), so any non-garden string resolves as a public
-  district room. Only non-string / falsy ids are refused (`:error`); the
+  §2 "any string accepted"), so any string resolves as a public district
+  room. Only non-string / falsy ids are refused (`:error`); the
   `fallback/0` helper gives callers Node's `msg.roomId || 'market'`
   behavior explicitly.
 
@@ -26,7 +24,6 @@ defmodule Afterlight.World.Rooms do
 
   alias Afterlight.World.RoomServer
 
-  @garden_prefix "garden:"
   @fallback "market"
 
   @typedoc "Internal room identity: {district_id, instance_id} (D1)."
@@ -37,7 +34,7 @@ defmodule Afterlight.World.Rooms do
           required(:district) => String.t(),
           required(:instance) => String.t(),
           required(:wire_id) => String.t(),
-          required(:kind) => :public | :garden
+          required(:kind) => :public
         }
 
   @doc "The known public wire ids (the `\"main\"` instance of each district)."
@@ -55,8 +52,8 @@ defmodule Afterlight.World.Rooms do
   @doc """
   Resolves a wire room id (as sent by the client, possibly absent) to the
   internal room identity. `nil`/empty/`false` → the `"market"` fallback
-  (Node's `msg.roomId || 'market'`); `garden:<owner>` → the garden room;
-  any other string → a public district room; anything else → `:error`.
+  (Node's `msg.roomId || 'market'`); any other string → a public district
+  room; anything else → `:error`.
   """
   @spec resolve(term) :: {:ok, room()} | :error
   def resolve(id)
@@ -64,18 +61,7 @@ defmodule Afterlight.World.Rooms do
   def resolve(nil), do: {:ok, public(@fallback)}
   def resolve(""), do: {:ok, public(@fallback)}
   def resolve(false), do: {:ok, public(@fallback)}
-
-  def resolve(id) when is_binary(id) do
-    prefix_size = byte_size(@garden_prefix)
-
-    if String.starts_with?(id, @garden_prefix) and byte_size(id) > prefix_size do
-      owner = binary_part(id, prefix_size, byte_size(id) - prefix_size)
-      {:ok, %{district: "garden", instance: owner, wire_id: id, kind: :garden}}
-    else
-      {:ok, public(id)}
-    end
-  end
-
+  def resolve(id) when is_binary(id), do: {:ok, public(id)}
   def resolve(_other), do: :error
 
   @doc "Bang variant of `resolve/1` (raises on non-string ids)."
@@ -99,15 +85,12 @@ defmodule Afterlight.World.Rooms do
   end
 
   @doc """
-  The exact wire id for an internal key. Public rooms map
-  identity-to-id (`{"market", "main"}` → `"market"`); gardens map to
-  `` `"garden:<playerId>" `` (`{"garden", id}` → `"garden:<id>"`).
-  Unknown keys (non-string district, non-`"main"` instance on a public
-  district) → `:error`.
+  The exact wire id for an internal key. Public rooms map identity-to-id
+  (`{"market", "main"}` → `"market"`). Unknown keys (non-string district,
+  non-`"main"` instance) → `:error`.
   """
   @spec to_wire(key()) :: {:ok, String.t()} | :error
   def to_wire({district, "main"}) when is_binary(district), do: {:ok, district}
-  def to_wire({"garden", owner}) when is_binary(owner) and owner != "", do: {:ok, @garden_prefix <> owner}
   def to_wire(_other), do: :error
 
   @doc "Wire id → internal key. Same semantics as `resolve/1`."

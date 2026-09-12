@@ -11,8 +11,8 @@ defmodule Afterlight.Activities.Environment do
   - Versioned environment projection from room atmosphere.
   - Frozen conditions captured at match start remain immutable throughout competitive runs.
   - Missing or unpopulated atmosphere falls back to declared place presets or neutral defaults.
-  - Pure read-only interaction with room atmosphere; `Afterlight.World.Weather` and crop
-    contracts are completely untouched.
+  - Pure read-only interaction with room atmosphere; `Afterlight.World.Weather`
+    and every other place system are completely untouched.
   """
 
   alias Afterlight.World.{Atmosphere, PlaceDefinitions}

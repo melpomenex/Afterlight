@@ -7,7 +7,7 @@ calls `entityBackend.applyDeltaPack(pack)` when a backend is attached.
 `wireRealtime` attaches `LiveRemoteBackend` — full `RemotePlayersManager`
 avatars. When **also** `?rt_webgpu_fastpath=1`, remotes render as
 `InstancedMesh` proxies on the WebGL scene (bloom/HUD unchanged); full
-gardener meshes return when the flag is off. The harness still proves the
+player meshes return when the flag is off. The harness still proves the
 WebGPURenderer arm separately.
 
 ## Who stays on the traditional path

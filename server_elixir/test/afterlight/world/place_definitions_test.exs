@@ -2,7 +2,7 @@ defmodule Afterlight.World.PlaceDefinitionsTest do
   @moduledoc """
   Task 3.1: the boot-validated public place projection — roundtrip with the
   committed file, drift-shaped named errors on malformed/oversized
-  configuration, garden privacy, and unchanged Rooms.resolve compatibility
+  configuration, retired garden privacy, and unchanged Rooms.resolve compatibility
   for unknown legacy room strings.
   """
 
@@ -16,10 +16,10 @@ defmodule Afterlight.World.PlaceDefinitionsTest do
   describe "the committed projection" do
     test "loads at boot and serves the exact public ids the JS manifest froze" do
       assert {:ok, entries} = PlaceDefinitions.load(@committed)
-      assert length(entries) == 18
-      assert PlaceDefinitions.count() == 18
+      assert length(entries) == 17
+      assert PlaceDefinitions.count() == 17
 
-      assert PlaceDefinitions.ids() == ~w(court canal garden station aqueduct caldera understory saltworks rooftops mangrove trestle foundry frost-spire delta archives kiln-terrace theater desert-camp)
+      assert PlaceDefinitions.ids() == ~w(court canal station aqueduct caldera understory saltworks rooftops mangrove trestle foundry frost-spire delta archives kiln-terrace theater desert-camp)
 
       # Both runtimes agree on the identical public ids/bounds for the venue.
       theater = PlaceDefinitions.get("theater")
@@ -48,7 +48,7 @@ defmodule Afterlight.World.PlaceDefinitionsTest do
       assert PlaceDefinitions.get("nope") == nil
     end
 
-    test "no personal garden is ever projected" do
+    test "no retired garden entry is ever projected" do
       for entry <- PlaceDefinitions.all() do
         refute String.starts_with?(entry["id"], "garden:")
       end
@@ -59,7 +59,8 @@ defmodule Afterlight.World.PlaceDefinitionsTest do
       assert {:ok, %{wire_id: "some-legacy-tool-room"}} = Rooms.resolve("some-legacy-tool-room")
       refute PlaceDefinitions.known?("some-legacy-tool-room")
 
-      assert {:ok, %{kind: :garden}} = Rooms.resolve("garden:someone")
+      # The retired garden-prefix room id survives as an open public string.
+      assert {:ok, %{kind: :public}} = Rooms.resolve("garden:someone")
       refute PlaceDefinitions.known?("garden:someone")
     end
   end
@@ -134,12 +135,12 @@ defmodule Afterlight.World.PlaceDefinitionsTest do
       cleanup_tmp("duplicate")
     end
 
-    test "a private garden id is rejected by validation" do
+    test "a retired garden-prefixed id is rejected by validation" do
       garden = %{"id" => "garden:someone", "public" => true, "kind" => "environment"}
       path = tmp_path("garden")
       File.write!(path, Jason.encode!(%{"schemaVersion" => 1, "entries" => [garden]}))
 
-      assert {:error, {:private_garden_id, "garden:someone"}} = PlaceDefinitions.load(path)
+      assert {:error, {:retired_garden_id, "garden:someone"}} = PlaceDefinitions.load(path)
     after
       cleanup_tmp("garden")
     end

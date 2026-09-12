@@ -22,18 +22,20 @@ defmodule Afterlight.World.RoomsTest do
   test "district rooms are open — every game district id is a valid public room" do
     # The client joins a room per district id (src/districts.js); Node
     # accepts any non-empty string (protocol-catalog §2). The runtime must
-    # not regress travel to the 16-biome world.
-    for id <- ~w(court canal garden station aqueduct caldera understory saltworks rooftops mangrove trestle foundry frost-spire delta archives kiln-terrace theater) do
+    # not regress travel to the 16-district world (the Glass Garden retired).
+    for id <- ~w(court canal station aqueduct caldera understory saltworks rooftops mangrove trestle foundry frost-spire delta archives kiln-terrace theater) do
       assert {:ok, %{district: ^id, instance: "main", kind: :public}} = Rooms.resolve(id)
     end
   end
 
-  test "personal gardens map to {garden, playerId} with the exact wire string" do
-    assert {:ok, %{district: "garden", instance: "guest_abc", wire_id: "garden:guest_abc", kind: :garden}} =
+  test "retired garden-prefixed ids resolve as open public room strings" do
+    # Node accepts any non-empty room string; the personal-garden adapter is
+    # gone, so this is just a (featureless) public room id now.
+    assert {:ok, %{district: "garden:guest_abc", instance: "main", kind: :public}} =
              Rooms.resolve("garden:guest_abc")
 
-    assert {:ok, {"garden", "guest_abc"}} = Rooms.key("garden:guest_abc")
-    assert {:ok, "garden:guest_abc"} = Rooms.to_wire({"garden", "guest_abc"})
+    assert {:ok, {"garden:guest_abc", "main"}} = Rooms.key("garden:guest_abc")
+    assert {:ok, "garden:guest_abc"} = Rooms.to_wire({"garden:guest_abc", "main"})
   end
 
   test "falsy room ids fall back to market (Node `msg.roomId || 'market'`)" do

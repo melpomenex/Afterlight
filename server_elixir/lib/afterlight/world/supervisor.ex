@@ -38,6 +38,10 @@ defmodule Afterlight.World.Supervisor do
       # Boot-validated public place projection (task 3.1): a raise here fails
       # feature initialization loudly rather than booting a partial catalog.
       Afterlight.World.PlaceDefinitions,
+      # Weather is presentation-only after the gardening retirement (the old
+      # economy-group garden tick no longer consumes it); it stays supervised
+      # here so `welcome` keeps its field and Node's rotation keeps a reader.
+      Afterlight.World.Weather,
       Afterlight.World.Drain
     ]
 

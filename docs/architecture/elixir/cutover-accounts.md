@@ -8,8 +8,8 @@ source.
 
 ## GuestId claim window
 
-The guest id is a stable lookup key (`garden:<guestId>`, self-echo
-filtering). It was never a secret and is never authorization.
+The guest id is a stable lookup key (self-echo filtering). It was never a
+secret and is never authorization.
 
 - Handshake: signed P2 token **plus** the localStorage guestId (already
   bound into the token by `POST /api/auth/guest`).
@@ -33,7 +33,7 @@ no-op. A different snapshot after a recorded import exits non-zero
 (`hash_mismatch`). Missing/empty `players` prints "nothing to import"
 and exits 0.
 
-## Reverse-export rehearsal (P6 ceremony owns the real cutover)
+## Reverse-export rehearsal
 
 ```sh
 mix afterlight.export_players --out /tmp/players.json --freeze-ack yes
@@ -44,5 +44,4 @@ Refuses without `--freeze-ack yes`. P4 does not disable Node writes.
 ## Rollback
 
 Revert session issuance to the P2 ETS registry. Node is untouched.
-The new tables go dormant. Do not treat reversing `players` to JSON as
-a valid rollback after the P6 activation.
+The new tables go dormant.

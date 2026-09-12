@@ -5,7 +5,8 @@ import { LEGACY_DISTRICT_IDS, validatePlaceDefinitions } from '../shared/placeDe
 
 test('old and malformed saves migrate without inventing progress', () => {
   assert.deepEqual(readExploration(undefined), { current: 'court', visited: ['court'], completed: [] });
-  assert.deepEqual(readExploration({ current: 'removed', visited: ['canal', 'canal', 'missing'], completed: ['garden', 'garden', 3] }), { current: 'court', visited: ['court', 'canal'], completed: ['garden'] });
+  // The retired Glass Garden id is dropped like any other unknown district.
+  assert.deepEqual(readExploration({ current: 'removed', visited: ['canal', 'canal', 'missing'], completed: ['garden', 'garden', 3] }), { current: 'court', visited: ['court', 'canal'], completed: [] });
   assert.equal(readExploration({ current: 'station' }).current, 'station');
   assert.equal(readExploration({ current: 'aqueduct' }).current, 'aqueduct');
   assert.ok(readExploration({ visited: ['aqueduct', 'caldera'] }).visited.includes('aqueduct'));
@@ -14,7 +15,7 @@ test('old and malformed saves migrate without inventing progress', () => {
 
 test('public places have unique IDs, complete metadata and the unchanged legacy prefix', () => {
   // Manifest contract: the legacy ordering itself is frozen, not just its length.
-  assert.deepEqual(districts.slice(0, 17).map(d => d.id), [...LEGACY_DISTRICT_IDS]);
+  assert.deepEqual(districts.slice(0, 16).map(d => d.id), [...LEGACY_DISTRICT_IDS]);
   const ids = new Set(), names = new Set();
   for (const d of districts) {
     assert.ok(!ids.has(d.id), `duplicate district id: ${d.id}`);

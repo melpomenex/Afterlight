@@ -98,13 +98,14 @@ defmodule AfterlightWeb.GameChannelTest do
       assert_receive {:fake_upstream_started, up, _headers}
 
       # The load-bearing connection order (protocol-catalog §2), pushed
-      # by the "Node" side; the channel must surface them verbatim.
+      # by the "Node" side; the channel must surface retained frames
+      # verbatim and drop retired garden/economy snapshots.
       GatewayTest.FakeCore.inject_frame(up, %{"type" => "welcome", "player" => %{"id" => "guest_ch_relay3"}})
-      GatewayTest.FakeCore.inject_frame(up, %{"type" => "garden_state", "roomId" => "garden:guest_ch_relay3", "beds" => []})
+      GatewayTest.FakeCore.inject_frame(up, %{"type" => "garden_state", "roomId" => "garden:retired", "beds" => []})
       GatewayTest.FakeCore.inject_frame(up, %{"type" => "chat_history", "channel" => "global", "messages" => []})
 
       assert_push "welcome", %{"player" => %{"id" => "guest_ch_relay3"}}
-      assert_push "garden_state", %{"roomId" => "garden:guest_ch_relay3", "beds" => []}
+      refute_push "garden_state", _
       assert_push "chat_history", %{"messages" => []}
 
       leave(socket)

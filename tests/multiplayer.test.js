@@ -18,21 +18,32 @@ test('nickname generation, sanitization, and duplicate resolution', () => {
   assert.ok(nick.length >= 6);
 
   // Sanitization strips HTML and control characters
-  const dirty = '<script>alert("hack")</script><b>Mossy</b>\x00\x1b';
+  const dirty = '<script>alert("hack")</script><b>Copper</b>\x00\x1b';
   const clean = sanitizeNickname(dirty);
   assert.ok(!clean.includes('<'));
   assert.ok(!clean.includes('>'));
   assert.ok(!clean.includes('\x00'));
 
   // Length capping
-  const longNick = 'SuperExtraLongAtmosphericGardenerNameThatIsTooLong';
+  const longNick = 'SuperExtraLongNicknameForTheSleepyCityThatIsTooLong';
   assert.ok(sanitizeNickname(longNick).length <= 20);
 
   // Duplicate resolution
-  const active = new Set(['mossyradish42']);
-  const unique = resolveDuplicateNickname('MossyRadish42', active);
-  assert.notEqual(unique.toLowerCase(), 'mossyradish42');
-  assert.ok(unique.startsWith('MossyRadish42'));
+  const active = new Set(['copperlantern42']);
+  const unique = resolveDuplicateNickname('CopperLantern42', active);
+  assert.notEqual(unique.toLowerCase(), 'copperlantern42');
+  assert.ok(unique.startsWith('CopperLantern42'));
+});
+
+test('default nicknames use industrial word banks with no gardening terms', () => {
+  const GARDENING_TERMS = /radish|turnip|basil|leek|carrot|kale|tomato|berry|sorrel|chive|sprout|fennel|parsnip|pepper|clover|borage|sage|mint|beet|chard|mossy|fern|bramble|thistle|dewy|hedge|orchard|verdant|garden|grow|crop|seed/i;
+  const seen = new Set();
+  for (let i = 0; i < 250; i += 1) {
+    const name = generateDefaultNickname(i / 250);
+    seen.add(name);
+    assert.doesNotMatch(name, GARDENING_TERMS, `nickname ${name} contains a gardening term`);
+  }
+  assert.ok(seen.size > 100, 'seeded generation covers a broad slice of the word banks');
 });
 
 test('multiplayer server presence, room partitioning, and movement', async () => {
@@ -67,13 +78,12 @@ test('multiplayer server presence, room partitioning, and movement', async () =>
   // 1. Client A joins
   let clientA, clientB, clientA2;
   try {
-    clientA = await createClient('guest_A', 'MossyGardener');
-    assert.equal(clientA.player.nickname, 'MossyGardener');
-    assert.equal(clientA.player.coins, 60);
+    clientA = await createClient('guest_A', 'QuietLantern');
+    assert.equal(clientA.player.nickname, 'QuietLantern');
 
     // 2. Client B joins
-    clientB = await createClient('guest_B', 'QuietLeek');
-    assert.equal(clientB.player.nickname, 'QuietLeek');
+    clientB = await createClient('guest_B', 'SignalKeeper');
+    assert.equal(clientB.player.nickname, 'SignalKeeper');
 
     // Allow a moment for presence messages
     await new Promise(r => setTimeout(r, 150));
@@ -100,10 +110,10 @@ test('multiplayer server presence, room partitioning, and movement', async () =>
   assert.equal(pA.x, 4.5);
   assert.equal(pA.z, -2.0);
 
-  // 4. Client A joins personal garden room
+  // 4. Client A travels to a retained public district room
   clientA.ws.send(serialize({
     type: MSG_TYPES.JOIN_ROOM,
-    roomId: ROOMS.gardenFor('guest_A'),
+    roomId: 'foundry',
   }));
 
   await new Promise(r => setTimeout(r, 150));
@@ -112,18 +122,13 @@ test('multiplayer server presence, room partitioning, and movement', async () =>
   const leaveMsg = clientB.messages.find(m => m.type === MSG_TYPES.PRESENCE_LEAVE && m.playerId === 'guest_A');
   assert.ok(leaveMsg, 'Client B received presence_leave when Client A switched rooms');
 
-  // Client A receives garden state
-  const gardenStateMsg = clientA.messages.find(m => m.type === MSG_TYPES.GARDEN_STATE && m.roomId === ROOMS.gardenFor('guest_A'));
-  assert.ok(gardenStateMsg, 'Client A received garden_state for personal garden');
-  assert.equal(gardenStateMsg.beds.length, 12);
-
   // 5. Client A disconnects and reconnects with same guest token
   clientA.ws.close();
   await new Promise(r => setTimeout(r, 100));
 
-  const clientA2 = await createClient('guest_A', 'MossyGardener');
+  const clientA2 = await createClient('guest_A', 'QuietLantern');
   assert.equal(clientA2.player.id, 'guest_A', 'Reconnection preserves player ID');
-  assert.equal(clientA2.player.coins, 60, 'Reconnection preserves coins balance');
+  assert.equal(clientA2.player.nickname, 'QuietLantern', 'Reconnection preserves nickname');
 
     clientA2.ws.close();
     clientB.ws.close();

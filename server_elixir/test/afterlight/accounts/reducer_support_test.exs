@@ -31,14 +31,14 @@ defmodule Afterlight.Accounts.ReducerSupportTest do
       # Injected seed produces deterministic default nickname
       rng = fn -> 0.5 end
       result = ReducerSupport.sanitize_nickname("", rng)
-      assert result == "MossySprout88"
+      assert result == "QuietPiston88"
 
       result_short = ReducerSupport.sanitize_nickname("ab", fn -> 0.1 end)
-      assert result_short == "DuskyPepper77"
+      assert result_short == "GleamingSparrow77"
 
       # Non-string input
-      assert ReducerSupport.sanitize_nickname(nil, rng) == "MossySprout88"
-      assert ReducerSupport.sanitize_nickname(123, rng) == "MossySprout88"
+      assert ReducerSupport.sanitize_nickname(nil, rng) == "QuietPiston88"
+      assert ReducerSupport.sanitize_nickname(123, rng) == "QuietPiston88"
     end
 
     test "post-sanitize nicknames are strictly ASCII-only (lower() vs toLowerCase() divergence guarantee)" do
@@ -84,7 +84,7 @@ defmodule Afterlight.Accounts.ReducerSupportTest do
 
     test "active-vs-historical sets: only active nicknames collide" do
       # Inactive historical player named 'wren' is not in active set
-      historical_inactive = ["copper", "mossy"]
+      historical_inactive = ["copper", "quiet"]
       assert ReducerSupport.resolve_duplicate_nickname("wren", historical_inactive) == "wren"
     end
 

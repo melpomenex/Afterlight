@@ -131,8 +131,6 @@ defmodule Afterlight.Catalog.Import do
         domain: "iptv",
         snapshot_sha256: hash,
         player_count: 0,
-        coins_sum: 0,
-        xp_sum: 0,
         imported_at: now_ms,
         source_path: source_path,
         meta: %{"lists" => imported_lists, "channels" => imported_channels}
@@ -288,8 +286,6 @@ defmodule Afterlight.Catalog.Import do
         domain: "epg",
         snapshot_sha256: hash,
         player_count: 0,
-        coins_sum: 0,
-        xp_sum: 0,
         imported_at: now_ms,
         source_path: source_path,
         meta: %{

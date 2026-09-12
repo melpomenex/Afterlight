@@ -30,13 +30,6 @@ defmodule Afterlight.Activities.ProfileStatsTest do
       %{
         id: id,
         nickname: nickname,
-        coins: 0,
-        xp: 0,
-        level: 1,
-        reputation: 0,
-        reserved_coins: 0,
-        inventory: %{"seeds" => %{}, "produce" => %{}, "reservedProduce" => %{}, "sprinklers" => 0},
-        materials: %{},
         current_room: "theater",
         last_seen: 0,
         active: false,

@@ -300,7 +300,7 @@ export class IrcServer {
    * It feeds the exact same command parser as TCP clients, but its output
    * is a sink: the bridge relays game-facing traffic via events.
    */
-  createBridgeSession({ id, nick, username = 'gardener', realname = 'Afterlight player' }) {
+  createBridgeSession({ id, nick, username = 'visitor', realname = 'Afterlight player' }) {
     const conn = new IrcConnection(this, {
       id: id || undefined,
       isBridge: true,
@@ -309,7 +309,7 @@ export class IrcServer {
       close: () => this.disconnect(conn, 'Left the courtyard'),
     });
     conn.nick = sanitizeNick(nick);
-    conn.username = sanitizeNick(username).toLowerCase() || 'gardener';
+    conn.username = sanitizeNick(username).toLowerCase() || 'visitor';
     conn.realname = realname;
     conn.registered = true;
     this.connections.set(conn.id, conn);
@@ -393,7 +393,7 @@ export class IrcServer {
     conn.registered = true;
     conn.sendNumeric(1, `Welcome to the Afterlight network, ${conn.nick}`);
     conn.sendNumeric(2, `Your host is ${SERVER_NAME}, running an Afterlight chat relay`);
-    conn.sendNumeric(3, `This server was created for the town's gardeners and their bots`);
+    conn.sendNumeric(3, `This server was created for the town's visitors and their bots`);
     conn.sendNumeric(4, `${SERVER_NAME} Afterlight-1.0 i m t`);
     // Close the welcome burst with a minimal MOTD: mainstream libraries
     // (e.g. the Rust `irc` crate) join their configured channels only at
@@ -401,7 +401,7 @@ export class IrcServer {
     // but never in the channel.
     conn.sendNumeric(375, `- ${SERVER_NAME} Message of the day -`);
     conn.sendNumeric(372, 'The town still talks — be kind, and leave the light on.');
-    conn.sendNumeric(372, "This server was created for the town's gardeners and their bots.");
+    conn.sendNumeric(372, "This server was created for the town's visitors and their bots.");
     conn.sendNumeric(376, 'End of /MOTD command');
     this.#emit({ type: 'register', conn });
   }

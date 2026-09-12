@@ -245,7 +245,6 @@ test('the interaction registry routes seats and gates, and defers everything els
   const routed = [];
   registerCoreInteractions(registry, {
     travel: (roomId) => routed.push(['travel', roomId]),
-    gardenRoom: () => 'garden:guest_9',
     seatControl: {
       sit: (item) => routed.push(['sit', item.x, item.z]),
     },
@@ -259,21 +258,19 @@ test('the interaction registry routes seats and gates, and defers everything els
 
   registry.dispatch({ type: 'district_gate', targetDistrict: 'canal' });
   registry.dispatch({ type: 'market_gate' });
-  registry.dispatch({ type: 'garden_gate' });
-  registry.dispatch({ type: 'field-note', sub: 'The last gardener', body: '“…”' });
+  registry.dispatch({ type: 'field-note', sub: 'A waterkeeper’s promise', body: '“…”' });
   registry.dispatch({ type: 'theater_screen' });
 
   assert.deepEqual(routed, [
     ['sit', seat.x, seat.z],
     ['travel', 'canal'],
     ['travel', 'market'],
-    ['travel', 'garden:guest_9'],
-    ['note', 'The last gardener'],
+    ['note', 'A waterkeeper’s promise'],
     ['screen', 'theater_screen'],
   ]);
 
   // Unknown types return unhandled so the legacy dispatch runs.
   assert.deepEqual(registry.dispatch({ type: 'landmark' }), { handled: false });
-  assert.deepEqual(registry.dispatch({ type: 'bed', bedIndex: 2 }), { handled: false });
+  assert.deepEqual(registry.dispatch({ type: 'material_node' }), { handled: false });
   assert.deepEqual(registry.dispatch(null), { handled: false });
 });

@@ -2,32 +2,24 @@ defmodule Afterlight.Gateway.WelcomeTest do
   use Afterlight.DataCase, async: false
 
   alias Afterlight.Accounts
-  alias Afterlight.Economy.ContractBoard
-  alias Afterlight.EconomyGroup.{Inventory, Wallet}
   alias Afterlight.Gateway.Welcome
-  alias Afterlight.Restoration
   alias Afterlight.World.Weather
 
   setup do
-    start_supervised!(Weather)
+    # Weather is supervised by World.Supervisor when domain supervisors run;
+    # start it here only when they are disabled (BEFORELIGHT_OBS_TEST=1).
+    if Process.whereis(Weather) == nil, do: start_supervised!(Weather)
     :ok
   end
 
-  test "compose builds the Node hello welcome field set" do
+  test "compose builds the retained hello welcome field set" do
     player_id = "welcome_guest"
     now = Accounts.now_ms()
 
     Repo.insert_all("players", [
       %{
         id: player_id,
-        nickname: "Fern",
-        coins: 12,
-        xp: 0,
-        level: 1,
-        reputation: 0,
-        reserved_coins: 0,
-        inventory: %{"seeds" => %{}, "produce" => %{}, "reservedProduce" => %{}, "sprinklers" => 0},
-        materials: %{},
+        nickname: "QuietLantern",
         current_room: "market",
         last_seen: now,
         active: true,
@@ -35,24 +27,20 @@ defmodule Afterlight.Gateway.WelcomeTest do
       }
     ])
 
-    Wallet.ensure!(player_id)
-    Inventory.backfill_from_player_jsonb!(player_id)
-    Restoration.ensure_nodes!()
-    ContractBoard.ensure_initialized!()
-
-    welcome = Welcome.compose(player_id, "Fern", nil)
+    welcome = Welcome.compose(player_id, "QuietLantern", nil)
 
     assert welcome["player"]["id"] == player_id
-    assert welcome["player"]["nickname"] == "Fern"
+    assert welcome["player"]["nickname"] == "QuietLantern"
+    assert welcome["player"]["currentRoom"] == "market"
     assert is_binary(welcome["weather"])
-    assert is_map(welcome["prices"])
-    assert is_list(welcome["contracts"])
-    assert is_map(welcome["orderBook"])
     assert is_map(welcome["theater"])
     assert is_map(welcome["iptv"])
+    refute Map.has_key?(welcome, "prices")
+    refute Map.has_key?(welcome, "contracts")
+    refute Map.has_key?(welcome, "orderBook")
   end
 
-  test "initial_frames includes garden_state for the player garden room" do
+  test "initial_frames emits no retired garden state" do
     player_id = "welcome_garden"
     now = Accounts.now_ms()
 
@@ -60,13 +48,6 @@ defmodule Afterlight.Gateway.WelcomeTest do
       %{
         id: player_id,
         nickname: player_id,
-        coins: 0,
-        xp: 0,
-        level: 1,
-        reputation: 0,
-        reserved_coins: 0,
-        inventory: %{"seeds" => %{}, "produce" => %{}, "reservedProduce" => %{}, "sprinklers" => 0},
-        materials: %{},
         current_room: "market",
         last_seen: now,
         active: true,
@@ -74,13 +55,8 @@ defmodule Afterlight.Gateway.WelcomeTest do
       }
     ])
 
-    Wallet.ensure!(player_id)
-    Inventory.backfill_from_player_jsonb!(player_id)
     Welcome.compose(player_id, player_id, nil)
 
-    assert [{"garden_state", %{"roomId" => "garden:" <> ^player_id, "beds" => beds}}] =
-             Welcome.initial_frames(player_id)
-
-    assert length(beds) == 12
+    assert Welcome.initial_frames(player_id) == []
   end
 end

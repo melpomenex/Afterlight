@@ -113,15 +113,6 @@ try {
   b.push('join_room', { roomId: 'market' });
   await nextFrame(a.frames, 'presence_update');
   await nextFrame(b.frames, 'presence_update');
-  // chat_history follows garden_state when chat is Phoenix-owned
-  await Promise.race([
-    nextFrame(a.frames, 'garden_state'),
-    wait(2000).then(() => null),
-  ]);
-  await Promise.race([
-    nextFrame(b.frames, 'garden_state'),
-    wait(2000).then(() => null),
-  ]);
   const histA = await nextFrame(a.frames, 'chat_history');
   const histB = await nextFrame(b.frames, 'chat_history');
   assert(Array.isArray(histA.messages));

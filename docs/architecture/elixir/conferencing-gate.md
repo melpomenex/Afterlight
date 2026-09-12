@@ -29,7 +29,7 @@ In accordance with Design D10 and `specs/conferencing-spike/spec.md`:
 3. **Interruption Recovery:** Recovery from worker termination / network interruption < 10,000 ms.
 4. **Capacity & Safety Boundaries:** Max 8 participants per call, receiver cap of 4 concurrent camera subscriptions, single screen-share lifecycle.
 5. **Maintenance Budget Assessment:** Evaluation of long-term operational cost of maintaining SFU packet forwarding and browser compatibility in-house.
-6. **Zero-Blast-Radius Rollback:** Toggling the feature flag off must completely deactivate the call surface without altering game rooms, economy, or theater playback.
+6. **Zero-Blast-Radius Rollback:** Toggling the feature flag off must completely deactivate the call surface without altering game rooms or theater playback.
 
 ---
 
@@ -102,4 +102,4 @@ Measurements were collected using `Afterlight.Media.Harness` with an 8-person ca
 Rollback behavior was explicitly verified:
 1. **Flag Off State:** With `AFTERLIGHT_CONFERENCING_ENABLED=0` (or `enabled: false` in configuration), `AfterlightWeb.CallChannel` refuses all join requests with `{:error, %{reason: "conferencing_disabled"}}`.
 2. **Client State:** The call panel remains closed by default; no capture prompts or permissions are requested.
-3. **Core Game Isolation:** Game rooms, avatar movement (10 Hz binary frames), NPC market exchange, gardens, theater screen playback, and watch-together functionality operate identically with conferencing enabled, disabled, or absent.
+3. **Core Game Isolation:** Game rooms, avatar movement (10 Hz binary frames), theater screen playback, and watch-together functionality operate identically with conferencing enabled, disabled, or absent.

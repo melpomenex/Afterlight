@@ -43,7 +43,7 @@ browser all read this exact module. All exported data is deep-frozen.
   sun: '#f2c48d',                    // directional light color
   description: 'A fire still burning at the edge of the city.',
   kind: 'environment',               // 'environment' | 'venue' | 'view'
-  seed: 17 * 37,                     // explicit deterministic seed — never derived
+  seed: 629,                         // explicit deterministic seed — never derived
   bounds: { minX: -11.3, maxX: 11.3, minZ: -9.5, maxZ: 10.3 },
   spawn: [-9, 0],                    // player entrance, strictly inside bounds
   companionSpawn: [-8.2, 1],         // Kiln's entrance
@@ -69,8 +69,10 @@ world factory before any geometry, and by `validatePlaceDefinitions()` for
 whole lists — duplicate ids are reported with the offending id):
 
 - `id` kebab-case and unique; `name` non-empty; `kind` one of `PLACE_KINDS`.
-- `seed` a finite, non-negative **explicit** number. Legacy entries use
-  `oldIndex * 37` (court is `0`); new places append their own constant.
+- `seed` a finite, non-negative **explicit** number. Legacy entries use the
+  frozen historical table in `shared/placeDefinitions.js` (`LEGACY_SEEDS`,
+  old array index × 37, court `0`, the retired `garden` value kept for
+  provenance); new places append their own constant.
   Seeds drive procedural scenery — changing one changes the place.
 - `bounds` finite and non-inverted; `spawn`/`companionSpawn` finite
   `[x, z]` pairs strictly inside bounds.
@@ -84,7 +86,7 @@ whole lists — duplicate ids are reported with the offending id):
   the room receives authoritative semantic `atmosphere_state` snapshots owned by the room's
   lease holder, and the client's `AtmosphereController` binds scene fog, sky, lighting,
   precipitation, and wet surfaces. This place atmosphere is strictly decoupled from legacy
-  agricultural weather (`weather_update`), which continues to drive crop moisture in garden rooms.
+  weather (`weather_update`), which is presentation-only.
   Places with `preset: null` (legacy districts, theater) keep their baseline presentation.
 - `environment` returned by the place builder can declare up to 16 authored shelter `zones`
   (priority-ordered cover with roofY clipping, feathering, and acoustic properties) plus emitter
@@ -93,11 +95,8 @@ whole lists — duplicate ids are reported with the offending id):
   declared as booleans (`PLACE_CAPABILITIES`).
 - `social.featured` / `social.legacy` booleans. **Featured** places are the
   accepted destinations the Places selector lists first; **legacy** places
-  are the original districts (all seventeen legacy entries are
+  are the original districts (all sixteen legacy entries are
   `legacy: true`, and the selector still retains them in "Legacy areas").
-  The same metadata classifies the HUD: featured places and
-  `kind: 'venue'` present the social HUD, everything else keeps the legacy
-  gardener HUD — see §9.
 - Restoration metadata is opt-in for social places, but partial tuples are
   rejected: `action`/`done`/`message`/`landmark` only ever travel with an
   `objective`, and `noteTitle`/`noteBody` only with a `note`.
@@ -112,10 +111,11 @@ Hard rules for the module itself:
   rename or reseed an existing entry, and never derive gates from array
   order again.
 - `PLACE_DEFINITIONS` is capped at 64 entries (the projection's limit).
-- Personal gardens (`garden:<owner>`) and `market` are **not** manifest
-  entries: they keep their own adapters in `src/places/travelState.js`
-  (`resolveRoomRequest`) and are added to the Places selector by
-  `main.js`'s destination provider, never by the manifest.
+- The Market Court (`market`) is **not** a manifest entry: it keeps its own
+  adapter in `src/places/travelState.js` (`resolveRoomRequest`) and is added
+  to the Places selector by `main.js`'s destination provider, never by the
+  manifest. Personal-garden rooms were retired with the gardening domain;
+  `garden:<owner>` ids no longer resolve to a world.
 - `PLACE_VIEW_FIXTURE` shows the smallest legal definition (tiny bounds, no
   gates, no shell): the schema does not force a district-sized level. It is
   test-only and never projected to the server.
@@ -189,8 +189,8 @@ Builder rules (see `AGENTS.md` §6/§7 for the underlying contracts):
 
 `buildPlaceWorld(def, { completed })` runs the shared pipeline: validate →
 resolve builder → build shell → run builder → place note/landmark items →
-gather nodes → static instanced batching → return
-`{ group, obstacles, items, update(time, done), setNodeStates, screenQuad,
+static instanced batching → return
+`{ group, obstacles, items, update(time, done), screenQuad,
 environment, ownedResources }`. The returned group stays hidden and
 unparented until a travel commit shows it; on a builder throw the factory
 disposes exactly the resources it tracked (`ownedResources`) and rethrows.
@@ -207,8 +207,7 @@ disposes exactly the resources it tracked (`ownedResources`) and rethrows.
   *visible world result* on completion is the builder's `update(time, done)`
   job (the factory handles the signal/ring recolor for declared landmarks).
 - `update(time, done)` receives a strict boolean `done` for districts
-  (`worldUpdateInput` in `src/places/travelState.js` keeps garden bed
-  snapshots from ever masquerading as a completion flag).
+  (restoration completion, never a snapshot of some other state).
 
 ## 4. Seats and interactions — `src/social/`
 
@@ -235,7 +234,7 @@ cinema view; only the active Theater adapter reacts to
 
 The interaction registry (`createInteractionRegistry` /
 `registerCoreInteractions` in `src/social/interactions.js`) owns the
-framework item types `district_gate`, `market_gate`, `garden_gate`, `seat`,
+framework item types `district_gate`, `market_gate`, `seat`,
 `field-note` and `theater_screen`. Unknown item types return
 `{ handled: false }` and main.js's legacy dispatch runs as before. Do not
 extend it into a plugin system.
@@ -256,7 +255,7 @@ This rewrites `server_elixir/priv/place_definitions.json`
 `atmosphere`) in canonical key order. The projection is a build artifact —
 **hand-editing it is caught by `--check`**; the manifest stays the only
 editable source. It is capped at 64 entries, never contains builder keys,
-prose, objectives or personal gardens, and only allow-listed ids receive
+prose or objectives, and only allow-listed ids receive
 directory/atmosphere features on the wire. Until you run the export, the
 server does not know the place exists.
 
@@ -288,7 +287,7 @@ touches personal caches.
 
 `src/ui/placeSelector.js` builds the T/Travel modal from the manifest:
 definitions with `social.featured` are listed first, everything else (plus
-`market` and the personal garden, provided by main.js) lands in the
+`market`, provided by main.js) lands in the
 collapsible "Legacy areas" group with the existing visited/restored badges.
 Occupancy comes from the bounded read-only protocol (task 3.3):
 
@@ -312,7 +311,7 @@ If the new place should count its visitors, it must be in the projection
 - **Definition:** add cases to `tests/place-definitions.test.js` contracts
   (validation messages, bounds, spawns, objective tuples). Appending a valid
   entry must not change any legacy seed or gate — `tests/place-worlds.test.js`
-  proves that with the 17-edge golden topology; extend it if your place adds
+  proves that with the 16-edge golden topology; extend it if your place adds
   gates.
 - **Builder:** prove reachability and clearance the way
   `tests/districts.test.js` does (flood fill over duplicated collision
@@ -345,33 +344,24 @@ narrow viewports.
 `noteTitle`/`noteBody`) are the original restoration/lore fields. Social
 places usually declare neither — a new place never needs an objective,
 resource, reward or unlock — but a present tuple must be complete, and the
-twelve legacy districts that carry one keep their original contracts intact
+legacy districts that carry one keep their original contracts intact
 (`rooftops` keeps its optional note and anemometer completion, for example).
 Completion badges surface as legacy status, never as a compulsory social
 objective.
 
-**The flags decide the HUD, not a hardcoded list.** The contextual HUD
-policy (`src/ui/placeHudPolicy.js`, covered by
-`tests/place-hud-policy.test.js`) classifies each place from this manifest
-metadata: `social.featured === true` or `kind: 'venue'` presents the social
-HUD (no tool belt, coin/XP pills, Satchel/Market footer buttons or mill
-panel; the held tool clears to hands and is restored on re-entering the
-personal garden). Everything else — the Market Court, personal gardens
-(`garden:<owner>`, by room id) and the legacy biomes — keeps the full
-gardener HUD. Unknown or missing metadata falls back to the safe social
-default. Flipping a place's `social.featured` flag changes its presentation
-with no code change; I/M remain reachable everywhere as labeled optional
-legacy dialogs.
+**The HUD is identity-first.** There is no contextual presentation policy and
+no legacy farming HUD: `src/ui/profileModal.js` shows the nickname profile,
+and the footer carries Places, Records, Tournament, Emotes, Call, Camera,
+Sound and Settings. The flags still describe a place's role (featured vs
+legacy) for the Places selector ordering; they no longer change HUD
+visibility.
 
 **Never destroy to demote.** Presentation work must not delete, reorder,
-rename or reseed manifest entries (ids are save data), must not remove the
-legacy gate topology, and must not touch the original snapshots
+rename or reseed manifest entries (ids are save data, and the retired
+`garden` id is gone for good — never re-add it), must not remove the legacy
+gate topology, and must not touch the original snapshots
 (`data/game-state.json`, `data/iptv.json`, `data/epg.json` — immutable
 forensics; only the regenerable torrent payload cache may be cleared). The
-gardens/economy migration to Ash (P6,
-`openspec/changes/add-ash-gardens-economy-restoration`) continues as
-compatibility/correctness work owned by that change: its import, concurrency
-and cutover tasks remain open regardless of how the HUD presents farming,
-and no place-authoring or presentation task may claim the migration
-complete or execute any part of it. The current Node ↔ Phoenix authority
-map lives in `docs/architecture/elixir/ownership.md`.
+gardening/economy domain was removed in full by `remove-gardening-domain`;
+the current Node ↔ Phoenix authority map lives in
+`docs/architecture/elixir/ownership.md`.
