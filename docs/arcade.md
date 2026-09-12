@@ -220,8 +220,10 @@ camera changes (Pool) or the projected quad is cleared (hosted racers):
   second decoder, renderer, RAF, canvas or source assignment is created, and
   presentation changes emit no theater action.
 - Entry mutes programmatically controllable providers; the floating chrome
-  (`src/ui/floatingMedia.js`) offers labeled speaker, hide/restore,
-  enlarge/reduce, a draggable handle (arrow keys, reset) and **Back to game**.
+  (`src/ui/floatingMedia.js`) is a one-row icon strip — speaker,
+  hide/restore, enlarge/reduce, a draggable move handle whose small menu
+  holds **Reset position**, and **Back to game** — with full accessible
+  names and tooltips on every control.
   Layout and reservations are pure (`src/ui/floatingMediaLayout.js`,
   `src/ui/floatingMediaReservations.js`); activity modules declare their
   critical HUD/touch selectors through `mediaPolicy.reservedSelectors`.

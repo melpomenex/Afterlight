@@ -2385,6 +2385,7 @@ body.theater-watching #chat-log {
    ===================================================================== */
 
 #theater-screen.ts-floating {
+  container-type: inline-size;
   left: var(--fm-left, 12px);
   top: var(--fm-top, 12px);
   width: var(--fm-width, 320px);
@@ -2422,17 +2423,19 @@ body.theater-watching #theater-screen.ts-floating .ts-media { pointer-events: au
 #theater-screen.ts-floating .fm-chrome {
   position: relative;
   flex: 0 0 auto;
-  min-height: var(--fm-bar, 52px);
+  min-height: var(--fm-bar, 48px);
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 6px;
-  padding: 4px 6px;
+  flex-wrap: nowrap;
+  gap: 2px 4px;
+  padding: 2px 4px 2px 8px;
   background: #0d1b18f2;
   border-top: 1px solid #c6b47a3d;
   border-radius: 0 0 11px 3px;
   pointer-events: auto;
 }
+/* The honest degraded-provider notice is the one content that may wrap. */
+#theater-screen.ts-floating .fm-chrome.has-notice { flex-wrap: wrap; }
 #theater-screen.ts-floating-hidden { visibility: hidden; }
 #theater-screen.ts-floating-hidden .ts-media,
 #theater-screen.ts-floating-hidden .fm-chrome { visibility: hidden; }
@@ -2449,7 +2452,7 @@ body.theater-watching #theater-screen.ts-floating .ts-media { pointer-events: au
   font: 9px 'Space Mono', monospace;
   letter-spacing: 0.06em;
 }
-.fm-buttons { display: flex; align-items: center; gap: 4px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
+.fm-buttons { display: flex; align-items: center; gap: 2px; margin-left: auto; flex-wrap: nowrap; justify-content: flex-end; }
 .fm-btn,
 .fm-handle,
 .fm-restore {
@@ -2464,13 +2467,61 @@ body.theater-watching #theater-screen.ts-floating .ts-media { pointer-events: au
   cursor: pointer;
   touch-action: manipulation;
 }
+/* Icon-only controls: a glyph with a full accessible name in the tooltip. */
+.fm-btn--icon {
+  position: relative;
+  padding: 0 6px;
+  font-size: 17px;
+  line-height: 1;
+}
+/* Muted speaker: one diagonal slash over the note glyph. */
+.fm-btn--icon.is-muted::after {
+  content: '';
+  position: absolute;
+  left: 24%;
+  right: 24%;
+  top: 50%;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: rotate(-40deg);
+  pointer-events: none;
+}
 .fm-handle { touch-action: none; cursor: grab; }
 .fm-handle:active { cursor: grabbing; }
-.fm-btn:hover, .fm-restore:hover { border-color: #c6b47a99; color: #fff1c7; }
+.fm-btn:hover, .fm-restore:hover, .fm-menu-item:hover { border-color: #c6b47a99; color: #fff1c7; }
 .fm-btn:focus-visible,
 .fm-handle:focus-visible,
-.fm-restore:focus-visible { outline: 2px solid #bbded5; outline-offset: 2px; }
-.fm-btn--quiet { opacity: 0.85; }
+.fm-restore:focus-visible,
+.fm-menu-item:focus-visible { outline: 2px solid #bbded5; outline-offset: 2px; }
+/* Move handle menu (Reset position), anchored above the icon bar. */
+.fm-menu {
+  position: absolute;
+  right: 4px;
+  bottom: calc(100% + 6px);
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: #0d1b18f5;
+  border: 1px solid #c6b47a66;
+  border-radius: 10px 3px;
+  box-shadow: 0 10px 30px #000a;
+}
+.fm-menu[hidden] { display: none; }
+.fm-menu-item {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 8px 3px;
+  background: transparent;
+  color: #eee1ba;
+  font: 12px 'DM Sans', sans-serif;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.fm-menu-item:hover { background: #c6b47a1f; }
 .fm-notice {
   flex: 1 1 100%;
   margin: 0;
@@ -2523,4 +2574,10 @@ body.theater-watching #theater-screen.ts-floating {
 body.theater-watching #theater-screen.ts-floating.ts-floating-bottom {
   top: auto;
   bottom: var(--fm-bottom, 12px);
+}
+
+/* The icon strip keeps one row: the title only appears when the player is
+   wide enough for it (expanded mode / wide windows). */
+@container (max-width: 480px) {
+  #theater-screen.ts-floating .fm-title { display: none; }
 }

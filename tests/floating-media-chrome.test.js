@@ -149,24 +149,34 @@ test('chrome is created once inside the overlay and never touches the media host
   assert.equal(ui.dom.overlay.children.length, 2, 'each call appends its own chrome (the UI creates it once)');
 });
 
-test('controls carry accessible names, pressed states and labels', () => {
+test('icon controls carry accessible names, pressed states and tooltips', () => {
   const { doc, ui } = makeDocAndUI();
   const chrome = createFloatingMediaChrome(ui, { document: doc });
   const speaker = byId(ui.dom.overlay, FLOATING_MEDIA_IDS.speaker);
   const enlarge = byId(ui.dom.overlay, FLOATING_MEDIA_IDS.enlarge);
   const hide = byId(ui.dom.overlay, FLOATING_MEDIA_IDS.hide);
   const handle = byId(ui.dom.overlay, FLOATING_MEDIA_IDS.handle);
+  const back = byId(ui.dom.overlay, FLOATING_MEDIA_IDS.back);
+  const reset = byId(ui.dom.overlay, FLOATING_MEDIA_IDS.reset);
   const restore = byId(doc.body, FLOATING_MEDIA_IDS.restore);
-  assert.equal(speaker.textContent, 'Mute stream');
+  assert.equal(speaker.textContent, '\u266b', 'the visible control is just the speaker glyph');
+  assert.equal(speaker.attrs['aria-label'], 'Mute stream');
+  assert.equal(speaker.title, 'Mute stream');
   assert.equal(speaker.attrs['aria-pressed'], 'false', 'audible: mute is not engaged');
-  assert.equal(enlarge.textContent, 'Enlarge stream');
+  assert.equal(enlarge.attrs['aria-label'], 'Enlarge stream');
   assert.equal(enlarge.attrs['aria-pressed'], 'false');
-  assert.equal(hide.textContent, 'Hide stream');
-  assert.equal(handle.attrs['aria-label'], 'Move stream with the arrow keys');
+  assert.equal(hide.attrs['aria-label'], 'Hide stream');
+  assert.equal(hide.title, 'Hide stream');
+  assert.match(handle.attrs['aria-label'], /Move stream/);
+  assert.equal(handle.attrs['aria-haspopup'], 'true');
+  assert.equal(back.attrs['aria-label'], 'Back to game');
+  assert.equal(back.title, 'Back to game');
+  assert.equal(reset.textContent, '\u27f2 Reset position');
   assert.equal(restore.attrs['aria-label'], 'Restore stream');
   assert.equal(restore.hidden, true);
 
-  // Tab order inside the chrome: handle, speaker, enlarge, hide, reset, back.
+  // Tab order inside the chrome: handle, speaker, enlarge, hide, back; Reset
+  // lives in the handle's menu rather than the row.
   const buttons = chrome.element.children.find((c) => c.classList.contains?.('fm-buttons') || c.tagName === 'DIV');
   const ids = buttons.children.map((b) => b.attrs.id);
   assert.deepEqual(ids, [
@@ -174,7 +184,6 @@ test('controls carry accessible names, pressed states and labels', () => {
     FLOATING_MEDIA_IDS.speaker,
     FLOATING_MEDIA_IDS.enlarge,
     FLOATING_MEDIA_IDS.hide,
-    FLOATING_MEDIA_IDS.reset,
     FLOATING_MEDIA_IDS.back,
   ]);
 });
@@ -188,11 +197,13 @@ test('speaker action: mute when audible, one-action unmute when silent, announce
   assert.deepEqual(ui.mutedCalls, [true]);
   assert.equal(chrome.lastAnnouncement, 'Stream muted.');
 
-  // Silent state: the same control performs the labeled explicit unmute.
+  // Silent state: the same control performs the labeled explicit unmute and
+  // the truthful combined label lives on the accessible name.
   ui.effectiveVolume = () => 0;
   ui.presentationState = { masterSound: false, volume: 1, userMuted: false, activityMuted: true };
   chrome.sync();
-  assert.equal(speaker.textContent, 'Turn on sound and unmute stream');
+  assert.equal(speaker.attrs['aria-label'], 'Turn on sound and unmute stream');
+  assert.equal(speaker.classList.contains('is-muted'), true, 'the muted slash is drawn');
   speaker.click();
   assert.equal(ui.unmuteCalls, 1);
   assert.equal(chrome.lastAnnouncement, 'Stream unmuted.');
@@ -232,12 +243,14 @@ test('enlarge/reduce toggles the label and pressed state without pausing', () =>
   const enlarge = byId(ui.dom.overlay, FLOATING_MEDIA_IDS.enlarge);
   enlarge.click();
   assert.equal(expanded, true);
-  assert.equal(enlarge.textContent, 'Reduce stream');
+  assert.equal(enlarge.textContent, '\u2921', 'the reduce glyph');
+  assert.equal(enlarge.attrs['aria-label'], 'Reduce stream');
   assert.equal(enlarge.attrs['aria-pressed'], 'true');
   assert.equal(chrome.lastAnnouncement, 'Stream enlarged.');
   enlarge.click();
   assert.equal(expanded, false);
-  assert.equal(enlarge.textContent, 'Enlarge stream');
+  assert.equal(enlarge.textContent, '\u2922', 'the enlarge glyph');
+  assert.equal(enlarge.attrs['aria-label'], 'Enlarge stream');
 });
 
 test('the move handle supports arrow keys and reset, and never acts like a game key', () => {
@@ -279,4 +292,38 @@ test('existing gesture/error affordances are untouched by chrome sync', () => {
   chrome.sync();
   assert.equal(ui.dom.playBadge.hidden, false, 'the start-gesture badge is not hidden');
   assert.equal(ui.dom.mediaHost.children.length, 0, 'no media nodes are created by presentation');
+});
+
+test('the move handle opens a Reset position menu without hijacking drags', () => {
+  let resets = 0;
+  const { doc, ui } = makeDocAndUI();
+  createFloatingMediaChrome(ui, { document: doc, onReset: () => { resets += 1; } });
+  const handle = byId(ui.dom.overlay, FLOATING_MEDIA_IDS.handle);
+  const chromeEl = byId(ui.dom.overlay, FLOATING_MEDIA_IDS.chrome);
+  const reset = byId(ui.dom.overlay, FLOATING_MEDIA_IDS.reset);
+  const menu = byId(ui.dom.overlay, 'floating-media-menu') || reset.parent;
+  assert.equal(menu.hidden, true, 'closed by default');
+  assert.equal(handle.attrs['aria-expanded'], 'false');
+
+  // Click (no drag) opens the menu; Escape closes it and restores focus.
+  handle.click();
+  assert.equal(menu.hidden, false);
+  assert.equal(handle.attrs['aria-expanded'], 'true');
+  const esc = chromeEl.dispatch('keydown', { code: 'Escape' });
+  assert.equal(esc.defaultPrevented, true);
+  assert.equal(menu.hidden, true);
+
+  // Enter toggles the menu for keyboard users.
+  handle.dispatch('keydown', { code: 'Enter' });
+  assert.equal(menu.hidden, false);
+  reset.click();
+  assert.equal(resets, 1);
+  assert.equal(menu.hidden, true, 'choosing a reset closes the menu');
+
+  // A drag (pointerdown/move/up then click off the press point) never opens it.
+  handle.dispatch('pointerdown', { pointerId: 1, clientX: 10, clientY: 10 });
+  handle.dispatch('pointermove', { pointerId: 1, clientX: 80, clientY: 60 });
+  handle.dispatch('pointerup', { pointerId: 1, clientX: 80, clientY: 60 });
+  handle.dispatch('click', { clientX: 80, clientY: 60 });
+  assert.equal(menu.hidden, true, 'a drag is not a menu request');
 });

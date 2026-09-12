@@ -132,7 +132,7 @@ test('refresh applies compact geometry to the bottom-right corner', () => {
   // viewport 1440x900, avail {12,12,1416,876} -> right = 12+1416-312,
   // bottom accounts for the media rectangle + the chrome strip (52px).
   assert.equal(overlay.style.props['--fm-left'], '1116px');
-  assert.equal(overlay.style.props['--fm-top'], '660px');
+  assert.equal(overlay.style.props['--fm-top'], '664px');
   assert.equal(overlay.classList.contains('ts-floating-chip'), false);
 });
 

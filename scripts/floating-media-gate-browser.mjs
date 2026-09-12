@@ -652,13 +652,13 @@ async function runUi(probe, fixtureUrl, scenario) {
     const ui = window.__afterlight.theater();
     ui.beginActivityPresentation({ id: 'gate-ui', generation: 998, attempt: 1 });
     const chrome = document.getElementById('floating-media');
-    const ids = ['floating-media-handle','floating-media-speaker','floating-media-enlarge','floating-media-hide','floating-media-reset','floating-media-back'];
+    const ids = ['floating-media-handle','floating-media-speaker','floating-media-enlarge','floating-media-hide','floating-media-back'];
     return {
       mode: ui.presentationMode(),
       hidden: chrome.hidden,
-      speaker: document.getElementById('floating-media-speaker').textContent,
+      speaker: document.getElementById('floating-media-speaker').getAttribute('aria-label') || document.getElementById('floating-media-speaker').title,
       speakerPressed: document.getElementById('floating-media-speaker').getAttribute('aria-pressed'),
-      enlarge: document.getElementById('floating-media-enlarge').textContent,
+      enlarge: document.getElementById('floating-media-enlarge').getAttribute('aria-label') || document.getElementById('floating-media-enlarge').title,
       noticeHidden: document.getElementById('floating-media-notice').hidden,
       restoreHidden: document.getElementById('floating-media-restore').hidden,
       order: ids.map((id) => id),
@@ -669,9 +669,35 @@ async function runUi(probe, fixtureUrl, scenario) {
   check('ui: floating shows the chrome once', floating.mode === 'floating' && floating.hidden === false, `mode=${floating.mode}`);
   check('ui: speaker is labeled with a press state', /stream/i.test(floating.speaker) && floating.speakerPressed != null, `${floating.speaker}/${floating.speakerPressed}`);
   check('ui: enlarge control is labeled', /stream/i.test(floating.enlarge), floating.enlarge);
-  check('ui: DOM tab order is handle, speaker, enlarge, hide, reset, back',
+  check('ui: DOM tab order is handle, speaker, enlarge, hide, back (Reset lives in the handle menu)',
     JSON.stringify(floating.domOrder) === JSON.stringify(floating.order), floating.domOrder.join(','));
   check('ui: controllable provider shows no limitation notice', floating.noticeHidden === true);
+
+  // The move handle opens its Reset position menu; a reset closes it again.
+  const handleMenu = await js(s, `
+    const handle = document.getElementById('floating-media-handle');
+    const reset = document.getElementById('floating-media-reset');
+    const menu = reset.parentElement;
+    handle.click();
+    const opened = !menu.hidden && handle.getAttribute('aria-expanded') === 'true';
+    reset.click();
+    const closed = menu.hidden && handle.getAttribute('aria-expanded') === 'false';
+    return { opened, closed, resetLabel: reset.textContent };`);
+  scenario.ui.handleMenu = handleMenu;
+  check('ui: the move handle opens a Reset position menu',
+    handleMenu.opened === true && handleMenu.closed === true && /Reset position/.test(handleMenu.resetLabel),
+    JSON.stringify(handleMenu));
+
+  // Optional visual evidence for the icon strip (GATE_SCREENSHOT=1).
+  if (process.env.GATE_SCREENSHOT === '1') {
+    const shot = await req('GET', `/session/${s.id}/screenshot`).catch(() => null);
+    if (shot) {
+      mkdirSync(EVIDENCE_DIR, { recursive: true });
+      const file = join(EVIDENCE_DIR, `${new Date().toISOString().replace(/[:.]/g, '-')}-${LABEL}-ui.png`);
+      writeFileSync(file, Buffer.from(shot, 'base64'));
+      log(`screenshot: ${file}`);
+    }
+  }
   check('ui: restore chip is not shown while visible', floating.restoreHidden === true);
   check('ui: no media node added by chrome',
     floating.mediaNodes === primary.mediaNodes, `${primary.mediaNodes} -> ${floating.mediaNodes}`);

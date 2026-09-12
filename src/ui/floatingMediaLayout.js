@@ -16,7 +16,7 @@ export const FLOATING_LAYOUT = Object.freeze({
   MARGIN: 12, // safe margin from the visual viewport edges
   CONTROLS_MIN: 44, // accessible touch target (CSS handles rendering)
   DEFAULT_ASPECT: 16 / 9,
-  CHROME_HEIGHT: 52, // controls strip below the media rectangle (>= 44px targets)
+  CHROME_HEIGHT: 48, // compact icon strip below the media rectangle (>= 44px targets)
 });
 
 const CORNER_ORDER = ['bottom-right', 'bottom-left', 'top-right', 'top-left'];

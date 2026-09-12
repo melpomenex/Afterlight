@@ -101,6 +101,10 @@ export function createFloatingMediaChrome(ui, {
     for (const [key, value] of Object.entries(attrs)) {
       if (value === true) node.setAttribute(key, '');
       else if (value !== false && value != null) node.setAttribute(key, String(value));
+      // Mirror the reflected DOM properties fake test environments may not
+      // model (title is both a content attribute and a property).
+      if (key === 'title' && value != null) node.title = String(value);
+      if (key === 'hidden') node.hidden = value === true;
     }
     if (text != null) node.textContent = text;
     return node;
@@ -117,44 +121,61 @@ export function createFloatingMediaChrome(ui, {
   const title = el('span', { id: FLOATING_MEDIA_IDS.title, class: 'fm-title micro' });
   const buttons = el('div', { class: 'fm-buttons' });
 
+  // Icon-only controls keep the bar to one compact strip; the truthful text
+  // lives in aria-label/title and in the polite live region. Reset position
+  // moves into the move handle's small menu.
   const speaker = el('button', {
     id: FLOATING_MEDIA_IDS.speaker,
     type: 'button',
-    class: 'fm-btn',
+    class: 'fm-btn fm-btn--icon',
     'aria-pressed': 'false',
-  }, 'Unmute stream');
+  }, '\u266b'); // ♫
 
   const enlarge = el('button', {
     id: FLOATING_MEDIA_IDS.enlarge,
     type: 'button',
-    class: 'fm-btn',
+    class: 'fm-btn fm-btn--icon',
     'aria-pressed': 'false',
-  }, 'Enlarge stream');
+  }, '\u2922'); // ⤢
 
   const hide = el('button', {
     id: FLOATING_MEDIA_IDS.hide,
     type: 'button',
-    class: 'fm-btn',
-  }, 'Hide stream');
+    class: 'fm-btn fm-btn--icon',
+    'aria-label': 'Hide stream',
+    title: 'Hide stream',
+  }, '\u25be'); // ▾
 
   const handle = el('button', {
     id: FLOATING_MEDIA_IDS.handle,
     type: 'button',
-    class: 'fm-handle',
-    'aria-label': 'Move stream with the arrow keys',
-  }, '⠿ Move stream');
+    class: 'fm-handle fm-btn--icon',
+    'aria-label': 'Move stream \u2014 arrow keys move it, Enter opens position options',
+    title: 'Move stream \u2014 arrow keys move it, Enter opens position options',
+    'aria-haspopup': 'true',
+    'aria-expanded': 'false',
+  }, '\u283f'); // ⠿
+
+  const menu = el('div', {
+    class: 'fm-menu',
+    role: 'menu',
+    hidden: true,
+  });
 
   const reset = el('button', {
     id: FLOATING_MEDIA_IDS.reset,
     type: 'button',
-    class: 'fm-btn fm-btn--quiet',
-  }, 'Reset position');
+    class: 'fm-menu-item',
+    role: 'menuitem',
+  }, '\u27f2 Reset position');
 
   const back = el('button', {
     id: FLOATING_MEDIA_IDS.back,
     type: 'button',
-    class: 'fm-btn fm-btn--quiet',
-  }, 'Back to game');
+    class: 'fm-btn fm-btn--icon',
+    'aria-label': 'Back to game',
+    title: 'Back to game',
+  }, '\u293a'); // ⤺
 
   const notice = el('p', {
     id: FLOATING_MEDIA_IDS.notice,
@@ -176,10 +197,11 @@ export function createFloatingMediaChrome(ui, {
     class: 'fm-restore',
     'aria-label': 'Restore stream',
     hidden: true,
-  }, '▸ Stream');
+  }, '\u25b8 Stream');
 
-  buttons.append(handle, speaker, enlarge, hide, reset, back);
-  chrome.append(title, buttons, notice, live);
+  menu.append(reset);
+  buttons.append(handle, speaker, enlarge, hide, back);
+  chrome.append(title, buttons, menu, notice, live);
   overlay.append(chrome);
   // The restore chip lives at the body level: the overlay clips its contents
   // (overflow + transform containing block), and the chip must stay reachable
@@ -226,12 +248,68 @@ export function createFloatingMediaChrome(ui, {
     announcement('Back to the game.');
   });
 
+  // --- move-handle menu (Reset position) -------------------------------------
+
+  let menuOpen = false;
+  const focusNode = (node) => { try { node?.focus?.(); } catch {} };
+
+  function openMenu() {
+    if (menuOpen) return;
+    menuOpen = true;
+    menu.hidden = false;
+    handle.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeMenu({ focusHandle = false } = {}) {
+    if (!menuOpen) return;
+    menuOpen = false;
+    menu.hidden = true;
+    handle.setAttribute('aria-expanded', 'false');
+    if (focusHandle) focusNode(handle);
+  }
+
+  function toggleMenu() {
+    if (menuOpen) closeMenu({ focusHandle: true });
+    else openMenu();
+  }
+
+  // A drag is not a menu request: compare the click against the press point.
+  let handlePress = null;
+  handle.addEventListener('pointerdown', (e) => {
+    handlePress = { x: Number(e?.clientX) || 0, y: Number(e?.clientY) || 0 };
+  });
+  handle.addEventListener('click', (e) => {
+    if (handlePress) {
+      const dx = (Number(e?.clientX) || 0) - handlePress.x;
+      const dy = (Number(e?.clientY) || 0) - handlePress.y;
+      handlePress = null;
+      if (Math.hypot(dx, dy) > 6) return;
+    }
+    toggleMenu();
+  });
+
   reset.addEventListener('click', () => {
     if (typeof onReset === 'function') onReset();
+    closeMenu({ focusHandle: true });
     announcement('Stream position reset.');
   });
 
+  if (typeof doc.addEventListener === 'function') {
+    doc.addEventListener('pointerdown', (e) => {
+      if (!menuOpen) return;
+      const target = e?.target;
+      if (menu === target || menu.contains?.(target) || handle === target || handle.contains?.(target)) return;
+      closeMenu();
+    }, true);
+  }
+
   handle.addEventListener('keydown', (e) => {
+    if (e.code === 'Enter' || e.code === 'Space') {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleMenu();
+      return;
+    }
     if (typeof onMove !== 'function') return;
     const step = e.shiftKey ? 24 : 8;
     const moves = {
@@ -247,12 +325,17 @@ export function createFloatingMediaChrome(ui, {
     onMove(delta[0], delta[1]);
   });
 
-  // Escape inside the chrome collapses enlarged mode, then returns focus to
-  // the game. Outside the chrome, the existing menu/activity hierarchy stays.
+  // Escape inside the chrome closes the handle menu, collapses enlarged mode
+  // and finally returns focus to the game. Outside the chrome, the existing
+  // menu/activity hierarchy stays.
   chrome.addEventListener('keydown', (e) => {
     if (e.code !== 'Escape' && e.key !== 'Escape') return;
     e.preventDefault();
     e.stopPropagation();
+    if (menuOpen) {
+      closeMenu({ focusHandle: true });
+      return;
+    }
     if (typeof ui?.isFloatingExpanded === 'function' && ui.isFloatingExpanded()) {
       ui.setFloatingExpanded(false);
       announcement('Stream reduced.');
@@ -270,23 +353,26 @@ export function createFloatingMediaChrome(ui, {
     restore.textContent = chip && !next.hidden ? 'Make room for stream' : '\u25b8 Stream';
     chrome.classList.toggle('is-hidden', next.hidden);
     chrome.classList.toggle('is-expanded', next.expanded);
+    chrome.classList.toggle('has-notice', !!next.limitation);
 
     title.textContent = next.title ? `Now playing · ${next.title}` : '';
     title.hidden = !next.title;
 
     speaker.hidden = !next.audioSupported;
-    speaker.textContent = next.speakerLabel;
-    speaker.setAttribute('aria-pressed', String(next.muted));
+    speaker.classList.toggle('is-muted', next.audioSupported && next.muted);
+    speaker.setAttribute('aria-label', next.speakerLabel);
     speaker.title = next.speakerLabel;
+    speaker.setAttribute('aria-pressed', String(next.muted));
 
-    enlarge.textContent = next.expanded ? 'Reduce stream' : 'Enlarge stream';
+    const enlargeLabel = next.expanded ? 'Reduce stream' : 'Enlarge stream';
+    enlarge.textContent = next.expanded ? '\u2921' : '\u2922'; // ⤡ / ⤢
+    enlarge.setAttribute('aria-label', enlargeLabel);
+    enlarge.title = enlargeLabel;
     enlarge.setAttribute('aria-pressed', String(next.expanded));
 
     notice.hidden = !next.limitation;
     if (next.limitation) notice.textContent = next.limitation;
 
-    handle.hidden = false;
-    reset.hidden = false;
     return next;
   }
 
