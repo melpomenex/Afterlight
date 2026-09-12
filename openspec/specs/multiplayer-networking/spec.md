@@ -5,10 +5,10 @@ Delivers real-time WebSocket communication, room partitioning, authoritative sim
 ## Requirements
 
 ### Requirement: Room-Based Networking and Scoped Presence
-The system SHALL organize clients into isolated rooms (`market`, `garden:<playerId>`, `glasshouse:<playerId>`), broadcasting movement and room interactions only to players co-located in the same room.
+The system SHALL organize clients into isolated rooms — the Market Court (`market`) and every public place id (`theater`, and the manifest's other place ids) — broadcasting movement and room interactions only to players co-located in the same room.
 
 #### Scenario: Joining a room
-- **WHEN** a player navigates to the Market Court or a garden
+- **WHEN** a player navigates to the Market Court or any public place
 - **THEN** the server updates their room membership, notifies existing occupants in that room, and synchronizes presence
 
 #### Scenario: Leaving a room
@@ -16,22 +16,22 @@ The system SHALL organize clients into isolated rooms (`market`, `garden:<player
 - **THEN** occupants of the departed room receive a leave notification and remove the remote avatar
 
 ### Requirement: Authoritative Validation and Reconnect Resilience
-The server SHALL be authoritative over coin balances, inventory quantities, crop maturation, and economic trades, and SHALL support automatic client reconnection with exponential backoff and state reconciliation.
+The server SHALL be authoritative over room membership, presence relay and movement validation, and SHALL support automatic client reconnection with exponential backoff and state reconciliation.
 
 #### Scenario: Client reconnection after temporary disconnect
 - **WHEN** a client WebSocket connection drops and reconnects
 - **THEN** the client sends its persistent guest token, the server restores player state without progress loss, and the client resynchronizes full room and player data
 
 #### Scenario: Rejection of invalid client commands
-- **WHEN** a client transmits an invalid action (such as spending unowned coins or planting without seeds)
-- **THEN** the server rejects the request with an error packet and preserves authoritative state integrity
+- **WHEN** a client transmits an invalid action (such as a non-finite movement pose or a durable command without live room membership)
+- **THEN** the server rejects the request or drops the input with bounded feedback and preserves authoritative state integrity
 
 ### Requirement: Atomic Server Persistence
-The server SHALL serialize player profiles, gardens, inventories, and market order states atomically to durable storage, ensuring persistence survives server restarts.
+The server SHALL serialize player profiles and their current room atomically to durable storage, ensuring that retained account and room-selection state survives server restarts; the retained theater and catalog domains persist through their own stores.
 
 #### Scenario: Server restart recovery
 - **WHEN** the server process restarts and initializes
-- **THEN** all saved players, garden beds, active crop growth states, wallets, and order books are restored accurately from disk
+- **THEN** all saved player profiles and current-room selections are restored accurately from disk
 
 ### Requirement: Gateway WebSocket Origin Policy
 The gateway SHALL accept WebSocket connections only from the browser origins it is explicitly configured to serve — at minimum the development client origins (the Vite dev server on `localhost`/`127.0.0.1`) and the deployed production frontend origin — and SHALL reject upgrades from unlisted origins. The development stack's default configuration SHALL include its own client origin, so `npm run dev:stack` works with no extra environment setup. When an origin is rejected, or when the gateway's origin configuration is missing or malformed, the failure SHALL be diagnosable: the gateway logs the rejected origin, and a stack-level connectivity check SHALL fail loudly (non-zero exit / visible error) rather than leaving the client in an indefinite silent reconnect loop.

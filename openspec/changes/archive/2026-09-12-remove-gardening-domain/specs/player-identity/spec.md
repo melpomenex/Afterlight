@@ -1,19 +1,6 @@
-## Purpose
+# player-identity
 
-Manages guest player identity, deterministic nickname generation and validation, visual character customization, and remote player rendering with smooth interpolation.
-
-## Requirements
-
-### Requirement: Guest Token Generation and Persistence
-The system SHALL generate a unique persistent UUID guest token on first launch and store it in local storage, reusing it on subsequent launches without requiring mandatory account creation.
-
-#### Scenario: First-time guest connection
-- **WHEN** a player visits the game without an existing guest token in local storage
-- **THEN** the client generates a unique UUIDv4 token, stores it locally, and sends it during server connection handshake
-
-#### Scenario: Returning guest connection
-- **WHEN** a player returns to the game with an existing guest token stored locally
-- **THEN** the client transmits the saved token to resume the existing player session and restored data
+## MODIFIED Requirements
 
 ### Requirement: Atmospheric Nickname Generation and Sanitization
 The system SHALL provide an atmospheric procedurally generated default nickname using adjective, machine/urban noun, and number components (e.g., CopperLantern42, RustCompass17), while validating and sanitizing player-chosen nicknames. The generated word bank SHALL contain no produce, plant or gardening terms, and no fallback name SHALL be "Gardener".
