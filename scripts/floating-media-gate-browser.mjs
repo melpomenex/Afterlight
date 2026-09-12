@@ -1107,15 +1107,89 @@ async function runFlow(probe, fixtureUrl, scenario) {
   check('flow AC3: the stream is muted for the game entry', inGame.muted === true, `muted=${inGame.muted}`);
   check('flow AC5: the fixture timeline continues while floating', gameTimeline.delta > 0.5, `Δ=${gameTimeline.delta}s`);
 
+  // AC8: gameplay keys still reach the billiards controller while the stream
+  // floats (this is the exact complaint: F/A/D must work during gameplay).
+  const fCharge = async () => {
+    const read = () => js(s, `return parseFloat(document.querySelector('[data-role="power-fill"]')?.style.height || '0') || 0;`);
+    const before = await read();
+    await js(s, `
+      window.__gateF = null;
+      window.addEventListener('keydown', function once(e) {
+        if (e.code !== 'KeyF') return;
+        window.removeEventListener('keydown', once);
+        window.__gateF = {
+          prevented: e.defaultPrevented,
+          target: e.target?.id || e.target?.tagName,
+          active: document.activeElement?.id || document.activeElement?.tagName,
+        };
+      });
+      return true;`);
+    await cdp(s, 'Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: 70, nativeVirtualKeyCode: 70, code: 'KeyF', key: 'f' }).catch(() => {});
+    await sleep(700);
+    const during = await read();
+    const keyInfo = await js(s, `return window.__gateF;`);
+    // Cancel the charge with Escape (the controller's documented cancel) so
+    // the release does not fire a real shot into the next check.
+    await cdp(s, 'Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27, code: 'Escape', key: 'Escape' }).catch(() => {});
+    await cdp(s, 'Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27, code: 'Escape', key: 'Escape' }).catch(() => {});
+    await cdp(s, 'Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 70, nativeVirtualKeyCode: 70, code: 'KeyF', key: 'f' }).catch(() => {});
+    await sleep(400);
+    const active = await js(s, `return document.activeElement ? (document.activeElement.id || document.activeElement.tagName) : null;`);
+    return { before, during, active, keyInfo };
+  };
+  const poolDebug = await js(s, `return {
+    hud: document.querySelectorAll('.pool-hud').length,
+    powerFill: !!document.querySelector('[data-role="power-fill"]'),
+    sim: typeof window.__afterlight.sim === 'function' ? (window.__afterlight.sim() ? 'present' : null) : 'no-accessor',
+    activity: window.__afterlight.activity(),
+    state: window.__afterlight.participation(),
+    room: window.__afterlight.room(),
+  };`);
+  scenario.flow.poolDebug = poolDebug;
+  const gameKeys = await fCharge();
+  scenario.flow.gameKeys = gameKeys;
+  check('flow AC8: F charges the cue while the stream floats', gameKeys.during > gameKeys.before + 5, JSON.stringify(gameKeys));
+
+  // A/D fine aim via trusted keys, delivered to the game window.
+  await js(s, `
+    window.__gateAimKeys = [];
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyA' || e.code === 'KeyD') window.__gateAimKeys.push(e.code + '/' + (e.target?.id || e.target?.tagName));
+    });
+    return true;`);
+  await cdp(s, 'Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65, code: 'KeyA', key: 'a' }).catch(() => {});
+  await cdp(s, 'Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65, code: 'KeyA', key: 'a' }).catch(() => {});
+  await cdp(s, 'Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: 68, nativeVirtualKeyCode: 68, code: 'KeyD', key: 'd' }).catch(() => {});
+  await cdp(s, 'Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 68, nativeVirtualKeyCode: 68, code: 'KeyD', key: 'd' }).catch(() => {});
+  await sleep(250);
+  const aimKeys = await js(s, `return window.__gateAimKeys || [];`);
+  scenario.flow.aimKeys = aimKeys;
+  check('flow AC8: A/D reach the game window while the stream floats',
+    aimKeys.length === 2 && aimKeys.every((entry) => !/floating-media/.test(entry)), JSON.stringify(aimKeys));
+
   // Explicit unmute from inside the game.
   await js(s, `document.getElementById('floating-media-speaker').focus(); return true;`);
-  await req('POST', `/session/${s.id}/actions`, {
-    actions: [{ type: 'key', id: 'keyboard', actions: [{ type: 'keyDown', value: '\uE00D' }, { type: 'keyUp', value: '\uE00D' }] }],
-  }).catch(() => {});
+  await cdp(s, 'Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32, code: 'Space', key: ' ' }).catch(() => {});
+  await cdp(s, 'Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32, code: 'Space', key: ' ' }).catch(() => {});
   await sleep(900);
   const unmuted = await identity(s);
   scenario.flow.unmuted = unmuted;
   check('flow AC4: one action unmutes the stream during play', unmuted.muted === false, `muted=${unmuted.muted}`);
+
+  // A real POINTER click on a media control must not strand gameplay keys:
+  // Chrome focuses the clicked button, so the chrome returns focus to the
+  // canvas for pointer activation (keyboard activation keeps focus).
+  const focusProbeButton = await findEl(s, '#floating-media-enlarge');
+  if (focusProbeButton) await clickEl(s, focusProbeButton).catch(() => {});
+  await sleep(400);
+  // Leave the presentation as it was (enlarge toggles and toggles back).
+  if (focusProbeButton) await clickEl(s, focusProbeButton).catch(() => {});
+  await sleep(300);
+  const afterPointerMedia = await fCharge();
+  scenario.flow.gameKeysAfterPointer = afterPointerMedia;
+  check('flow AC8: F charges again after a pointer click on a media control',
+    afterPointerMedia.during > afterPointerMedia.before + 5,
+    JSON.stringify(afterPointerMedia));
 
   // Return focus to the game (media controls own their keys), then leave
   // with the real on-screen interact control.

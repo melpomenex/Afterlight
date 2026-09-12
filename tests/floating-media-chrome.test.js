@@ -327,3 +327,17 @@ test('the move handle opens a Reset position menu without hijacking drags', () =
   handle.dispatch('click', { clientX: 80, clientY: 60 });
   assert.equal(menu.hidden, true, 'a drag is not a menu request');
 });
+
+test('pointer activation returns focus to the game; keyboard keeps it', () => {
+  let focusReturns = 0;
+  const { doc, ui } = makeDocAndUI({ returnFocusToGame: () => { focusReturns += 1; } });
+  createFloatingMediaChrome(ui, { document: doc });
+  const speaker = byId(ui.dom.overlay, FLOATING_MEDIA_IDS.speaker);
+  const hide = byId(ui.dom.overlay, FLOATING_MEDIA_IDS.hide);
+  speaker.dispatch('click', { detail: 1 });
+  assert.equal(focusReturns, 1, 'a pointer click on the speaker returns focus to the game');
+  speaker.dispatch('click', { detail: 0 });
+  assert.equal(focusReturns, 1, 'keyboard activation keeps focus on the control');
+  hide.dispatch('click', { detail: 1 });
+  assert.equal(focusReturns, 2, 'hiding by pointer also returns focus');
+});

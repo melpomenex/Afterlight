@@ -210,7 +210,24 @@ export function createFloatingMediaChrome(ui, {
 
   // --- control actions -------------------------------------------------------
 
-  speaker.addEventListener('click', () => {
+  /**
+   * Pointer activation of a media control returns focus to the game canvas,
+   * so gameplay keys (F charge, A/D aim) keep working right after a click;
+   * keyboard activation keeps focus on the control for tab traversal (D6).
+   */
+  const returnFocusAfterPointer = (event) => {
+    if (!(Number(event?.detail) > 0)) return;
+    try {
+      ui?.returnFocusToGame?.();
+    } catch {}
+  };
+
+  const activate = (handler) => (event) => {
+    handler(event);
+    returnFocusAfterPointer(event);
+  };
+
+  speaker.addEventListener('click', activate((event) => {
     if (!floatingMediaChromeState(ui).audioSupported) return;
     const state = floatingMediaChromeState(ui);
     if (!state.muted) {
@@ -221,32 +238,33 @@ export function createFloatingMediaChrome(ui, {
     const result = typeof ui.requestUnmute === 'function' ? ui.requestUnmute() : { applied: false };
     announcement(result?.applied ? 'Stream unmuted.' : 'The stream is still silent — check the app sound controls.');
     sync();
-  });
+    void event;
+  }));
 
-  enlarge.addEventListener('click', () => {
+  enlarge.addEventListener('click', activate(() => {
     const next = !ui.isFloatingExpanded();
     ui.setFloatingExpanded(next);
     announcement(next ? 'Stream enlarged.' : 'Stream reduced.');
     sync();
-  });
+  }));
 
-  hide.addEventListener('click', () => {
+  hide.addEventListener('click', activate(() => {
     ui.setFloatingHidden(true);
     announcement('Stream hidden. Use Restore stream to bring it back.');
     sync();
-  });
+  }));
 
-  restore.addEventListener('click', () => {
+  restore.addEventListener('click', activate(() => {
     if (typeof onRestore === 'function') onRestore();
     else ui.setFloatingHidden(false);
     announcement('Stream restored.');
     sync();
-  });
+  }));
 
-  back.addEventListener('click', () => {
+  back.addEventListener('click', activate(() => {
     if (typeof onBack === 'function') onBack();
     announcement('Back to the game.');
-  });
+  }));
 
   // --- move-handle menu (Reset position) -------------------------------------
 
@@ -288,9 +306,11 @@ export function createFloatingMediaChrome(ui, {
     toggleMenu();
   });
 
-  reset.addEventListener('click', () => {
+  reset.addEventListener('click', (event) => {
     if (typeof onReset === 'function') onReset();
-    closeMenu({ focusHandle: true });
+    const viaPointer = Number(event?.detail) > 0;
+    closeMenu({ focusHandle: !viaPointer });
+    returnFocusAfterPointer(event);
     announcement('Stream position reset.');
   });
 
