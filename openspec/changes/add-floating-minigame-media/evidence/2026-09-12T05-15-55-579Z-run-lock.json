@@ -1,0 +1,78 @@
+{
+  "label": "run",
+  "phase": "lock",
+  "app": "http://localhost:5173/?room=theater&debug=1",
+  "gateway": "http://localhost:4000",
+  "headed": false,
+  "startedAt": "2026-09-12T05:15:38.592Z",
+  "tag": "floating-gate-mtxxm29y",
+  "fixture": {
+    "kind": "mp4",
+    "url": "http://127.0.0.1:43381/fixture.mp4",
+    "note": "ffmpeg-generated mp4"
+  },
+  "baseline": {},
+  "errors": [],
+  "originalNow": null,
+  "lock": {
+    "acquired": {
+      "canvas": "world",
+      "locked": true,
+      "participation": "idle",
+      "room": "theater"
+    },
+    "afterAuto": {
+      "canvas": "world",
+      "locked": true,
+      "participation": "idle",
+      "room": "theater",
+      "engineSame": true,
+      "nodeSame": true
+    },
+    "unlocked": {
+      "dialog": false,
+      "locked": true,
+      "participation": "idle"
+    },
+    "reacquired": {
+      "canvas": "world",
+      "locked": true,
+      "participation": "idle",
+      "room": "theater"
+    }
+  },
+  "finalNow": null,
+  "passes": [
+    {
+      "name": "lock: transport open",
+      "detail": ""
+    },
+    {
+      "name": "lock: fixture is the live bill item",
+      "detail": ""
+    },
+    {
+      "name": "lock: explicit canvas gesture acquires pointer lock",
+      "detail": "{\"canvas\":\"world\",\"locked\":true,\"participation\":\"idle\",\"room\":\"theater\"}"
+    },
+    {
+      "name": "lock: automatic presentation changes retain lock, engine and node",
+      "detail": "{\"canvas\":\"world\",\"locked\":true,\"participation\":\"idle\",\"room\":\"theater\",\"engineSame\":true,\"nodeSame\":true}"
+    },
+    {
+      "name": "lock: a new explicit canvas action reacquires",
+      "detail": "{\"canvas\":\"world\",\"locked\":true,\"participation\":\"idle\",\"room\":\"theater\"}"
+    }
+  ],
+  "failures": [
+    {
+      "name": "lock: the unlock Escape releases lock without leaving the game",
+      "detail": "{\"dialog\":false,\"locked\":true,\"participation\":\"idle\"}"
+    },
+    {
+      "name": "lock: lock is never reacquired automatically",
+      "detail": "{\"canvas\":\"world\",\"locked\":true,\"participation\":\"idle\",\"room\":\"theater\"}"
+    }
+  ],
+  "ok": false
+}

@@ -1,0 +1,252 @@
+{
+  "label": "run",
+  "phase": "flow",
+  "app": "http://localhost:5173/?room=theater&debug=1",
+  "gateway": "http://localhost:4000",
+  "headed": false,
+  "startedAt": "2026-09-12T05:39:35.799Z",
+  "tag": "floating-gate-mtxyguu1",
+  "fixture": {
+    "kind": "mp4",
+    "url": "http://127.0.0.1:40607/fixture.mp4",
+    "note": "ffmpeg-generated mp4"
+  },
+  "baseline": {},
+  "errors": [],
+  "originalNow": null,
+  "flow": {
+    "poolState": "participating",
+    "inGame": {
+      "awaitingGesture": false,
+      "currentTime": 3.47,
+      "engineDegraded": false,
+      "engineKind": "file",
+      "engineReady": true,
+      "engineSame": true,
+      "floatingExpanded": false,
+      "floatingHidden": false,
+      "frameSame": false,
+      "hidden": false,
+      "loadToken": 1,
+      "loadedItemId": "itm_mtxygzrn_5yjg",
+      "loadedPlayKey": "itm_mtxygzrn_5yjg:::file",
+      "logs": [
+        "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+      ],
+      "muted": true,
+      "node": "VIDEO",
+      "nodeSame": true,
+      "overlayClass": "ts-state-playing ts-floating ts-floating-bottom",
+      "overlayRect": {
+        "h": 0,
+        "w": 278
+      },
+      "paused": false,
+      "presentation": "floating",
+      "readyState": 4,
+      "sent": [],
+      "volume": 0,
+      "watching": false,
+      "mode": "floating",
+      "timeline": {
+        "before": 3.5,
+        "after": 6.01,
+        "delta": 2.51
+      }
+    },
+    "unmuted": {
+      "awaitingGesture": false,
+      "currentTime": 6.9,
+      "engineDegraded": false,
+      "engineKind": "file",
+      "engineReady": true,
+      "engineSame": true,
+      "floatingExpanded": false,
+      "floatingHidden": false,
+      "frameSame": false,
+      "hidden": false,
+      "loadToken": 1,
+      "loadedItemId": "itm_mtxygzrn_5yjg",
+      "loadedPlayKey": "itm_mtxygzrn_5yjg:::file",
+      "logs": [
+        "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+      ],
+      "muted": false,
+      "node": "VIDEO",
+      "nodeSame": true,
+      "overlayClass": "ts-state-playing ts-floating ts-floating-bottom",
+      "overlayRect": {
+        "h": 42,
+        "w": 278
+      },
+      "paused": false,
+      "presentation": "floating",
+      "readyState": 4,
+      "sent": [],
+      "volume": 1,
+      "watching": false
+    },
+    "afterLeave": {
+      "awaitingGesture": false,
+      "currentTime": 9.43,
+      "engineDegraded": false,
+      "engineKind": "file",
+      "engineReady": true,
+      "engineSame": true,
+      "floatingExpanded": false,
+      "floatingHidden": false,
+      "frameSame": false,
+      "hidden": false,
+      "loadToken": 1,
+      "loadedItemId": "itm_mtxygzrn_5yjg",
+      "loadedPlayKey": "itm_mtxygzrn_5yjg:::file",
+      "logs": [
+        "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+      ],
+      "muted": false,
+      "node": "VIDEO",
+      "nodeSame": true,
+      "overlayClass": "ts-state-playing ts-floating-bottom",
+      "overlayRect": {
+        "h": 133,
+        "w": 88
+      },
+      "paused": false,
+      "presentation": "primary",
+      "readyState": 4,
+      "sent": [],
+      "volume": 1,
+      "watching": false,
+      "mode": "primary",
+      "timeline": {
+        "before": 9.44,
+        "after": 11.94,
+        "delta": 2.5
+      }
+    },
+    "leaveDiag": {
+      "focus": {
+        "active": "world",
+        "occupied": "participating",
+        "paused": false
+      },
+      "log": {
+        "active": "world",
+        "keys": [
+          "KeyE/world"
+        ],
+        "state": "idle"
+      }
+    },
+    "secondCycle": {
+      "poolAgain": "participating",
+      "mutedAgain": true,
+      "restoredMuted": false
+    },
+    "kartJoining": {
+      "activity": "orpheum-kart-royale",
+      "mode": "floating",
+      "muted": true,
+      "state": "participating"
+    },
+    "afterCancel": {
+      "awaitingGesture": false,
+      "currentTime": 25.5,
+      "engineDegraded": false,
+      "engineKind": "file",
+      "engineReady": true,
+      "engineSame": true,
+      "floatingExpanded": false,
+      "floatingHidden": false,
+      "frameSame": false,
+      "hidden": false,
+      "loadToken": 1,
+      "loadedItemId": "itm_mtxygzrn_5yjg",
+      "loadedPlayKey": "itm_mtxygzrn_5yjg:::file",
+      "logs": [
+        "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.",
+        "unhandled: Cannot set properties of undefined (setting 'material')"
+      ],
+      "muted": false,
+      "node": "VIDEO",
+      "nodeSame": true,
+      "overlayClass": "ts-state-playing ts-floating-bottom",
+      "overlayRect": {
+        "h": 133,
+        "w": 88
+      },
+      "paused": false,
+      "presentation": "primary",
+      "readyState": 4,
+      "sent": [],
+      "volume": 1,
+      "watching": false,
+      "mode": "primary"
+    }
+  },
+  "finalNow": null,
+  "passes": [
+    {
+      "name": "flow: transport open",
+      "detail": ""
+    },
+    {
+      "name": "flow: fixture is the live bill item",
+      "detail": ""
+    },
+    {
+      "name": "flow AC1: entering Pool participates",
+      "detail": "state=participating"
+    },
+    {
+      "name": "flow AC1/AC13: media floats during gameplay",
+      "detail": "mode=floating"
+    },
+    {
+      "name": "flow AC5/AC6: no engine recreation on entry",
+      "detail": "engineSame=true nodeSame=true token=1/1"
+    },
+    {
+      "name": "flow AC3: the stream is muted for the game entry",
+      "detail": "muted=true"
+    },
+    {
+      "name": "flow AC5: the fixture timeline continues while floating",
+      "detail": "Δ=2.51s"
+    },
+    {
+      "name": "flow AC4: one action unmutes the stream during play",
+      "detail": "muted=false"
+    },
+    {
+      "name": "flow AC11: leaving the game restores primary presentation",
+      "detail": "state=idle mode=primary diag={\"active\":\"world\",\"keys\":[\"KeyE/world\"],\"state\":\"idle\"}"
+    },
+    {
+      "name": "flow AC5/AC6: the same session continues after exit",
+      "detail": "engineSame=true nodeSame=true Δ=2.5"
+    },
+    {
+      "name": "flow AC12: an explicit unmute survives the exit",
+      "detail": "muted=false"
+    },
+    {
+      "name": "flow AC3/AC12: a fresh entry re-mutes, and exit without edits restores audio",
+      "detail": "{\"poolAgain\":\"participating\",\"mutedAgain\":true,\"restoredMuted\":false}"
+    },
+    {
+      "name": "flow AC6: no engine start/teardown across the whole game session",
+      "detail": "1 -> 1"
+    },
+    {
+      "name": "flow AC1/AC13: a cold-loading Kart cabinet floats as the transition starts",
+      "detail": "{\"activity\":\"orpheum-kart-royale\",\"mode\":\"floating\",\"muted\":true,\"state\":\"participating\"}"
+    },
+    {
+      "name": "flow AC11: cancelling a cold load restores primary without engine churn",
+      "detail": "mode=primary engineSame=true nodeSame=true"
+    }
+  ],
+  "failures": [],
+  "ok": true
+}

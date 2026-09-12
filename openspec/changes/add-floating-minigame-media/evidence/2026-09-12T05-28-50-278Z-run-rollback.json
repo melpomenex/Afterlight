@@ -1,0 +1,113 @@
+{
+  "label": "run",
+  "phase": "rollback",
+  "app": "http://localhost:5173/?room=theater&debug=1",
+  "gateway": "http://localhost:4000",
+  "headed": false,
+  "startedAt": "2026-09-12T05:28:35.178Z",
+  "tag": "floating-gate-mtxy2p3d",
+  "fixture": {
+    "kind": "mp4",
+    "url": "http://127.0.0.1:36887/fixture.mp4",
+    "note": "ffmpeg-generated mp4"
+  },
+  "baseline": {},
+  "errors": [],
+  "originalNow": null,
+  "rollback": {
+    "enabled": false,
+    "state": "participating",
+    "modeBefore": "primary",
+    "modeAfter": "primary",
+    "before": {
+      "awaitingGesture": false,
+      "currentTime": 2.74,
+      "engineDegraded": false,
+      "engineKind": "file",
+      "engineReady": true,
+      "engineSame": true,
+      "floatingExpanded": false,
+      "floatingHidden": false,
+      "frameSame": false,
+      "hidden": false,
+      "loadToken": 1,
+      "loadedItemId": "itm_mtxy2w65_gsrb",
+      "loadedPlayKey": "itm_mtxy2w65_gsrb:::file",
+      "logs": [
+        "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+      ],
+      "muted": true,
+      "node": "VIDEO",
+      "nodeSame": true,
+      "overlayClass": "ts-state-playing",
+      "overlayRect": {
+        "h": 296,
+        "w": 372
+      },
+      "paused": false,
+      "presentation": "primary",
+      "readyState": 4,
+      "sent": [],
+      "volume": 0,
+      "watching": false
+    },
+    "after": {
+      "awaitingGesture": false,
+      "currentTime": 4.08,
+      "engineDegraded": false,
+      "engineKind": "file",
+      "engineReady": true,
+      "engineSame": true,
+      "floatingExpanded": false,
+      "floatingHidden": false,
+      "frameSame": false,
+      "hidden": true,
+      "loadToken": 1,
+      "loadedItemId": "itm_mtxy2w65_gsrb",
+      "loadedPlayKey": "itm_mtxy2w65_gsrb:::file",
+      "logs": [
+        "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+      ],
+      "muted": true,
+      "node": "VIDEO",
+      "nodeSame": true,
+      "overlayClass": "ts-state-playing ts-hidden",
+      "overlayRect": {
+        "h": 0,
+        "w": 0
+      },
+      "paused": false,
+      "presentation": "primary",
+      "readyState": 4,
+      "sent": [],
+      "volume": 0,
+      "watching": false
+    }
+  },
+  "finalNow": null,
+  "passes": [
+    {
+      "name": "rollback: ?floating-media=off disables acquisition",
+      "detail": "enabled=false"
+    },
+    {
+      "name": "rollback: fixture is the live bill item",
+      "detail": ""
+    },
+    {
+      "name": "rollback: the game still plays without floating media",
+      "detail": "state=participating mode=primary"
+    },
+    {
+      "name": "rollback: primary presentation and the same engine are retained",
+      "detail": "engineSame=true nodeSame=true"
+    }
+  ],
+  "failures": [
+    {
+      "name": "rollback: audio is not muted by a presentation that never activated",
+      "detail": "before=true after=true"
+    }
+  ],
+  "ok": false
+}

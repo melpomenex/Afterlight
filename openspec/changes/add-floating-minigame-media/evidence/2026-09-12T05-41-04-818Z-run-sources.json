@@ -1,0 +1,263 @@
+{
+  "label": "run",
+  "phase": "sources",
+  "app": "http://localhost:5173/?room=theater&debug=1",
+  "gateway": "http://localhost:4000",
+  "headed": false,
+  "startedAt": "2026-09-12T05:40:39.607Z",
+  "tag": "floating-gate-mtxyi82b",
+  "fixture": {
+    "kind": "mp4",
+    "url": "http://127.0.0.1:40951/fixture.mp4",
+    "note": "ffmpeg-generated mp4"
+  },
+  "baseline": {},
+  "errors": [],
+  "originalNow": null,
+  "sources": {
+    "observerBefore": {
+      "awaitingGesture": false,
+      "currentTime": 2.34,
+      "engineDegraded": false,
+      "engineKind": "file",
+      "engineReady": true,
+      "engineSame": true,
+      "floatingExpanded": false,
+      "floatingHidden": false,
+      "frameSame": false,
+      "hidden": false,
+      "loadToken": 1,
+      "loadedItemId": "itm_mtxyiitf_8dpz",
+      "loadedPlayKey": "itm_mtxyiitf_8dpz:::file",
+      "logs": [
+        "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+      ],
+      "muted": true,
+      "node": "VIDEO",
+      "nodeSame": true,
+      "overlayClass": "ts-state-playing",
+      "overlayRect": {
+        "h": 312,
+        "w": 571
+      },
+      "paused": false,
+      "presentation": "primary",
+      "readyState": 4,
+      "sent": [],
+      "volume": 0,
+      "watching": true
+    },
+    "actorBefore": {
+      "awaitingGesture": false,
+      "currentTime": 5.18,
+      "engineDegraded": false,
+      "engineKind": "file",
+      "engineReady": true,
+      "engineSame": true,
+      "floatingExpanded": false,
+      "floatingHidden": false,
+      "frameSame": false,
+      "hidden": false,
+      "loadToken": 1,
+      "loadedItemId": "itm_mtxyiitf_8dpz",
+      "loadedPlayKey": "itm_mtxyiitf_8dpz:::file",
+      "logs": [
+        "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+      ],
+      "muted": true,
+      "node": "VIDEO",
+      "nodeSame": true,
+      "overlayClass": "ts-state-playing",
+      "overlayRect": {
+        "h": 312,
+        "w": 571
+      },
+      "paused": false,
+      "presentation": "primary",
+      "readyState": 4,
+      "sent": [],
+      "volume": 0,
+      "watching": true
+    },
+    "observerAfterLocal": {
+      "awaitingGesture": false,
+      "currentTime": 3.18,
+      "engineDegraded": false,
+      "engineKind": "file",
+      "engineReady": true,
+      "engineSame": true,
+      "floatingExpanded": false,
+      "floatingHidden": false,
+      "frameSame": false,
+      "hidden": false,
+      "loadToken": 1,
+      "loadedItemId": "itm_mtxyiitf_8dpz",
+      "loadedPlayKey": "itm_mtxyiitf_8dpz:::file",
+      "logs": [
+        "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+      ],
+      "muted": true,
+      "node": "VIDEO",
+      "nodeSame": true,
+      "overlayClass": "ts-state-playing",
+      "overlayRect": {
+        "h": 312,
+        "w": 571
+      },
+      "paused": false,
+      "presentation": "primary",
+      "readyState": 4,
+      "sent": [],
+      "volume": 0,
+      "watching": true
+    },
+    "actorAfterLocal": {
+      "awaitingGesture": false,
+      "currentTime": 6.03,
+      "engineDegraded": false,
+      "engineKind": "file",
+      "engineReady": true,
+      "engineSame": true,
+      "floatingExpanded": false,
+      "floatingHidden": false,
+      "frameSame": false,
+      "hidden": false,
+      "loadToken": 1,
+      "loadedItemId": "itm_mtxyiitf_8dpz",
+      "loadedPlayKey": "itm_mtxyiitf_8dpz:::file",
+      "logs": [
+        "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+      ],
+      "muted": true,
+      "node": "VIDEO",
+      "nodeSame": true,
+      "overlayClass": "ts-state-playing ts-floating ts-floating-bottom",
+      "overlayRect": {
+        "h": 0,
+        "w": 278
+      },
+      "paused": false,
+      "presentation": "floating",
+      "readyState": 4,
+      "sent": [],
+      "volume": 0,
+      "watching": true
+    },
+    "frames": {
+      "observerBefore": 0,
+      "observerAfter": 0,
+      "actor": 0
+    },
+    "afterReplacement": {
+      "actor": {
+        "awaitingGesture": false,
+        "currentTime": 1.71,
+        "engineDegraded": false,
+        "engineKind": "file",
+        "engineReady": true,
+        "engineSame": false,
+        "floatingExpanded": false,
+        "floatingHidden": false,
+        "frameSame": false,
+        "hidden": false,
+        "loadToken": 2,
+        "loadedItemId": "itm_mtxyinkh_9w7w",
+        "loadedPlayKey": "itm_mtxyinkh_9w7w:::file",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "muted": true,
+        "node": "VIDEO",
+        "nodeSame": false,
+        "overlayClass": "ts-floating ts-floating-bottom ts-state-playing",
+        "overlayRect": {
+          "h": 0,
+          "w": 278
+        },
+        "paused": false,
+        "presentation": "floating",
+        "readyState": 4,
+        "sent": [],
+        "volume": 0,
+        "watching": true
+      },
+      "observer": {
+        "awaitingGesture": false,
+        "currentTime": 1.7,
+        "engineDegraded": false,
+        "engineKind": "file",
+        "engineReady": true,
+        "engineSame": false,
+        "floatingExpanded": false,
+        "floatingHidden": false,
+        "frameSame": false,
+        "hidden": false,
+        "loadToken": 2,
+        "loadedItemId": "itm_mtxyinkh_9w7w",
+        "loadedPlayKey": "itm_mtxyinkh_9w7w:::file",
+        "logs": [
+          "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+        ],
+        "muted": true,
+        "node": "VIDEO",
+        "nodeSame": false,
+        "overlayClass": "ts-state-playing",
+        "overlayRect": {
+          "h": 312,
+          "w": 571
+        },
+        "paused": false,
+        "presentation": "primary",
+        "readyState": 4,
+        "sent": [],
+        "volume": 0,
+        "watching": true
+      }
+    },
+    "hiddenReplacement": {
+      "chip": true,
+      "currentTime": 1.422064,
+      "hidden": true,
+      "item": "itm_mtxyioz6_anzk",
+      "mode": "hidden",
+      "expectedItem": "itm_mtxyioz6_anzk"
+    }
+  },
+  "finalNow": null,
+  "passes": [
+    {
+      "name": "sources: both transports open",
+      "detail": "actor=true observer=true"
+    },
+    {
+      "name": "sources: fixture is the live bill item",
+      "detail": ""
+    },
+    {
+      "name": "sources AC17: a second occupant is unaffected by local PiP operations",
+      "detail": "engineSame=true nodeSame=true"
+    },
+    {
+      "name": "sources AC17: local operations emit no shared media action",
+      "detail": "{\"observerBefore\":0,\"observerAfter\":0,\"actor\":0}"
+    },
+    {
+      "name": "sources AC14: a replacement item reaches the bill",
+      "detail": ""
+    },
+    {
+      "name": "sources AC14: the floating surface follows the replacement in one pipeline",
+      "detail": "actor=itm_mtxyinkh_9w7w observer=itm_mtxyinkh_9w7w expected=itm_mtxyinkh_9w7w"
+    },
+    {
+      "name": "sources AC6: exactly one media element per occupant after replacement",
+      "detail": "videos=1"
+    },
+    {
+      "name": "sources AC15: hidden PiP retains its state across a source change and keeps playing",
+      "detail": "{\"chip\":true,\"currentTime\":1.422064,\"hidden\":true,\"item\":\"itm_mtxyioz6_anzk\",\"mode\":\"hidden\",\"expectedItem\":\"itm_mtxyioz6_anzk\"}"
+    }
+  ],
+  "failures": [],
+  "ok": true
+}

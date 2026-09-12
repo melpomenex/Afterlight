@@ -1,0 +1,86 @@
+{
+  "label": "run",
+  "phase": "perf",
+  "app": "http://localhost:5173/?room=theater&debug=1",
+  "gateway": "http://localhost:4000",
+  "headed": false,
+  "startedAt": "2026-09-12T05:26:22.743Z",
+  "tag": "floating-gate-mtxxzuw7",
+  "fixture": {
+    "kind": "mp4",
+    "url": "http://127.0.0.1:35787/fixture.mp4",
+    "note": "ffmpeg-generated mp4"
+  },
+  "baseline": {},
+  "errors": [],
+  "originalNow": null,
+  "perf": {
+    "primary": {
+      "n": 301,
+      "median": 16.69999999999891,
+      "p95": 16.700000000000728,
+      "mean": 16.616943521599637
+    },
+    "floating": {
+      "n": 301,
+      "median": 16.700000000000728,
+      "p95": 16.799999999999272,
+      "mean": 16.63554817275995
+    },
+    "medianDelta": 1.0892152117041769e-13,
+    "p95Delta": 0.00598802395200841,
+    "samples": {
+      "primary": 301,
+      "floating": 301
+    },
+    "lifetime": {
+      "before": {
+        "chromeRoots": 2,
+        "engineEvents": 1,
+        "heap": 85983531,
+        "mediaNodes": 1,
+        "totalNodes": 459
+      },
+      "after": {
+        "chromeRoots": 2,
+        "engineEvents": 1,
+        "heap": 84184027,
+        "mediaNodes": 1,
+        "totalNodes": 459
+      }
+    }
+  },
+  "finalNow": null,
+  "passes": [
+    {
+      "name": "perf: transport open",
+      "detail": ""
+    },
+    {
+      "name": "perf: fixture is the live bill item",
+      "detail": ""
+    },
+    {
+      "name": "perf: a single media pipeline and one chrome root across 20 cycles",
+      "detail": "{\"chromeRoots\":2,\"engineEvents\":1,\"heap\":85983531,\"mediaNodes\":1,\"totalNodes\":459} -> {\"chromeRoots\":2,\"engineEvents\":1,\"heap\":84184027,\"mediaNodes\":1,\"totalNodes\":459}"
+    },
+    {
+      "name": "perf: no engine start/teardown during 20 presentation cycles",
+      "detail": "1 -> 1"
+    },
+    {
+      "name": "perf: DOM node count stays bounded across 20 cycles",
+      "detail": "459 -> 459"
+    },
+    {
+      "name": "perf: median frame-time regression <= 5%",
+      "detail": "median 0.0%"
+    },
+    {
+      "name": "perf: p95 frame-time regression <= 10%",
+      "detail": "p95 0.6%"
+    }
+  ],
+  "failures": [],
+  "ok": true
+}

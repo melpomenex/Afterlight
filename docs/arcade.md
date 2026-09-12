@@ -206,3 +206,30 @@ activity stack rather than a small in-repo game:
   available; `?kartPrep=0` or `localStorage afterlight-kart-prep-v1 = 0`
   disables speculative preparation/retention. Debug: `?debug=1` exposes
   `window.__afterlight.kartPerformance()` and readiness metrics.
+
+## Floating theater media while a game is active
+
+Since `add-floating-minigame-media`, the theater's current stream follows the
+player into every playable activity instead of leaving the screen when the
+camera changes (Pool) or the projected quad is cleared (hosted racers):
+
+- The `activityRuntime` acquires a generation/attempt-fenced presentation
+  lease (`src/activities/mediaPresentation.js`) before lazy loading or a
+  direct join; the theater UI (`src/ui/theaterScreen.js`) keeps the ONE
+  existing playback surface and only switches presentation classes. No
+  second decoder, renderer, RAF, canvas or source assignment is created, and
+  presentation changes emit no theater action.
+- Entry mutes programmatically controllable providers; the floating chrome
+  (`src/ui/floatingMedia.js`) offers labeled speaker, hide/restore,
+  enlarge/reduce, a draggable handle (arrow keys, reset) and **Back to game**.
+  Layout and reservations are pure (`src/ui/floatingMediaLayout.js`,
+  `src/ui/floatingMediaReservations.js`); activity modules declare their
+  critical HUD/touch selectors through `mediaPolicy.reservedSelectors`.
+- Twitch clips and degraded embeds keep the same frame with native audio
+  controls and an honest "automatic mute unavailable" notice — they are an
+  explicit exception, never a false muted indicator.
+- Rollback: `?floating-media=off` or `localStorage afterlight-floating-media
+  = off` disables acquisition; games play exactly as before.
+- Gate: `scripts/floating-media-gate-browser.mjs` (phases baseline, ui, lock,
+  flow, perf, sources, rollback; deterministic ffmpeg fixture, local bill
+  probe, identity/mutation/network assertions).

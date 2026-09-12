@@ -1,0 +1,239 @@
+{
+  "label": "run",
+  "phase": "ui",
+  "app": "http://localhost:5173/?room=theater&debug=1",
+  "gateway": "http://localhost:4000",
+  "headed": false,
+  "startedAt": "2026-09-12T05:04:26.613Z",
+  "tag": "floating-gate-mtxx7nrv",
+  "fixture": {
+    "kind": "mp4",
+    "url": "http://127.0.0.1:37673/fixture.mp4",
+    "note": "ffmpeg-generated mp4"
+  },
+  "baseline": {},
+  "errors": [],
+  "originalNow": null,
+  "ui": {
+    "playing": {
+      "awaitingGesture": false,
+      "currentTime": 4.9,
+      "engineDegraded": false,
+      "engineKind": "file",
+      "engineReady": true,
+      "engineSame": true,
+      "floatingExpanded": false,
+      "floatingHidden": false,
+      "frameSame": false,
+      "hidden": false,
+      "loadToken": 1,
+      "loadedItemId": "itm_mtxx7s3q_l1y9",
+      "loadedPlayKey": "itm_mtxx7s3q_l1y9:::file",
+      "logs": [
+        "warn: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead."
+      ],
+      "muted": true,
+      "node": "VIDEO",
+      "nodeSame": true,
+      "overlayClass": "ts-state-playing",
+      "overlayRect": {
+        "h": 182,
+        "w": 324
+      },
+      "paused": false,
+      "presentation": "primary",
+      "readyState": 4,
+      "sent": [],
+      "volume": 0,
+      "watching": true
+    },
+    "primary": {
+      "chrome": true,
+      "hidden": true,
+      "mediaNodes": 1,
+      "mode": "primary"
+    },
+    "floating": {
+      "domOrder": [
+        "floating-media-handle",
+        "floating-media-speaker",
+        "floating-media-enlarge",
+        "floating-media-hide",
+        "floating-media-reset",
+        "floating-media-back"
+      ],
+      "enlarge": "Enlarge stream",
+      "hidden": false,
+      "mediaNodes": 1,
+      "mode": "floating",
+      "noticeHidden": true,
+      "order": [
+        "floating-media-handle",
+        "floating-media-speaker",
+        "floating-media-enlarge",
+        "floating-media-hide",
+        "floating-media-reset",
+        "floating-media-back"
+      ],
+      "restoreHidden": true,
+      "speaker": "Turn on sound and unmute stream",
+      "speakerPressed": "true"
+    },
+    "afterTab": "floating-media-speaker",
+    "dragActionResponse": null,
+    "pointerGate": {
+      "capture": 1,
+      "down": 1,
+      "move": 3,
+      "up": 1
+    },
+    "dragPresenterState": {
+      "corner": "manual",
+      "dragging": false,
+      "manual": {
+        "x": 334,
+        "y": 447
+      }
+    },
+    "beforeDrag": {
+      "h": 210,
+      "hx": 558.390625,
+      "hy": 57,
+      "left": "334px",
+      "position": "334,12",
+      "top": "12px",
+      "topAtHandle": "floating-media-handle",
+      "w": 280,
+      "x": 334,
+      "y": 12
+    },
+    "afterDrag": {
+      "captured": false,
+      "h": 210,
+      "inside": true,
+      "left": "334px",
+      "manual": {
+        "x": 334,
+        "y": 447
+      },
+      "position": "334,447",
+      "top": "447px",
+      "w": 280,
+      "x": 334,
+      "y": 447
+    },
+    "keyboardNudge": {
+      "before": 334,
+      "after": 326,
+      "away": false
+    },
+    "hidden": {
+      "live": "Stream hidden. Use Restore stream to bring it back.",
+      "mode": "hidden",
+      "restoreHidden": false
+    },
+    "restored": {
+      "live": "Stream restored.",
+      "mode": "floating"
+    },
+    "empty": {
+      "chromeHidden": true,
+      "mode": "waiting",
+      "playBadgePresent": true,
+      "restoreHidden": true
+    }
+  },
+  "finalNow": null,
+  "passes": [
+    {
+      "name": "ui: transport open",
+      "detail": ""
+    },
+    {
+      "name": "ui: fixture is the live bill item",
+      "detail": ""
+    },
+    {
+      "name": "ui: fixture reaches playback",
+      "detail": "t=4.9"
+    },
+    {
+      "name": "ui: chrome exists but is hidden in primary presentation",
+      "detail": "{\"chrome\":true,\"hidden\":true,\"mediaNodes\":1,\"mode\":\"primary\"}"
+    },
+    {
+      "name": "ui: floating shows the chrome once",
+      "detail": "mode=floating"
+    },
+    {
+      "name": "ui: speaker is labeled with a press state",
+      "detail": "Turn on sound and unmute stream/true"
+    },
+    {
+      "name": "ui: enlarge control is labeled",
+      "detail": "Enlarge stream"
+    },
+    {
+      "name": "ui: DOM tab order is handle, speaker, enlarge, hide, reset, back",
+      "detail": "floating-media-handle,floating-media-speaker,floating-media-enlarge,floating-media-hide,floating-media-reset,floating-media-back"
+    },
+    {
+      "name": "ui: controllable provider shows no limitation notice",
+      "detail": ""
+    },
+    {
+      "name": "ui: restore chip is not shown while visible",
+      "detail": ""
+    },
+    {
+      "name": "ui: no media node added by chrome",
+      "detail": "1 -> 1"
+    },
+    {
+      "name": "ui: Tab moves focus from the handle to the speaker",
+      "detail": "active=floating-media-speaker"
+    },
+    {
+      "name": "ui: a real drag cannot lose the player offscreen",
+      "detail": "rect=334,447,280x210 vp=626,669"
+    },
+    {
+      "name": "ui: the drag moved the session position",
+      "detail": "334,12 -> 334,447"
+    },
+    {
+      "name": "ui: the drag kept the manual position in-session",
+      "detail": "{\"captured\":false,\"h\":210,\"inside\":true,\"left\":\"334px\",\"manual\":{\"x\":334,\"y\":447},\"position\":\"334,447\",\"top\":\"447px\",\"w\":280,\"x\":334,\"y\":447}"
+    },
+    {
+      "name": "ui: no pointer capture remains after release",
+      "detail": ""
+    },
+    {
+      "name": "ui: keyboard handle movement nudges within bounds",
+      "detail": "334 -> 326 (away=false)"
+    },
+    {
+      "name": "ui: hide switches to the hidden presentation with a restore chip",
+      "detail": "{\"live\":\"Stream hidden. Use Restore stream to bring it back.\",\"mode\":\"hidden\",\"restoreHidden\":false}"
+    },
+    {
+      "name": "ui: hide announces the state change",
+      "detail": "Stream hidden. Use Restore stream to bring it back."
+    },
+    {
+      "name": "ui: restore returns to floating",
+      "detail": "floating"
+    },
+    {
+      "name": "ui: empty bill shows no empty player or restore chip",
+      "detail": "{\"chromeHidden\":true,\"mode\":\"waiting\",\"playBadgePresent\":true,\"restoreHidden\":true}"
+    },
+    {
+      "name": "ui: existing gesture/error affordances remain present",
+      "detail": ""
+    }
+  ],
+  "failures": [],
+  "ok": true
+}
