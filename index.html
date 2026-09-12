@@ -26,7 +26,7 @@
   <meta name="msapplication-config" content="/browserconfig.xml">
 </head>
 <body>
-  <canvas id="world" aria-label="Interactive isometric city world"></canvas>
+  <canvas id="world" tabindex="-1" aria-label="Interactive isometric city world"></canvas>
   <div class="vignette"></div>
 
   <header>
@@ -203,6 +203,13 @@
       <input id="weather-volume" type="range" min="0" max="100" step="5" value="35" aria-label="Weather volume">
       <span id="weather-value">35%</span>
     </label>
+    <label>Fullscreen
+      <button id="fullscreen-toggle" type="button">Go fullscreen</button>
+    </label>
+    <p class="micro" id="fullscreen-note">
+      Fullscreen covers the whole window: gameplay, the floating stream and menus stay together.
+      A provider player's own fullscreen button is outside this combined mode.
+    </p>
     <button id="resume">Return to game →</button>
   </dialog>
 

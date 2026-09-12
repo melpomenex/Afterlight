@@ -5,6 +5,15 @@
   color: #e8e7d9;
   background: #152020;
   font-synthesis: none;
+  /* Layer contract (add-floating-minigame-media D5): gameplay/HUD < floating
+     media < game menus/interaction overlays < application blocking loading /
+     native dialogs (the last live in the browser top layer). */
+  --z-hud: 40;
+  --z-activity-hud: 80;
+  --z-pool-hud: 900;
+  --z-floating-media: 950;
+  --z-game-menu: 1200;
+  --z-app-loading: 9999;
 }
 * { box-sizing: border-box; }
 body { margin: 0; overflow: hidden; }
@@ -294,7 +303,7 @@ kbd {
   font-size: 60px;
   color: #cebc8f;
   transition: opacity 0.8s;
-  z-index: 9999;
+  z-index: var(--z-app-loading);
 }
 #loading span { font: 10px 'Space Mono', monospace; letter-spacing: 3px; }
 
@@ -1847,7 +1856,7 @@ body.dm-racing .vignette { display: none !important; }
 .kr-activity {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: var(--z-hud);
   pointer-events: none;
 }
 
@@ -1857,7 +1866,7 @@ body.dm-racing .vignette { display: none !important; }
 .dm-activity {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: var(--z-hud);
   pointer-events: none;
 }
 
@@ -1926,7 +1935,7 @@ body.theater-watching #chat-log {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 900;
+  z-index: var(--z-pool-hud);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -2366,4 +2375,152 @@ body.theater-watching #chat-log {
 }
 .sbhud-rematch:hover {
   background: rgba(237, 182, 108, 0.2);
+}
+
+/* =====================================================================
+   FLOATING MINI-GAME MEDIA (add-floating-minigame-media)
+   One persistent surface, three presentation geometries: the projected
+   world quad, the cinema stage (unchanged), and this compact floating
+   player with chrome. Layer contract lives in :root (--z-*).
+   ===================================================================== */
+
+#theater-screen.ts-floating {
+  left: var(--fm-left, 12px);
+  top: var(--fm-top, 12px);
+  width: var(--fm-width, 320px);
+  height: calc(var(--fm-height, 180px) + var(--fm-bar, 52px));
+  transform: none !important;
+  transform-origin: initial;
+  will-change: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  background: #0b1512f2;
+  border: 1px solid #c6b47a55;
+  border-radius: 12px 4px 12px 4px;
+  box-shadow: 0 18px 60px #000b;
+  z-index: var(--z-floating-media);
+  pointer-events: none; /* only the media rect and chrome accept events */
+}
+#theater-screen.ts-floating .ts-media {
+  position: relative;
+  inset: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  pointer-events: auto;
+  border-radius: 11px 4px 0 0;
+  overflow: hidden;
+}
+#theater-screen.ts-floating .ts-state-layer { border-radius: 11px 4px 0 0; }
+body.theater-watching #theater-screen.ts-floating .ts-media { pointer-events: auto; }
+/* The provider window keeps its measured aspect; the chrome lives outside it. */
+#theater-screen.ts-floating .ts-media video,
+#theater-screen.ts-floating .ts-media iframe { object-fit: contain; }
+
+/* Chrome bar: controls outside the video rectangle (never over provider UI). */
+.fm-chrome { display: none; }
+#theater-screen.ts-floating .fm-chrome {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: var(--fm-bar, 52px);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  padding: 4px 6px;
+  background: #0d1b18f2;
+  border-top: 1px solid #c6b47a3d;
+  border-radius: 0 0 11px 3px;
+  pointer-events: auto;
+}
+#theater-screen.ts-floating-hidden { visibility: hidden; }
+#theater-screen.ts-floating-hidden .ts-media,
+#theater-screen.ts-floating-hidden .fm-chrome { visibility: hidden; }
+#theater-screen.ts-floating-chip .ts-media,
+#theater-screen.ts-floating-chip .fm-chrome { display: none; }
+
+.fm-title {
+  flex: 1 1 60px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #efe3bd;
+  font: 9px 'Space Mono', monospace;
+  letter-spacing: 0.06em;
+}
+.fm-buttons { display: flex; align-items: center; gap: 4px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
+.fm-btn,
+.fm-handle,
+.fm-restore {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 6px 10px;
+  border-radius: 10px 3px;
+  border: 1px solid #c6b47a66;
+  background: #162d30ed;
+  color: #eee1ba;
+  font: 11px 'DM Sans', sans-serif;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.fm-handle { touch-action: none; cursor: grab; }
+.fm-handle:active { cursor: grabbing; }
+.fm-btn:hover, .fm-restore:hover { border-color: #c6b47a99; color: #fff1c7; }
+.fm-btn:focus-visible,
+.fm-handle:focus-visible,
+.fm-restore:focus-visible { outline: 2px solid #bbded5; outline-offset: 2px; }
+.fm-btn--quiet { opacity: 0.85; }
+.fm-notice {
+  flex: 1 1 100%;
+  margin: 0;
+  color: #e7c98b;
+  font-size: 10px;
+  line-height: 1.3;
+}
+.fm-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.fm-restore {
+  position: fixed;
+  left: var(--fm-left, 12px);
+  top: var(--fm-top, 12px);
+  z-index: var(--z-floating-media);
+}
+.fm-restore[hidden] { display: none; }
+
+/* Game menus / interaction overlays must outstack body-level floating media.
+   Raise the hosted menu layer only while a menu is actually open. */
+body:has(.kr-screens .kr-screen.on) .kr-activity,
+body:has(.sbx-modal-scrim.sbx-visible) .sbx,
+body:has(.dm.dm-phase-lobby) .dm-activity,
+body:has(.dm.dm-phase-results) .dm-activity,
+body:has(.dm.dm-phase-aborted) .dm-activity {
+  z-index: var(--z-game-menu);
+}
+.pool-rules-modal { z-index: var(--z-game-menu); }
+/* Wrapped chrome grows upward for bottom-half placements. */
+#theater-screen.ts-floating.ts-floating-bottom {
+  top: auto;
+  bottom: var(--fm-bottom, 12px);
+}
+/* Floating wins even if cinema chrome is still transitioning out. */
+body.theater-watching #theater-screen.ts-floating {
+  left: var(--fm-left, 12px);
+  top: var(--fm-top, 12px);
+  bottom: auto;
+  translate: none;
+  width: var(--fm-width, 320px);
+  height: calc(var(--fm-height, 180px) + var(--fm-bar, 52px));
+  aspect-ratio: auto;
+  max-height: none;
+}
+body.theater-watching #theater-screen.ts-floating.ts-floating-bottom {
+  top: auto;
+  bottom: var(--fm-bottom, 12px);
 }
