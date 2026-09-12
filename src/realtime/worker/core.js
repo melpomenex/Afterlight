@@ -72,12 +72,16 @@ export class PipelineCore {
     this.store = new EntityStore(maxSlots);
     this.session = { epoch: 0, frameSequence: 0 };
     this.stats = { frames: 0, rejected: 0, resyncs: 0 };
+    // A fresh/rebuilt decoder has no baseline to preserve: the first
+    // applicable delta may adopt its baseline (fix-remote-avatar-flicker).
+    this.awaitingBaseline = true;
   }
 
   reset() {
     this.store.reset();
     this.session.epoch = 0;
     this.session.frameSequence = 0;
+    this.awaitingBaseline = true;
   }
 
   // Apply one binary frame, folding its changes into `pack`. Returns
@@ -88,6 +92,7 @@ export class PipelineCore {
     const self = this;
     const r = applyFrame(this.store, bytes, this.session, {
       collectEntries: false,
+      adoptBaseline: this.awaitingBaseline,
       onRow(id, slot, sectionId, i, columns) {
         if (sectionId === SECTION_TRANSFORM || sectionId === SECTION_FLAGS) {
           let row = index.get(id);
@@ -132,6 +137,7 @@ export class PipelineCore {
     this.stats.frames++;
     if (r.ok && r.kind === 'resync') this.stats.resyncs++;
     if (!r.ok) this.stats.rejected++;
+    if (r.ok && r.kind === 'applied') this.awaitingBaseline = false;
     return r;
   }
 

@@ -633,6 +633,48 @@ defmodule AfterlightWeb.GameChannelWorldTest do
       end)
     end
 
+    test "rt.spawn clients receive a lifecycle-carrying FULL snapshot" do
+      flipped(fn ->
+        guest = "guest_rt_spawn#{System.unique_integer([:positive])}"
+        socket = connect_guest(guest, "Wren")
+
+        # Negotiate the binary fast path AND the additive spawn capability.
+        push(socket, "hello", %{
+          "guestId" => guest,
+          "nickname" => "Wren",
+          "rt" => %{"protocols" => ["afterlight-soa-v1"], "spawn" => true}
+        })
+
+        assert_receive {:fake_upstream_started, _up, _headers}, 1_000
+
+        push(socket, "join_room", %{"roomId" => "market"})
+        assert_push("presence_update", %{"roomId" => "market"})
+
+        send(
+          socket.channel_pid,
+          Afterlight.World.Frames.world_message("market", %{
+            "type" => "presence_update",
+            "players" => [%{"id" => guest, "x" => 3.0, "z" => 4.0}],
+            "epoch" => 1
+          })
+        )
+
+        assert_push("rt_binary", %{"roomId" => "market", "data" => data})
+        bin = Base.decode64!(data)
+
+        <<magic::32-little, 1::8, frame_type::8, flags::8, 24::8, _epoch::32-little,
+          _tick::32-little, _seq::32-little, _baseline::32-little, rest::binary>> = bin
+
+        assert magic == 0x414C5254
+        assert frame_type == 0, "spawn clients receive a FULL snapshot, not a delta"
+        assert Bitwise.band(flags, 1) == 1, "snapshot promises its string table"
+
+        # First section is the DENSE string table carrying the guest id once.
+        <<8::8, 0::8, 0::16, count::32-little, _tlen::32-little, _::binary>> = rest
+        assert count == 1
+      end)
+    end
+
     test "untagged legacy world messages keep the unconditional push (compatibility)" do
       flipped(fn ->
         guest = "guest_legacy#{System.unique_integer([:positive])}"

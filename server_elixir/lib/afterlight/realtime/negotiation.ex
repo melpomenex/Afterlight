@@ -4,12 +4,15 @@ defmodule Afterlight.Realtime.Negotiation do
   @protocol "afterlight-soa-v1"
 
   @spec parse_hello_rt(map()) :: map() | nil
-  def parse_hello_rt(%{"rt" => %{"protocols" => protocols}}) when is_list(protocols) do
+  def parse_hello_rt(%{"rt" => %{"protocols" => protocols}} = hello) when is_list(protocols) do
     if @protocol in protocols do
       %{
         protocol: @protocol,
         webgpu: false,
-        wasm: false
+        wasm: false,
+        # Additive live-flush capability (fix-remote-avatar-flicker): the
+        # client applies lifecycle-carrying FULL snapshots. Absent = delta.
+        spawn: get_in(hello, ["rt", "spawn"]) == true
       }
     else
       nil

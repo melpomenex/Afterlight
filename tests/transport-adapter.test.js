@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { flatFrameFromChannelEvent } from '../src/net/phoenixClient.js';
 import { NetworkClient } from '../src/net/client.js';
+import { encodeFlush } from '../shared/realtime/nodeBinaryFlush.js';
 
 // -- phoenixClient: envelope unwrap -----------------------------------------
 
@@ -107,6 +108,25 @@ test('facade: send silently drops when transport closed', () => {
   ws.serverOpen();
   client.send('emote', { emote: 'wave' });
   assert.equal(ws.sent.filter((f) => f.type === 'emote').length, 1, 'drop while closed, deliver when open');
+});
+
+test('facade: node rt_binary envelope decodes to an ArrayBuffer for handleBinary', () => {
+  stubWebSocket();
+  const client = makeClient();
+  client.desiredRoom = 'market';
+  const bins = [];
+  client.handleBinary = (buf) => bins.push(new Uint8Array(buf));
+  client.connect();
+  const ws = FakeWebSocket.instances.at(-1);
+  ws.serverOpen();
+
+  const data = Buffer.from(encodeFlush([{ id: 'guest_a', x: 1, z: 2, rotY: 0 }], 1, 1)).toString('base64');
+  ws.serverFrame({ type: 'rt_binary', tick: 1, data, roomId: 'market' });
+  assert.equal(bins.length, 1, 'matching-room envelope reaches the binary hook');
+  assert.equal(new DataView(bins[0].buffer, bins[0].byteOffset, bins[0].byteLength).getUint32(0, true), 0x414c5254);
+
+  ws.serverFrame({ type: 'rt_binary', tick: 2, data, roomId: 'theater' });
+  assert.equal(bins.length, 1, 'wrong-room envelope is rejected before consumption');
 });
 
 test('facade: movement throttle caps at ~80ms spacing', () => {

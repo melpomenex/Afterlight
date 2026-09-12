@@ -28,14 +28,19 @@ optional, negotiated binary data plane **under** the existing abstractions:
    `movement` at ≤12.5 Hz; P3 freezes this as "no deltas" **on the JSON path**.
    The fast path is a separate negotiated capability — it does not modify the
    frozen catalog (`shared/protocol.js`) or P2/P3 requirements.
-3. **Binary header fields are live on the negotiated path (2026-09-07).**
+3. **Binary header fields are live on the negotiated path (2026-09-07; live
+   flush shape updated 2026-09-12).**
    Phoenix world runtime + Node direct server emit `rt_binary` as a **JSON
    channel event** `{tick, data: base64}` — not a raw WS binary frame — when
    the client negotiates `hello.rt.protocols` includes `afterlight-soa-v1`.
    Populated today: `server_tick`, `frame_sequence`, `baseline_sequence`;
-   `room_epoch` stays **0** until P9 fencing. JSON `presence_update` remains
-   the default for non-negotiating clients. See `shared/realtime/nodeBinaryFlush.js`
-   and `Afterlight.World.BinaryFlush`.
+   `room_epoch` stays **0** until P9 fencing. Since fix-remote-avatar-flicker
+   the LIVE room flush is a self-validating **FULL snapshot** carrying
+   SPAWN + STRING_TABLE + TRANSFORM + FLAGS for clients that also advertise
+   the additive `hello.rt.spawn` capability; every other negotiating client
+   keeps the previous baseline-compatible **delta** shape unchanged. JSON
+   `presence_update` remains the default for non-negotiating clients. See
+   `shared/realtime/nodeBinaryFlush.js` and `Afterlight.World.BinaryFlush`.
 4. **Identity is the guestId string** until P4; self-echo filtering and
    `garden:<guestId>` depend on it. Binary frames therefore carry u32 entity
    slots internally, but spawn records carry the string id once so client slot
@@ -56,7 +61,7 @@ optional, negotiated binary data plane **under** the existing abstractions:
 
 | Interface | Source | How consumed |
 |---|---|---|
-| `presence_update {players:[{id,x,z,rotY,walking,sitting,airborne}]}` | current Node server; preserved by P2/P3 | semantic source of truth for the binary transform/flags payload (same fields, u32 slots instead of string ids) |
+| `presence_update {players:[{id,x,z,rotY,walking,sitting,airborne}]}` | current Node server; preserved by P2/P3 | semantic source of truth for the binary transform/flags payload (same fields, u32 slots instead of string ids) and, on the live snapshot path, for each member's spawn row and string-table guest identity |
 | `hello` / `welcome` | `server/index.js`, P2 gateway | capability negotiation via **additive fields only** (`rt` object); legacy peers ignore unknown JSON fields |
 | `RemotePlayersManager.setPlayer({id,x,z,rotY,walking,sitting,airborne})` | `src/render/avatars.js:237` | the decode boundary: the fast path's client output is exactly this entry shape, so avatars need no change for the CPU fast path |
 | three r0.180 `./webgpu` + `./tsl` exports | `node_modules/three` | WebGPU probes build on the installed version; no renderer flip without its own gated change |

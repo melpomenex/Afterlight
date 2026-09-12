@@ -87,46 +87,30 @@ export function wireRealtime({
         maxSlots,
         handlers: {
           onEntry: (e) => {
-            if (!entitySession) {
-              remotePlayers.setPlayer(e);
-              return;
-            }
-            if (localGuest && (e.id === localGuest || e.id === 'kiln')) {
-              remotePlayers.setPlayer(e);
-            }
+            // With the entity seam active the backend owns every remote
+            // avatar; the local guest and Kiln stay on the traditional path
+            // and are never rendered as remote avatars.
+            if (entitySession) return;
+            remotePlayers.setPlayer(e);
           },
           onJoin: (j) => {
-            if (!entitySession) {
-              remotePlayers.setPlayer({
-                id: j.guestId ?? j.id,
-                x: j.x,
-                z: j.z,
-                rotY: j.yaw,
-                walking: false,
-                sitting: false,
-                airborne: false,
-              });
-              return;
-            }
-            const gid = j.guestId ?? j.id;
-            if (gid === localGuest) {
-              remotePlayers.setPlayer({
-                id: gid,
-                x: j.x,
-                z: j.z,
-                rotY: j.yaw ?? j.rotY ?? 0,
-                walking: false,
-                sitting: false,
-                airborne: false,
-              });
-            }
-          },
-          onLeave: (id) => {
-            if (!entitySession) remotePlayers.removePlayer(id);
+            if (entitySession) return;
+            remotePlayers.setPlayer({
+              id: j.guestId ?? j.id,
+              x: j.x,
+              z: j.z,
+              rotY: j.yaw,
+              walking: false,
+              sitting: false,
+              airborne: false,
+            });
           },
           onResync: () => {
             entitySession?.clearRemotes?.();
             if (net.desiredRoom) net.send(MSG_TYPES.JOIN_ROOM, { roomId: net.desiredRoom });
+          },
+          onLeave: (id) => {
+            if (!entitySession) remotePlayers.removePlayer(id);
           },
         },
       })
@@ -142,6 +126,9 @@ export function wireRealtime({
     net.rtHello = buildHelloRt({
       webgpu: rtFlags.renderer_webgpu_fastpath,
       wasm: rtFlags.realtime_wasm,
+      // Additive live-flush capability (fix-remote-avatar-flicker): this
+      // bundle applies lifecycle-carrying FULL snapshots.
+      spawn: true,
     });
   } else if (seamOn) {
     net.rtHello = buildHelloRt({ webgpu: false, wasm: false });

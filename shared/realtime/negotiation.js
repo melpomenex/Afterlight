@@ -5,8 +5,8 @@
 import { RT_PROTOCOL } from './constants.js';
 
 // Client → hello payload.
-export function buildHelloRt({ webgpu = false, wasm = false, protocols = [RT_PROTOCOL] } = {}) {
-  return { protocols: protocols.slice(), webgpu: !!webgpu, wasm: !!wasm };
+export function buildHelloRt({ webgpu = false, wasm = false, spawn = false, protocols = [RT_PROTOCOL] } = {}) {
+  return { protocols: protocols.slice(), webgpu: !!webgpu, wasm: !!wasm, spawn: !!spawn };
 }
 
 // Server → welcome payload.
@@ -22,6 +22,9 @@ export function parseHelloRt(hello) {
     protocols: rt.protocols.filter((p) => typeof p === 'string' && p === RT_PROTOCOL),
     webgpu: rt.webgpu === true,
     wasm: rt.wasm === true,
+    // Additive live-flush capability (fix-remote-avatar-flicker): the client
+    // applies lifecycle-carrying FULL snapshots. Absent = delta shape.
+    spawn: rt.spawn === true,
   };
 }
 

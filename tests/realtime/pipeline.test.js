@@ -10,6 +10,8 @@ import { PackConsumer } from '../../src/realtime/consumer.js';
 import { RealtimePipeline } from '../../src/realtime/pipeline.js';
 import { resolveFlagsFrom } from '../../src/realtime/flags.js';
 import { writeFrame } from '../../shared/realtime/writer.js';
+import { applyFrame } from '../../shared/realtime/applyFrame.js';
+import { EntityStore } from '../../shared/realtime/entityStore.js';
 import { FRAME_TYPE, ENCODING } from '../../shared/realtime/constants.js';
 
 function snapshotFrame(seq = 1, spawns = [
@@ -128,6 +130,60 @@ test('baseline gap signals resync and the store survives a later snapshot', () =
   const r2 = core.applyFrame(snapshotFrame(10), createPack(8), new Map());
   assert.equal(r2.kind, 'applied');
   assert.equal(core.store.count, 2);
+});
+
+test('adoption: a fresh core takes the first baseline; a gap on an established session resyncs', () => {
+  const core = new PipelineCore({ maxSlots: 64 });
+  assert.equal(core.awaitingBaseline, true);
+  const r = core.applyFrame(deltaFrame(42, 41, 42, [{ id: 10, x: 1, z: 1, yaw: 0 }]), createPack(8), new Map());
+  assert.equal(r.kind, 'applied', 'a fresh session adopts the server baseline instead of resyncing');
+  assert.equal(core.awaitingBaseline, false);
+  assert.equal(
+    core.applyFrame(deltaFrame(43, 42, 43, [{ id: 10, x: 2, z: 2, yaw: 0 }]), createPack(8), new Map()).kind,
+    'applied',
+  );
+  assert.equal(
+    core.applyFrame(deltaFrame(99, 98, 99, [{ id: 10, x: 0, z: 0, yaw: 0 }]), createPack(8), new Map()).kind,
+    'resync',
+    'the strict gap rule resumes once a baseline exists',
+  );
+  core.reset();
+  assert.equal(core.awaitingBaseline, true, 'reset re-arms adoption');
+  assert.equal(
+    core.applyFrame(deltaFrame(7, 6, 7, [{ id: 10, x: 0, z: 0, yaw: 0 }]), createPack(8), new Map()).kind,
+    'applied',
+  );
+});
+
+test('shared applyFrame: adoptBaseline aligns a fresh session, strict without it', () => {
+  const adopted = applyFrame(
+    new EntityStore(16),
+    deltaFrame(9, 8, 9, [{ id: 1, x: 1, z: 1, yaw: 0 }]),
+    { epoch: 0, frameSequence: 0 },
+    { adoptBaseline: true },
+  );
+  assert.equal(adopted.kind, 'applied');
+  const strict = applyFrame(
+    new EntityStore(16),
+    deltaFrame(9, 8, 9, [{ id: 1, x: 1, z: 1, yaw: 0 }]),
+    { epoch: 0, frameSequence: 0 },
+  );
+  assert.equal(strict.kind, 'resync');
+});
+
+test('pipeline: a reset inline session adopts the next server baseline', () => {
+  const resyncs = [];
+  const p = new RealtimePipeline({
+    flags: { realtime_binary: true, realtime_worker: false },
+    handlers: { onResync: (r) => resyncs.push(r), onEntry: () => {} },
+  });
+  p.feedBinary(snapshotFrame().buffer.slice(0)); // baseline 1 established
+  p.reset();
+  // The room change keeps the server's transport sequence counting (seq 42).
+  p.feedBinary(deltaFrame(42, 41, 42, [{ id: 10, x: 3, z: 3, yaw: 0 }]).buffer.slice(0));
+  assert.deepEqual(resyncs, [], 'a reset session re-baselines instead of resync-looping');
+  p.feedBinary(deltaFrame(43, 42, 43, [{ id: 10, x: 4, z: 4, yaw: 0 }]).buffer.slice(0));
+  assert.deepEqual(resyncs, [], 'the adopted baseline commits and in-order frames apply');
 });
 
 test('reset clears slots, baselines, and identity maps', () => {

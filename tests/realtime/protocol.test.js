@@ -169,7 +169,7 @@ test('oversized declared lengths are rejected before allocation', () => {
 test('negotiation is additive and tolerant', () => {
   const hello = { guestId: 'g', rt: buildHelloRt({ webgpu: true }) };
   const caps = parseHelloRt(hello);
-  assert.deepEqual(caps, { protocols: ['afterlight-soa-v1'], webgpu: true, wasm: false });
+  assert.deepEqual(caps, { protocols: ['afterlight-soa-v1'], webgpu: true, wasm: false, spawn: false });
   assert.equal(parseHelloRt({ guestId: 'legacy' }), null);
   assert.equal(parseHelloRt({ rt: 'garbage' }), null);
   assert.equal(parseHelloRt({ rt: { noProtocols: true } }), null);

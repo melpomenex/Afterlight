@@ -22,8 +22,11 @@ export class PackConsumer {
       if (j.guestId) this.guestIds.set(j.entityId, j.guestId);
       this.handlers.onJoin?.(j);
     }
+    // Departure mappings must stay resolvable until the backing renderer has
+    // removed the guest-keyed avatar; only then is the identity dropped.
+    const departed = [];
     for (const id of pack.left) {
-      this.guestIds.delete(id);
+      departed.push(id);
       this.handlers.onLeave?.(id);
     }
     for (let i = 0; i < pack.count; i++) {
@@ -47,6 +50,7 @@ export class PackConsumer {
       guestIds: this.guestIds,
       excludedIds: this.excludedIds,
     });
+    for (const id of departed) this.guestIds.delete(id);
   }
 
   reset() {

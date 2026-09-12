@@ -8,6 +8,8 @@ import { createWasmPipelineCore } from '../../src/realtime/wasm/pipelineCore.js'
 import { resetWasmModuleCache } from '../../src/realtime/wasm/loader.js';
 import { resolveFlagsFrom } from '../../src/realtime/flags.js';
 import { writeFrame } from '../../shared/realtime/writer.js';
+import { encodeSnapshot } from '../../shared/realtime/nodeBinaryFlush.js';
+import { playerEntityId } from '../../shared/realtime/entityId.js';
 import { FRAME_TYPE, ENCODING } from '../../shared/realtime/constants.js';
 
 const WASM_PATH = fileURLToPath(new URL('../../public/wasm/afterlight_realtime.wasm', import.meta.url));
@@ -95,6 +97,66 @@ test('wasm pipeline matches JS core on snapshot + delta', async (t) => {
   js.applyFrame(delta, jsPack, jsIndex);
   wasm.applyFrame(delta, wasmPack, wasmIndex);
   assert.deepEqual(packSnapshot(jsPack), packSnapshot(wasmPack));
+
+  wasm.store.destroy();
+});
+
+test('wasm core accepts real gateway snapshot bytes and the next delta', async (t) => {
+  if (!wasmBytes) {
+    t.skip('wasm binary missing — run npm run build:wasm');
+    return;
+  }
+  resetWasmModuleCache();
+  const js = new PipelineCore({ maxSlots: 64 });
+  const wasm = await createWasmPipelineCore({ maxSlots: 64, compileBytes: wasmBytes.buffer.slice(0) });
+
+  // The exact encoder server/world.js and the Elixir BinaryFlush mirror: a
+  // FULL snapshot with a DENSE string table + spawn rows and SORTED_IDS
+  // transform/flags columns.
+  const snapshot = encodeSnapshot([
+    { id: 'guest_b', x: 2, z: 5, rotY: 0.25, walking: true },
+    { id: 'guest_a', x: 1, z: 4, rotY: 0, sitting: true },
+  ], 7, 7);
+
+  const jsPack = createPack(8);
+  const wasmPack = createPack(8);
+  const jsIndex = new Map();
+  const wasmIndex = new Map();
+
+  assert.equal(js.applyFrame(snapshot, jsPack, jsIndex).kind, 'applied');
+  assert.equal(wasm.applyFrame(snapshot, wasmPack, wasmIndex).kind, 'applied');
+  assert.deepEqual(packSnapshot(jsPack), packSnapshot(wasmPack));
+  assert.equal(wasmPack.joined.length, 2, 'spawn rows reach the renderer seam');
+
+  // The snapshot committed its sequence: an in-order delta applies in both.
+  const delta = deltaFrame(8, 7, 8, [{ id: playerEntityId('guest_a'), x: 9, z: 9, yaw: 0.5 }]);
+  assert.equal(js.applyFrame(delta, jsPack, jsIndex).kind, 'applied');
+  assert.equal(wasm.applyFrame(delta, wasmPack, wasmIndex).kind, 'applied');
+  assert.deepEqual(packSnapshot(jsPack), packSnapshot(wasmPack));
+
+  wasm.store.destroy();
+});
+
+test('wasm core adopts a continuing baseline after reset without a resync loop', async (t) => {
+  if (!wasmBytes) {
+    t.skip('wasm binary missing — run npm run build:wasm');
+    return;
+  }
+  resetWasmModuleCache();
+  const wasm = await createWasmPipelineCore({ maxSlots: 64, compileBytes: wasmBytes.buffer.slice(0) });
+
+  // Room travel: the server's transport sequence keeps counting. The fresh
+  // session adopts the baseline; rows for entities it never spawned apply as
+  // an empty frame with the baseline committed (the old-server case).
+  const adopted = wasm.applyFrame(deltaFrame(42, 41, 42, [{ id: 10, x: 1, z: 1, yaw: 0 }]), createPack(8), new Map());
+  assert.equal(adopted.kind, 'applied');
+  assert.equal(wasm.awaitingBaseline, false);
+
+  wasm.reset();
+  const afterReset = wasm.applyFrame(deltaFrame(7, 6, 7, [{ id: 10, x: 0, z: 0, yaw: 0 }]), createPack(8), new Map());
+  assert.equal(afterReset.kind, 'applied');
+  const next = wasm.applyFrame(deltaFrame(8, 7, 8, [{ id: 10, x: 4, z: 4, yaw: 0 }]), createPack(8), new Map());
+  assert.equal(next.kind, 'applied', 'the adopted baseline commits and in-order frames continue');
 
   wasm.store.destroy();
 });

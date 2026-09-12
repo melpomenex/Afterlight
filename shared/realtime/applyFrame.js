@@ -17,6 +17,9 @@ export const NO_STRING_REF = 0xffffffff;
 //     with onRow for zero-allocation visitor application (worker pipeline).
 //   onRow(id, slot, sectionId, i, columns) — per applied component row.
 //   onJoin(row, guestId) / onLeave(id) — lifecycle visitors.
+//   adoptBaseline: a session with no established baseline (fresh connection,
+//     room rejoin, worker restart) aligns to the frame's baseline instead of
+//     resyncing. Once a baseline exists the strict delta-gap rule applies.
 // Returns one of:
 //   {ok:true, kind:'applied', joined:[], left:[], entries:[]}
 //   {ok:true, kind:'resync'}
@@ -41,7 +44,9 @@ export function applyFrame(store, bytes, session, opts = emptyOpts()) {
 
   if (isDelta) {
     if (h.baselineSequence !== session.frameSequence || h.roomEpoch !== session.epoch) {
-      return { ok: true, kind: 'resync' };
+      if (!opts.adoptBaseline) return { ok: true, kind: 'resync' };
+      session.frameSequence = h.baselineSequence;
+      session.epoch = h.roomEpoch;
     }
   }
 

@@ -90,6 +90,25 @@ test('presence bridge maps walking/sitting/airborne flags, not the player object
   wire.dispose();
 });
 
+test('wireRealtime advertises the additive spawn capability on the binary path', () => {
+  const remotePlayers = {
+    setPlayer: () => {},
+    removePlayer: () => {},
+    update: () => {},
+    clear: () => {},
+  };
+  const net = { guestId: 'guest_me', on: () => {}, send: () => {} };
+  const wire = wireRealtime({
+    net,
+    remotePlayers,
+    guestId: 'guest_me',
+    flags: { realtime_binary: true, realtime_worker: false, renderer_webgpu_fastpath: false },
+  });
+  assert.equal(net.rtHello.spawn, true, 'this bundle applies lifecycle snapshots');
+  assert.deepEqual(net.rtHello.protocols, ['afterlight-soa-v1']);
+  wire.dispose();
+});
+
 test('legacy neutrality: without rtHello the hello is unchanged and binary is dropped', async () => {
   const { wss, port } = await startServer();
   const seen = { hello: null };

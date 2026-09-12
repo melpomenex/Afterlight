@@ -1,5 +1,6 @@
 // WasmPipelineCore — drop-in for PipelineCore using the Rust decoder.
 
+import { readHeader } from '../../../shared/realtime/frame.js';
 import { STATUS } from './status.js';
 import { loadWasmModule } from './loader.js';
 import { WasmStore } from './store.js';
@@ -16,16 +17,46 @@ export class WasmPipelineCore {
     this.store = store;
     this.session = { epoch: 0, frameSequence: 0 };
     this.stats = { frames: 0, rejected: 0, resyncs: 0 };
+    // A fresh/rebuilt decoder has no baseline to preserve: the first
+    // applicable delta may adopt its baseline (fix-remote-avatar-flicker).
+    this.awaitingBaseline = true;
   }
 
   reset() {
     this.store.resetTo(0, 0, false);
     this.session.epoch = 0;
     this.session.frameSequence = 0;
+    this.awaitingBaseline = true;
   }
 
   applyFrame(bytes, pack, index) {
-    const status = this.store.applyFrame(bytes);
+    let status = this.store.applyFrame(bytes);
+    // The Rust decoder signals a baseline mismatch before mutating state; a
+    // freshly reset session realigns to the frame's baseline and retries
+    // once. Once a baseline exists, mismatches resync as before.
+    if (status === STATUS.OK_RESYNC_NEEDED && this.awaitingBaseline) {
+      const head = readHeader(bytes);
+      if (head.ok) {
+        this.store.resetTo(head.header.roomEpoch, head.header.baselineSequence, true);
+        status = this.store.applyFrame(bytes);
+      }
+    }
+    // A delta can reference entities this session holds no state for (an
+    // older server's delta stream after a reset, or a snapshot-less client).
+    // With an empty store there is nothing to apply and no snapshot will
+    // arrive from that server: commit the frame's sequence and continue
+    // instead of resyncing forever. A non-empty store still rejects unknown
+    // ids as a genuine inconsistency.
+    if (status === STATUS.E_UNKNOWN_ID && this.store.live() === 0) {
+      const head = readHeader(bytes);
+      if (head.ok) {
+        this.store.resetTo(head.header.roomEpoch, head.header.frameSequence, true);
+        this.stats.frames++;
+        this.session.frameSequence = this.store.seq();
+        this.awaitingBaseline = false;
+        return { ok: true, kind: 'applied' };
+      }
+    }
     if (status === STATUS.OK_STALE) {
       return { ok: true, kind: 'stale_dropped' };
     }
@@ -41,6 +72,7 @@ export class WasmPipelineCore {
     this._fillPackFromStaging(pack, index);
     this.stats.frames++;
     this.session.frameSequence = this.store.seq();
+    this.awaitingBaseline = false;
     return { ok: true, kind: 'applied' };
   }
 

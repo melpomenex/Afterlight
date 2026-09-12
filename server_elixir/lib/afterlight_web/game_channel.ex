@@ -1491,14 +1491,23 @@ defmodule AfterlightWeb.GameChannel do
   # The push/conversion shared by both world_frame envelopes (task 3.2):
   # negotiated `rt` transports get the SoA flush in a room-tagged outer
   # envelope; everyone else gets the flat JSON frame with the additive
-  # "roomId". The SoA bytes themselves are untouched.
+  # "roomId". The SoA bytes themselves are untouched. A client that
+  # advertised the additive `spawn` capability receives the lifecycle-carrying
+  # FULL snapshot (fix-remote-avatar-flicker); every other negotiating client
+  # keeps the baseline-compatible delta shape.
   defp push_world_frame(frame, room_id, socket) do
     case {socket.assigns[:rt], frame} do
-      {%{protocol: _}, %{"type" => "presence_update", "players" => players}} when is_list(players) ->
+      {%{protocol: _} = rt, %{"type" => "presence_update", "players" => players}} when is_list(players) ->
         members = json_players_to_members(players)
         tick = Map.get(frame, "tick", 0)
         seq = (socket.assigns[:rt_seq] || 0) + 1
-        bin = BinaryFlush.encode_flush(members, tick, seq)
+
+        bin =
+          if Map.get(rt, :spawn, false) do
+            BinaryFlush.encode_snapshot(members, tick, seq)
+          else
+            BinaryFlush.encode_flush(members, tick, seq)
+          end
 
         envelope = %{"tick" => tick, "data" => Base.encode64(bin)}
         envelope = if room_id, do: Map.put(envelope, "roomId", room_id), else: envelope

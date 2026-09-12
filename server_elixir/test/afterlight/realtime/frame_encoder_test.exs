@@ -8,6 +8,8 @@ defmodule Afterlight.Realtime.FrameEncoderTest do
 
   use ExUnit.Case, async: true
 
+  import Bitwise
+
   alias Afterlight.Realtime.{RealtimeFrame, FrameEncoder}
   alias Afterlight.Realtime.Encoders.{BinarySoA, JSON}
 
@@ -67,6 +69,64 @@ defmodule Afterlight.Realtime.FrameEncoderTest do
     frame = %RealtimeFrame{frame_sequence: 1, baseline_sequence: 1}
     bin = IO.iodata_to_binary(BinarySoA.encode(frame))
     assert byte_size(bin) == 24
+  end
+
+  # -- Lifecycle sections (fix-remote-avatar-flicker): the live flush is a
+  # self-validating FULL snapshot carrying guest identity. The delta cases
+  # above stay byte-identical. --
+
+  test "snapshot frame emits string table + spawn rows before sorted columns" do
+    frame = %RealtimeFrame{
+      frame_type: :full_snapshot,
+      room_epoch: 0,
+      server_tick: 7,
+      frame_sequence: 7,
+      baseline_sequence: 6,
+      spawn: [
+        %{id: 20, guest_id: "guest_b", archetype: 0, variant: 0, x: 2.0, y: 0.0, z: 5.0, yaw: 0.25},
+        %{id: 10, guest_id: "guest_a", archetype: 0, variant: 0, x: 1.0, y: 0.0, z: 4.0, yaw: 0.0}
+      ],
+      transform_ids: [10, 20],
+      transform_x: [1.0, 2.0],
+      transform_y: [0.0, 0.0],
+      transform_z: [4.0, 5.0],
+      transform_yaw: [0.0, 0.25],
+      flags_ids: [10, 20],
+      flags: [1, 0]
+    }
+
+    bin = IO.iodata_to_binary(BinarySoA.encode(frame))
+
+    # header: FULL_SNAPSHOT (type 0) with the HAS_STRING_TABLE flag
+    <<@magic::32-little, 1::8, 0::8, flags::8, 24::8, 0::32-little, 7::32-little,
+      7::32-little, 6::32-little, rest::binary>> = bin
+    assert (flags &&& 1) == 1
+
+    # DENSE string table first: entry count then guest ids in spawn order
+    <<8::8, 0::8, 0::16, 2::32-little, tlen::32-little, tpayload::binary-size(tlen),
+      rest::binary>> = rest
+
+    assert tlen == 4 + (2 + 7) + (2 + 7)
+    assert <<2::32-little, 7::16-little, "guest_b", 7::16-little, "guest_a">> = tpayload
+
+    # DENSE interleaved 28-byte spawn rows, stringRef 0 = first table entry
+    <<1::8, 0::8, 0::16, 2::32-little, slen::32-little, spayload::binary-size(slen),
+      rest::binary>> = rest
+    assert slen == 2 * 28
+
+    <<20::32-little, 0::16-little, 0::16-little, ref_b::32-little, x_b::32-float-little,
+      _y_b::32-float-little, z_b::32-float-little, yaw_b::32-float-little, _::binary>> = spayload
+    assert ref_b == 0
+    assert x_b == 2.0 and z_b == 5.0 and yaw_b == 0.25
+
+    # transform + flags remain SORTED_IDS columns
+    <<3::8, 1::8, 0::16, 2::32-little, trlen::32-little, trpayload::binary-size(trlen),
+      rest::binary>> = rest
+    assert trlen == 2 * 4 + 2 * 16
+    assert <<10::32-little, 20::32-little, _::binary>> = trpayload
+
+    <<6::8, 1::8, 0::16, 2::32-little, flock::32-little, _::binary-size(flock)>> = rest
+    assert flock == 2 * 4 + 2 * 1
   end
 
   test "json debug encoder renders the legacy presence shape" do

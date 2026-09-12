@@ -86,6 +86,8 @@ export class RealtimePipeline {
     try { this.worker?.terminate(); } catch { /* already gone */ }
     this.worker = null;
     clearTimeout(this._stallTimer);
+    // A fresh inline core starts unbaselined: the next delta adopts its
+    // baseline instead of resyncing (fix-remote-avatar-flicker).
     this.core = new PipelineCore({ maxSlots: this._maxSlots ?? 8192 });
     this.mode = 'inline';
     this.handlers.onModeChange?.(this.mode, reason);

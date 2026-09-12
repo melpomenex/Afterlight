@@ -10,6 +10,7 @@ export class LiveRemoteBackend {
     this.remotePlayers = remotePlayers;
     this.excludedIds = excludedIds ?? new Set();
     this.guestIds = new Map(); // entityId -> guestId string
+    this.liveKeys = new Set(); // guest ids currently rendered as remote avatars
     this.live = 0;
   }
 
@@ -22,13 +23,18 @@ export class LiveRemoteBackend {
     const guestIds = opts.guestIds ?? this.guestIds;
     const pending = new Map();
 
+    // Spawn rows carry identity once. Resolve it from the row or the id map;
+    // a row with no resolvable guest id (WASM decode emits guestId: null) is
+    // skipped rather than keyed under the numeric entity id — the JSON
+    // presence bridge owns avatar creation for those players.
     for (const j of pack.joined ?? []) {
       const entityId = j.entityId ?? playerEntityId(j.guestId ?? j.id);
-      const guestId = j.guestId ?? j.id;
+      const guestId = j.guestId ?? guestIds.get(entityId) ?? null;
+      if (!guestId) continue;
       if (isTraditionalPathEntity(entityId, guestId, excluded)) continue;
-      if (guestId) guestIds.set(entityId, guestId);
-      pending.set(guestId ?? entityId, {
-        id: guestId ?? entityId,
+      guestIds.set(entityId, guestId);
+      pending.set(guestId, {
+        id: guestId,
         nickname: j.nickname,
         x: j.x ?? 0,
         z: j.z ?? 0,
@@ -37,28 +43,31 @@ export class LiveRemoteBackend {
         sitting: false,
         airborne: false,
       });
-      this.live++;
     }
 
     for (const id of pack.left ?? []) {
-      const guestId = guestIds.get(id) ?? guestIds.get(Number(id));
+      const guestId = guestIds.get(id) ?? guestIds.get(Number(id)) ?? null;
       if (isTraditionalPathEntity(id, guestId, excluded)) continue;
       guestIds.delete(id);
       const key = guestId ?? id;
       pending.delete(key);
       this.remotePlayers.removePlayer(key);
-      this.live = Math.max(0, this.live - 1);
+      this.liveKeys.delete(key);
     }
 
     const n = pack.count ?? 0;
     for (let i = 0; i < n; i++) {
       const entityId = pack.ids[i];
-      const guestId = guestIds.get(entityId) ?? String(entityId);
+      const guestId = guestIds.get(entityId) ?? null;
+      if (!guestId) continue;
       if (isTraditionalPathEntity(entityId, guestId, excluded)) continue;
-      if (!guestIds.has(entityId)) guestIds.set(entityId, guestId);
       const f = pack.flags?.[i] ?? 0;
+      // A spawn row may already have resolved this player's nickname; the
+      // transform row replaces the pose without dropping the identity.
+      const spawned = pending.get(guestId);
       pending.set(guestId, {
         id: guestId,
+        nickname: spawned?.nickname,
         x: pack.x[i],
         z: pack.z[i],
         rotY: pack.yaw[i],
@@ -68,10 +77,12 @@ export class LiveRemoteBackend {
       });
     }
 
-    for (const player of pending.values()) {
+    for (const [key, player] of pending) {
+      this.liveKeys.add(key);
       this.remotePlayers.setPlayer(player);
     }
 
+    this.live = this.liveKeys.size;
     return { applied: true, kind: this.kind, live: this.live };
   }
 
@@ -81,6 +92,8 @@ export class LiveRemoteBackend {
     const entityId = player.entityId ?? playerEntityId(player.id);
     if (isTraditionalPathEntity(entityId, player.id, this.excludedIds)) return;
     this.guestIds.set(entityId, player.id);
+    this.liveKeys.add(player.id);
+    this.live = this.liveKeys.size;
     this.remotePlayers.setPlayer(player);
   }
 
@@ -89,6 +102,8 @@ export class LiveRemoteBackend {
     const entityId = playerEntityId(playerId);
     if (isTraditionalPathEntity(entityId, playerId, this.excludedIds)) return;
     this.guestIds.delete(entityId);
+    this.liveKeys.delete(playerId);
+    this.live = this.liveKeys.size;
     this.remotePlayers.removePlayer(playerId);
   }
 
@@ -113,8 +128,14 @@ export class LiveRemoteBackend {
     return { recovered: true, kind: this.kind };
   }
 
-  dispose() {
+  clear() {
     this.guestIds.clear();
+    this.liveKeys.clear();
+    this.live = 0;
+  }
+
+  dispose() {
+    this.clear();
   }
 }
 
@@ -132,6 +153,9 @@ export function createLiveEntitySession({ remotePlayers, guestId, flags = {} } =
     handlesPresence: () => true,
     applyPresencePlayer: (p) => backend.applyPresencePlayer(p),
     removePresencePlayer: (id) => backend.removePresencePlayer(id),
-    clearRemotes: () => remotePlayers.clear(),
+    clearRemotes: () => {
+      backend.clear();
+      remotePlayers.clear();
+    },
   };
 }

@@ -13,4 +13,5 @@ import './realtime/live-backend.test.js';
 import './realtime/gates.test.js';
 import './realtime/gateway-binary-convergence.test.js';
 import './realtime/node-binary-flush.test.js';
+import './realtime/live-avatar-path.test.js';
 import './realtime/wiring.test.js';

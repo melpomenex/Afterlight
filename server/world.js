@@ -1,6 +1,6 @@
 import { MSG_TYPES, serialize, ROOMS } from '../shared/protocol.js';
 import { sanitizeMovement } from '../shared/worldModel.js';
-import { encodeFlush } from '../shared/realtime/nodeBinaryFlush.js';
+import { encodeFlush, encodeSnapshot } from '../shared/realtime/nodeBinaryFlush.js';
 
 export class WorldManager {
   constructor() {
@@ -138,22 +138,44 @@ export class WorldManager {
         const seq = (this.roomRtSeq.get(roomId) ?? 0) + 1;
         this.roomRtSeq.set(roomId, seq);
 
-        let rtPayload = null;
-        try {
-          rtPayload = Buffer.from(encodeFlush(updates, tick, seq)).toString('base64');
-        } catch {
-          rtPayload = null;
-        }
-
         const legacyMsg = { type: MSG_TYPES.PRESENCE_UPDATE, players: updates, tick };
         let legacyPacket = null;
+
+        // Per-shape payloads are built once on demand: a client that
+        // advertised the additive `spawn` capability gets the full snapshot,
+        // everyone else keeps the baseline-compatible delta flush
+        // (fix-remote-avatar-flicker).
+        let rtDeltaPayload;
+        let rtSnapshotPayload;
+
+        const rtPayloadFor = (session) => {
+          if (session.rt && session.rt.spawn) {
+            if (rtSnapshotPayload === undefined) {
+              try {
+                rtSnapshotPayload = Buffer.from(encodeSnapshot(updates, tick, seq)).toString('base64');
+              } catch {
+                rtSnapshotPayload = null;
+              }
+            }
+            return rtSnapshotPayload;
+          }
+          if (rtDeltaPayload === undefined) {
+            try {
+              rtDeltaPayload = Buffer.from(encodeFlush(updates, tick, seq)).toString('base64');
+            } catch {
+              rtDeltaPayload = null;
+            }
+          }
+          return rtDeltaPayload;
+        };
 
         for (const pid of roomPlayers) {
           const s = this.clients.get(pid);
           if (!s) continue;
           s.moved = false;
           if (s.ws.readyState !== 1) continue;
-          if (s.rt && rtPayload) {
+          const rtPayload = s.rt ? rtPayloadFor(s) : null;
+          if (rtPayload) {
             s.send({ type: 'rt_binary', tick, data: rtPayload });
           } else {
             if (!legacyPacket) legacyPacket = serialize(legacyMsg);

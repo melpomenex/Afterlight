@@ -1,6 +1,6 @@
 import { MSG_TYPES, serialize, parse } from '../../shared/protocol.js';
 import { generateDefaultNickname, sanitizeNickname } from '../../shared/identity.js';
-import { createPhoenixTransport } from './phoenixClient.js';
+import { createPhoenixTransport, binaryBufferFromEnvelope } from './phoenixClient.js';
 import { jitteredRejoinDelay, shouldApplyRoomFrame } from './roomEpoch.js';
 import {
   ACTIVITY_PROTOCOL_VERSION,
@@ -54,6 +54,17 @@ function createNodeTransport(client, wsUrl) {
         }
         const msg = parse(event.data);
         if (!msg || !msg.type) return;
+        // The Node realtime flush arrives as a JSON `rt_binary` envelope
+        // `{tick, data: base64}` (mirroring the Phoenix channel event). Decode
+        // it to the same ArrayBuffer the Phoenix transport hands off; without
+        // a handleBinary hook it drops exactly like an undecoded envelope.
+        if (msg.type === 'rt_binary') {
+          if (client.handleBinary) {
+            const buffer = binaryBufferFromEnvelope(msg, client.desiredRoom);
+            if (buffer) client.handleBinary(buffer);
+          }
+          return;
+        }
         client.handleFrame(msg);
       };
       ws.onclose = () => client.handleClose();
