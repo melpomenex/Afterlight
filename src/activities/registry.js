@@ -16,6 +16,33 @@
 import { ACTIVITY_TYPES } from '../../shared/placeDefinitions.js';
 
 const modules = new Map();
+const mediaPolicies = new Map();
+
+/**
+ * Default client-only presentation policy for an activity module
+ * (add-floating-minigame-media D2). Play participation floats the current
+ * theater media by default; a module can opt out with
+ * `mediaPolicy: { floatingMedia: false }` and expose bounded HUD
+ * reservations through `mediaPolicy.reservedRects()`.
+ */
+export const DEFAULT_ACTIVITY_MEDIA_POLICY = Object.freeze({
+  floatingMedia: true,
+  reservedRects: null,
+  reservedSelectors: Object.freeze([]),
+});
+
+export function normalizeActivityMediaPolicy(raw = {}) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  return Object.freeze({
+    floatingMedia: source.floatingMedia !== false,
+    reservedRects: typeof source.reservedRects === 'function' ? source.reservedRects : null,
+    reservedSelectors: Object.freeze(
+      Array.isArray(source.reservedSelectors)
+        ? source.reservedSelectors.filter((s) => typeof s === 'string' && s.length > 0).slice(0, 8)
+        : [],
+    ),
+  });
+}
 
 /**
  * Register an activity module for a supported activity type.
@@ -40,6 +67,7 @@ export function registerActivityModule(type, moduleDef) {
     throw new Error(`Duplicate activity module registration for "${type}"`);
   }
   modules.set(type, moduleDef);
+  mediaPolicies.set(type, normalizeActivityMediaPolicy(moduleDef.mediaPolicy));
   return moduleDef;
 }
 
@@ -62,11 +90,24 @@ export function getActivityModule(type) {
 }
 
 /**
+ * Client-only media presentation policy for a registered module. Unknown
+ * types fall back to the permissive default (future cabinets inherit
+ * floating media without a manifest change).
+ *
+ * @param {string} type
+ * @returns {{ floatingMedia: boolean, reservedRects: Function|null }}
+ */
+export function getActivityMediaPolicy(type) {
+  return mediaPolicies.get(type) || DEFAULT_ACTIVITY_MEDIA_POLICY;
+}
+
+/**
  * Unregister an activity module (useful in tests or hot reloading).
  * @param {string} type
  * @returns {boolean}
  */
 export function unregisterActivityModule(type) {
+  mediaPolicies.delete(type);
   return modules.delete(type);
 }
 
@@ -75,6 +116,7 @@ export function unregisterActivityModule(type) {
  */
 export function clearActivityModules() {
   modules.clear();
+  mediaPolicies.clear();
 }
 
 /**
