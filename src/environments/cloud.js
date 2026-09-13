@@ -27,6 +27,7 @@ import { createGrassTuftGeometry, createFlowerGeometry, createBroadleafGeometry,
 import { createParticleField, createFlock } from './lib/particles.js';
 import { createCloudSea, createCloudBank } from './lib/skyFx.js';
 import { scaleForTier, budgetForEnvironmentTier } from './quality.js';
+import { createCloudSurfaceTextures } from './lib/cloudMaterials.js';
 
 const PLATEAU_Y = -0.92;
 const RIM_Y = -6.5;
@@ -35,7 +36,7 @@ const ISLAND_RADIUS = 28;
 // The theater (~27×23 shell) must never be undercut by terrain: the plateau
 // stays at/below y=-0.6 everywhere inside this rectangle.
 const THEATER_RECT = Object.freeze({ minX: -14.5, maxX: 14.5, minZ: -17.0, maxZ: 13.5 });
-const WATERFALL_ANGLE = 3.55;
+const WATERFALL_ANGLE = 0.68;
 
 function rectDistance(x, z) {
   const dx = Math.max(0, THEATER_RECT.minX - x, x - THEATER_RECT.maxX);
@@ -43,53 +44,58 @@ function rectDistance(x, z) {
   return Math.hypot(dx, dz);
 }
 
-/** Jagged, angle-varying island rim radius (roughly 40–64 units). */
+/** Jagged, angle-varying island rim radius (roughly 22–32 units). */
 function islandEdgeAt(x, z) {
   const a = Math.atan2(z, x);
   const course = fbm(Math.cos(a) * 3.4, Math.sin(a) * 3.4, { octaves: 4, frequency: 1, seed: 911 });
   const fine = fbm(x, z, { octaves: 2, frequency: 0.09, seed: 917 });
-  return ISLAND_RADIUS + (course - 0.5) * 7 + (fine - 0.5) * 2.5;
+  // NW corner (behind theater, z < -10): pull in to ~22.5 to clear the sky and cloud horizon
+  const nwMask = smoothstep(-1.0, -2.2, a) * smoothstep(-3.14, -2.2, a);
+  // SE corner (waterfall notch around angle 0.68): pull in to ~22.5
+  const seMask = Math.exp(-Math.pow(a - 0.68, 2) / 0.25);
+  const baseRadius = ISLAND_RADIUS - nwMask * 4.2 - seMask * 4.5;
+  return baseRadius + (course - 0.5) * 5.0 + (fine - 0.5) * 2.0;
 }
 
 /** Plateau → grass shelf → cliff → void, with the rim noise folded in. */
 function heightAt(x, z) {
   const dRect = rectDistance(x, z);
-  const plateauMask = smoothstep(8.0, 0.0, dRect);
-  const micro = (fbm(x, z, { octaves: 3, frequency: 0.16, seed: 823 }) - 0.5) * 0.2;
-  const roll = (fbm(x, z, { octaves: 4, frequency: 0.05, seed: 827 }) - 0.5) * 1.8;
+  const plateauMask = smoothstep(6.5, 0.0, dRect);
+  const micro = (fbm(x, z, { octaves: 3, frequency: 0.16, seed: 823 }) - 0.5) * 0.18;
+  const roll = (fbm(x, z, { octaves: 4, frequency: 0.05, seed: 827 }) - 0.6) * 0.9;
   const top = PLATEAU_Y + micro * plateauMask + roll * (1 - plateauMask);
 
   const r = Math.hypot(x, z);
   const edge = islandEdgeAt(x, z);
-  const drop = smoothstep(edge - 1.5, edge + 3.0, r);
-  const abyss = smoothstep(edge + 1.0, edge + 30.0, r);
+  const drop = smoothstep(edge - 1.8, edge + 2.2, r);
+  const abyss = smoothstep(edge + 0.5, edge + 24.0, r);
   const underside = RIM_Y - (RIM_Y - VOID_Y) * abyss;
   return top * (1 - drop) + underside * drop;
 }
 
 const CLOUD_LAYER_PALETTES = Object.freeze({
   sunrise: Object.freeze([
-    Object.freeze({ y: -30, color: '#ffe6cf', shadow: '#c98f8f', opacity: 0.66, scale: 0.0085, speed: 0.34, contrast: 0.72 }),
-    Object.freeze({ y: -47, color: '#ffc9d8', shadow: '#9c7096', opacity: 0.58, scale: 0.013, speed: 0.46, contrast: 0.66 }),
-    Object.freeze({ y: -64, color: '#d7a8dd', shadow: '#6b5a90', opacity: 0.5, scale: 0.019, speed: 0.62, contrast: 0.6 }),
-    Object.freeze({ y: -82, color: '#9d8fd4', shadow: '#474070', opacity: 0.42, scale: 0.027, speed: 0.82, contrast: 0.55 }),
+    Object.freeze({ y: -16, color: '#ffdeb8', shadow: '#c88484', opacity: 0.82, scale: 0.009, speed: 0.30, contrast: 0.76 }),
+    Object.freeze({ y: -28, color: '#ffd0c4', shadow: '#b2728c', opacity: 0.72, scale: 0.013, speed: 0.42, contrast: 0.70 }),
+    Object.freeze({ y: -44, color: '#e8b8da', shadow: '#865a94', opacity: 0.60, scale: 0.018, speed: 0.55, contrast: 0.65 }),
+    Object.freeze({ y: -64, color: '#af9fdc', shadow: '#50447a', opacity: 0.48, scale: 0.026, speed: 0.72, contrast: 0.58 }),
   ]),
   day: Object.freeze([
-    Object.freeze({ y: -30, color: '#ffffff', shadow: '#b7c8da', opacity: 0.82, scale: 0.008, speed: 0.3, contrast: 0.7 }),
-    Object.freeze({ y: -47, color: '#f2f7fd', shadow: '#9db2c9', opacity: 0.72, scale: 0.0125, speed: 0.42, contrast: 0.65 }),
-    Object.freeze({ y: -64, color: '#e2ecf7', shadow: '#8399b3', opacity: 0.62, scale: 0.018, speed: 0.56, contrast: 0.6 }),
-    Object.freeze({ y: -82, color: '#cfdcec', shadow: '#6b819d', opacity: 0.52, scale: 0.025, speed: 0.74, contrast: 0.55 }),
+    Object.freeze({ y: -16, color: '#ffffff', shadow: '#b7c8da', opacity: 0.85, scale: 0.008, speed: 0.3, contrast: 0.72 }),
+    Object.freeze({ y: -28, color: '#f2f7fd', shadow: '#9db2c9', opacity: 0.75, scale: 0.0125, speed: 0.42, contrast: 0.68 }),
+    Object.freeze({ y: -44, color: '#e2ecf7', shadow: '#8399b3', opacity: 0.65, scale: 0.018, speed: 0.56, contrast: 0.62 }),
+    Object.freeze({ y: -64, color: '#cfdcec', shadow: '#6b819d', opacity: 0.55, scale: 0.025, speed: 0.74, contrast: 0.58 }),
   ]),
   storm: Object.freeze([
-    Object.freeze({ y: -30, color: '#727b8c', shadow: '#20242f', opacity: 0.88, scale: 0.009, speed: 0.72, contrast: 0.82 }),
-    Object.freeze({ y: -46, color: '#5b6474', shadow: '#191d27', opacity: 0.84, scale: 0.014, speed: 0.95, contrast: 0.86 }),
-    Object.freeze({ y: -62, color: '#474f60', shadow: '#12151d', opacity: 0.8, scale: 0.02, speed: 1.2, contrast: 0.88 }),
-    Object.freeze({ y: -80, color: '#343a48', shadow: '#0c0f16', opacity: 0.76, scale: 0.028, speed: 1.5, contrast: 0.9 }),
+    Object.freeze({ y: -16, color: '#727b8c', shadow: '#20242f', opacity: 0.90, scale: 0.009, speed: 0.72, contrast: 0.84 }),
+    Object.freeze({ y: -28, color: '#5b6474', shadow: '#191d27', opacity: 0.86, scale: 0.014, speed: 0.95, contrast: 0.88 }),
+    Object.freeze({ y: -44, color: '#474f60', shadow: '#12151d', opacity: 0.82, scale: 0.02, speed: 1.2, contrast: 0.90 }),
+    Object.freeze({ y: -64, color: '#343a48', shadow: '#0c0f16', opacity: 0.78, scale: 0.028, speed: 1.5, contrast: 0.92 }),
   ]),
 });
 
 const BANK_COLORS = Object.freeze({
-  sunrise: Object.freeze({ near: '#f6ddc8', mid: '#f0c6d4', far: '#c6b2da' }),
+  sunrise: Object.freeze({ near: '#f8dfcb', mid: '#f4cbdc', far: '#d8c4ec' }),
   day: Object.freeze({ near: '#ffffff', mid: '#eef5fc', far: '#cdddec' }),
   storm: Object.freeze({ near: '#6d7686', mid: '#515a6a', far: '#3a4250' }),
 });
@@ -161,14 +167,15 @@ export function buildCloud({ kit, row, variantId = 'sunrise', tier = 'high', qua
   let currentVariantId = variantId;
 
   // --- Terrain: grassy plateau, shelves, cliff and dark underside ----------
+  const surfaces = createCloudSurfaceTextures(track, budget.terrainSize);
   const colorScratch = new THREE.Color();
-  const grassBase = new THREE.Color('#4f7038');
-  const grassLush = new THREE.Color('#6f9247');
-  const grassPale = new THREE.Color('#93a35c');
+  const grassBase = new THREE.Color('#4f7536');
+  const grassLush = new THREE.Color('#78a44c');
+  const grassPale = new THREE.Color('#a4b868');
   const meadowEarth = new THREE.Color('#6b5a41');
-  const rockTop = new THREE.Color('#57544f');
-  const rockCliff = new THREE.Color('#34333a');
-  const voidRock = new THREE.Color('#10141d');
+  const rockTop = new THREE.Color('#5e5a52');
+  const rockCliff = new THREE.Color('#38363c');
+  const voidRock = new THREE.Color('#141822');
 
   const terrain = createTerrain({
     size: budget.terrainSize,
@@ -196,6 +203,9 @@ export function buildCloud({ kit, row, variantId = 'sunrise', tier = 'high', qua
     roughness: 0.96,
     metalness: 0.02,
   });
+  terrain.material.map = surfaces.turf;
+  terrain.material.bumpMap = surfaces.turf;
+  terrain.material.bumpScale = 0.04;
   root.add(terrain.mesh);
   track(terrain);
 
@@ -205,6 +215,7 @@ export function buildCloud({ kit, row, variantId = 'sunrise', tier = 'high', qua
   track(underIsland.rock);
   const undersideMaterial = kit.track(new THREE.MeshStandardMaterial({
     vertexColors: true, roughness: 0.98, metalness: 0.02, flatShading: true,
+    map: surfaces.cliff, normalMap: surfaces.cliffNormal, normalScale: new THREE.Vector2(1.5, 1.5),
   }));
   const underside = new THREE.Mesh(underIsland.rock, undersideMaterial);
   underside.name = 'cloud-island-underside';
@@ -214,7 +225,8 @@ export function buildCloud({ kit, row, variantId = 'sunrise', tier = 'high', qua
 
   // --- Rocks: rim crags and plateau boulders -------------------------------
   const rockMaterial = kit.track(new THREE.MeshStandardMaterial({
-    vertexColors: true, roughness: 0.96, metalness: 0.02, flatShading: true,
+    vertexColors: true, roughness: 0.94, metalness: 0.02, flatShading: true,
+    map: surfaces.cliff, normalMap: surfaces.cliffNormal, normalScale: new THREE.Vector2(1.2, 1.2),
   }));
 
   const rimGeometry = createRockGeometry({ float, detail: 1, jaggedness: 0.5, color: '#453f39', squash: [1.3, 0.75, 1.3] });
@@ -266,22 +278,57 @@ export function buildCloud({ kit, row, variantId = 'sunrise', tier = 'high', qua
   const boulderField = createRockField({ kit, geometry: boulderGeometry, placements: boulderPlacements, material: rockMaterial, name: 'cloud-boulders' });
   root.add(boulderField);
 
+  // --- Limestone stepping stones in front meadow ---
+  const stoneGeo = kit.track(new THREE.CylinderGeometry(0.85, 0.95, 0.16, 7));
+  const stoneMat = kit.track(new THREE.MeshStandardMaterial({
+    color: '#8e8b82',
+    roughness: 0.92,
+    metalness: 0.04,
+    flatShading: true,
+  }));
+  const stepPositions = [
+    [-6.5, 17.5],
+    [-4.6, 16.0],
+    [-2.8, 14.8],
+    [-1.0, 13.8],
+    [0.8, 12.8],
+    [2.4, 12.2],
+  ];
+  const stoneGroup = new THREE.Group();
+  stoneGroup.name = 'cloud-stepping-stones';
+  for (let i = 0; i < stepPositions.length; i++) {
+    const [sx, sz] = stepPositions[i];
+    const sy = heightAt(sx, sz) + 0.06;
+    const stoneMesh = new THREE.Mesh(stoneGeo, stoneMat);
+    stoneMesh.position.set(sx, sy, sz);
+    stoneMesh.rotation.y = float() * Math.PI;
+    stoneMesh.scale.set(range(0.9, 1.25), 1, range(0.85, 1.15));
+    stoneMesh.receiveShadow = true;
+    stoneGroup.add(stoneMesh);
+  }
+  root.add(stoneGroup);
+
   // --- Additional floating islands (near / mid / far), grass-capped --------
-  const floatIsland = createFloatingIslandGeometry({ float, radius: 1, depth: 1, grassColor: '#5f8a49', rockColor: '#332f2c' });
+  const floatIsland = createFloatingIslandGeometry({ float, radius: 1, depth: 1, grassColor: '#6f964c', rockColor: '#34302c' });
   track(floatIsland.top);
   track(floatIsland.rock);
   const islandMaterial = kit.track(new THREE.MeshStandardMaterial({
-    vertexColors: true, roughness: 0.96, metalness: 0.02, flatShading: true,
+    vertexColors: true, roughness: 0.95, metalness: 0.02, flatShading: true,
+    map: surfaces.cliff,
+    normalMap: surfaces.cliffNormal,
   }));
-  const islandPlacements = [];
+  const islandPlacements = [
+    { x: -36, z: -38, topY: 10, radius: 11, depth: 22, rot: 0.4, sx: 11, sy: 22, sz: 11, y: 10 - 22 * 0.11 },
+    { x: 44, z: -24, topY: 16, radius: 13, depth: 28, rot: 1.2, sx: 13, sy: 28, sz: 13, y: 16 - 28 * 0.11 },
+  ];
   const islandCount = Math.max(6, Math.round(12 * budget.rockScale));
-  for (let i = 0; i < islandCount; i++) {
+  for (let i = 2; i < islandCount; i++) {
     const band = i % 3;
     const angle = float() * Math.PI * 2;
-    const dist = band === 0 ? range(30, 54) : band === 1 ? range(60, 96) : range(104, 170);
-    const radius = band === 0 ? range(4.5, 9) : band === 1 ? range(7, 14) : range(12, 22);
+    const dist = band === 0 ? range(32, 56) : band === 1 ? range(64, 100) : range(110, 180);
+    const radius = band === 0 ? range(5, 9.5) : band === 1 ? range(7.5, 15) : range(13, 24);
     const depth = radius * range(1.6, 2.6);
-    const topY = band === 0 ? range(-17, -7) : band === 1 ? range(-10, 10) : range(6, 44);
+    const topY = band === 0 ? range(-15, -4) : band === 1 ? range(-8, 12) : range(8, 46);
     islandPlacements.push({
       x: Math.cos(angle) * dist,
       z: Math.sin(angle) * dist,
@@ -300,52 +347,57 @@ export function buildCloud({ kit, row, variantId = 'sunrise', tier = 'high', qua
   root.add(islandRocks);
 
   // --- Vegetation: dense wind grass, flowers, broadleaf trees --------------
-  const grassGeometry = createGrassTuftGeometry({ blades: 6, height: 0.8, width: 0.06, rng: float, tipColor: '#b4bd6a', baseColor: '#4d6b34' });
+  const grassGeometry = createGrassTuftGeometry({ blades: 6, height: 0.8, width: 0.06, rng: float, tipColor: '#c8d472', baseColor: '#4f7836' });
   track(grassGeometry);
   const grassMaterial = kit.wind(new THREE.MeshStandardMaterial({
     vertexColors: true, roughness: 0.9, metalness: 0, side: THREE.DoubleSide,
   }), { height: 0.9, strength: 0.22 });
   const grassPlacements = scatter({
-    count: scaleForTier(tier, 'grassScale', 2400),
-    minRadius: 5,
+    count: scaleForTier(tier, 'grassScale', 2800),
+    minRadius: 4.5,
     maxRadius: 25,
     float,
     heightAt,
     accept: ({ x, z, h, radial }) => {
-      if (rectDistance(x, z) < 1.1) return false;
+      if (rectDistance(x, z) < 1.0) return false;
       if (radial > islandEdgeAt(x, z) - 1.6) return false;
       return h > -4;
     },
-    minSpacing: 0.6,
-  }).map((p) => ({ ...p, y: p.h, rot: float() * Math.PI * 2, scale: range(0.7, 1.5) }));
+    minSpacing: 0.55,
+  }).map((p) => ({ ...p, y: p.h, rot: float() * Math.PI * 2, scale: range(0.75, 1.55) }));
   const grassField = instanceVegetation({ geometry: grassGeometry, material: grassMaterial, placements: grassPlacements, name: 'cloud-grass' });
   root.add(grassField);
 
-  const flowerPinkGeometry = createFlowerGeometry({ color: '#e8a0c0', stemColor: '#5d7a3e', height: 0.55, rng: float });
-  const flowerGoldGeometry = createFlowerGeometry({ color: '#f2d27a', stemColor: '#5f7d40', height: 0.45, rng: float });
+  const flowerPinkGeometry = createFlowerGeometry({ color: '#ea90b8', stemColor: '#527236', height: 0.55, rng: float });
+  const flowerGoldGeometry = createFlowerGeometry({ color: '#f8d660', stemColor: '#547638', height: 0.48, rng: float });
+  const flowerWhiteGeometry = createFlowerGeometry({ color: '#fcfcf6', stemColor: '#507034', height: 0.42, rng: float });
   track(flowerPinkGeometry);
   track(flowerGoldGeometry);
+  track(flowerWhiteGeometry);
   const flowerMaterial = kit.wind(new THREE.MeshStandardMaterial({
     vertexColors: true, roughness: 0.85, metalness: 0, side: THREE.DoubleSide,
   }), { height: 0.7, strength: 0.05 });
   const flowerPlacements = scatter({
-    count: scaleForTier(tier, 'vegetationScale', 260),
-    minRadius: 5,
+    count: scaleForTier(tier, 'vegetationScale', 480),
+    minRadius: 4.5,
     maxRadius: 24,
     float,
     heightAt,
     accept: ({ x, z, h, radial }) => {
-      if (rectDistance(x, z) < 1.1) return false;
-      if (radial > islandEdgeAt(x, z) - 2.5) return false;
+      if (rectDistance(x, z) < 1.0) return false;
+      if (radial > islandEdgeAt(x, z) - 2.2) return false;
       return h > -3;
     },
-    minSpacing: 1.1,
-  }).map((p) => ({ ...p, y: p.h, rot: float() * Math.PI * 2, scale: range(0.7, 1.4) }));
-  const flowerSplit = Math.ceil(flowerPlacements.length / 2);
-  const pinkFlowers = instanceVegetation({ geometry: flowerPinkGeometry, material: flowerMaterial, placements: flowerPlacements.slice(0, flowerSplit), name: 'cloud-flowers-pink' });
+    minSpacing: 0.75,
+  }).map((p) => ({ ...p, y: p.h, rot: float() * Math.PI * 2, scale: range(0.75, 1.45) }));
+  const flowerSplit1 = Math.floor(flowerPlacements.length / 3);
+  const flowerSplit2 = Math.floor((flowerPlacements.length * 2) / 3);
+  const pinkFlowers = instanceVegetation({ geometry: flowerPinkGeometry, material: flowerMaterial, placements: flowerPlacements.slice(0, flowerSplit1), name: 'cloud-flowers-pink' });
   root.add(pinkFlowers);
-  const goldFlowers = instanceVegetation({ geometry: flowerGoldGeometry, material: flowerMaterial, placements: flowerPlacements.slice(flowerSplit), name: 'cloud-flowers-gold' });
+  const goldFlowers = instanceVegetation({ geometry: flowerGoldGeometry, material: flowerMaterial, placements: flowerPlacements.slice(flowerSplit1, flowerSplit2), name: 'cloud-flowers-gold' });
   root.add(goldFlowers);
+  const whiteFlowers = instanceVegetation({ geometry: flowerWhiteGeometry, material: flowerMaterial, placements: flowerPlacements.slice(flowerSplit2), name: 'cloud-flowers-white' });
+  root.add(whiteFlowers);
 
   const treeGeometry = createBroadleafGeometry({ height: 5.2, radius: 2.4, blobs: 4, color: '#4a7040', trunkColor: '#4d3826', rng: float });
   track(treeGeometry);
@@ -383,16 +435,26 @@ export function buildCloud({ kit, row, variantId = 'sunrise', tier = 'high', qua
   const treeField = instanceVegetation({ geometry: treeGeometry, material: treeMaterial, placements: treePlacements, name: 'cloud-trees', castShadow: false });
   root.add(treeField);
 
-  // --- Waterfall off the far rim, with mist at its base --------------------
+  // --- Waterfall off the south-east rim, with mist at its base -------------
   const waterfallAngle = WATERFALL_ANGLE;
   const waterfallEdge = islandEdgeAt(Math.cos(waterfallAngle) * ISLAND_RADIUS, Math.sin(waterfallAngle) * ISLAND_RADIUS);
-  const waterfallX = Math.cos(waterfallAngle) * (waterfallEdge - 1.2);
-  const waterfallZ = Math.sin(waterfallAngle) * (waterfallEdge - 1.2);
-  const waterfallWidth = 9;
-  const waterfallHeight = 74;
-  const waterfallGeometry = new THREE.PlaneGeometry(waterfallWidth, waterfallHeight, 1, 8);
+  const waterfallX = Math.cos(waterfallAngle) * (waterfallEdge - 0.8);
+  const waterfallZ = Math.sin(waterfallAngle) * (waterfallEdge - 0.8);
+  const waterfallWidth = 7.5;
+  const waterfallHeight = 65;
+  const waterfallGeometry = new THREE.PlaneGeometry(waterfallWidth, waterfallHeight, 4, 16);
   waterfallGeometry.translate(0, -waterfallHeight / 2, 0);
+  const pos = waterfallGeometry.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const py = pos.getY(i);
+    if (py > -4.0) {
+      const curl = Math.cos((py / -4.0) * Math.PI * 0.5);
+      pos.setZ(i, pos.getZ(i) - curl * 0.9);
+    }
+  }
+  waterfallGeometry.computeVertexNormals();
   track(waterfallGeometry);
+
   const waterfallMaterial = kit.track(new THREE.ShaderMaterial({
     vertexShader: waterfallVertexShader,
     fragmentShader: waterfallFragmentShader,
@@ -400,8 +462,8 @@ export function buildCloud({ kit, row, variantId = 'sunrise', tier = 'high', qua
       THREE.UniformsLib.fog,
       {
         uTime: { value: 0 },
-        uColor: { value: new THREE.Color('#eef6ff') },
-        uOpacity: { value: 0.55 },
+        uColor: { value: new THREE.Color('#f6f8ff') },
+        uOpacity: { value: 0.65 },
       },
     ]),
     transparent: true,
@@ -411,19 +473,19 @@ export function buildCloud({ kit, row, variantId = 'sunrise', tier = 'high', qua
   }));
   const waterfall = new THREE.Mesh(waterfallGeometry, waterfallMaterial);
   waterfall.name = 'cloud-waterfall';
-  waterfall.position.set(waterfallX, heightAt(waterfallX, waterfallZ) - 0.35, waterfallZ);
-  waterfall.rotation.y = waterfallAngle + 0.12;
+  waterfall.position.set(waterfallX, heightAt(waterfallX, waterfallZ) - 0.2, waterfallZ);
+  waterfall.rotation.y = waterfallAngle + Math.PI / 2;
   root.add(waterfall);
 
   const waterfallMist = createParticleField({
-    count: scaleForTier(tier, 'particleScale', 130),
+    count: scaleForTier(tier, 'particleScale', 220),
     kind: 'mist',
-    area: [46, 24, 46],
-    origin: [waterfallX, -62, waterfallZ],
-    size: 20,
-    color: '#e8f0f6',
-    opacity: 0.12,
-    fall: 0.5,
+    area: [32, 28, 32],
+    origin: [waterfallX, -28, waterfallZ],
+    size: 26,
+    color: '#ffeede',
+    opacity: 0.18,
+    fall: 0.45,
     float,
     track,
     name: 'cloud-waterfall-mist',
@@ -454,21 +516,21 @@ export function buildCloud({ kit, row, variantId = 'sunrise', tier = 'high', qua
   const nearPuffs = Math.max(1, Math.round(puffBudget * 0.45));
   const midPuffs = Math.max(1, Math.round(puffBudget * 0.35));
   const farPuffs = Math.max(1, puffBudget - nearPuffs - midPuffs);
-  const nearBank = createCloudBank({ float, count: nearPuffs, radius: [55, 105], height: [-42, -14], scale: [9, 20], color: '#f6ddc8', opacity: 1, track, name: 'cloud-bank-near' });
+  const nearBank = createCloudBank({ float, count: nearPuffs, radius: [48, 95], height: [-22, -6], scale: [14, 28], color: '#f6ddc8', opacity: 1, track, name: 'cloud-bank-near' });
   root.add(nearBank.mesh);
-  const midBank = createCloudBank({ float, count: midPuffs, radius: [115, 200], height: [-26, 10], scale: [16, 34], color: '#f0c6d4', opacity: 1, track, name: 'cloud-bank-mid' });
+  const midBank = createCloudBank({ float, count: midPuffs, radius: [100, 190], height: [-16, 12], scale: [22, 44], color: '#f0c6d4', opacity: 1, track, name: 'cloud-bank-mid' });
   root.add(midBank.mesh);
-  const farBank = createCloudBank({ float, count: farPuffs, radius: [210, 420], height: [-60, 60], scale: [30, 70], color: '#c6b2da', opacity: 1, track, name: 'cloud-bank-far' });
+  const farBank = createCloudBank({ float, count: farPuffs, radius: [200, 420], height: [-30, 70], scale: [36, 85], color: '#c6b2da', opacity: 1, track, name: 'cloud-bank-far' });
   root.add(farBank.mesh);
 
   const waterMist = createParticleField({
-    count: scaleForTier(tier, 'particleScale', 170),
+    count: scaleForTier(tier, 'particleScale', 200),
     kind: 'mist',
-    area: [200, 36, 200],
-    origin: [0, -26, 0],
-    size: 38,
-    color: '#dfe9f2',
-    opacity: 0.08,
+    area: [220, 42, 220],
+    origin: [0, -22, 0],
+    size: 42,
+    color: '#ecdce8',
+    opacity: 0.11,
     fall: 0.45,
     float,
     track,

@@ -23,7 +23,8 @@ server_elixir/.video_agent/
 
 # Vendored external repository (own git repo; Alpine Rush prototype)
 SSXTricky/
-.dream-loop/
+.dream-loop*/
 
 # Dated pre-drop economy archive (retirement; never the protected snapshots)
 .retired/
+.dream-loop/
