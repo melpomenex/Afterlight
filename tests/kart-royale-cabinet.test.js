@@ -226,3 +226,88 @@ test('the Orpheum row places Kart Royale in Sporefall\'s former slot', () => {
   assert.equal(KART_ROYALE_ACTIVITY_DEFINITION.cabinet.skin.motif, 'kart');
   assert.equal(KART_ROYALE_ACTIVITY_DEFINITION.capacities.players, 1);
 });
+
+// --- entry-loading indicator (add-kart-royale-loading-indicator) -----------------
+
+test('entry-loading session starts on beginParticipation and clears on dispose', async () => {
+  const participations = [];
+  const worldGroup = new THREE.Group();
+  const fresh = createKartRoyaleInstance({
+    activityDef: KART_ROYALE_ACTIVITY_DEFINITION,
+    world: { group: worldGroup },
+    generation: 1,
+    roomId: 'theater',
+    getParticipation: () => ({
+      currentActivity: null,
+      isParticipating: false,
+      join: (def, opts) => participations.push({ def, opts }),
+    }),
+  });
+  const ok = await fresh.beginParticipation();
+  assert.equal(ok, true);
+  const loading = fresh.getLoadingState();
+  assert.equal(loading.active, true, 'the loading session is active during the boot');
+  assert.equal(loading.phase, 'modules', 'the first phase is module loading');
+  assert.ok(!loading.elapsedLabel.includes('%'), 'no completion percentage, ever');
+  fresh.dispose();
+  assert.equal(fresh.getLoadingState().active, false, 'dispose clears the loading session');
+});
+
+test('a failed load clears the entry-loading session through the terminal wrapper', async () => {
+  injectArcadeCabinetTemplate(makeFakeTemplate());
+  const worldGroup = new THREE.Group();
+  let participating = false;
+  let currentActivity = null;
+  const fresh = createKartRoyaleInstance({
+    activityDef: KART_ROYALE_ACTIVITY_DEFINITION,
+    world: { group: worldGroup },
+    net: null,
+    generation: 1,
+    roomId: 'theater',
+    getPlayer: () => ({ position: new THREE.Vector3(9.3, 0, -1.8) }),
+    getParticipation: () => ({
+      get isParticipating() { return participating; },
+      get currentActivity() { return currentActivity; },
+      get isOccupied() { return false; },
+      state: 'admitted',
+      join: (def) => { participating = true; currentActivity = def; },
+      leave: () => { participating = false; currentActivity = null; },
+    }),
+  });
+  await fresh.beginParticipation();
+  assert.equal(fresh.getLoadingState().active, true);
+
+  // The seat is accepted: the controller boots, and the (Node-failing) host
+  // import exits with load-failed — through the single terminal wrapper.
+  participating = true;
+  currentActivity = KART_ROYALE_ACTIVITY_DEFINITION;
+  for (let i = 0; i < 12 && fresh.getLoadingState().active; i++) {
+    await new Promise((r) => setTimeout(r, 25));
+    fresh.update(i / 60, 1 / 60);
+  }
+  assert.equal(fresh.getLoadingState().active, false, 'terminal wrapper cleared the session');
+  assert.equal(fresh.getLoadingState().visible, false);
+  fresh.dispose();
+});
+
+test('cancelActivation finishes the loading session immediately', async () => {
+  injectArcadeCabinetTemplate(makeFakeTemplate());
+  const worldGroup = new THREE.Group();
+  const fresh = createKartRoyaleInstance({
+    activityDef: KART_ROYALE_ACTIVITY_DEFINITION,
+    world: { group: worldGroup },
+    generation: 1,
+    roomId: 'theater',
+    getParticipation: () => ({
+      currentActivity: null,
+      isParticipating: false,
+      isOccupied: false,
+      join: () => {},
+    }),
+  });
+  await fresh.beginParticipation();
+  assert.equal(fresh.getLoadingState().active, true);
+  fresh.cancelActivation();
+  assert.equal(fresh.getLoadingState().active, false, 'cancel clears the session');
+  fresh.dispose();
+});

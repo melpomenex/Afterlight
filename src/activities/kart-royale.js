@@ -34,6 +34,10 @@ import { createKartRoyalePreparation } from './kartRoyalePreparation.js';
 import { scheduleKartRoyaleModulePrefetch } from './kartRoyalePrefetch.js';
 import { createKartRoyalePrepareScheduler } from './kartRoyalePrepareScheduler.js';
 import { readKartPrepRollout } from './kartRoyaleRollout.js';
+import {
+  createKartLoadingSession,
+  resolveKartScreenPaint,
+} from './kartRoyaleLoadingState.js';
 import './kartReadinessMetrics.js';
 import './kartAllocationLedger.js';
 
@@ -141,6 +145,11 @@ export function createKartRoyaleInstance({
   let controller = null;
   let activationEpoch = 0;
   let pendingActivation = false;
+  // Entry-loading indicator state (add-kart-royale-loading-indicator): one
+  // session per attempt; the DOM card and the booting cabinet paint are both
+  // driven from its snapshots in update().
+  const loadingSession = createKartLoadingSession();
+  let loadingCard = null;
   const prepRolloutEnabled = readKartPrepRollout({
     hasGraphicsTransactions: typeof runGraphicsTransaction === 'function',
   });
@@ -165,6 +174,84 @@ export function createKartRoyaleInstance({
     return backgroundHudRoot;
   }
 
+  /**
+   * Single terminal choke point for an entry attempt: cancel, load failure,
+   * dispose, and every controller-side exit clear the loading indicator here
+   * before the runtime releases the presentation token.
+   */
+  function presentationTerminal(reason) {
+    loadingSession.finish();
+    notifyPresentationTerminal?.(reason);
+  }
+
+  // --- entry-loading card (DOM) ------------------------------------------------
+
+  function buildLoadingCard(snap) {
+    const card = document.createElement('div');
+    card.className = 'kr-loading';
+    card.setAttribute('role', 'status');
+    const title = document.createElement('div');
+    title.className = 'kr-loading-title';
+    title.textContent = 'KART ROYALE';
+    const list = document.createElement('ul');
+    list.className = 'kr-loading-phases';
+    const phaseEls = snap.phases.map((p) => {
+      const li = document.createElement('li');
+      const mark = document.createElement('span');
+      mark.className = 'kr-loading-mark';
+      mark.setAttribute('aria-hidden', 'true');
+      const text = document.createElement('span');
+      text.className = 'kr-loading-label';
+      text.textContent = p.label;
+      li.append(mark, text);
+      list.appendChild(li);
+      return { li, mark, text, key: p.key };
+    });
+    const foot = document.createElement('div');
+    foot.className = 'kr-loading-foot';
+    const elapsed = document.createElement('span');
+    elapsed.className = 'kr-loading-elapsed';
+    // Second-by-second churn stays out of the live region.
+    elapsed.setAttribute('aria-hidden', 'true');
+    const cancel = document.createElement('span');
+    cancel.className = 'kr-loading-cancel';
+    cancel.textContent = 'ESC TO CANCEL';
+    foot.append(elapsed, cancel);
+    card.append(title, list, foot);
+    document.body.appendChild(card);
+    return { root: card, elapsed, phaseEls };
+  }
+
+  function removeLoadingCard() {
+    loadingCard?.root?.remove();
+    loadingCard = null;
+  }
+
+  const LOADING_MARKS = { done: '✓', current: '▸', pending: '·' };
+
+  function renderLoadingCard(snap) {
+    if (typeof document === 'undefined') return snap.visible;
+    if (!snap.visible) {
+      if (loadingCard) removeLoadingCard();
+      return false;
+    }
+    if (!loadingCard) loadingCard = buildLoadingCard(snap);
+    for (const el of loadingCard.phaseEls) {
+      const p = snap.phases.find((row) => row.key === el.key);
+      const state = p?.state ?? 'pending';
+      const mark = LOADING_MARKS[state];
+      if (el.li.dataset.state !== state) {
+        el.li.dataset.state = state;
+        el.li.className = `kr-loading-phase-${state}`;
+        el.mark.textContent = mark;
+      }
+    }
+    if (loadingCard.elapsed.textContent !== snap.elapsedLabel) {
+      loadingCard.elapsed.textContent = snap.elapsedLabel;
+    }
+    return true;
+  }
+
   const prepareScheduler = createKartRoyalePrepareScheduler({
     preparation,
     getDistance: () => throttler.getDistance(),
@@ -173,7 +260,7 @@ export function createKartRoyaleInstance({
     createBackgroundHost: (mod) => {
       const renderer = getRenderer?.();
       const hudHost = ensureBackgroundHudRoot();
-      if (!renderer || !hudHost || !mod?.createKartRoyaleHost) return null;
+      const sel = globalThis.__afterlightWorldState?.selection;
       return mod.createKartRoyaleHost({
         renderer,
         viewport: () => ({
@@ -183,6 +270,11 @@ export function createKartRoyaleInstance({
         hudHost,
         startScreen: 'select',
         runGraphicsTransaction,
+        initialWorldPresentation: sel?.worldId ? {
+          worldId: sel.worldId,
+          variantId: sel.variantId || null,
+          atmosphereProfile: sel.worldId,
+        } : null,
       });
     },
   });
@@ -214,8 +306,16 @@ export function createKartRoyaleInstance({
             preparation,
             retentionEnabled: prepRolloutEnabled,
             getDistance: () => throttler.getDistance(),
-            notifyPresentationTerminal,
+            getDistance: () => throttler.getDistance(),
+            notifyPresentationTerminal: presentationTerminal,
+            notifyPresentationLive: () => {
+              loadingSession.finish();
+            },
+            onBootPhase: (phase) => {
+              loadingSession.setPhase(phase);
+            },
             isMediaUiEvent,
+            getWorldSelection: () => globalThis.__afterlightWorldState?.selection ?? null,
           });
           if (disposed) {
             instance.dispose();
@@ -320,12 +420,14 @@ export function createKartRoyaleInstance({
     ctx.globalAlpha = 1;
   }
 
-  function paintAttract(time) {
+  function paintScenery(time) {
     paintBackground();
     paintSun(time);
     paintRoad(time);
     paintKart(time);
-    const pulse = 0.55 + Math.sin(time * 3) * 0.35;
+  }
+
+  function paintTitle() {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.shadowColor = GLOW;
@@ -337,9 +439,45 @@ export function createKartRoyaleInstance({
     ctx.fillStyle = '#d8b98a';
     ctx.font = '14px monospace';
     ctx.fillText('DRIFT • BOOST • WIN', CANVAS_WIDTH / 2, CANVAS_HEIGHT * 0.2 + 30);
+  }
+
+  function paintAttract(time) {
+    paintScenery(time);
+    paintTitle();
+    const pulse = 0.55 + Math.sin(time * 3) * 0.35;
     ctx.fillStyle = `rgba(255, 209, 102, ${pulse.toFixed(2)})`;
     ctx.font = 'bold 17px monospace';
     ctx.fillText('PRESS E TO RACE', CANVAS_WIDTH / 2, CANVAS_HEIGHT * 0.9);
+  }
+
+  /**
+   * Booting display (add-kart-royale-loading-indicator): the seated player's
+   * race is loading. Takes precedence over "RACING" — admission already flips
+   * occupancy, which would otherwise claim a race that has not started.
+   */
+  function paintBooting(time) {
+    paintScenery(time);
+    paintTitle();
+    const pulse = 0.55 + Math.sin(time * 3) * 0.35;
+    const dots = '.'.repeat(1 + (Math.floor(time * 2) % 3));
+    ctx.fillStyle = `rgba(255, 209, 102, ${pulse.toFixed(2)})`;
+    ctx.font = 'bold 17px monospace';
+    ctx.fillText(`LOADING${dots}`, CANVAS_WIDTH / 2, CANVAS_HEIGHT * 0.9);
+    ctx.fillStyle = '#d8b98a';
+    ctx.font = '12px monospace';
+    ctx.fillText('WARMING UP', CANVAS_WIDTH / 2, CANVAS_HEIGHT * 0.8);
+  }
+
+  function repaint(time, loadingVisible = false) {
+    if (!ctx) return;
+    const paintState = resolveKartScreenPaint({
+      loadingVisible,
+      displayStatus: displayState.status,
+    });
+    if (paintState === 'booting') paintBooting(time);
+    else if (paintState === 'occupied') paintOccupied();
+    else paintAttract(time);
+    screenPipeline.update();
   }
 
   function paintOccupied() {
@@ -373,13 +511,6 @@ export function createKartRoyaleInstance({
     }
   }
 
-  function repaint(time) {
-    if (!ctx) return;
-    if (displayState.status === 'occupied') paintOccupied();
-    else paintAttract(time);
-    screenPipeline.update();
-  }
-
   // --- snapshot / event / result routing -------------------------------------
 
   const instance = {
@@ -394,6 +525,11 @@ export function createKartRoyaleInstance({
     /** Test/verification seam: the current bounded display state. */
     getDisplayState() {
       return displayState;
+    },
+
+    /** Test/verification seam: the current entry-loading indicator state. */
+    getLoadingState() {
+      return loadingSession.snapshot(performance.now());
     },
 
     /** Preparation handle (fix-kart-royale-instant-entry D2). */
@@ -446,7 +582,7 @@ export function createKartRoyaleInstance({
      */
     beginParticipation() {
       if (disposed) {
-        notifyPresentationTerminal?.('disposed');
+        presentationTerminal('disposed');
         return Promise.resolve(false);
       }
       if (pendingActivation) {
@@ -460,25 +596,26 @@ export function createKartRoyaleInstance({
       }
       const epoch = ++activationEpoch;
       pendingActivation = true;
+      loadingSession.begin(performance.now());
       return loadController().then((inst) => {
         if (disposed || activationEpoch !== epoch) {
           pendingActivation = false;
           inst?.cancelActivation?.();
-          notifyPresentationTerminal?.('cancelled');
+          presentationTerminal('cancelled');
           return false;
         }
         if (!inst) {
           pendingActivation = false;
           // Lazy import failed: release the provisional floating token now,
           // not on a later frame.
-          notifyPresentationTerminal?.('load-failed');
+          presentationTerminal('load-failed');
           return false;
         }
         return inst.beginParticipation().then((ok) => {
           if (disposed || activationEpoch !== epoch) {
             pendingActivation = false;
             inst.cancelActivation?.();
-            notifyPresentationTerminal?.('cancelled');
+            presentationTerminal('cancelled');
             return false;
           }
           pendingActivation = inst.pendingActivation ?? false;
@@ -493,7 +630,7 @@ export function createKartRoyaleInstance({
           console.warn('[KartRoyale] beginParticipation failed:', error);
           pendingActivation = false;
           cancelActivation();
-          notifyPresentationTerminal?.('failed');
+          presentationTerminal('failed');
           toast?.('Kart Royale', 'The cabinet could not start — try again in a moment.');
           return false;
         });
@@ -502,12 +639,13 @@ export function createKartRoyaleInstance({
     cancelActivation() {
       activationEpoch += 1;
       pendingActivation = false;
+      loadingSession.finish();
       cancelGraphicsJobs?.();
       controller?.cancelActivation?.();
       // Cancelled before/without admission: nothing will change participation
       // state, so the floating presentation is released here.
       if (getParticipation?.()?.isOccupied !== true) {
-        notifyPresentationTerminal?.('cancelled');
+        presentationTerminal('cancelled');
       }
     },
 
@@ -548,12 +686,17 @@ export function createKartRoyaleInstance({
     update(time, delta) {
       if (disposed) return;
       if (controller) controller.update(time, delta);
+      // One snapshot drives both the DOM card and the booting cabinet paint;
+      // a finished session removes the card on this pass.
+      const loadingVisible = (loadingSession.active || loadingCard)
+        ? renderLoadingCard(loadingSession.snapshot(performance.now()))
+        : false;
       const visible = throttler.shouldRender(false, true);
-      // The attract mode is time-animated, so repaint whenever the machine is
-      // visible; occupied/idle transitions repaint via needsPaint.
-      if (needsPaint || (displayState.status === 'idle' && visible)) {
+      // The attract and booting modes are time-animated, so repaint whenever
+      // the machine is visible; occupied/idle transitions repaint via needsPaint.
+      if (needsPaint || ((displayState.status === 'idle' || loadingVisible) && visible)) {
         if (visible) {
-          repaint(time);
+          repaint(time, loadingVisible);
           needsPaint = false;
         }
       }
@@ -564,6 +707,8 @@ export function createKartRoyaleInstance({
       disposed = true;
       activationEpoch += 1;
       pendingActivation = false;
+      loadingSession.finish();
+      removeLoadingCard();
       controller?.cancelActivation?.();
       if (controller) controller.dispose();
       controller = null;

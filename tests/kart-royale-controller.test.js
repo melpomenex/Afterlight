@@ -84,7 +84,7 @@ function installBrowserStubs() {
   };
 }
 
-function makeSeams({ notifyPresentationTerminal = null } = {}) {
+function makeSeams({ notifyPresentationTerminal = null, onBootPhase = null, notifyPresentationLive = null } = {}) {
   const state = {
     joined: null,
     participating: false,
@@ -117,6 +117,8 @@ function makeSeams({ notifyPresentationTerminal = null } = {}) {
     generation: 4,
     toast: (title, body, tag) => toasts.push({ title, body, tag }),
     notifyPresentationTerminal,
+    onBootPhase,
+    notifyPresentationLive,
   });
   return { controller, state, acquisitions, releases, toasts, participation };
 }
@@ -457,6 +459,54 @@ test('lease: dispose without admission reports dispose once', () => {
     controller.dispose();
     controller.dispose();
     assert.deepEqual(terminals, ['dispose'], 'idempotent disposal notifies exactly once');
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('loading indicator: a failed host import never reports phases or presentation live', async () => {
+  const stubs = installBrowserStubs();
+  const phases = [];
+  let live = 0;
+  try {
+    const { controller, state } = makeSeams({
+      onBootPhase: (phase) => phases.push(phase),
+      notifyPresentationLive: () => { live += 1; },
+    });
+    await controller.beginParticipation();
+    state.participating = true;
+    state.currentActivity = KART_ROYALE_ACTIVITY_DEFINITION;
+    controller.update(0, 1 / 60);
+    // Settle the (failing, in Node) dynamic host import.
+    for (let i = 0; i < 5; i++) {
+      await new Promise((r) => setTimeout(r, 25));
+      controller.update((i + 1) / 60, 1 / 60);
+    }
+    assert.deepEqual(phases, [], 'no boot phase is reported past the failed import');
+    assert.equal(live, 0, 'presentation live is never reported for a failed load');
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('loading indicator: injected phase and live callbacks are accepted seams', async () => {
+  const stubs = installBrowserStubs();
+  const phases = [];
+  let live = 0;
+  try {
+    // Without admission there is no boot; the seams must simply be inert
+    // (forward-only ordering and live reporting belong to the success path
+    // verified in the browser gate against the real running app).
+    const { controller } = makeSeams({
+      onBootPhase: (phase) => phases.push(phase),
+      notifyPresentationLive: () => { live += 1; },
+    });
+    const ok = await controller.beginParticipation();
+    assert.equal(ok, true);
+    assert.deepEqual(phases, []);
+    assert.equal(live, 0);
+    controller.dispose();
   } finally {
     stubs.restore();
   }

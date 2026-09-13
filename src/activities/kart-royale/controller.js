@@ -37,8 +37,13 @@ export function createKartRoyaleController({
   retentionEnabled = false,
   getDistance = null,
   notifyPresentationTerminal = null,
+  /** Presentation-live + boot-phase reports for the entry loading indicator. */
+  notifyPresentationLive = null,
+  onBootPhase = null,
   // Injected seam: the floating-media input guard (dependency-free module).
   isMediaUiEvent = null,
+  getWorldSelection = null,
+  initialWorldPresentation = null,
 } = {}) {
   if (!activityDef || activityDef.type !== 'kart-royale') {
     throw new Error('kart-royale controller requires a kart-royale activity definition');
@@ -81,6 +86,44 @@ export function createKartRoyaleController({
   let hadAdmission = false;
   let contextCanvas = null;
   let consumeEntryKeyUp = false;
+
+  function getEffectiveWorldPresentation() {
+    if (typeof getWorldSelection === 'function') {
+      const sel = getWorldSelection();
+      if (sel?.worldId) {
+        return {
+          worldId: sel.worldId,
+          variantId: sel.variantId || null,
+          atmosphereProfile: sel.worldId,
+        };
+      }
+    }
+    if (globalThis.__afterlightWorldState?.selection?.worldId) {
+      const sel = globalThis.__afterlightWorldState.selection;
+      return {
+        worldId: sel.worldId,
+        variantId: sel.variantId || null,
+        atmosphereProfile: sel.worldId,
+      };
+    }
+    return initialWorldPresentation;
+  }
+
+  let worldUnsub = null;
+  if (typeof globalThis.__afterlightWorldState?.subscribe === 'function') {
+    worldUnsub = globalThis.__afterlightWorldState.subscribe(() => {
+      if (host && !controllerDisposed) {
+        const sel = globalThis.__afterlightWorldState.selection;
+        if (sel?.worldId) {
+          host.setWorldPresentation?.({
+            worldId: sel.worldId,
+            variantId: sel.variantId || null,
+            atmosphereProfile: sel.worldId,
+          });
+        }
+      }
+    });
+  }
 
   function isAttemptCurrent(local) {
     return local
@@ -287,6 +330,7 @@ export function createKartRoyaleController({
           booted = true;
           presentationReady = true;
           perfMark('ready');
+          notifyPresentationLive?.();
           preparation?.activate?.();
           host.beginSession();
           attachControls();
@@ -302,6 +346,7 @@ export function createKartRoyaleController({
         if (!isAttemptCurrent(localAttempt) || localGen !== resourceGeneration) return;
 
         perfSpan('construct', 'start');
+        onBootPhase?.('host');
         const nextHost = module.createKartRoyaleHost({
           renderer: getRenderer(),
           viewport: () => ({
@@ -335,6 +380,7 @@ export function createKartRoyaleController({
         runGraphicsTransaction: typeof runGraphicsTransaction === 'function'
           ? runGraphicsTransaction
           : null,
+        initialWorldPresentation: getEffectiveWorldPresentation(),
       });
         perfSpan('construct', 'end');
         if (!isAttemptCurrent(localAttempt) || localGen !== resourceGeneration) {
@@ -381,6 +427,7 @@ export function createKartRoyaleController({
         if (!coldPreparationEnabled && !acquireTheView()) return;
 
         perfSpan('boot', 'start');
+        onBootPhase?.('graphics');
         await host.boot();
         perfSpan('boot', 'end');
         if (!isAttemptCurrent(localAttempt) || localGen !== resourceGeneration) return;
@@ -390,6 +437,7 @@ export function createKartRoyaleController({
         }
 
         perfSpan('spawn-valid', 'start');
+        onBootPhase?.('grid');
         const ready = host.prepareSelectionReadiness();
         perfSpan('spawn-valid', 'end', { ready });
         if (!ready) {
@@ -405,6 +453,7 @@ export function createKartRoyaleController({
         booted = true;
         presentationReady = true;
         perfMark('ready');
+        notifyPresentationLive?.();
         await preparation?.prepare?.({
           factory: async () => ({ host, ready: true }),
         });
@@ -617,6 +666,8 @@ export function createKartRoyaleController({
     detachControls();
     removeContextWatch();
     removeHudRoot();
+    worldUnsub?.();
+    worldUnsub = null;
     if (viewHeld && releaseView) {
       releaseView(attempt.token, 'dispose');
     } else if (host) {
@@ -643,7 +694,8 @@ export function createKartRoyaleController({
     pendingActivation = true;
     unlockAudioFromGesture();
     preparation?.prefetch?.().catch(() => {});
-    pushToast('Kart Royale', 'Loading the race… Press Esc to cancel.');
+    // Boot progress is reported through the persistent loading indicator
+    // (add-kart-royale-loading-indicator); failure toasts remain.
     perfSpan('admission', 'start');
     if (!mine()) {
       participation()?.join?.(activityDef, { role: 'play' });
@@ -667,6 +719,12 @@ export function createKartRoyaleController({
     },
     exit,
     dispose,
+    setWorldPresentation(presentation) {
+      host?.setWorldPresentation?.(presentation);
+    },
+    getWorldPresentation() {
+      return host?.getWorldPresentation?.() ?? getEffectiveWorldPresentation();
+    },
     get attemptToken() {
       return attempt.token;
     },
