@@ -1,0 +1,138 @@
+{
+  "generator": "scripts/build-pool-audio-palette.py",
+  "format": "44.1 kHz mono 16-bit WAV",
+  "families": {
+    "cue": "cue-tip strike; soft/hard velocity layers, 2 variants each",
+    "ball": "resin ball-to-ball impact; soft/med/hard velocity layers, 2 variants each",
+    "cushion": "rubber cushion knock; 3 variants (speed scales gain at playback)",
+    "pocket": "lip/drop/settle sequence; 3 variants",
+    "cloth": "seamless rolling/sliding texture driven by ball speed"
+  },
+  "budgets": {
+    "transfer_bytes": 521908,
+    "transfer_budget_bytes": 2097152,
+    "decoded_bytes_float32": 1042320,
+    "decoded_budget_bytes": 12582912
+  },
+  "files": [
+    {
+      "file": "cue-soft-1.wav",
+      "family": "cue",
+      "source": "S02-22 Billiards cue stick hits ball.wav by craigsmith \u2014 https://freesound.org/people/craigsmith/sounds/675330/",
+      "license": "CC0 1.0",
+      "edit": "sliced 2.594s\u20132.804s from the recording, converted to 44.1 kHz mono, leading silence trimmed, DC removed, 3 ms/40 ms fades, family-shared peak normalization"
+    },
+    {
+      "file": "cue-soft-2.wav",
+      "family": "cue",
+      "source": "S02-22 Billiards cue stick hits ball.wav by craigsmith \u2014 https://freesound.org/people/craigsmith/sounds/675330/",
+      "license": "CC0 1.0",
+      "edit": "sliced 5.233s\u20135.443s from the recording, converted to 44.1 kHz mono, leading silence trimmed, DC removed, 3 ms/40 ms fades, family-shared peak normalization"
+    },
+    {
+      "file": "cue-hard-1.wav",
+      "family": "cue",
+      "source": "S02-22 Billiards cue stick hits ball.wav by craigsmith \u2014 https://freesound.org/people/craigsmith/sounds/675330/",
+      "license": "CC0 1.0",
+      "edit": "sliced 3.791s\u20134.011s from the recording, converted to 44.1 kHz mono, leading silence trimmed, DC removed, 3 ms/40 ms fades, family-shared peak normalization"
+    },
+    {
+      "file": "cue-hard-2.wav",
+      "family": "cue",
+      "source": "S02-22 Billiards cue stick hits ball.wav by craigsmith \u2014 https://freesound.org/people/craigsmith/sounds/675330/",
+      "license": "CC0 1.0",
+      "edit": "sliced 7.209s\u20137.429s from the recording, converted to 44.1 kHz mono, leading silence trimmed, DC removed, 3 ms/40 ms fades, family-shared peak normalization"
+    },
+    {
+      "file": "ball-soft-1.wav",
+      "family": "ball",
+      "source": "Billiards.wav by 13FPanska_Marval_Lukas \u2014 https://freesound.org/people/13FPanska_Marval_Lukas/sounds/379327/",
+      "license": "CC0 1.0",
+      "edit": "sliced 1.347s\u20131.500s from the recording, converted to 44.1 kHz mono, leading silence trimmed, DC removed, 3 ms/40 ms fades, family-shared peak normalization"
+    },
+    {
+      "file": "ball-soft-2.wav",
+      "family": "ball",
+      "source": "8 ball - billiard.wav by allberto \u2014 https://freesound.org/people/allberto/sounds/147578/",
+      "license": "CC0 1.0",
+      "edit": "sliced 5.976s\u20136.130s from the recording, converted to 44.1 kHz mono, leading silence trimmed, DC removed, 3 ms/40 ms fades, family-shared peak normalization"
+    },
+    {
+      "file": "ball-med-1.wav",
+      "family": "ball",
+      "source": "8 ball - billiard.wav by allberto \u2014 https://freesound.org/people/allberto/sounds/147578/",
+      "license": "CC0 1.0",
+      "edit": "sliced 0.888s\u20131.010s from the recording, converted to 44.1 kHz mono, leading silence trimmed, DC removed, 3 ms/40 ms fades, family-shared peak normalization"
+    },
+    {
+      "file": "ball-med-2.wav",
+      "family": "ball",
+      "source": "8 ball - billiard.wav by allberto \u2014 https://freesound.org/people/allberto/sounds/147578/",
+      "license": "CC0 1.0",
+      "edit": "sliced 9.369s\u20139.560s from the recording, converted to 44.1 kHz mono, leading silence trimmed, DC removed, 3 ms/40 ms fades, family-shared peak normalization"
+    },
+    {
+      "file": "ball-hard-1.wav",
+      "family": "ball",
+      "source": "Pool Table Ball Break (in a public bar) No.2.wav by RossJuterbock \u2014 https://freesound.org/people/RossJuterbock/sounds/543482/",
+      "license": "CC0 1.0",
+      "edit": "sliced 1.207s\u20131.467s from the recording, converted to 44.1 kHz mono, leading silence trimmed, DC removed, 3 ms/40 ms fades, family-shared peak normalization"
+    },
+    {
+      "file": "ball-hard-2.wav",
+      "family": "ball",
+      "source": "8 ball - billiard.wav by allberto \u2014 https://freesound.org/people/allberto/sounds/147578/",
+      "license": "CC0 1.0",
+      "edit": "sliced 1.013s\u20131.163s from the recording, converted to 44.1 kHz mono, leading silence trimmed, DC removed, 3 ms/40 ms fades, family-shared peak normalization"
+    },
+    {
+      "file": "cushion-1.wav",
+      "family": "cushion",
+      "source": "8 ball - billiard.wav by allberto \u2014 https://freesound.org/people/allberto/sounds/147578/",
+      "license": "CC0 1.0",
+      "edit": "sliced 4.175s\u20134.268s from the recording, converted to 44.1 kHz mono, leading silence trimmed, DC removed, 3 ms/40 ms fades, family-shared peak normalization"
+    },
+    {
+      "file": "cushion-2.wav",
+      "family": "cushion",
+      "source": "8 ball - billiard.wav by allberto \u2014 https://freesound.org/people/allberto/sounds/147578/",
+      "license": "CC0 1.0",
+      "edit": "sliced 4.420s\u20134.680s from the recording, converted to 44.1 kHz mono, leading silence trimmed, DC removed, 3 ms/40 ms fades, family-shared peak normalization"
+    },
+    {
+      "file": "cushion-3.wav",
+      "family": "cushion",
+      "source": "Billiards.wav by 13FPanska_Marval_Lukas \u2014 https://freesound.org/people/13FPanska_Marval_Lukas/sounds/379327/",
+      "license": "CC0 1.0",
+      "edit": "sliced 1.736s\u20131.956s from the recording, converted to 44.1 kHz mono, leading silence trimmed, DC removed, 3 ms/40 ms fades, family-shared peak normalization"
+    },
+    {
+      "file": "pocket-1.wav",
+      "family": "pocket",
+      "source": "B_1 pool ball falling.wav by Yarmonics \u2014 https://freesound.org/people/Yarmonics/sounds/441857/",
+      "license": "CC0 1.0",
+      "edit": "sliced 0.000s\u20130.700s from the recording, converted to 44.1 kHz mono, leading silence trimmed, DC removed, 3 ms/40 ms fades, family-shared peak normalization"
+    },
+    {
+      "file": "pocket-2.wav",
+      "family": "pocket",
+      "source": "Potting snooker balls.mp3 by Caitlin_100 \u2014 https://freesound.org/people/Caitlin_100/sounds/365525/",
+      "license": "CC0 1.0",
+      "edit": "sliced 2.550s\u20133.100s from the recording, converted to 44.1 kHz mono, leading silence trimmed, DC removed, 3 ms/40 ms fades, family-shared peak normalization"
+    },
+    {
+      "file": "pocket-3.wav",
+      "family": "pocket",
+      "source": "Potting snooker balls.mp3 by Caitlin_100 \u2014 https://freesound.org/people/Caitlin_100/sounds/365525/",
+      "license": "CC0 1.0",
+      "edit": "sliced 3.150s\u20133.800s from the recording, converted to 44.1 kHz mono, leading silence trimmed, DC removed, 3 ms/40 ms fades, family-shared peak normalization"
+    },
+    {
+      "file": "cloth-loop.wav",
+      "family": "cloth",
+      "source": "synthesized locally by scripts/build-pool-audio-palette.py (no recording)",
+      "license": "project-authored (CC0-equivalent)",
+      "edit": "seamless 1.6 s loop: pink-weighted noise band-limited 150 Hz\u20132.2 kHz, 0.8 Hz amplitude wander, equal-power crossfaded ends"
+    }
+  ]
+}

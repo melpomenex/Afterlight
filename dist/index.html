@@ -24,8 +24,8 @@
   <link rel="manifest" href="/site.webmanifest">
   <meta name="msapplication-TileColor" content="#141B18">
   <meta name="msapplication-config" content="/browserconfig.xml">
-  <script type="module" crossorigin src="/assets/index-RM2T2emd.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-CANnJ3zR.css">
+  <script type="module" crossorigin src="/assets/index-BHMx2cCc.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-CYJyjArS.css">
 </head>
 <body>
   <canvas id="world" tabindex="-1" aria-label="Interactive isometric city world"></canvas>
@@ -206,6 +206,12 @@
       <input id="weather-volume" type="range" min="0" max="100" step="5" value="35" aria-label="Weather volume">
       <span id="weather-value">35%</span>
     </label>
+    <label>World
+      <button id="settings-world-button" type="button">Choose your World</button>
+    </label>
+    <p class="micro" id="settings-world-note">
+      Your surroundings, saved in this browser. You still share the place with everyone here.
+    </p>
     <label>Fullscreen
       <button id="fullscreen-toggle" type="button">Go fullscreen</button>
     </label>
@@ -234,13 +240,13 @@
     <button id="close-districts">Return to exploring →</button>
   </dialog>
 
-  <!-- Theater Environment campaign: six authored worlds around the ONE
-       Orpheum. The choice is a shared room property — anyone in the theater
-       may change it and everyone follows the accepted state. -->
-  <dialog id="world-dialog">
-    <div class="micro">THE ORPHEUM ENVIRONMENT</div>
-    <h2>Six Worlds, One Theater</h2>
-    <p class="dialog-sub">The Orpheum never moves — the world around it changes. Anyone in the theater can choose; every occupant follows the room's accepted world.</p>
+  <!-- Personal World selector (introduce-global-world-system): personal surroundings
+       saved in the browser across places and activities. -->
+  <dialog id="world-dialog" aria-labelledby="world-dialog-title">
+    <div class="micro">PERSONAL ENVIRONMENT</div>
+    <h2 id="world-dialog-title">Choose your World</h2>
+    <p class="dialog-sub">Your surroundings, saved in this browser. You still share the place with everyone here.</p>
+    <div id="world-status" class="world-status" role="status" aria-live="polite" hidden></div>
     <div id="world-list" class="world-list"></div>
     <button id="close-world">Back to the world →</button>
   </dialog>
