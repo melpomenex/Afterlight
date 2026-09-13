@@ -10,6 +10,47 @@ Preserves Afterlight's signature rain-soaked aesthetic: high isometric camera, l
 
 ---
 
+## Screenshots
+
+### Theater Environments — Six Worlds Around The Orpheum
+
+The Orpheum cinema (`theater`) is the central social destination of Afterlight. While the theater auditorium, arcade row, and shared screen remain constant, the surrounding world outside transforms through room-authoritative atmosphere presets. Anyone in the auditorium can select an environment from the **◈ World** picker (<kbd>World</kbd> in the footer), and every occupant follows together.
+
+| World | District | Atmosphere & Lore |
+| :--- | :--- | :--- |
+| **[Coastal Dusk](#coastal-dusk)** | `COASTAL DISTRICT / 21` | *Where the light meets the water* — The Orpheum stands on a headland while the sun goes down over an open sea. |
+| **[Rainforest Canopy](#rainforest-canopy)** | `CANOPY DISTRICT / 22` | *The green cathedral breathes* — Huge trees close over the Orpheum; mist drifts between the layers and water never stops falling. |
+| **[Alpine Aurora](#alpine-aurora)** | `ALPINE DISTRICT / 23` | *Cold light over the snow* — Snow peaks and a frozen basin; the aurora moves above while the Orpheum burns warm. |
+| **[Desert Oasis](#desert-oasis)** | `DUNE DISTRICT / 24` | *Stone and light and a long horizon* — Mesas rise over the Orpheum; palms and still water gather at the spring. |
+| **[Ancient Redwood Forest](#ancient-redwood-forest)** | `OLD GROWTH DISTRICT / 25` | *The quiet between giants* — Trunks wider than rooms rise past the roofline; the Orpheum is small, warm and ancient too. |
+| **[Cloud Garden](#cloud-garden)** | `SKY GARDEN DISTRICT / 26` | *An island in an ocean of cloud* — Grass and flowers on floating stone, high above a cloud sea that never ends. |
+
+#### Coastal Dusk
+*The Orpheum stands on a headland while the sun goes down over an open sea.*
+![Coastal Dusk](docs/screenshots/theater/coastal-dusk.png)
+
+#### Rainforest Canopy
+*Huge trees close over the Orpheum; mist drifts between the layers and water never stops falling.*
+![Rainforest Canopy](docs/screenshots/theater/rainforest-canopy.png)
+
+#### Alpine Aurora
+*Snow peaks and a frozen basin; the aurora moves above while the Orpheum burns warm.*
+![Alpine Aurora](docs/screenshots/theater/alpine-aurora.png)
+
+#### Desert Oasis
+*Mesas rise over the Orpheum; palms and still water gather at the spring.*
+![Desert Oasis](docs/screenshots/theater/desert-oasis.png)
+
+#### Ancient Redwood Forest
+*Trunks wider than rooms rise past the roofline; the Orpheum is small, warm and ancient too.*
+![Ancient Redwood Forest](docs/screenshots/theater/ancient-redwood-forest.png)
+
+#### Cloud Garden
+*Grass and flowers on floating stone, high above a cloud sea that never ends.*
+![Cloud Garden](docs/screenshots/theater/cloud-garden.png)
+
+---
+
 ## Getting Started
 
 ### 1. Install Dependencies
@@ -116,7 +157,7 @@ The shared places are the game's identity. The legacy districts keep their own q
 
 **Emotes.** Wave, Rust shuffle, Cheer, Much love, Bow, and Shrug animate your character for nearby players. Movement or jumping ends the pose. The wheel stops your walk target; it never pauses other players. Emotes also work seated, and leaving cinema view to choose keeps your seat.
 
-**First person.** The fourth camera view puts you at street level. Your own avatar steps out of sight (Kiln and everyone else stay put), WASD moves relative to where you look, and your view simply follows the mouse — no button needed. A plain click still walks, and a held drag never does. Prefer the old control? **Settings → Mouse look** switches back to press-and-drag to look (touch always uses drag). Sit in a theater seat in first person to watch the shared screen from your own chair; your view choice is local and resets to the default angle on reload, and the mouse-look setting is remembered per browser.
+**First person.** The fourth camera view puts you at street level. Your own avatar steps out of sight (Kiln and everyone else stay put), WASD moves relative to where you look, and your view locks the pointer and hides the cursor so you can freely look around without the mouse hitting screen edges. Press <kbd>Escape</kbd> or open a dialog to release the pointer and restore your cursor; click the game view again to re-lock. A plain click still walks, and a held drag never does. Prefer the old control? **Settings → Mouse look** switches back to press-and-drag to look (touch always uses drag). Sit in a theater seat in first person to watch the shared screen from your own chair; your view choice is local and resets to the default angle on reload, and the mouse-look setting is remembered per browser.
 
 **Sound.** The world starts **quiet**: sound is off until you press the **♫ Sound** footer toggle, which starts the ambience and effects (everything is synthesized in the browser — no audio downloads). The switch is the master volume for the whole game — with sound off, screens in The Orpheum stay silent too, and pressing it brings their picture's audio back at your chosen theater volume. Footsteps follow your walking and running cadence; their volume lives in **Settings** (<kbd>Esc</kbd> → Footsteps) and is remembered per browser.
 
@@ -220,7 +261,7 @@ The auditorium has rounded burgundy seats with padded headrests, armrests and cu
 
 ### Six worlds around the stage
 
-The Orpheum's surroundings are the room's shared world, not a private display setting. Press **◈ World** in the footer (shown in The Orpheum) to open the picker: **Coastal Dusk**, **Rainforest Canopy**, **Alpine Aurora**, **Desert Oasis**, **Ancient Redwood Forest**, and **Cloud Garden** — each with three authored variants (sunset, storm, bioluminescent midnight, morning mist, snowfall, starry night…). Anyone in the room may choose; the accepted world is the room's atmosphere state, so every occupant follows around the same theater — the building, seats, screen, arcade and seating never move or reset, and your own pick previews immediately even while offline. Ambience follows the chosen world (rain, wind, shelter, lowpass), ducking under shared media and calls as always. Design/authoring reference: `docs/theater-environments.md`.
+The Orpheum's surroundings are the room's shared world, not a private display setting. Press **◈ World** in the footer (shown in The Orpheum) to open the picker: **Coastal Dusk**, **Rainforest Canopy**, **Alpine Aurora**, **Desert Oasis**, **Ancient Redwood Forest**, and **Cloud Garden** — each with three authored variants (sunset, storm, bioluminescent midnight, morning mist, snowfall, starry night…). Anyone in the room may choose; the accepted world is the room's atmosphere state, so every occupant follows around the same theater — the building, seats, screen, arcade and seating never move or reset, and your own pick previews immediately even while offline. Ambience follows the chosen world (rain, wind, shelter, lowpass), ducking under shared media and calls as always. See [Screenshots](#screenshots) for captures of every environment, and `docs/theater-environments.md` for design/authoring reference.
 
 ### The arcade wall
 
