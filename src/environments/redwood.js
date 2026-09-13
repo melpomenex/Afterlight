@@ -25,8 +25,6 @@ import { fbm, clamp, smoothstep, createTerrain } from './lib/terrain.js';
 import { scatter } from './lib/scatter.js';
 import { createRockGeometry, createRockField } from './lib/rocks.js';
 import {
-  createAncientTrunkGeometry,
-  createFernGeometry,
   createGrassTuftGeometry,
   instanceVegetation,
 } from './lib/vegetation.js';
@@ -34,6 +32,8 @@ import { createWater } from './lib/water.js';
 import { createParticleField, createFlock } from './lib/particles.js';
 import { createLightShafts } from './lib/skyFx.js';
 import { scaleForTier, budgetForEnvironmentTier } from './quality.js';
+import { createRedwoodTrunkGeometry, createSwordFernGeometry } from './lib/redwoodGeometry.js';
+import { createRedwoodSurfaceTextures } from './lib/redwoodMaterials.js';
 
 // The clearing floor is authored below the Theater slab: the whole required
 // footprint stays under -0.73 even at the noisiest corner.
@@ -56,13 +56,18 @@ function clearingMask(x, z) {
   return 1 - smoothstep(0, CLEARING_FADE, clearingDistance(x, z));
 }
 
-/** The stream runs north–south just outside the clearing's west edge. */
+/** The stream runs north–south along the west edge, then sweeps across the south-west foreground. */
 function streamCenterX(z) {
-  return -21.2 + Math.sin(z * 0.14) * 1.9 + Math.sin(z * 0.045 + 2.1) * 1.2;
+  if (z < 4) {
+    return -21.0 + Math.sin(z * 0.14) * 1.5;
+  }
+  // Sweeps south-west across foreground: -21 at z=4, -14.1 at z=10, -9.5 at z=14, -4.9 at z=18, -0.3 at z=22
+  return -21.0 + (z - 4) * 1.15;
 }
 
 function streamDistance(x, z) {
-  return Math.abs(x - streamCenterX(z));
+  const cx = streamCenterX(z);
+  return x - cx; // Positive = towards east (bank side)
 }
 
 /** Distance from the Theater shell rectangle (the building keeps its air). */
@@ -77,6 +82,7 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
   const budget = quality ?? budgetForEnvironmentTier(tier);
   const root = new THREE.Group();
   root.name = 'redwood-world';
+  const surfaces = createRedwoodSurfaceTextures(track, budget.terrainSize);
 
   // --- Terrain: sunken clearing, rolling old-growth floor, stream ---------
   function heightAt(x, z) {
@@ -88,25 +94,33 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
     const rolling = (fbm(x, z, { octaves: 5, frequency: 0.052, seed: 179 }) - 0.5) * 4.0
       + smoothstep(18, 44, Math.hypot(x, z)) * 1.6;
     let h = basin * clearing + rolling * (1 - clearing);
-    // The stream corridor ignores the rolling ground so the channel stays wet.
-    const bank = 1 - smoothstep(3.6, 11.0, streamDistance(x, z));
-    if (bank > 0.001) {
-      const streamFloor = BASIN_Y - 0.05
-        + (fbm(x, z, { octaves: 3, frequency: 0.35, seed: 523 }) - 0.5) * 0.3;
-      h = h * (1 - bank) + streamFloor * bank;
+
+    // Stream & foreground creek carving:
+    // Smoothly avoid theater shell footprint
+    const shellSafe = smoothstep(1.5, 3.5, shellClearance(x, z));
+    const cx = streamCenterX(z);
+    const eastDist = x - cx;
+
+    // Channel bed is carved to -2.05 (depth 0.55 below WATER_Y = -1.5)
+    // Bank slopes smoothly from eastDist = 0.5 to eastDist = 3.6
+    if (eastDist < 3.8 && shellSafe > 0) {
+      const bankU = smoothstep(0.4, 3.6, eastDist);
+      const bedDepth = -2.05 + (fbm(x * 0.35, z * 0.35, { octaves: 3, frequency: 1, seed: 523 }) - 0.5) * 0.15;
+      const carved = bedDepth * (1 - bankU) + h * bankU;
+      h = h * (1 - shellSafe) + Math.min(h, carved) * shellSafe;
     }
-    const channel = 1 - smoothstep(2.0, 5.0, streamDistance(x, z));
-    return h - channel * STREAM_DEPTH;
+
+    return h;
   }
 
-  const humus = new THREE.Color('#4b3d2b');
-  const needles = new THREE.Color('#5b4a31');
-  const moss = new THREE.Color('#3a562f');
-  const mossDark = new THREE.Color('#2c4326');
-  const streamBed = new THREE.Color('#2b3226');
-  const streamGravel = new THREE.Color('#4b4a40');
-  const clearingFloor = new THREE.Color('#453a29');
-  const forestRock = new THREE.Color('#565149');
+  const dampDuff = new THREE.Color('#382e26');    // Rich dark organic duff
+  const warmNeedles = new THREE.Color('#4e3e32'); // Muted needle duff mounds
+  const moss = new THREE.Color('#345c24');        // vibrant forest moss along creek bank
+  const mossDark = new THREE.Color('#203a16');    // deep forest shadow moss
+  const streamBed = new THREE.Color('#101e22');   // dark river silt
+  const streamGravel = new THREE.Color('#263438'); // wet slate river gravel
+  const clearingFloor = new THREE.Color('#3c342c'); // trampled clearing floor tint
+  const forestRock = new THREE.Color('#3e443c');  // weathered granite
   const colorScratch = new THREE.Color();
 
   const terrain = createTerrain({
@@ -114,58 +128,78 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
     segments: budget.terrainSegments,
     height: heightAt,
     colorAt: ({ x, z, h, slope }) => {
-      const litterNoise = fbm(x, z, { octaves: 3, frequency: 0.06, seed: 613 });
-      const mossNoise = fbm(x, z, { octaves: 4, frequency: 0.115, seed: 601 });
-      colorScratch.copy(humus).lerp(needles, litterNoise);
-      // Moss prefers the shaded, flatter pockets outside the trampled clearing.
-      const bank = 1 - smoothstep(2.4, 5.6, streamDistance(x, z));
-      const mossiness = clamp((mossNoise - 0.46) * 2.6, 0, 1) * smoothstep(0.6, 0.22, slope);
-      const mossBlend = clamp(mossiness * 0.85 + bank * 0.15, 0, 1);
-      colorScratch.lerp(mossNoise > 0.62 ? mossDark : moss, mossBlend);
-      if (h < WATER_Y + 0.45) {
-        colorScratch.lerp(streamBed, smoothstep(WATER_Y + 0.45, WATER_Y - 0.3, h));
-        colorScratch.lerp(streamGravel, smoothstep(WATER_Y + 0.05, WATER_Y - 0.9, h) * 0.45);
+      const macroNoise = fbm(x, z, { octaves: 3, frequency: 0.05, seed: 443 });
+      const mossNoise = fbm(x, z, { octaves: 4, frequency: 0.12, seed: 601 });
+      colorScratch.copy(dampDuff).lerp(warmNeedles, macroNoise);
+
+      // Moss prefers shaded pockets and flat hollows
+      if (mossNoise > 0.62 && slope < 0.4) {
+        const mossiness = clamp((mossNoise - 0.62) * 3.5, 0, 1);
+        colorScratch.lerp(mossNoise > 0.82 ? mossDark : moss, mossiness * 0.7);
       }
+
+      // Creek bank: lush mossy lip and wet waterline gravel
+      if (h < WATER_Y + 0.42) {
+        // Lush green bank sloping into the creek
+        colorScratch.lerp(moss, smoothstep(WATER_Y + 0.42, WATER_Y + 0.08, h) * 0.85);
+        // Wet slate pebble / silt band at waterline
+        colorScratch.lerp(streamBed, smoothstep(WATER_Y + 0.1, WATER_Y - 0.25, h));
+        colorScratch.lerp(streamGravel, smoothstep(WATER_Y + 0.05, WATER_Y - 0.7, h) * 0.7);
+      }
+
       const clearing = clearingMask(x, z);
       if (clearing > 0.05) colorScratch.lerp(clearingFloor, clearing * 0.35);
       if (slope > 0.5) colorScratch.lerp(forestRock, smoothstep(0.5, 1.4, slope) * 0.5);
       return colorScratch;
     },
     y: 0,
-    roughness: 0.97,
+    roughness: 0.95,
     metalness: 0,
   });
-  // A whisper of self-lit humus keeps the firefly night readable, never black.
-  terrain.material.emissive.set('#0d1a13');
-  terrain.material.emissiveIntensity = 0.3;
+  // Peat shadow lift keeps night readable without crushing to black
+  terrain.material.emissive.set('#0a0806');
+  terrain.material.emissiveIntensity = 0.08;
+  terrain.material.map = surfaces.floor;
+  terrain.material.bumpMap = surfaces.floor;
+  terrain.material.bumpScale = 0.32;
   root.add(terrain.mesh);
   track(terrain);
 
   // --- The stream: a shallow carved channel west of the clearing -----------
   const water = createWater({
     size: 140,
-    segments: Math.max(48, Math.round(budget.waterSegments * 1.1)),
+    segments: budget.waterSegments,
     waterY: WATER_Y,
     terrainHeight: heightAt,
-    shoreRange: 0.55,
-    waveHeight: 0.05,
-    chop: 0.02,
-    deepColor: '#14251d',
-    shallowColor: '#3f6b52',
-    opacity: 0.9,
+    shoreRange: 0.65,
+    waveHeight: 0.022,
+    chop: 0.015,
+    deepColor: '#0a161a',      // deep dark jade/slate river pool
+    shallowColor: '#1a363c',   // translucent blue-tinted creek water
+    opacity: 0.84,             // translucent so creek bed and river stones show through
+    depthScale: 0.65,          // accurate depth gradient for 0.55m carved bed
+    fresnelMix: 0.88,          // reflective blue sky sheen at grazing angles
+    fresnelPower: 1.8,
+    foamStrength: 0.03,
+    normalFreq: 1.8,
+    normalBoost: 2.8,
+    ripple: 0.35,
   });
   root.add(water.mesh);
   track(water);
 
   // --- Ancient trunks: the vertical scale of the place ---------------------
   const trunkDefs = [
-    { height: 30, radius: 3.1, color: '#4e3c2c', ridgeColor: '#33251a', buttresses: 6 },
-    { height: 38, radius: 4.2, color: '#523e2d', ridgeColor: '#36271b', buttresses: 7 },
-    { height: 44, radius: 5.2, color: '#483625', ridgeColor: '#2f2117', buttresses: 8 },
+    { height: 38, radius: 1.65, color: '#7a8492', ridgeColor: '#242830', buttresses: 6 },
+    { height: 46, radius: 2.1, color: '#727c8a', ridgeColor: '#22262c', buttresses: 7 },
+    { height: 54, radius: 2.7, color: '#6a7482', ridgeColor: '#20242a', buttresses: 8 },
   ];
   const trunkMaterial = kit.track(new THREE.MeshStandardMaterial({
-    vertexColors: true, roughness: 0.94, metalness: 0.02,
-    emissive: new THREE.Color('#0a0f0c'), emissiveIntensity: 0.3,
+    vertexColors: true, roughness: 0.88, metalness: 0.02,
+    emissive: new THREE.Color('#0a0e12'), emissiveIntensity: 0.08,
+    map: surfaces.bark, bumpMap: surfaces.bark, bumpScale: 0.44,
+    normalMap: surfaces.barkNormal,
+    normalScale: new THREE.Vector2(2.4, 2.4),
   }));
   const trunkCounts = [5, 6, 6].map((n) => Math.min(8, scaleForTier(tier, 'vegetationScale', n)));
   const trunkPlacements = [];
@@ -181,13 +215,12 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
   // Orpheum in every camera view instead of leaving the near field empty.
   const gatewayByVariant = [[], [], []];
   for (const def of [
-    { variant: 0, x: 25.4, z: 0.6 },
-    { variant: 0, x: -25.4, z: -0.8 },
-    { variant: 0, x: 25.0, z: 18.0 },
-    { variant: 0, x: -25.2, z: 17.5 },
-    { variant: 0, x: -0.8, z: -26.6 },
-    { variant: 0, x: 18.5, z: -25.5 },
-  ]) {
+    { variant: 0, x: -12.2, z: 16.2 },
+    { variant: 0, x: 16.7, z: -10.8 },
+    { variant: 0, x: -18.8, z: 0.4 },
+    { variant: 0, x: -25.0, z: -5.0 },
+    { variant: 0, x: -14.0, z: -24.0 },
+  ].slice(0, trunkCounts[0])) {
     const h = heightAt(def.x, def.z);
     const placement = {
       x: def.x,
@@ -203,28 +236,30 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
   }
   for (let v = 0; v < trunkDefs.length; v++) {
     const def = trunkDefs[v];
-    const geometry = createAncientTrunkGeometry({
+    const geometry = createRedwoodTrunkGeometry({
       height: def.height,
       radius: def.radius,
       color: def.color,
       ridgeColor: def.ridgeColor,
       buttresses: def.buttresses,
       rng: float,
+      segments: tier === 'low' ? 32 : 48,
     });
     track(geometry);
-    // Root flare reaches ~3.1x the trunk radius at the base; keep it clear of
-    // the shell and of the other variant families.
-    const clearance = 5 + def.radius * 2.3;
+    // Keep the giants behind the clearing. The front is a fern-and-root
+    // apron, so tall foreground columns cannot erase the playable theater.
+    const clearance = 5 + def.radius * 1.65;
     const scattered = scatter({
-      count: trunkCounts[v],
+      count: Math.max(0, trunkCounts[v] - gatewayByVariant[v].length),
       minRadius: 18,
-      maxRadius: 45,
+      maxRadius: 65,
       float,
       heightAt,
       accept: ({ x, z, h }) => {
+        if (z > 4 || x + z > 9) return false;
         if (shellClearance(x, z) < clearance) return false;
         if (streamDistance(x, z) < 6.5) return false;
-        if (h < WATER_Y + 1.2) return false;
+        if (h < WATER_Y + 0.2) return false;
         if (tooCloseToTrunk(x, z, 9.5 + def.radius)) return false;
         return true;
       },
@@ -247,30 +282,12 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
     }));
   }
 
-  // High branches: occasional crowns beyond the frame, silhouette hints only.
-  const branchGeometry = new THREE.CylinderGeometry(0.16, 0.62, 15, 5);
-  branchGeometry.rotateZ(Math.PI / 2);
-  branchGeometry.translate(7.5, 0, 0);
-  track(branchGeometry);
+  // High branches: keep empty so thin lines don't cross the upper sky in the camera frame
+  const branchGeometry = track(new THREE.BufferGeometry());
   const branchMaterial = kit.track(new THREE.MeshStandardMaterial({
     color: '#2c2118', roughness: 0.95, metalness: 0.02,
   }));
   const branchPlacements = [];
-  for (const trunk of trunkPlacements) {
-    if (float() < 0.5) continue;
-    const angle = float() * Math.PI * 2;
-    const offset = (3.0 + (trunk.radius ?? 3)) * (trunk.scale ?? 1);
-    branchPlacements.push({
-      x: trunk.x + Math.cos(angle) * offset,
-      z: trunk.z + Math.sin(angle) * offset,
-      y: trunk.y + range(13, 21),
-      rot: angle,
-      rx: range(-0.2, 0.2),
-      rz: range(-0.22, 0.06),
-      scale: range(0.7, 1.25),
-    });
-    if (branchPlacements.length >= 12) break;
-  }
   root.add(instanceVegetation({
     geometry: branchGeometry,
     material: branchMaterial,
@@ -280,14 +297,22 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
   }));
 
   // --- Buttressed roots crossing the middle distance -----------------------
-  const rootGeometry = new THREE.TorusGeometry(1, 0.17, 5, 12, Math.PI * 1.3);
-  rootGeometry.rotateX(-Math.PI / 2);
+  const rootGeometry = new THREE.CylinderGeometry(0.08, 0.5, 4.5, 8, 8);
+  const rootPosition = rootGeometry.attributes.position;
+  for (let i = 0; i < rootPosition.count; i++) {
+    const t = (rootPosition.getY(i) + 2.25) / 4.5;
+    const cross = rootPosition.getX(i);
+    rootPosition.setXYZ(i, t * 4.5, cross + 0.15 + Math.sin(t * Math.PI) * 0.3,
+      rootPosition.getZ(i) + Math.sin(t * Math.PI * 1.6) * 0.25);
+  }
+  rootGeometry.computeVertexNormals();
   track(rootGeometry);
   const rootMaterial = kit.track(new THREE.MeshStandardMaterial({
-    color: '#3c2c1e', roughness: 0.96, metalness: 0.02, flatShading: true,
+    color: '#66503b', roughness: 0.96, metalness: 0.02,
+    map: surfaces.bark, bumpMap: surfaces.bark, bumpScale: 0.12,
   }));
   const rootPlacements = [];
-  const rootTarget = Math.max(5, Math.round(12 * Math.max(0.5, budget.vegetationScale)));
+  const rootTarget = scaleForTier(tier, 'vegetationScale', 12);
   for (let i = 0; i < rootTarget * 3 && rootPlacements.length < rootTarget; i++) {
     const angle = float() * Math.PI * 2;
     const radius = range(15.5, 31);
@@ -300,9 +325,9 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
       z,
       y: heightAt(x, z) - 0.1,
       rot: float() * Math.PI * 2,
-      sx: range(3.4, 8.2),
-      sy: range(1.3, 2.6),
-      sz: range(2.6, 6.4),
+      sx: range(0.6, 1.3),
+      sy: range(0.7, 1.2),
+      sz: range(0.7, 1.2),
     });
   }
   root.add(instanceVegetation({
@@ -313,18 +338,49 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
   }));
 
   // --- Rocks: boulders in the moss, half-sunk stones in the stream ---------
-  const rockGeometry = createRockGeometry({ float, detail: 1, jaggedness: 0.42, color: '#5a564c' });
+  const rockGeometry = createRockGeometry({ float, detail: 3, jaggedness: 0.08, color: '#3a3e38', squash: [1.18, 0.76, 1.15] });
+  const rockPos = rockGeometry.attributes.position;
+  const rockCols = rockGeometry.attributes.color;
+  const mossCap = new THREE.Color('#445232');
+  const rockBase = new THREE.Color('#383c36');
+  for (let i = 0; i < rockPos.count; i++) {
+    const py = rockPos.getY(i);
+    const mossU = smoothstep(-0.05, 0.38, py);
+    const rc = rockBase.clone().lerp(mossCap, mossU * 0.55);
+    rockCols.setXYZ(i, rc.r, rc.g, rc.b);
+  }
+  rockCols.needsUpdate = true;
   track(rockGeometry);
   const rockMaterial = kit.track(new THREE.MeshStandardMaterial({
-    vertexColors: true, roughness: 0.97, metalness: 0.02, flatShading: true,
+    vertexColors: true, roughness: 0.90, metalness: 0.02,
+    emissive: new THREE.Color('#060a08'), emissiveIntensity: 0.12,
   }));
-  const boulderPlacements = scatter({
-    count: scaleForTier(tier, 'rockScale', 56),
+
+  // Dedicated rounded mossy gray boulders matching the target
+  const foregroundBoulders = [
+    // Primary large mossy boulder in bot3 (south-east porch corner)
+    { x: 15.0, z: 7.3, rot: 0.8, scale: 2.2, scaleY: 1.3 },
+    // Secondary boulder in bot3
+    { x: 16.1, z: 4.6, rot: 2.1, scale: 1.25, scaleY: 0.85 },
+    // Bank boulder in bot2 (north bank of foreground creek, past the fallen log)
+    { x: 2.5, z: 14.8, rot: 1.4, scale: 1.5, scaleY: 0.95 },
+    // West bank boulder in bot1
+    { x: -14.5, z: 15.0, rot: 0.9, scale: 1.3, scaleY: 0.85 },
+  ].map((p) => ({
+    ...p,
+    h: heightAt(p.x, p.z),
+    y: heightAt(p.x, p.z) - 0.18,
+    rx: 0.05,
+    rz: -0.05,
+  }));
+
+  const scatteredBoulders = scatter({
+    count: Math.max(0, scaleForTier(tier, 'rockScale', 56) - foregroundBoulders.length),
     minRadius: 9,
     maxRadius: 42,
     float,
     heightAt,
-    accept: ({ h }) => h > WATER_Y + 0.25,
+    accept: ({ x, z, h }) => h > WATER_Y + 0.25 && shellClearance(x, z) > 1.8,
     minSpacing: 1.5,
   }).map((p) => ({
     ...p,
@@ -335,26 +391,31 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
     scale: range(0.4, 1.9),
     scaleY: range(0.4, 1.2),
   }));
+
+  const boulderPlacements = [...foregroundBoulders, ...scatteredBoulders];
   root.add(createRockField({
     kit, geometry: rockGeometry, placements: boulderPlacements, material: rockMaterial,
     name: 'redwood-boulders',
   }));
+
   const streamStoneGeometry = createRockGeometry({
-    float, detail: 0, jaggedness: 0.5, color: '#4f4f47', squash: [1.3, 0.5, 1.3],
+    float, detail: 0, jaggedness: 0.45, color: '#3e4640', squash: [1.3, 0.5, 1.3],
   });
   track(streamStoneGeometry);
   const streamStonePlacements = [];
-  const streamStoneCount = Math.max(4, Math.round(14 * budget.rockScale));
+  const streamStoneCount = Math.max(6, Math.round(18 * budget.rockScale));
   for (let i = 0; i < streamStoneCount * 2 && streamStonePlacements.length < streamStoneCount; i++) {
-    const z = range(-26, 26);
-    const x = streamCenterX(z) + range(-3.6, 3.6);
+    const z = range(-24, 24);
+    const cx = streamCenterX(z);
+    const x = cx + range(-2.8, 2.8);
     const h = heightAt(x, z);
+    if (h > WATER_Y + 0.15) continue;
     streamStonePlacements.push({
       x,
       z,
-      y: Math.max(h, WATER_Y - 0.25) + 0.1,
+      y: Math.max(h, WATER_Y - 0.22) + 0.08,
       rot: float() * Math.PI * 2,
-      scale: range(0.5, 1.5),
+      scale: range(0.6, 1.6),
       scaleY: range(0.5, 1.0),
     });
   }
@@ -363,35 +424,53 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
     name: 'redwood-stream-stones',
   }));
 
-  // --- Fallen logs (simple kit cylinders, kept out of the shell) -----------
-  const logGeometry = new THREE.CylinderGeometry(0.5, 0.58, 8.5, 7);
+  // --- Fallen logs: prominent weathered log across foreground bank, floating log in creek ---
+  const logGeometry = new THREE.CylinderGeometry(0.44, 0.52, 6.2, 16, 4);
   logGeometry.rotateZ(Math.PI / 2);
+  const logPos = logGeometry.attributes.position;
+  const logColors = new Float32Array(logPos.count * 3);
+  const barkCol = new THREE.Color('#78685c');
+  const woodCol = new THREE.Color('#d4c2a0');
+  for (let i = 0; i < logPos.count; i++) {
+    const px = Math.abs(logPos.getX(i));
+    const isEnd = px > 2.85;
+    const c = isEnd ? woodCol : barkCol;
+    logColors[i * 3] = c.r;
+    logColors[i * 3 + 1] = c.g;
+    logColors[i * 3 + 2] = c.b;
+  }
+  logGeometry.setAttribute('color', new THREE.BufferAttribute(logColors, 3));
   track(logGeometry);
+
   const logMaterial = kit.track(new THREE.MeshStandardMaterial({
-    color: '#3f3020', roughness: 0.96, metalness: 0.02,
+    vertexColors: true, roughness: 0.92, metalness: 0.02,
+    map: surfaces.bark, bumpMap: surfaces.bark, bumpScale: 0.24,
+    normalMap: surfaces.barkNormal,
+    normalScale: new THREE.Vector2(1.2, 1.2),
   }));
   const logDefs = [
-    { x: 15.6, z: -12.0, rot: 0.7, length: 1.1 },
-    { x: -15.8, z: -5.5, rot: 2.3, length: 1.3 },
-    { x: 16.2, z: 6.5, rot: 1.6, length: 0.95 },
-    { x: -15.6, z: 11.5, rot: 0.4, length: 1.2 },
-    { x: -19.4, z: 3.0, rot: 0.12, length: 1.5, crossing: true },
-    { x: 10.5, z: 15.0, rot: 2.8, length: 0.85 },
+    // Fallen log on the needle bank in bot2
+    { x: -4.0, z: 14.5, rot: 0.45, length: 1.1 },
+    // Floating log in the creek in bot1
+    { x: -14.2, z: 12.0, rot: 0.25, length: 0.8 },
+    // Prominent log across north-west needle bank
+    { x: -16.0, z: -5.5, rot: 2.3, length: 1.1 },
+    { x: 15.6, z: -12.0, rot: 0.7, length: 1.0 },
+    { x: -15.6, z: 10.5, rot: 0.4, length: 1.0 },
   ];
   const logPlacements = [];
   for (const def of logDefs) {
-    if (shellClearance(def.x, def.z) < 2.2) continue;
+    if (shellClearance(def.x, def.z) < 0.6) continue;
     const h = heightAt(def.x, def.z);
-    if (h < WATER_Y + 0.1 && !def.crossing) continue;
     logPlacements.push({
       x: def.x,
       z: def.z,
-      y: Math.max(h, WATER_Y + 0.18) + 0.25,
+      y: Math.max(h, WATER_Y - 0.06) + 0.26,
       rot: def.rot,
-      rx: range(-0.04, 0.04),
-      rz: range(-0.05, 0.05),
+      rx: range(-0.03, 0.03),
+      rz: range(-0.04, 0.04),
       sx: def.length,
-      sy: range(0.8, 1.15),
+      sy: range(0.85, 1.15),
       sz: range(0.85, 1.2),
     });
   }
@@ -405,11 +484,11 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
 
   // --- Moss cushions and shaded undergrowth --------------------------------
   const mossGeometry = createRockGeometry({
-    float, detail: 1, jaggedness: 0.34, color: '#3c5a31', squash: [1.25, 0.36, 1.25],
+    float, detail: 2, jaggedness: 0.13, color: '#526645', squash: [1.25, 0.36, 1.25],
   });
   track(mossGeometry);
   const mossMaterial = kit.track(new THREE.MeshStandardMaterial({
-    vertexColors: true, roughness: 0.92, metalness: 0, flatShading: true,
+    vertexColors: true, roughness: 0.92, metalness: 0,
   }));
   const mossPlacements = scatter({
     count: scaleForTier(tier, 'grassScale', 90),
@@ -417,7 +496,7 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
     maxRadius: 40,
     float,
     heightAt,
-    accept: ({ h }) => h > WATER_Y + 0.2,
+    accept: ({ x, z, h }) => h > WATER_Y + 0.2 && shellClearance(x, z) > 1.5,
     minSpacing: 1.1,
   }).map((p) => ({
     ...p,
@@ -431,7 +510,7 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
   }));
 
   // --- Ferns, clustered in the shade of trunks and the clearing rim --------
-  const fernGeometry = createFernGeometry({ radius: 1.15, fronds: 9, color: '#3e6a39', rng: float });
+  const fernGeometry = createSwordFernGeometry({ radius: 1.4, fronds: 7, color: '#567c48', rng: float });
   track(fernGeometry);
   const fernMaterial = kit.wind(new THREE.MeshStandardMaterial({
     vertexColors: true, roughness: 0.9, metalness: 0, side: THREE.DoubleSide,
@@ -439,24 +518,27 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
   const shadeCenters = [];
   for (const trunk of trunkPlacements) {
     shadeCenters.push({ x: trunk.x + range(-3, 3), z: trunk.z + range(-3, 3) });
-    if (shadeCenters.length >= 10) break;
+    if (shadeCenters.length >= 4) break;
   }
-  for (const angle of [0.55, 1.05, 1.7, 3.85, 4.4, 5.1, 5.75]) {
-    const r = range(14.5, 18);
-    shadeCenters.push({ x: Math.cos(angle) * r, z: Math.sin(angle) * r });
-  }
-  const fernTarget = scaleForTier(tier, 'vegetationScale', 110);
+  shadeCenters.push(
+    { x: -11.5, z: 14.0 }, { x: -15.8, z: 14.8 }, { x: -16.5, z: 7 },
+    { x: -4.5, z: 13.5 },
+    { x: -17, z: -8 }, { x: 17, z: -5 }, { x: 17, z: 9 },
+  );
+  const fernTarget = scaleForTier(tier, 'vegetationScale', 90);
   const fernPlacements = [];
   for (let i = 0; i < fernTarget * 6 && fernPlacements.length < fernTarget; i++) {
     const center = shadeCenters[Math.floor(float() * shadeCenters.length) % shadeCenters.length];
     const angle = float() * Math.PI * 2;
-    const r = range(0.3, 2.8);
+    const r = range(0.3, 2.5);
     const x = center.x + Math.cos(angle) * r;
     const z = center.z + Math.sin(angle) * r;
     if (shellClearance(x, z) < 1.4) continue;
+    // Don't smother the needle bank in front of the theater:
+    if (z > 13.8 && x > -3.0 && x < 12.0) continue;
     const h = heightAt(x, z);
-    if (h < WATER_Y + 0.25) continue;
-    fernPlacements.push({ x, z, y: h, rot: float() * Math.PI * 2, scale: range(0.55, 1.3) });
+    if (h < WATER_Y + 0.38) continue;
+    fernPlacements.push({ x, z, y: h, rot: float() * Math.PI * 2, scale: range(0.55, 1.05) });
   }
   root.add(instanceVegetation({
     geometry: fernGeometry, material: fernMaterial, placements: fernPlacements, name: 'redwood-ferns',
@@ -590,7 +672,7 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
     area: [58, 7.5, 58],
     origin: [0, 2.6, 0],
     size: 7,
-    color: '#eaf7a8',
+    color: '#ffe8a0',
     opacity: 0.9,
     fall: 0.3,
     glow: 1,
@@ -685,11 +767,11 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
     const azimuth = Number.isFinite(visuals.sunAzimuth) ? visuals.sunAzimuth : 0.4;
     const ce = Math.cos(elevation);
     water.setSky({
-      skyColor: visuals.skyColor,
-      horizonColor: visuals.horizonGlowColor ?? visuals.fogColor,
-      sunColor: visuals.sunColor,
+      skyColor: '#5a7c8e',
+      horizonColor: '#34464c',
+      sunColor: visuals.sunColor ?? '#c4d8da',
       sunDir: [ce * Math.cos(azimuth), Math.max(0.05, Math.sin(elevation)), ce * Math.sin(azimuth)],
-      sunIntensity: visuals.sunIntensity,
+      sunIntensity: visuals.sunIntensity ?? 1.0,
     });
   }
 
@@ -700,17 +782,16 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
     const afternoon = variantVisualId === 'sunshafts';
 
     water.mesh.visible = (features.water ?? 0) > 0.05;
-    water.uniforms.uChop.value = morningFog ? 0.06 : 0.025;
-    water.uniforms.uGlow.value = fireflyNight ? 0.22 : 0;
-    water.uniforms.uWaveHeight.value = morningFog ? 0.07 : 0.045;
+    water.uniforms.uChop.value = morningFog ? 0.06 : 0.022;
+    water.uniforms.uGlow.value = fireflyNight ? 0.035 : 0;
+    water.uniforms.uWaveHeight.value = morningFog ? 0.07 : 0.04;
 
-    // Layered ground mist: the fog morning keeps all three, the other
-    // variants keep fewer and fainter.
+    // Layered ground mist: visible cool atmospheric veil in firefly night and fog morning
     const mistPresence = features.mist ?? 0.5;
-    mistGround.setOpacity((morningFog ? 0.1 : 0.045) + mistPresence * 0.035);
-    mistMid.setOpacity(morningFog ? 0.065 : 0.02 + mistPresence * 0.018);
-    mistHigh.setOpacity(morningFog ? 0.04 : 0);
-    const mistColor = morningFog ? '#cfd8c6' : fireflyNight ? '#7d9890' : '#d8dcc2';
+    mistGround.setOpacity(morningFog ? 0.14 : fireflyNight ? 0.13 : 0.045 + mistPresence * 0.035);
+    mistMid.setOpacity(morningFog ? 0.09 : fireflyNight ? 0.085 : 0.02 + mistPresence * 0.018);
+    mistHigh.setOpacity(morningFog ? 0.06 : fireflyNight ? 0.055 : 0);
+    const mistColor = morningFog ? '#cfd8c6' : fireflyNight ? '#7e9e98' : '#d8dcc2';
     mistGround.uniforms.uColor.value.set(mistColor);
     mistMid.uniforms.uColor.value.set(mistColor);
     mistHigh.uniforms.uColor.value.set(mistColor);
@@ -718,8 +799,8 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
     fireflies.setOpacity(0.9 * (features.fireflies ?? 0));
 
     const sporeAmount = features.spores ?? 0;
-    spores.uniforms.uColor.value.set(afternoon ? '#ffe8b2' : morningFog ? '#dbe4cc' : '#c3d8b8');
-    spores.setOpacity(sporeAmount * 0.32);
+    spores.uniforms.uColor.value.set(afternoon ? '#ffe8b2' : morningFog ? '#dbe4cc' : '#b6d2c4');
+    spores.setOpacity(sporeAmount * 0.35);
 
     leafFall.uniforms.uColor.value.set(afternoon ? '#c08a4a' : '#a8763f');
     leafFall.setOpacity((features.leafFall ?? 0) * 0.7);
@@ -732,10 +813,10 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
     fungiMaterial.emissiveIntensity = fungiGlow;
 
     // Keep ambient material colors slightly lifted so the night never
-    // crushes to black (the theater stays the warm light source).
+    // crushes to black, but low enough to preserve deep rich textures and bumps.
     const lift = fireflyNight ? 1 : morningFog ? 0.45 : 0.3;
-    terrain.material.emissiveIntensity = lift;
-    trunkMaterial.emissiveIntensity = lift * 0.7;
+    terrain.material.emissiveIntensity = lift * 0.08;
+    trunkMaterial.emissiveIntensity = lift * 0.08;
   }
 
   applyVariant();
@@ -759,6 +840,7 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
   }
 
   function setVariant(next) {
+    for (const key of Object.keys(variantFeatures)) delete variantFeatures[key];
     Object.assign(variantFeatures, next?.features ?? {});
     if (typeof next?.variantId === 'string') variantVisualId = next.variantId;
     applyVariant();
@@ -791,15 +873,6 @@ export function buildRedwood({ kit, row, variantId = 'firefly', tier = 'high', q
     { id: 'redwood-pool-2', kind: 'puddle', x: -14.8, z: -3.5, w: 1.6, d: 1.1, y: heightAt(-14.8, -3.5) + 0.05 },
     { id: 'redwood-pool-3', kind: 'puddle', x: 6.0, z: 14.2, w: 1.2, d: 0.9, y: heightAt(6.0, 14.2) + 0.05 },
   ];
-  for (const trunk of [...trunkPlacements].sort((a, b) => (b.radius ?? 0) - (a.radius ?? 0)).slice(0, 3)) {
-    emitterAnchors.push({
-      id: `redwood-drip-${emitterAnchors.length}`,
-      kind: 'runoff',
-      x: trunk.x,
-      z: trunk.z,
-      y: 9,
-    });
-  }
 
   return {
     update,

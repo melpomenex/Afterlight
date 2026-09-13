@@ -390,10 +390,10 @@ const redwood = freeze({
       wetness: 0.35,
       events: fixedEvents(false, false),
       visuals: {
-        fogColor: '#0d1a16', fogDensity: 0.012, skyColor: '#0a141f', groundColor: '#2b3a2c',
-        hemisphereIntensity: 0.72, sunColor: '#9db8c8', sunIntensity: 0.5, exposure: 1.0, skyPhase: 0.85,
+        fogColor: '#6c7c78', fogDensity: 0.015, skyColor: '#68828c', groundColor: '#283228',
+        hemisphereIntensity: 0.90, sunColor: '#c4d8da', sunIntensity: 1.0, exposure: 0.98, skyPhase: 0.85,
         moonDisc: 0.7, sunElevation: 0.42, sunAzimuth: 0.24, starDensity: 0.8, milkyWay: 0.3,
-        horizonGlow: 0.08, horizonGlowColor: '#1e3a37',
+        horizonGlow: 0.08, horizonGlowColor: '#445a56',
       },
       features: { fireflies: 1, spores: 0.4, mist: 0.75, birds: 0, windStrength: 0.45, grassWind: 0.5, cloudDeck: 0.05, water: 0.5 },
       audio: { rain: 0, wind: 0.15, lowpassHz: 4200, ambience: 'redwood-night' },
