@@ -250,6 +250,12 @@ export function createFoosballInstance({
 export const FoosballModule = {
   initialize: createFoosballInstance,
   createInstance: createFoosballInstance,
+  worldSupport: {
+    mode: 'full',
+    host: 'parent',
+    slots: [],
+    adapterKey: null,
+  },
 };
 
 registerActivityModule('foosball', FoosballModule);

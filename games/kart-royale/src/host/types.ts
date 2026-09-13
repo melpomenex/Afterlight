@@ -39,6 +39,20 @@ export interface HostAudioOptions {
   destination?: AudioNode | null;
 }
 
+/**
+ * Optional World presentation for Kart Royale (introduce-global-world-system 7.1).
+ * Maps Afterlight's persistent personal World identity into compatible atmosphere
+ * and cosmetic scenery parameters without changing gameplay authority.
+ */
+export interface KartWorldPresentation {
+  worldId?: string | null;
+  variantId?: string | null;
+  atmosphereProfile?: string | null;
+  farSceneryKey?: string | null;
+  farSceneryNode?: THREE.Object3D | null;
+  [key: string]: unknown;
+}
+
 export interface KartRoyaleHostOptions {
   /** REQUIRED when hosted: the host's single WebGLRenderer. */
   renderer: THREE.WebGLRenderer;
@@ -69,6 +83,8 @@ export interface KartRoyaleHostOptions {
     renderer: THREE.WebGLRenderer;
     viewport: { width: number; height: number };
   }) => void | Promise<void>) => Promise<void>) | null;
+  /** Optional initial World presentation (introduce-global-world-system 7.1). */
+  initialWorldPresentation?: KartWorldPresentation | null;
 }
 
 /** Thin, host-safe race controls (pass-throughs to `game/Race.ts`). */
@@ -121,6 +137,10 @@ export interface KartRoyaleHost {
   beginSession(): void;
   endSession(): void;
   setMuted(muted: boolean): void;
+  /** Set or update the active World presentation profile (7.1). */
+  setWorldPresentation(presentation: KartWorldPresentation | null): void;
+  /** Get the current active World presentation profile (7.1). */
+  getWorldPresentation(): KartWorldPresentation | null;
   /**
    * Render diagnostics (fix-kart-royale-render-sharpness D10): CSS viewport,
    * DPR, caps, dynamicScale, effective ratio, drawing/composer buffers,

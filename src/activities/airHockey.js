@@ -291,6 +291,12 @@ export function createAirHockeyInstance({
 export const AirHockeyModule = {
   initialize: createAirHockeyInstance,
   createInstance: createAirHockeyInstance,
+  worldSupport: {
+    mode: 'full',
+    host: 'parent',
+    slots: [],
+    adapterKey: null,
+  },
 };
 
 registerActivityModule('air-hockey', AirHockeyModule);

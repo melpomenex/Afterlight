@@ -36,6 +36,7 @@ export async function createDownhillMayhemHost(options) {
     streakCanvas: options.streakCanvas || null,
     authority: options.authority || (options.standalone ? 'local' : 'remote'),
     matchSeed: options.matchSeed,
+    initialWorldPresentation: options.initialWorldPresentation || null,
   });
 
   const host = {
@@ -97,6 +98,10 @@ export async function createDownhillMayhemHost(options) {
     resetToLobby() { if (!disposed) runtime.resetToLobby(); },
     setMode(mode) { if (!disposed) runtime.setMode(mode); },
     setDifficulty(d) { if (!disposed) runtime.setDifficulty(d); },
+    setAmbientProfile(profile) { if (!disposed) runtime.setAmbientProfile(profile); },
+    getAmbientProfile() { return runtime.getAmbientProfile(); },
+    setWorldPresentation(p) { if (!disposed) runtime.setWorldPresentation(p); },
+    getWorldPresentation() { return runtime.getWorldPresentation(); },
 
     session: {
       acceptSnapshot(frame) { if (!disposed) runtime.applySnapshot(frame); },

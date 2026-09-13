@@ -287,3 +287,68 @@ export function instanceVegetation({ geometry, material, placements, build, name
   mesh.frustumCulled = true;
   return mesh;
 }
+
+/**
+ * Resumable batch slicer for instanced vegetation generation.
+ * Permits breaking heavy instance loops across frame budgets while guaranteeing
+ * 100% bit-for-bit equivalence with instanceVegetation.
+ */
+export function createInstanceSlicer({
+  geometry,
+  material,
+  placements,
+  build,
+  name = 'vegetation',
+  castShadow = false,
+  batchSize = 256,
+}) {
+  const mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, placements.length));
+  mesh.name = name;
+  mesh.castShadow = castShadow;
+  mesh.receiveShadow = true;
+  const dummy = new THREE.Object3D();
+  let currentIndex = 0;
+  let done = placements.length === 0;
+
+  function stepSlice(maxItems = batchSize) {
+    if (done) return true;
+    const end = Math.min(currentIndex + maxItems, placements.length);
+    for (let i = currentIndex; i < end; i++) {
+      dummy.position.set(placements[i].x, placements[i].y ?? placements[i].h ?? 0, placements[i].z);
+      dummy.rotation.set(0, placements[i].rot ?? 0, 0);
+      const s = placements[i].scale ?? 1;
+      dummy.scale.set(placements[i].sx ?? s, placements[i].sy ?? s, placements[i].sz ?? s);
+      if (build) build(dummy, placements[i], i);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+      if (placements[i].color) mesh.setColorAt(i, placements[i].color);
+    }
+    currentIndex = end;
+    if (currentIndex >= placements.length) {
+      done = true;
+      mesh.count = placements.length;
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      mesh.frustumCulled = true;
+    }
+    return done;
+  }
+
+  function getResult() {
+    if (!done) {
+      while (!stepSlice(placements.length));
+    }
+    return mesh;
+  }
+
+  return {
+    stepSlice,
+    getResult,
+    get progress() {
+      return placements.length > 0 ? currentIndex / placements.length : 1;
+    },
+    get isDone() {
+      return done;
+    },
+  };
+}

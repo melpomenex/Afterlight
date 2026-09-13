@@ -573,6 +573,12 @@ export const RainRunnerModule = Object.freeze({
   initialize(options) {
     return createRainRunnerInstance(options);
   },
+  worldSupport: {
+    mode: 'none',
+    host: 'parent',
+    slots: [],
+    adapterKey: null,
+  },
 });
 
 // Register with activity registry

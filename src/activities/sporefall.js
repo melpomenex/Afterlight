@@ -786,6 +786,12 @@ export const SporefallModule = {
   initialize(options) {
     return createSporefallInstance(options);
   },
+  worldSupport: {
+    mode: 'none',
+    host: 'parent',
+    slots: [],
+    adapterKey: null,
+  },
 };
 
 registerActivityModule('sporefall', SporefallModule);

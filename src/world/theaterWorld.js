@@ -87,6 +87,18 @@ export const THEATER_PROJECTION_BOOTH = Object.freeze({ x: 0, z: 9.85, w: 2.3, d
 // coplanar, which is what made the trim flicker.
 export const THEATER_WEST_MOULDING_X = -11.42;
 
+/**
+ * Safe exterior cosmetic anchors for the Orpheum theater (introduce-global-world-system D3, Task 6.8).
+ * Positioned clear of all interior walkways, seats, sightlines, and solid volumes.
+ */
+export const THEATER_COSMETIC_ANCHORS = Object.freeze({
+  arcadeExteriorNorth: Object.freeze({ x: 12.8, y: 0, z: -6.5, region: 'arcade' }),
+  arcadeExteriorSouth: Object.freeze({ x: 12.8, y: 0, z: -2.5, region: 'arcade' }),
+  loungeExteriorNorth: Object.freeze({ x: -12.8, y: 0, z: -6.5, region: 'lounge' }),
+  loungeExteriorSouth: Object.freeze({ x: -12.8, y: 0, z: -2.5, region: 'lounge' }),
+  distantBackdrop: Object.freeze({ x: 0, y: 0, z: -14.0, region: 'backdrop' }),
+});
+
 export function buildTheaterScenery(ctx) {
   const { group, block, box, glow, material, colors, items, animated, random, def } = ctx;
   const M = theaterMaterials();

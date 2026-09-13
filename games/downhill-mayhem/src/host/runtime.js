@@ -58,6 +58,7 @@ export function createDownhillMayhemRuntime(options = {}) {
     standalone = false,
     streakCanvas = null,
     matchSeed = 1,
+    initialWorldPresentation = null,
   } = options;
 
   const localAuthority = options.authority ? options.authority === 'local' : !!standalone;
@@ -67,7 +68,7 @@ export function createDownhillMayhemRuntime(options = {}) {
   const course = loadCourse(courseDocument);
   const cfg = courseConfig(course);
 
-  const rendering = createRendering({ viewport });
+  const rendering = createRendering({ viewport, initialWorldPresentation });
   const scene = rendering.scene;
   const camera = rendering.camera;
 
@@ -638,6 +639,21 @@ export function createDownhillMayhemRuntime(options = {}) {
     applyEvent() { /* discrete events are folded by the controller */ },
     applyResult(frame) {
       if (frame && Array.isArray(frame.standings)) applySnapshot({ riders: frame.standings, raceTime: frame.raceTime });
+    },
+
+    setAmbientProfile(profile) {
+      if (disposed) return;
+      rendering.setAmbientProfile(profile);
+    },
+    getAmbientProfile() {
+      return rendering.getCurrentAmbientProfile();
+    },
+    setWorldPresentation(presentation) {
+      if (disposed) return;
+      rendering.setAmbientProfile(presentation);
+    },
+    getWorldPresentation() {
+      return rendering.getCurrentAmbientProfile();
     },
 
     dispose() {

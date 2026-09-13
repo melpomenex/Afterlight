@@ -31,6 +31,7 @@ export function createKartRoyalePrepareScheduler({
   shouldRun = () => true,
   isInputPending = () => false,
   createBackgroundHost = null,
+  prepareCosmeticsSlice = null,
   importModule = loadHostModule,
   now = () => performance.now(),
 } = {}) {
@@ -159,6 +160,11 @@ export function createKartRoyalePrepareScheduler({
           worldSteps = slice?.stepsRun ?? 0;
           ran = ran || worldSteps > 0;
         }
+      }
+
+      if (typeof prepareCosmeticsSlice === 'function' && maxMs > 0) {
+        const cosmeticRan = prepareCosmeticsSlice(maxMs);
+        ran = ran || !!cosmeticRan;
       }
 
       return {

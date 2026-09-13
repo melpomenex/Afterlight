@@ -1,18 +1,16 @@
 /**
- * Environment quality tiers for the Theater environments (pure module: no
+ * Environment quality tiers and persistent World preferences (pure module: no
  * Three.js, no DOM). One additive storage key; unavailable storage yields
  * conservative session defaults, never a throw.
  *
- * The four tiers are explicit budgets rather than a single "quality" scalar:
- * `openWaterSegments` is the finer grid the Theater's open sea needs (a broad
- * plane viewed at grazing distance) without raising every pool or lake.
- * LOW keeps the silhouette and palette; ULTRA raises density, LOD range and
- * atmosphere detail. The default is derived from the device, not from the
- * maximum, so weak hardware never starts at Ultra.
- *
- * This is separate from the atmosphere comfort tier (normal/reduced, a
- * motion/flash preference) and from the renderer DPR selector.
+ * Version 2 format: { version: 2, quality, worldId, variantId, environment, variant, ...unrelated }
+ * Compatibility mirrors 'environment' and 'variant' are maintained for older readers.
  */
+
+import {
+  WORLD_IDS,
+  getWorldDefinition,
+} from '../../shared/worldDefinitions.js';
 
 export const ENVIRONMENT_QUALITY_KEY = 'afterlight-environment-v1';
 export const ENVIRONMENT_TIERS = Object.freeze(['low', 'medium', 'high', 'ultra']);
@@ -115,12 +113,57 @@ function oneOf(value, allowed, fallback) {
   return typeof value === 'string' && allowed.includes(value) ? value : fallback;
 }
 
+export function normalizeWorldPreferences(raw) {
+  const result = { worldId: null, variantId: null };
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return result;
+
+  const isV2 = raw.version >= 2;
+  if (isV2) {
+    if (typeof raw.worldId === 'string' && WORLD_IDS.includes(raw.worldId)) {
+      result.worldId = raw.worldId;
+      const def = getWorldDefinition(raw.worldId);
+      if (def) {
+        if (typeof raw.variantId === 'string' && Object.prototype.hasOwnProperty.call(def.variants, raw.variantId)) {
+          result.variantId = raw.variantId;
+        } else {
+          result.variantId = def.defaultVariant;
+        }
+      }
+    }
+    // A v2 record with an invalid World is repaired rather than allowing stale mirrors to override it
+    return result;
+  }
+
+  // v1 / legacy format migration
+  const candidateWorld = typeof raw.worldId === 'string' ? raw.worldId : (typeof raw.environment === 'string' ? raw.environment : null);
+  if (candidateWorld && WORLD_IDS.includes(candidateWorld)) {
+    result.worldId = candidateWorld;
+    const def = getWorldDefinition(candidateWorld);
+    if (def) {
+      const candidateVariant = typeof raw.variantId === 'string' ? raw.variantId : (typeof raw.variant === 'string' ? raw.variant : null);
+      if (candidateVariant && Object.prototype.hasOwnProperty.call(def.variants, candidateVariant)) {
+        result.variantId = candidateVariant;
+      } else {
+        result.variantId = def.defaultVariant;
+      }
+    }
+  }
+
+  return result;
+}
+
 export function normalizeEnvironmentPreferences(raw) {
-  const prefs = { quality: null, environment: null, variant: null };
+  const prefs = { quality: null, environment: null, variant: null, worldId: null, variantId: null };
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return prefs;
   if (ENVIRONMENT_TIERS.includes(raw.quality)) prefs.quality = raw.quality;
-  if (typeof raw.environment === 'string' && raw.environment.length > 0) prefs.environment = raw.environment;
-  if (typeof raw.variant === 'string' && raw.variant.length > 0) prefs.variant = raw.variant;
+
+  const worldPrefs = normalizeWorldPreferences(raw);
+  if (worldPrefs.worldId) {
+    prefs.worldId = worldPrefs.worldId;
+    prefs.variantId = worldPrefs.variantId;
+    prefs.environment = worldPrefs.worldId;
+    prefs.variant = worldPrefs.variantId;
+  }
   return prefs;
 }
 
@@ -134,14 +177,56 @@ export function loadEnvironmentPreferences({ storage = typeof localStorage !== '
   }
   const prefs = normalizeEnvironmentPreferences(stored);
   if (!prefs.quality) prefs.quality = defaultEnvironmentTier(device);
-  return { prefs, fromStorage: stored !== null && !!stored };
+  return { prefs, fromStorage: stored !== null && !!stored, raw: stored };
 }
 
 export function saveEnvironmentPreferences(prefs, storage = typeof localStorage !== 'undefined' ? localStorage : null) {
   if (!storage || typeof storage.setItem !== 'function') return false;
   try {
-    const clean = normalizeEnvironmentPreferences(prefs);
-    storage.setItem(ENVIRONMENT_QUALITY_KEY, JSON.stringify({ version: 1, ...clean }));
+    let existing = {};
+    try {
+      const currentRaw = storage.getItem?.(ENVIRONMENT_QUALITY_KEY);
+      if (currentRaw) {
+        const parsed = JSON.parse(currentRaw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          existing = parsed;
+        }
+      }
+    } catch {
+      existing = {};
+    }
+
+    const merged = { ...existing };
+    if (prefs && typeof prefs === 'object') {
+      if (ENVIRONMENT_TIERS.includes(prefs.quality)) {
+        merged.quality = prefs.quality;
+      }
+      const candidateWorld = prefs.worldId ?? prefs.environment;
+      if (candidateWorld !== undefined) {
+        if (WORLD_IDS.includes(candidateWorld)) {
+          merged.worldId = candidateWorld;
+          merged.environment = candidateWorld; // compatibility mirror
+          const def = getWorldDefinition(candidateWorld);
+          const candidateVariant = prefs.variantId ?? prefs.variant;
+          if (candidateVariant && def && Object.prototype.hasOwnProperty.call(def.variants, candidateVariant)) {
+            merged.variantId = candidateVariant;
+            merged.variant = candidateVariant; // compatibility mirror
+          } else if (def) {
+            merged.variantId = def.defaultVariant;
+            merged.variant = def.defaultVariant; // compatibility mirror
+          }
+        }
+      }
+      // Preserve unrelated custom fields
+      for (const [k, v] of Object.entries(prefs)) {
+        if (!['quality', 'worldId', 'variantId', 'environment', 'variant', 'version'].includes(k)) {
+          merged[k] = v;
+        }
+      }
+    }
+
+    merged.version = 2;
+    storage.setItem(ENVIRONMENT_QUALITY_KEY, JSON.stringify(merged));
     return true;
   } catch {
     return false;

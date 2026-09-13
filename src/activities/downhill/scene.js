@@ -33,5 +33,29 @@ export function createDownhillSceneAdapter(host) {
     resize(width, height) {
       host.resize?.(width, height);
     },
+
+    setAmbientProfile(profile) {
+      if (typeof host.setAmbientProfile === 'function') {
+        host.setAmbientProfile(profile);
+      } else if (typeof host.setWorldPresentation === 'function') {
+        host.setWorldPresentation(profile);
+      }
+    },
+
+    getAmbientProfile() {
+      return host.getAmbientProfile?.() ?? host.getWorldPresentation?.() ?? null;
+    },
+
+    setWorldPresentation(presentation) {
+      if (typeof host.setWorldPresentation === 'function') {
+        host.setWorldPresentation(presentation);
+      } else if (typeof host.setAmbientProfile === 'function') {
+        host.setAmbientProfile(presentation);
+      }
+    },
+
+    getWorldPresentation() {
+      return host.getWorldPresentation?.() ?? host.getAmbientProfile?.() ?? null;
+    },
   };
 }

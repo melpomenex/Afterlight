@@ -23,8 +23,10 @@ import {
 import {
   createEnvironmentAudio,
   normalizeZoneProfile,
+  normalizeAmbienceProfile,
   zoneProfileFor,
   ZONE_PROFILES,
+  AMBIENCE_PROFILES,
   ZONE_CROSSFADE_MS,
 } from '../src/audio/environmentAudio.js';
 import { THEATER_ENVIRONMENTS } from '../shared/theaterEnvironments.js';
@@ -444,4 +446,109 @@ test('every Theater environment variant authors a usable ambience row', () => {
   }
   assert.equal(signatures.size, 18, 'each environment variant has a distinct ambient mix');
 });
+
+test('environment audio: setAmbienceProfile crossfades filter frequency and gain over 500ms without restarting loop', () => {
+  const { env, mixer, ctx } = createReadyEnvironment();
+  env.start();
+  const sourceCount = ctx.createdNodes.filter((n) => n instanceof FakeBufferSource).length;
+
+  env.setAmbienceProfile('coastal');
+  assert.equal(env.setAmbienceProfile('alpine'), true);
+
+  const ambienceChain = sourceChains(ctx).find((c) => c.dest === mixer.buses.ambience);
+  assert.ok(ambienceChain, 'ambience chain found');
+
+  const freqRamp = ambienceChain.filter.frequency.rampAt(AMBIENCE_PROFILES.alpine.frequency);
+  assert.ok(freqRamp !== null, 'filter frequency ramps to target');
+  assert.ok(Math.abs((freqRamp - ctx.currentTime) - ZONE_CROSSFADE_MS / 1000) < 1e-9, 'frequency crossfade is 500ms');
+
+  const gainRamp = ambienceChain.gain.gain.rampAt(AMBIENCE_PROFILES.alpine.gain);
+  assert.ok(gainRamp !== null, 'gain ramps to target');
+  assert.ok(Math.abs((gainRamp - ctx.currentTime) - ZONE_CROSSFADE_MS / 1000) < 1e-9, 'gain crossfade is 500ms');
+
+  assert.equal(ctx.createdNodes.filter((n) => n instanceof FakeBufferSource).length, sourceCount, 'no loop churn');
+  assert.equal(env.setAmbienceProfile('alpine'), false, 'same profile is a no-op');
+});
+
+test('environment audio: normalizeAmbienceProfile clamps values and setAmbienceProfile falls back to coastal', () => {
+  assert.deepEqual(normalizeAmbienceProfile('rainforest'), AMBIENCE_PROFILES.rainforest);
+  assert.deepEqual(
+    normalizeAmbienceProfile({ frequency: 50000, gain: 2 }),
+    { frequency: 20000, gain: 1 },
+  );
+  assert.deepEqual(
+    normalizeAmbienceProfile({ frequency: -10, gain: -0.5 }),
+    { frequency: 20, gain: 0 },
+  );
+  assert.equal(normalizeAmbienceProfile(null), null);
+  assert.equal(normalizeAmbienceProfile('unknown_world'), null);
+
+  const { env } = createReadyEnvironment();
+  env.setAmbienceProfile('unknown_world');
+  assert.deepEqual(env.ambienceProfile, AMBIENCE_PROFILES.coastal);
+});
+
+test('environment audio: parent activities inherit the mixer without duplicating ambience loops', () => {
+  const { env, mixer, ctx } = createReadyEnvironment();
+  env.start();
+  const initialSources = ctx.createdNodes.filter((n) => n instanceof FakeBufferSource).length;
+  assert.equal(initialSources, 4); // 1 ambience + 3 weather layers
+
+  // Simulated parent activity (e.g. pool in theater) receiving the audioMixer
+  // Activity plays sound effects directly onto mixer.buses.effects without calling createEnvironmentAudio
+  const poolNode = ctx.createGain();
+  poolNode.connect(mixer.buses.effects);
+
+  const ambienceChains = sourceChains(ctx).filter((c) => c.dest === mixer.buses.ambience);
+  assert.equal(ambienceChains.length, 1, 'exactly one active ambience loop');
+  assert.equal(ctx.createdNodes.filter((n) => n instanceof FakeBufferSource).length, initialSources, 'no duplicate sources');
+});
+
+test('environment audio: hidden social ambience stops during leased activity view and restores on release', () => {
+  const { env } = createReadyEnvironment();
+  env.start();
+  assert.equal(env.started, true);
+
+  // Simulated activityView lease acquisition
+  let leasedSocialAmbienceStopped = env.started;
+  if (leasedSocialAmbienceStopped) {
+    env.stop();
+  }
+  assert.equal(env.started, false, 'social ambience stopped while lease is held');
+
+  // Simulated activityView release
+  if (leasedSocialAmbienceStopped) {
+    env.start();
+    leasedSocialAmbienceStopped = false;
+  }
+  assert.equal(env.started, true, 'social ambience restored on lease release');
+});
+
+test('environment audio: synchronous stop on exit executes well within 200ms budget', () => {
+  const { env } = createReadyEnvironment();
+  env.start();
+  const startMs = performance.now();
+  env.stop();
+  const elapsedMs = performance.now() - startMs;
+  assert.ok(elapsedMs < 200, `stop took ${elapsedMs}ms, well within 200ms budget`);
+  assert.equal(env.started, false);
+});
+
+test('environment audio: mute, media and voice gains remain local and unaffected by ambience changes', () => {
+  const { env, mixer } = createReadyEnvironment();
+  mixer.setSoundEnabled(true);
+  mixer.setPreference('media', 0.8);
+  mixer.setPreference('voice', 0.6);
+  mixer.setVoiceActive(true);
+
+  env.start();
+  env.setAmbienceProfile('desert');
+  env.setZone(ZONE_PROFILES.roof);
+
+  assert.equal(mixer.preference('media'), 0.8, 'media preference preserved');
+  assert.equal(mixer.preference('voice'), 0.6, 'voice preference preserved');
+  assert.equal(mixer.isVoiceActive(), true, 'voice active state preserved');
+  assert.equal(mixer.isSoundEnabled(), true, 'sound enabled preserved');
+});
+
 

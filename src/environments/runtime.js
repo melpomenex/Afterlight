@@ -18,6 +18,8 @@
 
 import * as THREE from 'three';
 import { environmentForPreset, getTheaterEnvironment } from '../../shared/theaterEnvironments.js';
+import { getWorldVariant } from '../../shared/worldDefinitions.js';
+import { validateAndRepairSelection } from '../worlds/state.js';
 import { createEnvironmentKit } from './lib/kit.js';
 import { requireEnvironmentBuilder } from './registry.js';
 import { budgetForEnvironmentTier } from './quality.js';
@@ -26,12 +28,15 @@ const baseHooks = new WeakMap();
 
 export function createTheaterEnvironmentRuntime({
   defaultTier = 'high',
+  getWorldSelection = null,
   onHooksChanged = null,
   onError = null,
 } = {}) {
   let root = null;
   let active = null;
+  let currentWorld = null;
   const state = {
+    worldId: null,
     environmentId: null,
     variantId: null,
     presetId: null,
@@ -90,6 +95,10 @@ export function createTheaterEnvironmentRuntime({
   }
 
   function teardown() {
+    if (currentWorld) {
+      restoreHooks(currentWorld);
+      currentWorld = null;
+    }
     if (root) {
       root.removeFromParent();
       root = null;
@@ -98,6 +107,7 @@ export function createTheaterEnvironmentRuntime({
       try { active.api?.dispose?.(); } catch { /* disposal is best effort */ }
       active = null;
     }
+    state.worldId = null;
     state.environmentId = null;
     state.variantId = null;
     state.presetId = null;
@@ -105,41 +115,64 @@ export function createTheaterEnvironmentRuntime({
   }
 
   /**
-   * Resolve + apply the environment for a preset. Returns
-   * `{ changed, environmentId, variantId, status }`.
+   * Resolve + apply the environment for a preset or personal World selection. Returns
+   * `{ changed, environmentId, worldId, variantId, status }`.
    */
-  function sync({ presetId = null, def = null, world = null, force = false, tier = null } = {}) {
+  function sync({ selection = null, worldId = null, variantId = null, presetId = null, def = null, world = null, force = false, tier = null } = {}) {
     if (tier) state.tier = tier;
     if (!world) return { changed: false, status: 'no-world' };
-    const resolved = environmentForPreset(presetId) ?? environmentForPreset(def?.atmosphere?.preset);
+    currentWorld = world;
+
+    let resolved = null;
+    const currentSelection = selection ?? (worldId ? { worldId, variantId } : (typeof getWorldSelection === 'function' ? getWorldSelection() : null));
+
+    if (currentSelection?.worldId) {
+      const repaired = validateAndRepairSelection(currentSelection.worldId, currentSelection.variantId);
+      const row = getWorldVariant(repaired.worldId, repaired.variantId);
+      if (row) {
+        resolved = {
+          environmentId: repaired.worldId,
+          variantId: repaired.variantId,
+          row,
+        };
+      }
+    }
+
+    if (!resolved && presetId) {
+      resolved = environmentForPreset(presetId);
+    }
+    if (!resolved) {
+      resolved = environmentForPreset(def?.atmosphere?.preset);
+    }
+
     if (!resolved) {
       if (active || root) {
         restoreHooks(world);
         teardown();
         onHooksChanged?.();
-        return { changed: true, status: 'cleared', environmentId: null, variantId: null };
+        return { changed: true, status: 'cleared', environmentId: null, worldId: null, variantId: null };
       }
       return { changed: false, status: 'none' };
     }
-    const { environmentId, variantId, row } = resolved;
+    const { environmentId, variantId: resolvedVariantId, row } = resolved;
     // A failed build for this same preset is not retried every frame; a new
     // preset or an explicit force retries.
     if (!force && !active && state.failed && state.failedPreset === row.preset) {
       state.presetId = row.preset;
-      return { changed: false, status: 'failed', environmentId, variantId };
+      return { changed: false, status: 'failed', environmentId, worldId: environmentId, variantId: resolvedVariantId };
     }
     state.presetId = row.preset;
     state.tier = state.tier ?? defaultTier;
 
     // Same environment: variant-only update keeps the built geometry.
     if (active && active.environmentId === environmentId && !force) {
-      if (active.variantId !== variantId) {
+      if (active.variantId !== resolvedVariantId) {
         variantState.tier = state.tier;
         variantState.features = row.features;
         variantState.visuals = row.visuals;
         variantState.presetId = row.preset;
         variantState.environmentId = environmentId;
-        variantState.variantId = variantId;
+        variantState.variantId = resolvedVariantId;
         let applied = false;
         try {
           if (typeof active.api?.setVariant === 'function') {
@@ -150,20 +183,20 @@ export function createTheaterEnvironmentRuntime({
           onError?.(error);
         }
         if (!applied) {
-          buildInto(world, environmentId, variantId, row, state.tier);
+          buildInto(world, environmentId, resolvedVariantId, row, state.tier);
         } else {
-          active.variantId = variantId;
-          state.variantId = variantId;
+          active.variantId = resolvedVariantId;
+          state.variantId = resolvedVariantId;
         }
         onHooksChanged?.();
-        return { changed: true, status: 'variant', environmentId, variantId };
+        return { changed: true, status: 'variant', environmentId, worldId: environmentId, variantId: resolvedVariantId };
       }
-      state.variantId = variantId;
-      return { changed: false, status: 'same', environmentId, variantId };
+      state.variantId = resolvedVariantId;
+      return { changed: false, status: 'same', environmentId, worldId: environmentId, variantId: resolvedVariantId };
     }
 
-    buildInto(world, environmentId, variantId, row, state.tier);
-    return { changed: true, status: 'environment', environmentId, variantId };
+    buildInto(world, environmentId, resolvedVariantId, row, state.tier);
+    return { changed: true, status: 'environment', environmentId, worldId: environmentId, variantId: resolvedVariantId };
   }
 
   function buildInto(world, environmentId, variantId, row, tier) {
@@ -207,6 +240,7 @@ export function createTheaterEnvironmentRuntime({
       }
       root = group;
       active = { environmentId, variantId, api, row, kit };
+      state.worldId = environmentId;
       state.environmentId = environmentId;
       state.variantId = variantId;
       state.counts = api?.counts ?? null;
@@ -255,6 +289,14 @@ export function createTheaterEnvironmentRuntime({
     deactivate,
     dispose,
     get state() { return { ...state }; },
-    get active() { return active ? { environmentId: active.environmentId, variantId: active.variantId } : null; },
+    get active() {
+      return active
+        ? {
+            worldId: active.environmentId,
+            environmentId: active.environmentId,
+            variantId: active.variantId,
+          }
+        : null;
+    },
   };
 }

@@ -1,0 +1,885 @@
+{
+  "label": "all",
+  "app": "http://localhost:5273/?debug=1&room=theater",
+  "generatedAt": "2026-09-13T19:07:19.110Z",
+  "shots": [
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-dialog-places-narrow.png",
+      "name": "dialog-places-narrow",
+      "section": "dialogs",
+      "dialog": "places",
+      "viewportLabel": "narrow",
+      "metrics": {
+        "clientH": 455,
+        "clientW": 526,
+        "open": true,
+        "scrollH": 455,
+        "scrollW": 526
+      },
+      "viewport": {
+        "dpr": 1,
+        "h": 720,
+        "w": 560
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#0c1626",
+        "exposure": 1,
+        "fog": "#16243a",
+        "fogDensity": 0.009,
+        "hemiGround": "#5a6b82",
+        "hemiIntensity": 0.9,
+        "hemiSky": "#0b1730",
+        "sun": "#b9d2f2",
+        "sunIntensity": 0.75
+      },
+      "stats": {
+        "calls": 1,
+        "geometries": 483,
+        "programs": 103,
+        "textures": 102,
+        "triangles": 1
+      },
+      "selection": {
+        "variantId": "aurora",
+        "worldId": "alpine"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-dialog-world-desktop.png",
+      "name": "dialog-world-desktop",
+      "section": "dialogs",
+      "dialog": "world",
+      "viewportLabel": "desktop",
+      "metrics": {
+        "clientH": 718,
+        "clientW": 598,
+        "open": true,
+        "scrollH": 718,
+        "scrollW": 598,
+        "status": "Saved in this browser. Follows you across places and games."
+      },
+      "viewport": {
+        "dpr": 1,
+        "h": 900,
+        "w": 1440
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#0c1626",
+        "exposure": 1,
+        "fog": "#16243a",
+        "fogDensity": 0.009,
+        "hemiGround": "#5a6b82",
+        "hemiIntensity": 0.9,
+        "hemiSky": "#0b1730",
+        "sun": "#b9d2f2",
+        "sunIntensity": 0.75
+      },
+      "stats": {
+        "calls": 1,
+        "geometries": 396,
+        "programs": 78,
+        "textures": 88,
+        "triangles": 1
+      },
+      "selection": {
+        "variantId": "aurora",
+        "worldId": "alpine"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-dialog-world-narrow.png",
+      "name": "dialog-world-narrow",
+      "section": "dialogs",
+      "dialog": "world",
+      "viewportLabel": "narrow",
+      "metrics": {
+        "clientH": 610,
+        "clientW": 511,
+        "open": true,
+        "scrollH": 637,
+        "scrollW": 511
+      },
+      "viewport": {
+        "dpr": 1,
+        "h": 720,
+        "w": 560
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#0c1626",
+        "exposure": 1,
+        "fog": "#16243a",
+        "fogDensity": 0.009,
+        "hemiGround": "#5a6b82",
+        "hemiIntensity": 0.9,
+        "hemiSky": "#0b1730",
+        "sun": "#b9d2f2",
+        "sunIntensity": 0.75
+      },
+      "stats": {
+        "calls": 1,
+        "geometries": 483,
+        "programs": 103,
+        "textures": 102,
+        "triangles": 1
+      },
+      "selection": {
+        "variantId": "aurora",
+        "worldId": "alpine"
+      }
+    },
+    {
+      "name": "dialog-world-narrow-fit",
+      "fitsNarrow": true,
+      "clientH": 610,
+      "clientW": 511,
+      "open": true,
+      "scrollH": 637,
+      "scrollW": 511
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-downhill-alpine.png",
+      "name": "downhill-alpine",
+      "section": "downhill",
+      "worldId": "alpine",
+      "variantId": "aurora",
+      "camera": "game-native",
+      "appliedWorld": "alpine",
+      "adapterFacts": null,
+      "viewport": {
+        "dpr": 1,
+        "h": 18,
+        "w": 500
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#86563d",
+        "exposure": 1.25,
+        "fog": "#c07d5a",
+        "fogDensity": 0.0065,
+        "hemiGround": "#463327",
+        "hemiIntensity": 0.62,
+        "hemiSky": "#ffab63",
+        "sun": "#ff8c3a",
+        "sunIntensity": 2
+      },
+      "stats": {
+        "calls": 193,
+        "geometries": 478,
+        "programs": 88,
+        "textures": 109,
+        "triangles": 120948
+      },
+      "selection": {
+        "variantId": "aurora",
+        "worldId": "alpine"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-downhill-cloud.png",
+      "name": "downhill-cloud",
+      "section": "downhill",
+      "worldId": "cloud",
+      "variantId": "sunrise",
+      "camera": "game-native",
+      "appliedWorld": "cloud",
+      "adapterFacts": null,
+      "viewport": {
+        "dpr": 1,
+        "h": 18,
+        "w": 500
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#86563d",
+        "exposure": 1.25,
+        "fog": "#c07d5a",
+        "fogDensity": 0.0065,
+        "hemiGround": "#463327",
+        "hemiIntensity": 0.62,
+        "hemiSky": "#ffab63",
+        "sun": "#ff8c3a",
+        "sunIntensity": 2
+      },
+      "stats": {
+        "calls": 193,
+        "geometries": 478,
+        "programs": 88,
+        "textures": 109,
+        "triangles": 120948
+      },
+      "selection": {
+        "variantId": "sunrise",
+        "worldId": "cloud"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-downhill-coastal.png",
+      "name": "downhill-coastal",
+      "section": "downhill",
+      "worldId": "coastal",
+      "variantId": "sunset",
+      "camera": "game-native",
+      "appliedWorld": "coastal",
+      "adapterFacts": null,
+      "viewport": {
+        "dpr": 1,
+        "h": 18,
+        "w": 500
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#86563d",
+        "exposure": 1.25,
+        "fog": "#c07d5a",
+        "fogDensity": 0.0065,
+        "hemiGround": "#463327",
+        "hemiIntensity": 0.62,
+        "hemiSky": "#ffab63",
+        "sun": "#ff8c3a",
+        "sunIntensity": 2
+      },
+      "stats": {
+        "calls": 193,
+        "geometries": 497,
+        "programs": 109,
+        "textures": 110,
+        "triangles": 120948
+      },
+      "selection": {
+        "variantId": "sunset",
+        "worldId": "coastal"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-downhill-desert.png",
+      "name": "downhill-desert",
+      "section": "downhill",
+      "worldId": "desert",
+      "variantId": "golden",
+      "camera": "game-native",
+      "appliedWorld": "desert",
+      "adapterFacts": null,
+      "viewport": {
+        "dpr": 1,
+        "h": 18,
+        "w": 500
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#86563d",
+        "exposure": 1.25,
+        "fog": "#c07d5a",
+        "fogDensity": 0.0065,
+        "hemiGround": "#463327",
+        "hemiIntensity": 0.62,
+        "hemiSky": "#ffab63",
+        "sun": "#ff8c3a",
+        "sunIntensity": 2
+      },
+      "stats": {
+        "calls": 193,
+        "geometries": 478,
+        "programs": 88,
+        "textures": 109,
+        "triangles": 120948
+      },
+      "selection": {
+        "variantId": "golden",
+        "worldId": "desert"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-downhill-rainforest.png",
+      "name": "downhill-rainforest",
+      "section": "downhill",
+      "worldId": "rainforest",
+      "variantId": "mist",
+      "camera": "game-native",
+      "appliedWorld": "rainforest",
+      "adapterFacts": null,
+      "viewport": {
+        "dpr": 1,
+        "h": 18,
+        "w": 500
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#86563d",
+        "exposure": 1.25,
+        "fog": "#c07d5a",
+        "fogDensity": 0.0065,
+        "hemiGround": "#463327",
+        "hemiIntensity": 0.62,
+        "hemiSky": "#ffab63",
+        "sun": "#ff8c3a",
+        "sunIntensity": 2
+      },
+      "stats": {
+        "calls": 193,
+        "geometries": 478,
+        "programs": 88,
+        "textures": 109,
+        "triangles": 120948
+      },
+      "selection": {
+        "variantId": "mist",
+        "worldId": "rainforest"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-downhill-redwood.png",
+      "name": "downhill-redwood",
+      "section": "downhill",
+      "worldId": "redwood",
+      "variantId": "firefly",
+      "camera": "game-native",
+      "appliedWorld": "redwood",
+      "adapterFacts": null,
+      "viewport": {
+        "dpr": 1,
+        "h": 18,
+        "w": 500
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#86563d",
+        "exposure": 1.25,
+        "fog": "#c07d5a",
+        "fogDensity": 0.0065,
+        "hemiGround": "#463327",
+        "hemiIntensity": 0.62,
+        "hemiSky": "#ffab63",
+        "sun": "#ff8c3a",
+        "sunIntensity": 2
+      },
+      "stats": {
+        "calls": 193,
+        "geometries": 478,
+        "programs": 88,
+        "textures": 109,
+        "triangles": 120948
+      },
+      "selection": {
+        "variantId": "firefly",
+        "worldId": "redwood"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-first-person-alpine.png",
+      "name": "first-person-alpine",
+      "section": "first-person",
+      "worldId": "alpine",
+      "variantId": "aurora",
+      "camera": "first-person",
+      "viewport": {
+        "dpr": 1,
+        "h": 1253,
+        "w": 1226
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#0c1626",
+        "exposure": 1,
+        "fog": "#16243a",
+        "fogDensity": 0.009,
+        "hemiGround": "#5a6b82",
+        "hemiIntensity": 0.9,
+        "hemiSky": "#0b1730",
+        "sun": "#b9d2f2",
+        "sunIntensity": 0.75
+      },
+      "stats": {
+        "calls": 1,
+        "geometries": 489,
+        "programs": 104,
+        "textures": 102,
+        "triangles": 1
+      },
+      "selection": {
+        "variantId": "aurora",
+        "worldId": "alpine"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-first-person-cloud.png",
+      "name": "first-person-cloud",
+      "section": "first-person",
+      "worldId": "cloud",
+      "variantId": "sunrise",
+      "camera": "first-person",
+      "viewport": {
+        "dpr": 1,
+        "h": 1253,
+        "w": 1226
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#ab9080",
+        "exposure": 1.04,
+        "fog": "#f4ceb8",
+        "fogDensity": 0.0052,
+        "hemiGround": "#4a6e34",
+        "hemiIntensity": 1.52,
+        "hemiSky": "#788ed6",
+        "sun": "#ffd6a8",
+        "sunIntensity": 2.65
+      },
+      "stats": {
+        "calls": 1,
+        "geometries": 504,
+        "programs": 114,
+        "textures": 105,
+        "triangles": 1
+      },
+      "selection": {
+        "variantId": "sunrise",
+        "worldId": "cloud"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-first-person-coastal.png",
+      "name": "first-person-coastal",
+      "section": "first-person",
+      "worldId": "coastal",
+      "variantId": "sunset",
+      "camera": "first-person",
+      "viewport": {
+        "dpr": 1,
+        "h": 1253,
+        "w": 1226
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#86563d",
+        "exposure": 1.02,
+        "fog": "#c07d5a",
+        "fogDensity": 0.0065,
+        "hemiGround": "#463327",
+        "hemiIntensity": 0.62,
+        "hemiSky": "#ffab63",
+        "sun": "#ff8c3a",
+        "sunIntensity": 2
+      },
+      "stats": {
+        "calls": 1,
+        "geometries": 498,
+        "programs": 109,
+        "textures": 102,
+        "triangles": 1
+      },
+      "selection": {
+        "variantId": "sunset",
+        "worldId": "coastal"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-first-person-desert.png",
+      "name": "first-person-desert",
+      "section": "first-person",
+      "worldId": "desert",
+      "variantId": "golden",
+      "camera": "first-person",
+      "viewport": {
+        "dpr": 1,
+        "h": 1253,
+        "w": 1226
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#987247",
+        "exposure": 1.02,
+        "fog": "#d9a469",
+        "fogDensity": 0.007,
+        "hemiGround": "#a37347",
+        "hemiIntensity": 1.2,
+        "hemiSky": "#6f7fb0",
+        "sun": "#ffcf87",
+        "sunIntensity": 3
+      },
+      "stats": {
+        "calls": 1,
+        "geometries": 494,
+        "programs": 103,
+        "textures": 102,
+        "triangles": 1
+      },
+      "selection": {
+        "variantId": "golden",
+        "worldId": "desert"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-first-person-rainforest.png",
+      "name": "first-person-rainforest",
+      "section": "first-person",
+      "worldId": "rainforest",
+      "variantId": "mist",
+      "camera": "first-person",
+      "viewport": {
+        "dpr": 1,
+        "h": 1253,
+        "w": 1226
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#576f5a",
+        "exposure": 1,
+        "fog": "#7fa083",
+        "fogDensity": 0.016,
+        "hemiGround": "#33452e",
+        "hemiIntensity": 1.35,
+        "hemiSky": "#b9d3ad",
+        "sun": "#f4e6b4",
+        "sunIntensity": 1.7
+      },
+      "stats": {
+        "calls": 1,
+        "geometries": 502,
+        "programs": 118,
+        "textures": 102,
+        "triangles": 1
+      },
+      "selection": {
+        "variantId": "mist",
+        "worldId": "rainforest"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-first-person-redwood.png",
+      "name": "first-person-redwood",
+      "section": "first-person",
+      "worldId": "redwood",
+      "variantId": "firefly",
+      "camera": "first-person",
+      "viewport": {
+        "dpr": 1,
+        "h": 1253,
+        "w": 1226
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#495552",
+        "exposure": 0.98,
+        "fog": "#6c7c78",
+        "fogDensity": 0.015,
+        "hemiGround": "#283228",
+        "hemiIntensity": 0.9,
+        "hemiSky": "#68828c",
+        "sun": "#c4d8da",
+        "sunIntensity": 1
+      },
+      "stats": {
+        "calls": 1,
+        "geometries": 502,
+        "programs": 112,
+        "textures": 105,
+        "triangles": 1
+      },
+      "selection": {
+        "variantId": "firefly",
+        "worldId": "redwood"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-summit-alpine.png",
+      "name": "summit-alpine",
+      "section": "summit",
+      "worldId": "alpine",
+      "variantId": "aurora",
+      "camera": "game-native",
+      "appliedWorld": "alpine",
+      "adapterFacts": null,
+      "viewport": {
+        "dpr": 1,
+        "h": 18,
+        "w": 500
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#86563d",
+        "exposure": 1.25,
+        "fog": "#c07d5a",
+        "fogDensity": 0.0065,
+        "hemiGround": "#463327",
+        "hemiIntensity": 0.62,
+        "hemiSky": "#ffab63",
+        "sun": "#ff8c3a",
+        "sunIntensity": 2
+      },
+      "stats": {
+        "calls": 402,
+        "geometries": 834,
+        "programs": 99,
+        "textures": 121,
+        "triangles": 108028
+      },
+      "selection": {
+        "variantId": "aurora",
+        "worldId": "alpine"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-summit-cloud.png",
+      "name": "summit-cloud",
+      "section": "summit",
+      "worldId": "cloud",
+      "variantId": "sunrise",
+      "camera": "game-native",
+      "appliedWorld": "cloud",
+      "adapterFacts": null,
+      "viewport": {
+        "dpr": 1,
+        "h": 18,
+        "w": 500
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#86563d",
+        "exposure": 1.25,
+        "fog": "#c07d5a",
+        "fogDensity": 0.0065,
+        "hemiGround": "#463327",
+        "hemiIntensity": 0.62,
+        "hemiSky": "#ffab63",
+        "sun": "#ff8c3a",
+        "sunIntensity": 2
+      },
+      "stats": {
+        "calls": 402,
+        "geometries": 834,
+        "programs": 99,
+        "textures": 121,
+        "triangles": 108028
+      },
+      "selection": {
+        "variantId": "sunrise",
+        "worldId": "cloud"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-summit-coastal.png",
+      "name": "summit-coastal",
+      "section": "summit",
+      "worldId": "coastal",
+      "variantId": "sunset",
+      "camera": "game-native",
+      "appliedWorld": "coastal",
+      "adapterFacts": null,
+      "viewport": {
+        "dpr": 1,
+        "h": 18,
+        "w": 500
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#86563d",
+        "exposure": 1.25,
+        "fog": "#c07d5a",
+        "fogDensity": 0.0065,
+        "hemiGround": "#463327",
+        "hemiIntensity": 0.62,
+        "hemiSky": "#ffab63",
+        "sun": "#ff8c3a",
+        "sunIntensity": 2
+      },
+      "stats": {
+        "calls": 402,
+        "geometries": 853,
+        "programs": 120,
+        "textures": 122,
+        "triangles": 108028
+      },
+      "selection": {
+        "variantId": "sunset",
+        "worldId": "coastal"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-summit-desert.png",
+      "name": "summit-desert",
+      "section": "summit",
+      "worldId": "desert",
+      "variantId": "golden",
+      "camera": "game-native",
+      "appliedWorld": "desert",
+      "adapterFacts": null,
+      "viewport": {
+        "dpr": 1,
+        "h": 18,
+        "w": 500
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#86563d",
+        "exposure": 1.25,
+        "fog": "#c07d5a",
+        "fogDensity": 0.0065,
+        "hemiGround": "#463327",
+        "hemiIntensity": 0.62,
+        "hemiSky": "#ffab63",
+        "sun": "#ff8c3a",
+        "sunIntensity": 2
+      },
+      "stats": {
+        "calls": 402,
+        "geometries": 834,
+        "programs": 99,
+        "textures": 121,
+        "triangles": 108028
+      },
+      "selection": {
+        "variantId": "golden",
+        "worldId": "desert"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-summit-rainforest.png",
+      "name": "summit-rainforest",
+      "section": "summit",
+      "worldId": "rainforest",
+      "variantId": "mist",
+      "camera": "game-native",
+      "appliedWorld": "rainforest",
+      "adapterFacts": null,
+      "viewport": {
+        "dpr": 1,
+        "h": 18,
+        "w": 500
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#86563d",
+        "exposure": 1.25,
+        "fog": "#c07d5a",
+        "fogDensity": 0.0065,
+        "hemiGround": "#463327",
+        "hemiIntensity": 0.62,
+        "hemiSky": "#ffab63",
+        "sun": "#ff8c3a",
+        "sunIntensity": 2
+      },
+      "stats": {
+        "calls": 402,
+        "geometries": 834,
+        "programs": 99,
+        "textures": 121,
+        "triangles": 108028
+      },
+      "selection": {
+        "variantId": "mist",
+        "worldId": "rainforest"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-summit-redwood.png",
+      "name": "summit-redwood",
+      "section": "summit",
+      "worldId": "redwood",
+      "variantId": "firefly",
+      "camera": "game-native",
+      "appliedWorld": "redwood",
+      "adapterFacts": null,
+      "viewport": {
+        "dpr": 1,
+        "h": 18,
+        "w": 500
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#86563d",
+        "exposure": 1.25,
+        "fog": "#c07d5a",
+        "fogDensity": 0.0065,
+        "hemiGround": "#463327",
+        "hemiIntensity": 0.62,
+        "hemiSky": "#ffab63",
+        "sun": "#ff8c3a",
+        "sunIntensity": 2
+      },
+      "stats": {
+        "calls": 402,
+        "geometries": 834,
+        "programs": 99,
+        "textures": 121,
+        "triangles": 108028
+      },
+      "selection": {
+        "variantId": "firefly",
+        "worldId": "redwood"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-table-pool-alpine.png",
+      "name": "table-pool-alpine",
+      "section": "table",
+      "worldId": "alpine",
+      "camera": "table",
+      "viewport": {
+        "dpr": 1,
+        "h": 893,
+        "w": 906
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#0c1626",
+        "exposure": 1,
+        "fog": "#16243a",
+        "fogDensity": 0.009,
+        "hemiGround": "#5a6b82",
+        "hemiIntensity": 0.9,
+        "hemiSky": "#0b1730",
+        "sun": "#b9d2f2",
+        "sunIntensity": 0.75
+      },
+      "stats": {
+        "calls": 1,
+        "geometries": 489,
+        "programs": 104,
+        "textures": 102,
+        "triangles": 1
+      },
+      "selection": {
+        "variantId": "aurora",
+        "worldId": "alpine"
+      }
+    },
+    {
+      "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-table-pool-coastal.png",
+      "name": "table-pool-coastal",
+      "section": "table",
+      "worldId": "coastal",
+      "camera": "table",
+      "viewport": {
+        "dpr": 1,
+        "h": 893,
+        "w": 906
+      },
+      "scene": {
+        "atmosphereActive": true,
+        "background": "#86563d",
+        "exposure": 1.02,
+        "fog": "#c07d5a",
+        "fogDensity": 0.0065,
+        "hemiGround": "#463327",
+        "hemiIntensity": 0.62,
+        "hemiSky": "#ffab63",
+        "sun": "#ff8c3a",
+        "sunIntensity": 2
+      },
+      "stats": {
+        "calls": 1,
+        "geometries": 493,
+        "programs": 110,
+        "textures": 105,
+        "triangles": 1
+      },
+      "selection": {
+        "variantId": "sunset",
+        "worldId": "coastal"
+      }
+    }
+  ]
+}

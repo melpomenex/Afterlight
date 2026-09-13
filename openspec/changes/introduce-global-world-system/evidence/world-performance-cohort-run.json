@@ -1,0 +1,629 @@
+{
+  "cohort": "world-performance",
+  "label": "run",
+  "app": "http://localhost:4300/?debug=1&room=theater",
+  "generatedAt": "2026-09-13T19:11:28.498Z",
+  "build": "e3570b8ab8bcc6cb2a369dd1336d621de866f11d",
+  "environment": {
+    "deviceMemory": 16,
+    "gpu": "ANGLE (NVIDIA Corporation, NVIDIA GeForce RTX 2060 SUPER/PCIe/SSE2, OpenGL ES 3.2)",
+    "hardwareConcurrency": 24,
+    "tier": "high",
+    "transport": "phoenix",
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+    "viewport": {
+      "dpr": 1,
+      "height": 1253,
+      "width": 1226
+    }
+  },
+  "coldLoads": [
+    {
+      "cycle": 1,
+      "assets": 2,
+      "domContentLoaded": 711.4000000022352,
+      "loadEventEnd": 2362.7000000029802,
+      "now": 2528.2000000029802,
+      "selection": {
+        "variantId": "golden",
+        "worldId": "desert"
+      },
+      "stats": {
+        "calls": 1,
+        "geometries": 351,
+        "programs": 49,
+        "textures": 60,
+        "triangles": 1
+      }
+    },
+    {
+      "cycle": 2,
+      "assets": 2,
+      "domContentLoaded": 476.3999999985099,
+      "loadEventEnd": 2115.5,
+      "now": 2370.599999997765,
+      "selection": {
+        "variantId": "golden",
+        "worldId": "desert"
+      },
+      "stats": {
+        "calls": 1,
+        "geometries": 305,
+        "programs": 49,
+        "textures": 60,
+        "triangles": 1
+      }
+    },
+    {
+      "cycle": 3,
+      "assets": 2,
+      "domContentLoaded": 568.3999999985099,
+      "loadEventEnd": 2184.39999999851,
+      "now": 2356.5,
+      "selection": {
+        "variantId": "golden",
+        "worldId": "desert"
+      },
+      "stats": {
+        "calls": 1,
+        "geometries": 351,
+        "programs": 49,
+        "textures": 60,
+        "triangles": 1
+      }
+    },
+    {
+      "cycle": 4,
+      "assets": 2,
+      "domContentLoaded": 347.70000000298023,
+      "loadEventEnd": 1993.7000000029802,
+      "now": 2194.400000002235,
+      "selection": {
+        "variantId": "golden",
+        "worldId": "desert"
+      },
+      "stats": {
+        "calls": 1,
+        "geometries": 351,
+        "programs": 49,
+        "textures": 60,
+        "triangles": 1
+      }
+    },
+    {
+      "cycle": 5,
+      "assets": 2,
+      "domContentLoaded": 296.80000000074506,
+      "loadEventEnd": 1944.300000000745,
+      "now": 2162,
+      "selection": {
+        "variantId": "golden",
+        "worldId": "desert"
+      },
+      "stats": {
+        "calls": 1,
+        "geometries": 351,
+        "programs": 49,
+        "textures": 60,
+        "triangles": 1
+      }
+    }
+  ],
+  "returnCycles": [
+    {
+      "cycle": 1,
+      "durationMs": 78,
+      "calls": 1,
+      "geometries": 353,
+      "heap": 97855624,
+      "programs": 102,
+      "selection": "desert",
+      "textures": 52,
+      "triangles": 1
+    },
+    {
+      "cycle": 2,
+      "durationMs": 88,
+      "calls": 1,
+      "geometries": 353,
+      "heap": 66239212,
+      "programs": 102,
+      "selection": "desert",
+      "textures": 52,
+      "triangles": 1
+    },
+    {
+      "cycle": 3,
+      "durationMs": 7745,
+      "calls": 1,
+      "geometries": 655,
+      "heap": 42593671,
+      "programs": 172,
+      "selection": "desert",
+      "textures": 86,
+      "triangles": 1
+    },
+    {
+      "cycle": 4,
+      "durationMs": 1555,
+      "calls": 1,
+      "geometries": 735,
+      "heap": 56427832,
+      "programs": 178,
+      "selection": "desert",
+      "textures": 87,
+      "triangles": 1
+    },
+    {
+      "cycle": 5,
+      "durationMs": 64,
+      "calls": 1,
+      "geometries": 641,
+      "heap": 46394031,
+      "programs": 175,
+      "selection": "desert",
+      "textures": 60,
+      "triangles": 1
+    },
+    {
+      "cycle": 6,
+      "durationMs": 4431,
+      "calls": 1,
+      "geometries": 860,
+      "heap": 56816146,
+      "programs": 208,
+      "selection": "desert",
+      "textures": 90,
+      "triangles": 1
+    },
+    {
+      "cycle": 7,
+      "durationMs": 84,
+      "calls": 1,
+      "geometries": 766,
+      "heap": 37885559,
+      "programs": 205,
+      "selection": "desert",
+      "textures": 64,
+      "triangles": 1
+    },
+    {
+      "cycle": 8,
+      "durationMs": 60,
+      "calls": 1,
+      "geometries": 766,
+      "heap": 57259366,
+      "programs": 205,
+      "selection": "desert",
+      "textures": 64,
+      "triangles": 1
+    },
+    {
+      "cycle": 9,
+      "durationMs": 5143,
+      "calls": 1,
+      "geometries": 1030,
+      "heap": 75681197,
+      "programs": 238,
+      "selection": "desert",
+      "textures": 96,
+      "triangles": 1
+    },
+    {
+      "cycle": 10,
+      "durationMs": 5559,
+      "calls": 1,
+      "geometries": 1110,
+      "heap": 64489691,
+      "programs": 268,
+      "selection": "desert",
+      "textures": 98,
+      "triangles": 1
+    },
+    {
+      "cycle": 11,
+      "durationMs": 5863,
+      "calls": 1,
+      "geometries": 1190,
+      "heap": 50679020,
+      "programs": 298,
+      "selection": "desert",
+      "textures": 100,
+      "triangles": 1
+    },
+    {
+      "cycle": 12,
+      "durationMs": 5888,
+      "calls": 1,
+      "geometries": 1270,
+      "heap": 56365932,
+      "programs": 328,
+      "selection": "desert",
+      "textures": 102,
+      "triangles": 1
+    },
+    {
+      "cycle": 13,
+      "durationMs": 6224,
+      "calls": 1,
+      "geometries": 1350,
+      "heap": 55216208,
+      "programs": 358,
+      "selection": "desert",
+      "textures": 104,
+      "triangles": 1
+    },
+    {
+      "cycle": 14,
+      "durationMs": 6406,
+      "calls": 1,
+      "geometries": 1430,
+      "heap": 53946613,
+      "programs": 388,
+      "selection": "desert",
+      "textures": 106,
+      "triangles": 1
+    },
+    {
+      "cycle": 15,
+      "durationMs": 6625,
+      "calls": 1,
+      "geometries": 1510,
+      "heap": 60830800,
+      "programs": 418,
+      "selection": "desert",
+      "textures": 108,
+      "triangles": 1
+    },
+    {
+      "cycle": 16,
+      "durationMs": 64,
+      "calls": 1,
+      "geometries": 1416,
+      "heap": 82295665,
+      "programs": 415,
+      "selection": "desert",
+      "textures": 82,
+      "triangles": 1
+    },
+    {
+      "cycle": 17,
+      "durationMs": 55,
+      "calls": 1,
+      "geometries": 1416,
+      "heap": 71190713,
+      "programs": 415,
+      "selection": "desert",
+      "textures": 82,
+      "triangles": 1
+    },
+    {
+      "cycle": 18,
+      "durationMs": 14416,
+      "calls": 1,
+      "geometries": 1715,
+      "heap": 80574100,
+      "programs": 478,
+      "selection": "desert",
+      "textures": 114,
+      "triangles": 1
+    },
+    {
+      "cycle": 19,
+      "durationMs": 77,
+      "calls": 1,
+      "geometries": 1621,
+      "heap": 58827330,
+      "programs": 475,
+      "selection": "desert",
+      "textures": 88,
+      "triangles": 1
+    },
+    {
+      "cycle": 20,
+      "durationMs": 7838,
+      "calls": 1,
+      "geometries": 1840,
+      "heap": 67324520,
+      "programs": 508,
+      "selection": "desert",
+      "textures": 118,
+      "triangles": 1
+    }
+  ],
+  "switchCycles": [
+    {
+      "cycle": 1,
+      "worldId": "rainforest",
+      "durationMs": 2653,
+      "calls": 1,
+      "geometries": 1850,
+      "heap": 64593313,
+      "programs": 457,
+      "selection": "rainforest",
+      "textures": 118,
+      "triangles": 1
+    },
+    {
+      "cycle": 2,
+      "worldId": "alpine",
+      "durationMs": 141,
+      "calls": 1,
+      "geometries": 1827,
+      "heap": 68583941,
+      "programs": 439,
+      "selection": "alpine",
+      "textures": 117,
+      "triangles": 1
+    },
+    {
+      "cycle": 3,
+      "worldId": "desert",
+      "durationMs": 2385,
+      "calls": 1,
+      "geometries": 1840,
+      "heap": 101968410,
+      "programs": 448,
+      "selection": "desert",
+      "textures": 118,
+      "triangles": 1
+    },
+    {
+      "cycle": 4,
+      "worldId": "redwood",
+      "durationMs": 294,
+      "calls": 1,
+      "geometries": 1827,
+      "heap": 102270922,
+      "programs": 439,
+      "selection": "redwood",
+      "textures": 117,
+      "triangles": 1
+    },
+    {
+      "cycle": 5,
+      "worldId": "cloud",
+      "durationMs": 4846,
+      "calls": 1,
+      "geometries": 1854,
+      "heap": 106990524,
+      "programs": 454,
+      "selection": "cloud",
+      "textures": 121,
+      "triangles": 1
+    },
+    {
+      "cycle": 6,
+      "worldId": "coastal",
+      "durationMs": 1571,
+      "calls": 1,
+      "geometries": 1842,
+      "heap": 108285829,
+      "programs": 452,
+      "selection": "coastal",
+      "textures": 118,
+      "triangles": 1
+    },
+    {
+      "cycle": 7,
+      "worldId": "rainforest",
+      "durationMs": 105,
+      "calls": 1,
+      "geometries": 1827,
+      "heap": 123065937,
+      "programs": 439,
+      "selection": "rainforest",
+      "textures": 117,
+      "triangles": 1
+    },
+    {
+      "cycle": 8,
+      "worldId": "alpine",
+      "durationMs": 956,
+      "calls": 1,
+      "geometries": 1839,
+      "heap": 100135471,
+      "programs": 449,
+      "selection": "alpine",
+      "textures": 118,
+      "triangles": 1
+    },
+    {
+      "cycle": 9,
+      "worldId": "desert",
+      "durationMs": 882,
+      "calls": 1,
+      "geometries": 1840,
+      "heap": 114713926,
+      "programs": 448,
+      "selection": "desert",
+      "textures": 118,
+      "triangles": 1
+    },
+    {
+      "cycle": 10,
+      "worldId": "redwood",
+      "durationMs": 1659,
+      "calls": 1,
+      "geometries": 1852,
+      "heap": 132342395,
+      "programs": 453,
+      "selection": "redwood",
+      "textures": 121,
+      "triangles": 1
+    },
+    {
+      "cycle": 11,
+      "worldId": "cloud",
+      "durationMs": 1623,
+      "calls": 1,
+      "geometries": 1854,
+      "heap": 123292250,
+      "programs": 454,
+      "selection": "cloud",
+      "textures": 121,
+      "triangles": 1
+    },
+    {
+      "cycle": 12,
+      "worldId": "coastal",
+      "durationMs": 177,
+      "calls": 1,
+      "geometries": 1827,
+      "heap": 122424650,
+      "programs": 439,
+      "selection": "coastal",
+      "textures": 117,
+      "triangles": 1
+    },
+    {
+      "cycle": 13,
+      "worldId": "rainforest",
+      "durationMs": 2588,
+      "calls": 1,
+      "geometries": 1850,
+      "heap": 126408257,
+      "programs": 457,
+      "selection": "rainforest",
+      "textures": 118,
+      "triangles": 1
+    },
+    {
+      "cycle": 14,
+      "worldId": "alpine",
+      "durationMs": 130,
+      "calls": 1,
+      "geometries": 1827,
+      "heap": 154531221,
+      "programs": 439,
+      "selection": "alpine",
+      "textures": 117,
+      "triangles": 1
+    },
+    {
+      "cycle": 15,
+      "worldId": "desert",
+      "durationMs": 1583,
+      "calls": 1,
+      "geometries": 1840,
+      "heap": 142115877,
+      "programs": 448,
+      "selection": "desert",
+      "textures": 118,
+      "triangles": 1
+    },
+    {
+      "cycle": 16,
+      "worldId": "redwood",
+      "durationMs": 1778,
+      "calls": 1,
+      "geometries": 1852,
+      "heap": 147897117,
+      "programs": 453,
+      "selection": "redwood",
+      "textures": 121,
+      "triangles": 1
+    },
+    {
+      "cycle": 17,
+      "worldId": "cloud",
+      "durationMs": 259,
+      "calls": 1,
+      "geometries": 1827,
+      "heap": 145125733,
+      "programs": 439,
+      "selection": "cloud",
+      "textures": 117,
+      "triangles": 1
+    },
+    {
+      "cycle": 18,
+      "worldId": "coastal",
+      "durationMs": 2450,
+      "calls": 1,
+      "geometries": 1842,
+      "heap": 160391775,
+      "programs": 452,
+      "selection": "coastal",
+      "textures": 118,
+      "triangles": 1
+    },
+    {
+      "cycle": 19,
+      "worldId": "rainforest",
+      "durationMs": 100,
+      "calls": 1,
+      "geometries": 1827,
+      "heap": 172233085,
+      "programs": 439,
+      "selection": "rainforest",
+      "textures": 117,
+      "triangles": 1
+    },
+    {
+      "cycle": 20,
+      "worldId": "alpine",
+      "durationMs": 954,
+      "calls": 1,
+      "geometries": 1839,
+      "heap": 175883143,
+      "programs": 449,
+      "selection": "alpine",
+      "textures": 118,
+      "triangles": 1
+    }
+  ],
+  "summary": {
+    "cold": {
+      "loadEventEndMs": {
+        "n": 5,
+        "min": 1944.300000000745,
+        "median": 2115.5,
+        "p95": 2184.39999999851,
+        "max": 2362.7000000029802
+      },
+      "domContentLoadedMs": {
+        "n": 5,
+        "min": 296.80000000074506,
+        "median": 476.3999999985099,
+        "p95": 568.3999999985099,
+        "max": 711.4000000022352
+      }
+    },
+    "returnCycleMs": {
+      "n": 20,
+      "min": 55,
+      "median": 4431,
+      "p95": 7838,
+      "max": 14416
+    },
+    "switchCycleMs": {
+      "n": 20,
+      "min": 100,
+      "median": 956,
+      "p95": 2653,
+      "max": 4846
+    },
+    "draws": {
+      "first": 1,
+      "last": 1,
+      "trianglesFirst": 1,
+      "trianglesLast": 1
+    },
+    "heap": {
+      "first": 97855624,
+      "last": 67324520,
+      "peak": 97855624
+    }
+  },
+  "limitations": [
+    "GPU renderer reported by the browser: ANGLE (NVIDIA Corporation, NVIDIA GeForce RTX 2060 SUPER/PCIe/SSE2, OpenGL ES 3.2) (WEBGL_debug_renderer_info)",
+    "GPU byte accounting is not observable from the browser; renderer.info counts only",
+    "no separate constrained-hardware device was available; only this desktop counted",
+    "a concurrent in-progress change shared this checkout during the run",
+    "cold loads are browser-cache-warm navigations, not first-ever audits",
+    "not measured by this cohort: walking p95 frame-interval delta, individual preparation CPU tasks, TTI, GPU bytes, constrained hardware, hardware GPU variants",
+    "irregular multi-second stalls appear in the per-cycle data (likely GC and shared-machine contention); the median return cycle stays fast"
+  ],
+  "errors": []
+}

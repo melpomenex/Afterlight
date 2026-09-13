@@ -288,6 +288,7 @@ const BACKDROP_BANDS: BackdropBand[] = [
 
 export class Scenery implements System {
   readonly group = new THREE.Group();
+  readonly farSceneryRoot = new THREE.Group();
 
   private u: Shared = makeShared();
   private mats!: MatLib;
@@ -328,6 +329,8 @@ export class Scenery implements System {
           this.water = new Water(this.u);
           this.water.build(ctx, this.seaLevel, this.bakeSeaField());
           this.group.add(this.water.group);
+          this.farSceneryRoot.name = 'farSceneryRoot';
+          this.group.add(this.farSceneryRoot);
         },
       },
       { id: 'scenery:build:start', run: () => perf?.('scenery:build', 'start') },
@@ -399,10 +402,30 @@ export class Scenery implements System {
     if (ctx.envMap) this.mats.setEnv(ctx.envMap);
   }
 
+  /**
+   * Attach or clear cosmetic far scenery for the active World (7.2).
+   * Native backdrops and trackside structures remain default fallbacks.
+   */
+  setFarScenery(node: THREE.Object3D | null): void {
+    while (this.farSceneryRoot.children.length > 0) {
+      this.farSceneryRoot.remove(this.farSceneryRoot.children[0]);
+    }
+    if (node) {
+      this.farSceneryRoot.add(node);
+    }
+  }
+
   dispose() {
     this.busOff?.();
     this.water.dispose();
     this.mats.dispose();
+    // Safely detach far scenery without disposing borrowed external assets
+    if (this.farSceneryRoot.parent) {
+      this.farSceneryRoot.removeFromParent();
+    }
+    while (this.farSceneryRoot.children.length > 0) {
+      this.farSceneryRoot.remove(this.farSceneryRoot.children[0]);
+    }
     this.group.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.geometry) m.geometry.dispose();

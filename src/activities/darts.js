@@ -140,6 +140,12 @@ export function createDartsInstance({
 export const DartsModule = {
   initialize: createDartsInstance,
   createInstance: createDartsInstance,
+  worldSupport: {
+    mode: 'full',
+    host: 'parent',
+    slots: [],
+    adapterKey: null,
+  },
 };
 
 registerActivityModule('darts', DartsModule);

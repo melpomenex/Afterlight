@@ -1396,3 +1396,118 @@ void main() {
 }
 `;
 }
+
+// ---------------------------------------------------------------------------
+// Bounded World Atmosphere Profiles (introduce-global-world-system 7.2)
+// ---------------------------------------------------------------------------
+
+export interface KartWorldAtmosphereProfile {
+  id: string;
+  name: string;
+  exposure: number;
+  sunLightColor: number;
+  groundBounceColor: number;
+  skyFillColor: number;
+  fogColor?: number;
+  hazeColor?: number;
+  zenithColorHex?: string;
+  horizonColorHex?: string;
+  sunIntensityScale?: number;
+  skyFillIntensityScale?: number;
+  bounceIntensityScale?: number;
+}
+
+export const KART_WORLD_ATMOSPHERE_PROFILES: Record<string, KartWorldAtmosphereProfile> = {
+  coastal: {
+    id: 'coastal',
+    name: 'Coastal Dusk',
+    exposure: 1.05,
+    sunLightColor: 0xffd9a8,
+    groundBounceColor: 0xc98f5a,
+    skyFillColor: 0xa8c8ff,
+    fogColor: 0xffd0a0,
+    zenithColorHex: '#3f74c4',
+    horizonColorHex: '#ffd0a0',
+    sunIntensityScale: 1.0,
+    skyFillIntensityScale: 1.0,
+    bounceIntensityScale: 1.0,
+  },
+  rainforest: {
+    id: 'rainforest',
+    name: 'Temperate Rainforest',
+    exposure: 1.02,
+    sunLightColor: 0xf5e2be,
+    groundBounceColor: 0x5a7046,
+    skyFillColor: 0x7da89c,
+    fogColor: 0xe8dcba,
+    zenithColorHex: '#2d5a68',
+    horizonColorHex: '#e8dcba',
+    sunIntensityScale: 0.95,
+    skyFillIntensityScale: 1.1,
+    bounceIntensityScale: 0.85,
+  },
+  alpine: {
+    id: 'alpine',
+    name: 'Subalpine Ridge',
+    exposure: 1.10,
+    sunLightColor: 0xffeedd,
+    groundBounceColor: 0x8a9bb0,
+    skyFillColor: 0x90b8ff,
+    fogColor: 0xf0e4d6,
+    zenithColorHex: '#2862c8',
+    horizonColorHex: '#f0e4d6',
+    sunIntensityScale: 1.05,
+    skyFillIntensityScale: 1.15,
+    bounceIntensityScale: 1.0,
+  },
+  desert: {
+    id: 'desert',
+    name: 'High Desert Basin',
+    exposure: 1.06,
+    sunLightColor: 0xffc488,
+    groundBounceColor: 0xba6a42,
+    skyFillColor: 0xaf92c8,
+    fogColor: 0xffb680,
+    zenithColorHex: '#4d4f8a',
+    horizonColorHex: '#ffb680',
+    sunIntensityScale: 1.02,
+    skyFillIntensityScale: 0.95,
+    bounceIntensityScale: 1.2,
+  },
+  redwood: {
+    id: 'redwood',
+    name: 'Old Growth Redwood',
+    exposure: 1.00,
+    sunLightColor: 0xfde3b0,
+    groundBounceColor: 0x6e4b2d,
+    skyFillColor: 0x629584,
+    fogColor: 0xecd2a6,
+    zenithColorHex: '#1e484a',
+    horizonColorHex: '#ecd2a6',
+    sunIntensityScale: 0.92,
+    skyFillIntensityScale: 1.05,
+    bounceIntensityScale: 0.9,
+  },
+  cloud: {
+    id: 'cloud',
+    name: 'Cloud Sea',
+    exposure: 1.12,
+    sunLightColor: 0xfff0e2,
+    groundBounceColor: 0xb5c8db,
+    skyFillColor: 0xc8ddff,
+    fogColor: 0xfbf5ee,
+    zenithColorHex: '#4a82cf',
+    horizonColorHex: '#fbf5ee',
+    sunIntensityScale: 1.0,
+    skyFillIntensityScale: 1.25,
+    bounceIntensityScale: 1.1,
+  },
+};
+
+export function getKartAtmosphereProfile(worldId: string | null | undefined): KartWorldAtmosphereProfile {
+  if (worldId && worldId in KART_WORLD_ATMOSPHERE_PROFILES) {
+    return KART_WORLD_ATMOSPHERE_PROFILES[worldId];
+  }
+  return KART_WORLD_ATMOSPHERE_PROFILES.coastal;
+}
+

@@ -103,6 +103,8 @@ export function createDownhillController({
   loadHostModule = defaultLoadHostModule,
   loadCourseDocument = defaultLoadCourseDocument,
   notifyPresentationTerminal = null,
+  getWorldSelection = null,
+  initialWorldPresentation = null,
 } = {}) {
   if (!activityDef || activityDef.type !== 'downhill-mayhem') {
     throw new Error('downhill controller requires a downhill-mayhem activity definition');
@@ -111,6 +113,28 @@ export function createDownhillController({
   let controllerDisposed = false;
   let activationEpoch = 0;
   let resourceGeneration = 0;
+
+  function getEffectiveWorldPresentation() {
+    if (typeof getWorldSelection === 'function') {
+      const sel = getWorldSelection();
+      if (sel?.worldId) {
+        return {
+          worldId: sel.worldId,
+          variantId: sel.variantId || null,
+          atmosphereProfile: sel.worldId,
+        };
+      }
+    }
+    if (globalThis.__afterlightWorldState?.selection?.worldId) {
+      const sel = globalThis.__afterlightWorldState.selection;
+      return {
+        worldId: sel.worldId,
+        variantId: sel.variantId || null,
+        atmosphereProfile: sel.worldId,
+      };
+    }
+    return initialWorldPresentation;
+  }
 
   function createAttempt(epoch) {
     return {
@@ -632,6 +656,8 @@ export function createDownhillController({
             });
             host = retained.host;
             sceneAdapter = createDownhillSceneAdapter(host);
+            const effPresentation = getEffectiveWorldPresentation();
+            if (effPresentation) sceneAdapter.setAmbientProfile(effPresentation);
             presentationReady = true;
             loadFailed = false;
             entryRetained = true;
@@ -666,6 +692,7 @@ export function createDownhillController({
             difficulty: activityDef.course?.difficulty ?? 'mayhem',
           },
           courseDocument: courseDoc,
+          initialWorldPresentation: getEffectiveWorldPresentation(),
           onFatal: (title, detail) => {
             report(title || 'Downhill Mayhem stopped', String(detail || 'The game could not continue.'));
             exit('fatal');
@@ -1387,9 +1414,27 @@ export function createDownhillController({
     return true;
   }
 
+  let worldUnsub = null;
+  if (typeof globalThis.__afterlightWorldState?.subscribe === 'function') {
+    worldUnsub = globalThis.__afterlightWorldState.subscribe(() => {
+      if (!controllerDisposed && sceneAdapter) {
+        const sel = globalThis.__afterlightWorldState.selection;
+        if (sel?.worldId) {
+          sceneAdapter.setAmbientProfile({
+            worldId: sel.worldId,
+            variantId: sel.variantId || null,
+            atmosphereProfile: sel.worldId,
+          });
+        }
+      }
+    });
+  }
+
   function dispose() {
     if (controllerDisposed) return;
     controllerDisposed = true;
+    worldUnsub?.();
+    worldUnsub = null;
     attempt.disposed = true;
     attempt.cancelled = true;
     resourceGeneration += 1;
@@ -1456,6 +1501,18 @@ export function createDownhillController({
     configure: (config) => sendConfig(config),
     respondOffer: (accept) => respondOffer(accept),
     joinAsRole: (role) => joinAsRole(role),
+    setAmbientProfile(profile) {
+      sceneAdapter?.setAmbientProfile(profile);
+    },
+    getAmbientProfile() {
+      return sceneAdapter?.getAmbientProfile() ?? null;
+    },
+    setWorldPresentation(presentation) {
+      sceneAdapter?.setWorldPresentation(presentation);
+    },
+    getWorldPresentation() {
+      return sceneAdapter?.getWorldPresentation() ?? getEffectiveWorldPresentation();
+    },
     get attemptToken() { return attempt.token; },
     get viewHeld() { return viewHeld; },
     get pendingActivation() { return pendingActivation; },

@@ -101,9 +101,33 @@ export async function createSnowboardController({
   toast = null,
   onExit = null,
   notifyPresentationTerminal = null,
+  getWorldSelection = null,
+  initialWorldPresentation = null,
 } = {}) {
   const attempt = { token: {}, cancelled: false, disposed: false };
   let controller = null;
+
+  function getEffectiveWorldPresentation() {
+    if (typeof getWorldSelection === 'function') {
+      const sel = getWorldSelection();
+      if (sel?.worldId) {
+        return {
+          worldId: sel.worldId,
+          variantId: sel.variantId || null,
+          atmosphereProfile: sel.worldId,
+        };
+      }
+    }
+    if (globalThis.__afterlightWorldState?.selection?.worldId) {
+      const sel = globalThis.__afterlightWorldState.selection;
+      return {
+        worldId: sel.worldId,
+        variantId: sel.variantId || null,
+        atmosphereProfile: sel.worldId,
+      };
+    }
+    return initialWorldPresentation;
+  }
 
   // --- lazy resource load (cancellable) --------------------------------------
   const { createSnowboardScene } = await import('./scene.js');
@@ -120,7 +144,11 @@ export async function createSnowboardController({
     sceneInstance = cache.acquire(attempt.token, `scene:${activityDef.id}`, () => null);
   }
 
-  const scene = await createSnowboardScene({ courseDoc });
+  const effectivePresentation = getEffectiveWorldPresentation();
+  const scene = await createSnowboardScene({
+    courseDoc,
+    initialWorldPresentation: effectivePresentation,
+  });
   if (attempt.cancelled) {
     scene.dispose();
     return null;
@@ -799,11 +827,29 @@ export async function createSnowboardController({
     }
   }
 
+  let worldUnsub = null;
+  if (typeof globalThis.__afterlightWorldState?.subscribe === 'function') {
+    worldUnsub = globalThis.__afterlightWorldState.subscribe(() => {
+      if (!attempt.disposed && scene) {
+        const sel = globalThis.__afterlightWorldState.selection;
+        if (sel?.worldId) {
+          scene.setWorldPresentation({
+            worldId: sel.worldId,
+            variantId: sel.variantId || null,
+            atmosphereProfile: sel.worldId,
+          });
+        }
+      }
+    });
+  }
+
   function dispose() {
     if (attempt.disposed) return;
     attempt.disposed = true;
     attempt.cancelled = true;
     unsubscribeLoaded?.();
+    worldUnsub?.();
+    worldUnsub = null;
     detachControls();
     hideHud();
     if (viewHeld) releaseView?.(attempt.token, 'dispose');
@@ -824,6 +870,12 @@ export async function createSnowboardController({
     acceptError,
     exit,
     dispose,
+    setWorldPresentation(presentation) {
+      scene?.setWorldPresentation(presentation);
+    },
+    getWorldPresentation() {
+      return scene?.getCurrentProfile() ?? getEffectiveWorldPresentation();
+    },
     get attemptToken() {
       return attempt.token;
     },

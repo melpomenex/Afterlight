@@ -1,0 +1,1280 @@
+{
+  "capturedAt": "2026-09-13T14:50:27.329Z",
+  "gitCommit": "e3570b8",
+  "theaterVariantsCount": 18,
+  "variants": [
+    {
+      "environmentId": "coastal",
+      "environmentName": "Coastal Dusk",
+      "variantId": "sunset",
+      "variantLabel": "Coastal Dusk · Sunset",
+      "preset": "env-coastal-sunset",
+      "sunColor": "#ff8c3a",
+      "audioAmbient": "coastal"
+    },
+    {
+      "environmentId": "coastal",
+      "environmentName": "Coastal Dusk",
+      "variantId": "storm",
+      "variantLabel": "Coastal Dusk · Tropical Storm",
+      "preset": "env-coastal-storm",
+      "sunColor": "#9fb0bd",
+      "audioAmbient": "coastal"
+    },
+    {
+      "environmentId": "coastal",
+      "environmentName": "Coastal Dusk",
+      "variantId": "midnight",
+      "variantLabel": "Coastal Dusk · Bioluminescent Midnight",
+      "preset": "env-coastal-midnight",
+      "sunColor": "#8fb4d8",
+      "audioAmbient": "coastal-night"
+    },
+    {
+      "environmentId": "rainforest",
+      "environmentName": "Rainforest Canopy",
+      "variantId": "mist",
+      "variantLabel": "Rainforest · Morning Mist",
+      "preset": "env-rainforest-mist",
+      "sunColor": "#f4e6b4",
+      "audioAmbient": "rainforest"
+    },
+    {
+      "environmentId": "rainforest",
+      "environmentName": "Rainforest Canopy",
+      "variantId": "afternoon",
+      "variantLabel": "Rainforest · Afternoon Rain",
+      "preset": "env-rainforest-afternoon",
+      "sunColor": "#dfe3b4",
+      "audioAmbient": "rainforest-rain"
+    },
+    {
+      "environmentId": "rainforest",
+      "environmentName": "Rainforest Canopy",
+      "variantId": "thunderstorm",
+      "variantLabel": "Rainforest · Thunderstorm",
+      "preset": "env-rainforest-thunderstorm",
+      "sunColor": "#9fb0a0",
+      "audioAmbient": "rainforest-rain"
+    },
+    {
+      "environmentId": "alpine",
+      "environmentName": "Alpine Aurora",
+      "variantId": "aurora",
+      "variantLabel": "Alpine · Aurora Night",
+      "preset": "env-alpine-aurora",
+      "sunColor": "#b9d2f2",
+      "audioAmbient": "alpine"
+    },
+    {
+      "environmentId": "alpine",
+      "environmentName": "Alpine Aurora",
+      "variantId": "morning",
+      "variantLabel": "Alpine · Clear Morning",
+      "preset": "env-alpine-morning",
+      "sunColor": "#fff1d6",
+      "audioAmbient": "alpine"
+    },
+    {
+      "environmentId": "alpine",
+      "environmentName": "Alpine Aurora",
+      "variantId": "snowfall",
+      "variantLabel": "Alpine · Snowfall",
+      "preset": "env-alpine-snowfall",
+      "sunColor": "#cfd9e6",
+      "audioAmbient": "alpine-snow"
+    },
+    {
+      "environmentId": "desert",
+      "environmentName": "Desert Oasis",
+      "variantId": "golden",
+      "variantLabel": "Desert · Golden Hour",
+      "preset": "env-desert-golden",
+      "sunColor": "#ffcf87",
+      "audioAmbient": "desert"
+    },
+    {
+      "environmentId": "desert",
+      "environmentName": "Desert Oasis",
+      "variantId": "sandstorm",
+      "variantLabel": "Desert · Sandstorm",
+      "preset": "env-desert-sandstorm",
+      "sunColor": "#e8a860",
+      "audioAmbient": "desert-storm"
+    },
+    {
+      "environmentId": "desert",
+      "environmentName": "Desert Oasis",
+      "variantId": "night",
+      "variantLabel": "Desert · Clear Starry Night",
+      "preset": "env-desert-night",
+      "sunColor": "#a9c2e4",
+      "audioAmbient": "desert-night"
+    },
+    {
+      "environmentId": "redwood",
+      "environmentName": "Ancient Redwood Forest",
+      "variantId": "firefly",
+      "variantLabel": "Redwood · Firefly Night",
+      "preset": "env-redwood-firefly",
+      "sunColor": "#c4d8da",
+      "audioAmbient": "redwood-night"
+    },
+    {
+      "environmentId": "redwood",
+      "environmentName": "Ancient Redwood Forest",
+      "variantId": "fog",
+      "variantLabel": "Redwood · Morning Fog",
+      "preset": "env-redwood-fog",
+      "sunColor": "#f0e8c8",
+      "audioAmbient": "redwood"
+    },
+    {
+      "environmentId": "redwood",
+      "environmentName": "Ancient Redwood Forest",
+      "variantId": "sunshafts",
+      "variantLabel": "Redwood · Afternoon Sunshafts",
+      "preset": "env-redwood-sunshafts",
+      "sunColor": "#ffe2a0",
+      "audioAmbient": "redwood"
+    },
+    {
+      "environmentId": "cloud",
+      "environmentName": "Cloud Garden",
+      "variantId": "sunrise",
+      "variantLabel": "Cloud Garden · Sunrise",
+      "preset": "env-cloud-sunrise",
+      "sunColor": "#ffd6a8",
+      "audioAmbient": "cloud"
+    },
+    {
+      "environmentId": "cloud",
+      "environmentName": "Cloud Garden",
+      "variantId": "day",
+      "variantLabel": "Cloud Garden · Bright Day",
+      "preset": "env-cloud-day",
+      "sunColor": "#fff2cf",
+      "audioAmbient": "cloud"
+    },
+    {
+      "environmentId": "cloud",
+      "environmentName": "Cloud Garden",
+      "variantId": "storm",
+      "variantLabel": "Cloud Garden · Storm Below",
+      "preset": "env-cloud-storm",
+      "sunColor": "#c0c8d4",
+      "audioAmbient": "cloud-storm"
+    }
+  ],
+  "functionalGeometry": {
+    "hash": "bcd2671fed2d1f87c4da9ce1be5ed1833cd646b71bee4311d64d720f6270ad9c",
+    "bounds": {
+      "minX": -11.3,
+      "maxX": 11.3,
+      "minZ": -9.5,
+      "maxZ": 10.3
+    },
+    "spawn": [
+      -9,
+      0
+    ],
+    "companionSpawn": [
+      -8.2,
+      1
+    ],
+    "screenQuad": null,
+    "seatsCount": 48,
+    "seats": [
+      {
+        "x": -8.15,
+        "z": 0.3,
+        "title": "Take a seat",
+        "sub": "Row 1 · Seat 16 · The Orpheum"
+      },
+      {
+        "x": -8.15,
+        "z": 2.5,
+        "title": "Take a seat",
+        "sub": "Row 2 · Seat 16 · The Orpheum"
+      },
+      {
+        "x": -8.15,
+        "z": 4.7,
+        "title": "Take a seat",
+        "sub": "Row 3 · Seat 16 · The Orpheum"
+      },
+      {
+        "x": -7.2,
+        "z": 0.3,
+        "title": "Take a seat",
+        "sub": "Row 1 · Seat 15 · The Orpheum"
+      },
+      {
+        "x": -7.2,
+        "z": 2.5,
+        "title": "Take a seat",
+        "sub": "Row 2 · Seat 15 · The Orpheum"
+      },
+      {
+        "x": -7.2,
+        "z": 4.7,
+        "title": "Take a seat",
+        "sub": "Row 3 · Seat 15 · The Orpheum"
+      },
+      {
+        "x": -6.1,
+        "z": 0.3,
+        "title": "Take a seat",
+        "sub": "Row 1 · Seat 14 · The Orpheum"
+      },
+      {
+        "x": -6.1,
+        "z": 2.5,
+        "title": "Take a seat",
+        "sub": "Row 2 · Seat 14 · The Orpheum"
+      },
+      {
+        "x": -6.1,
+        "z": 4.7,
+        "title": "Take a seat",
+        "sub": "Row 3 · Seat 14 · The Orpheum"
+      },
+      {
+        "x": -5,
+        "z": 0.3,
+        "title": "Take a seat",
+        "sub": "Row 1 · Seat 13 · The Orpheum"
+      },
+      {
+        "x": -5,
+        "z": 2.5,
+        "title": "Take a seat",
+        "sub": "Row 2 · Seat 13 · The Orpheum"
+      },
+      {
+        "x": -5,
+        "z": 4.7,
+        "title": "Take a seat",
+        "sub": "Row 3 · Seat 13 · The Orpheum"
+      },
+      {
+        "x": -3.9,
+        "z": 0.3,
+        "title": "Take a seat",
+        "sub": "Row 1 · Seat 12 · The Orpheum"
+      },
+      {
+        "x": -3.9,
+        "z": 2.5,
+        "title": "Take a seat",
+        "sub": "Row 2 · Seat 12 · The Orpheum"
+      },
+      {
+        "x": -3.9,
+        "z": 4.7,
+        "title": "Take a seat",
+        "sub": "Row 3 · Seat 12 · The Orpheum"
+      },
+      {
+        "x": -2.75,
+        "z": 0.3,
+        "title": "Take a seat",
+        "sub": "Row 1 · Seat 1 · The Orpheum"
+      },
+      {
+        "x": -2.75,
+        "z": 2.5,
+        "title": "Take a seat",
+        "sub": "Row 2 · Seat 1 · The Orpheum"
+      },
+      {
+        "x": -2.75,
+        "z": 4.7,
+        "title": "Take a seat",
+        "sub": "Row 3 · Seat 1 · The Orpheum"
+      },
+      {
+        "x": -1.65,
+        "z": 0.3,
+        "title": "Take a seat",
+        "sub": "Row 1 · Seat 2 · The Orpheum"
+      },
+      {
+        "x": -1.65,
+        "z": 2.5,
+        "title": "Take a seat",
+        "sub": "Row 2 · Seat 2 · The Orpheum"
+      },
+      {
+        "x": -1.65,
+        "z": 4.7,
+        "title": "Take a seat",
+        "sub": "Row 3 · Seat 2 · The Orpheum"
+      },
+      {
+        "x": -0.55,
+        "z": 0.3,
+        "title": "Take a seat",
+        "sub": "Row 1 · Seat 3 · The Orpheum"
+      },
+      {
+        "x": -0.55,
+        "z": 2.5,
+        "title": "Take a seat",
+        "sub": "Row 2 · Seat 3 · The Orpheum"
+      },
+      {
+        "x": -0.55,
+        "z": 4.7,
+        "title": "Take a seat",
+        "sub": "Row 3 · Seat 3 · The Orpheum"
+      },
+      {
+        "x": 0.55,
+        "z": 0.3,
+        "title": "Take a seat",
+        "sub": "Row 1 · Seat 4 · The Orpheum"
+      },
+      {
+        "x": 0.55,
+        "z": 2.5,
+        "title": "Take a seat",
+        "sub": "Row 2 · Seat 4 · The Orpheum"
+      },
+      {
+        "x": 0.55,
+        "z": 4.7,
+        "title": "Take a seat",
+        "sub": "Row 3 · Seat 4 · The Orpheum"
+      },
+      {
+        "x": 1.65,
+        "z": 0.3,
+        "title": "Take a seat",
+        "sub": "Row 1 · Seat 5 · The Orpheum"
+      },
+      {
+        "x": 1.65,
+        "z": 2.5,
+        "title": "Take a seat",
+        "sub": "Row 2 · Seat 5 · The Orpheum"
+      },
+      {
+        "x": 1.65,
+        "z": 4.7,
+        "title": "Take a seat",
+        "sub": "Row 3 · Seat 5 · The Orpheum"
+      },
+      {
+        "x": 2.75,
+        "z": 0.3,
+        "title": "Take a seat",
+        "sub": "Row 1 · Seat 6 · The Orpheum"
+      },
+      {
+        "x": 2.75,
+        "z": 2.5,
+        "title": "Take a seat",
+        "sub": "Row 2 · Seat 6 · The Orpheum"
+      },
+      {
+        "x": 2.75,
+        "z": 4.7,
+        "title": "Take a seat",
+        "sub": "Row 3 · Seat 6 · The Orpheum"
+      },
+      {
+        "x": 3.9,
+        "z": 0.3,
+        "title": "Take a seat",
+        "sub": "Row 1 · Seat 7 · The Orpheum"
+      },
+      {
+        "x": 3.9,
+        "z": 2.5,
+        "title": "Take a seat",
+        "sub": "Row 2 · Seat 7 · The Orpheum"
+      },
+      {
+        "x": 3.9,
+        "z": 4.7,
+        "title": "Take a seat",
+        "sub": "Row 3 · Seat 7 · The Orpheum"
+      },
+      {
+        "x": 5,
+        "z": 0.3,
+        "title": "Take a seat",
+        "sub": "Row 1 · Seat 8 · The Orpheum"
+      },
+      {
+        "x": 5,
+        "z": 2.5,
+        "title": "Take a seat",
+        "sub": "Row 2 · Seat 8 · The Orpheum"
+      },
+      {
+        "x": 5,
+        "z": 4.7,
+        "title": "Take a seat",
+        "sub": "Row 3 · Seat 8 · The Orpheum"
+      },
+      {
+        "x": 6.1,
+        "z": 0.3,
+        "title": "Take a seat",
+        "sub": "Row 1 · Seat 9 · The Orpheum"
+      },
+      {
+        "x": 6.1,
+        "z": 2.5,
+        "title": "Take a seat",
+        "sub": "Row 2 · Seat 9 · The Orpheum"
+      },
+      {
+        "x": 6.1,
+        "z": 4.7,
+        "title": "Take a seat",
+        "sub": "Row 3 · Seat 9 · The Orpheum"
+      },
+      {
+        "x": 7.2,
+        "z": 0.3,
+        "title": "Take a seat",
+        "sub": "Row 1 · Seat 10 · The Orpheum"
+      },
+      {
+        "x": 7.2,
+        "z": 2.5,
+        "title": "Take a seat",
+        "sub": "Row 2 · Seat 10 · The Orpheum"
+      },
+      {
+        "x": 7.2,
+        "z": 4.7,
+        "title": "Take a seat",
+        "sub": "Row 3 · Seat 10 · The Orpheum"
+      },
+      {
+        "x": 8.15,
+        "z": 0.3,
+        "title": "Take a seat",
+        "sub": "Row 1 · Seat 11 · The Orpheum"
+      },
+      {
+        "x": 8.15,
+        "z": 2.5,
+        "title": "Take a seat",
+        "sub": "Row 2 · Seat 11 · The Orpheum"
+      },
+      {
+        "x": 8.15,
+        "z": 4.7,
+        "title": "Take a seat",
+        "sub": "Row 3 · Seat 11 · The Orpheum"
+      }
+    ],
+    "obstaclesCount": 87,
+    "obstacles": [
+      {
+        "x": -11.5,
+        "z": -1.4,
+        "w": 0.53,
+        "d": 8.18
+      },
+      {
+        "x": -11.08,
+        "z": -2.6,
+        "w": 0.53,
+        "d": 0.605
+      },
+      {
+        "x": -11.08,
+        "z": 2.6,
+        "w": 0.53,
+        "d": 0.605
+      },
+      {
+        "x": -10.8,
+        "z": -4.5,
+        "w": 0.58,
+        "d": 1.48
+      },
+      {
+        "x": -10.7,
+        "z": 0,
+        "w": 0.68,
+        "d": 1.58
+      },
+      {
+        "x": -10.4,
+        "z": -1.5,
+        "w": 0.88,
+        "d": 1.08
+      },
+      {
+        "x": -10,
+        "z": -7,
+        "w": 0.505,
+        "d": 0.505
+      },
+      {
+        "x": -9.35,
+        "z": -8.9,
+        "w": 1.28,
+        "d": 1.28
+      },
+      {
+        "x": -8.6,
+        "z": -4.5,
+        "w": 1.08,
+        "d": 1.63
+      },
+      {
+        "x": -8.55,
+        "z": -8.45,
+        "w": 1.18,
+        "d": 0.98
+      },
+      {
+        "x": -8.15,
+        "z": 0.3,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -8.15,
+        "z": 2.5,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -8.15,
+        "z": 4.7,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -7.3,
+        "z": -8.65,
+        "w": 0.78,
+        "d": 1.13
+      },
+      {
+        "x": -7.2,
+        "z": 0.3,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -7.2,
+        "z": 2.5,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -7.2,
+        "z": 4.7,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -6.6,
+        "z": 9.2,
+        "w": 2.93,
+        "d": 0.98
+      },
+      {
+        "x": -6.1,
+        "z": 0.3,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -6.1,
+        "z": 2.5,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -6.1,
+        "z": 4.7,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -5.8,
+        "z": 7,
+        "w": 1.38,
+        "d": 0.98
+      },
+      {
+        "x": -5,
+        "z": 0.3,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -5,
+        "z": 2.5,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -5,
+        "z": 4.7,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -3.9,
+        "z": 0.3,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -3.9,
+        "z": 2.5,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -3.9,
+        "z": 4.7,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -2.75,
+        "z": 0.3,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -2.75,
+        "z": 2.5,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -2.75,
+        "z": 4.7,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -2.2,
+        "z": 5.8,
+        "w": 1.28,
+        "d": 0.83
+      },
+      {
+        "x": -1.65,
+        "z": 0.3,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -1.65,
+        "z": 2.5,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -1.65,
+        "z": 4.7,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -0.55,
+        "z": 0.3,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -0.55,
+        "z": 2.5,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": -0.55,
+        "z": 4.7,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 0,
+        "z": -9.55,
+        "w": 12.08,
+        "d": 0.53
+      },
+      {
+        "x": 0,
+        "z": -8.3,
+        "w": 7.38,
+        "d": 1.58
+      },
+      {
+        "x": 0,
+        "z": 8.8,
+        "w": 1.58,
+        "d": 0.68
+      },
+      {
+        "x": 0,
+        "z": 9.85,
+        "w": 1.53,
+        "d": 0.88
+      },
+      {
+        "x": 0,
+        "z": 10.15,
+        "w": 12.08,
+        "d": 0.53
+      },
+      {
+        "x": 0.55,
+        "z": 0.3,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 0.55,
+        "z": 2.5,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 0.55,
+        "z": 4.7,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 1.65,
+        "z": 0.3,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 1.65,
+        "z": 2.5,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 1.65,
+        "z": 4.7,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 2.4,
+        "z": 8.2,
+        "w": 1.28,
+        "d": 1.08
+      },
+      {
+        "x": 2.75,
+        "z": 0.3,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 2.75,
+        "z": 2.5,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 2.75,
+        "z": 4.7,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 3.9,
+        "z": 0.3,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 3.9,
+        "z": 2.5,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 3.9,
+        "z": 4.7,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 4.6,
+        "z": 9.15,
+        "w": 0.93,
+        "d": 0.72
+      },
+      {
+        "x": 5,
+        "z": 0.3,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 5,
+        "z": 2.5,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 5,
+        "z": 4.7,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 5.8,
+        "z": 7,
+        "w": 1.48,
+        "d": 0.98
+      },
+      {
+        "x": 6.1,
+        "z": 0.3,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 6.1,
+        "z": 2.5,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 6.1,
+        "z": 4.7,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 7.2,
+        "z": 0.3,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 7.2,
+        "z": 2.5,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 7.2,
+        "z": 4.7,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 7.3,
+        "z": -8.65,
+        "w": 0.78,
+        "d": 1.13
+      },
+      {
+        "x": 7.8,
+        "z": 8.8,
+        "w": 0.76,
+        "d": 0.76
+      },
+      {
+        "x": 8.15,
+        "z": 0.3,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 8.15,
+        "z": 2.5,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 8.15,
+        "z": 4.7,
+        "w": 0.76,
+        "d": 0.69
+      },
+      {
+        "x": 8.55,
+        "z": -8.45,
+        "w": 1.18,
+        "d": 0.98
+      },
+      {
+        "x": 9.35,
+        "z": -8.9,
+        "w": 1.28,
+        "d": 1.28
+      },
+      {
+        "x": 10,
+        "z": 8,
+        "w": 0.505,
+        "d": 0.505
+      },
+      {
+        "x": 10.42,
+        "z": -7.4,
+        "w": 0.805,
+        "d": 0.83
+      },
+      {
+        "x": 10.42,
+        "z": -5.7,
+        "w": 0.805,
+        "d": 0.83
+      },
+      {
+        "x": 10.42,
+        "z": -3.85,
+        "w": 0.805,
+        "d": 0.83
+      },
+      {
+        "x": 10.42,
+        "z": -1.8,
+        "w": 0.805,
+        "d": 0.83
+      },
+      {
+        "x": 10.42,
+        "z": 2.6,
+        "w": 0.805,
+        "d": 0.83
+      },
+      {
+        "x": 10.7,
+        "z": 0,
+        "w": 0.68,
+        "d": 1.58
+      },
+      {
+        "x": 11.08,
+        "z": -2.6,
+        "w": 0.53,
+        "d": 0.605
+      },
+      {
+        "x": 11.08,
+        "z": 2.6,
+        "w": 0.53,
+        "d": 0.605
+      },
+      {
+        "x": 11.12,
+        "z": -4.65,
+        "w": 0.5,
+        "d": 2.13
+      },
+      {
+        "x": 11.33,
+        "z": -4.5,
+        "w": 0.53,
+        "d": 0.605
+      },
+      {
+        "x": 11.33,
+        "z": 2.8,
+        "w": 0.53,
+        "d": 0.605
+      },
+      {
+        "x": 11.33,
+        "z": 6.4,
+        "w": 0.53,
+        "d": 0.605
+      }
+    ],
+    "activitiesCount": 11,
+    "activities": [
+      {
+        "id": "orpheum-air-hockey",
+        "type": "air-hockey"
+      },
+      {
+        "id": "orpheum-darts",
+        "type": "darts"
+      },
+      {
+        "id": "orpheum-downhill-mayhem",
+        "type": "downhill-mayhem"
+      },
+      {
+        "id": "orpheum-foosball",
+        "type": "foosball"
+      },
+      {
+        "id": "orpheum-kart-royale",
+        "type": "kart-royale"
+      },
+      {
+        "id": "orpheum-photo-booth",
+        "type": "photo-booth"
+      },
+      {
+        "id": "orpheum-piano",
+        "type": "piano"
+      },
+      {
+        "id": "orpheum-pong",
+        "type": "pong"
+      },
+      {
+        "id": "orpheum-pool",
+        "type": "pool"
+      },
+      {
+        "id": "orpheum-rain-runner",
+        "type": "rain-runner"
+      },
+      {
+        "id": "summit-run",
+        "type": "snowboard-race"
+      }
+    ],
+    "exitsCount": 3,
+    "exits": [
+      {
+        "id": "east",
+        "target": "court"
+      },
+      {
+        "id": "market",
+        "target": "market"
+      },
+      {
+        "id": "west",
+        "target": "kiln-terrace"
+      }
+    ],
+    "solidVolumes": [
+      {
+        "id": "north-wall",
+        "x": 0,
+        "z": -9.55,
+        "w": 23.4,
+        "d": 0.3
+      },
+      {
+        "id": "south-wall",
+        "x": 0,
+        "z": 10.15,
+        "w": 23.4,
+        "d": 0.3
+      },
+      {
+        "id": "west-wall",
+        "x": -11.5,
+        "z": -1.4,
+        "w": 0.3,
+        "d": 15.6
+      },
+      {
+        "id": "east-marquee",
+        "x": 11.12,
+        "z": -4.65,
+        "w": 0.24,
+        "d": 3.5
+      },
+      {
+        "id": "east-sconce-north",
+        "x": 11.33,
+        "z": -4.5,
+        "w": 0.3,
+        "d": 0.45
+      },
+      {
+        "id": "east-sconce-mid",
+        "x": 11.33,
+        "z": 2.8,
+        "w": 0.3,
+        "d": 0.45
+      },
+      {
+        "id": "east-sconce-south",
+        "x": 11.33,
+        "z": 6.4,
+        "w": 0.3,
+        "d": 0.45
+      },
+      {
+        "id": "exit-casing-en",
+        "x": 11.08,
+        "z": 2.6,
+        "w": 0.3,
+        "d": 0.45
+      },
+      {
+        "id": "exit-casing-es",
+        "x": 11.08,
+        "z": -2.6,
+        "w": 0.3,
+        "d": 0.45
+      },
+      {
+        "id": "exit-casing-wn",
+        "x": -11.08,
+        "z": 2.6,
+        "w": 0.3,
+        "d": 0.45
+      },
+      {
+        "id": "exit-casing-ws",
+        "x": -11.08,
+        "z": -2.6,
+        "w": 0.3,
+        "d": 0.45
+      },
+      {
+        "id": "proscenium-east-pier",
+        "x": 8.55,
+        "z": -8.45,
+        "w": 1.6,
+        "d": 1.2
+      },
+      {
+        "id": "proscenium-west-pier",
+        "x": -8.55,
+        "z": -8.45,
+        "w": 1.6,
+        "d": 1.2
+      },
+      {
+        "id": "proscenium-east-reveal",
+        "x": 7.3,
+        "z": -8.65,
+        "w": 0.8,
+        "d": 1.5
+      },
+      {
+        "id": "proscenium-west-reveal",
+        "x": -7.3,
+        "z": -8.65,
+        "w": 0.8,
+        "d": 1.5
+      },
+      {
+        "id": "proscenium-east-drape",
+        "x": 9.35,
+        "z": -8.9,
+        "w": 1.8,
+        "d": 1.8
+      },
+      {
+        "id": "proscenium-west-drape",
+        "x": -9.35,
+        "z": -8.9,
+        "w": 1.8,
+        "d": 1.8
+      }
+    ],
+    "floorPads": [
+      {
+        "id": "house-carpet",
+        "kind": "carpet",
+        "x": 0,
+        "z": -0.1,
+        "w": 18.6,
+        "d": 14
+      },
+      {
+        "id": "lobby-carpet",
+        "kind": "carpet",
+        "x": 0,
+        "z": 8,
+        "w": 18.6,
+        "d": 2
+      },
+      {
+        "id": "arcade-runner",
+        "kind": "runner",
+        "x": 9.1,
+        "z": -4.5,
+        "w": 3.8,
+        "d": 7.8,
+        "color": "#1e2430",
+        "border": "full"
+      },
+      {
+        "id": "summit-runner",
+        "kind": "runner",
+        "x": 9.1,
+        "z": 2.6,
+        "w": 3.8,
+        "d": 3.4,
+        "color": "#1e2430",
+        "border": "full"
+      },
+      {
+        "id": "pool-runner",
+        "kind": "runner",
+        "x": -8.6,
+        "z": -4.5,
+        "w": 3.4,
+        "d": 4.8,
+        "color": "#1e2430",
+        "border": "full"
+      },
+      {
+        "id": "air-hockey-bay",
+        "kind": "runner",
+        "x": 5.8,
+        "z": 7,
+        "w": 3.2,
+        "d": 2.4,
+        "color": "#1e2430",
+        "border": "full"
+      },
+      {
+        "id": "foosball-bay",
+        "kind": "runner",
+        "x": -5.8,
+        "z": 7,
+        "w": 3.2,
+        "d": 2.4,
+        "color": "#1c2826",
+        "border": "full"
+      },
+      {
+        "id": "piano-rug",
+        "kind": "rug",
+        "x": -2.2,
+        "z": 5.8,
+        "w": 1.7,
+        "d": 0.9,
+        "color": "#2c2018",
+        "border": "z-inset"
+      },
+      {
+        "id": "photo-pad",
+        "kind": "rug",
+        "x": 2.4,
+        "z": 8.15,
+        "w": 1.6,
+        "d": 1.1,
+        "color": "#3a1c22",
+        "border": "north-inset"
+      }
+    ],
+    "projectionBooth": {
+      "x": 0,
+      "z": 9.85,
+      "w": 2.3,
+      "d": 1
+    }
+  }
+}

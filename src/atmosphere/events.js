@@ -64,12 +64,14 @@ export function createAtmosphereEvents({
   flashMode = 'reduced',
   seenCap = EVENT_SEEN_CAP,
   thunderDelay = thunderDelayMs,
+  isEventCompatible = null,
 } = {}) {
   if (!stateClient || typeof stateClient.consumeDueEvents !== 'function') {
     throw new Error('createAtmosphereEvents requires the atmosphere state client');
   }
 
   let mode = FLASH_MODES.includes(flashMode) ? flashMode : 'reduced';
+  let eventFilter = typeof isEventCompatible === 'function' ? isEventCompatible : null;
   let seenEpoch = null;
   const seenIds = new Set();
   const thunderHandles = new Set();
@@ -78,7 +80,7 @@ export function createAtmosphereEvents({
   let pulse = null; // { id, start, duration, intensity }
   const pulseOut = { active: false, kind: null, id: null, progress: 0, amplitude: 0, exposureAdd: 0, sunAdd: 0 };
 
-  const stats = { consumed: 0, deduped: 0, lightning: 0, meteors: 0, thunderScheduled: 0, replaced: 0 };
+  const stats = { consumed: 0, deduped: 0, lightning: 0, meteors: 0, thunderScheduled: 0, replaced: 0, suppressed: 0 };
 
   function markSeen(id) {
     const epoch = eventEpochOf(id);
@@ -151,6 +153,10 @@ export function createAtmosphereEvents({
         stats.deduped += 1;
         continue;
       }
+      if (typeof eventFilter === 'function' && !eventFilter(event)) {
+        stats.suppressed += 1;
+        continue;
+      }
       if (event.kind === 'lightning') dispatchLightning(event, Math.min(1, Math.max(0, progress ?? 0)));
       else if (event.kind === 'meteor') stats.meteors += 1; // slot prepared; D owns the visual
     }
@@ -220,10 +226,15 @@ export function createAtmosphereEvents({
     cancelAll();
   }
 
+  function setEventFilter(fn) {
+    eventFilter = typeof fn === 'function' ? fn : null;
+  }
+
   return {
     update,
     getPulse,
     setFlashMode,
+    setEventFilter,
     cancelAll,
     resync,
     get flashMode() { return mode; },

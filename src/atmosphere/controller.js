@@ -37,6 +37,7 @@ import { createPrecipitation } from './precipitation.js';
 import { createSurfaceWetness } from './surfaces.js';
 import { createPlaceEffects } from './placeEffects.js';
 import { sampleVisualSchedule } from './visualSchedule.js';
+import { sampleWorldPresentationVisuals } from '../worlds/presentationSample.js';
 
 export const ATMOSPHERE_TIERS = Object.freeze(['normal', 'reduced']);
 
@@ -51,6 +52,7 @@ export function createAtmosphereController({
   world = null, // () => the active world (read every update; never cached)
   camera = null, // () => the active camera (read every update; never cached)
   tier = 'normal',
+  getWorldSelection = null,
   // Test seams: inject failing factories to prove failed activation.
   skyFactory = createSky,
   precipitationFactory = createPrecipitation,
@@ -73,6 +75,9 @@ export function createAtmosphereController({
   // only when the room's semantic state has no accepted snapshot, so an
   // offline or pre-snapshot client can still render the chosen world.
   let localPresetId = null;
+  let worldSelectionProvider = typeof getWorldSelection === 'function'
+    ? getWorldSelection
+    : (getWorldSelection ? () => getWorldSelection : null);
 
   // Baseline presentation, captured at activation and restored exactly.
   let baseline = null;
@@ -323,12 +328,96 @@ export function createAtmosphereController({
         return out;
       }
     }
-    // The local override only stands in for a manifest-declared atmosphere
-    // (the Theater): places with preset null keep their baseline untouched.
     const declaredPreset = def?.atmosphere?.preset ?? null;
     const presetId = state?.preset ?? (declaredPreset ? (localPresetId ?? declaredPreset) : null);
-    const visuals = getPreset(presetId)?.visuals;
-    if (!visuals) return null;
+    const worldSel = worldSelectionProvider ? worldSelectionProvider() : null;
+
+    if (transition && transitionU != null) {
+      const from = transition.fromVisuals ?? getPreset(transition.fromPreset)?.visuals;
+      const to = transition.toVisuals ?? getPreset(transition.toPreset)?.visuals;
+      if (from && to) {
+        scratchFog.set(from.fogColor).lerp(scratchTo.set(to.fogColor), transitionU);
+        scratchSky.set(from.skyColor).lerp(scratchTo.set(to.skyColor), transitionU);
+        scratchGround.set(from.groundColor).lerp(scratchTo.set(to.groundColor), transitionU);
+        scratchSun.set(from.sunColor).lerp(scratchTo.set(to.sunColor), transitionU);
+        scratchCloud.set(from.skyColor).lerp(scratchTo.set(to.fogColor), transitionU);
+        scratchAurora.set(from.auroraColor ?? '#4be0a6').lerp(scratchTo.set(to.auroraColor ?? '#4be0a6'), transitionU);
+        scratchGlow.set(from.horizonGlowColor ?? '#ffb46a').lerp(scratchTo.set(to.horizonGlowColor ?? '#ffb46a'), transitionU);
+        scratchAmbient.set(from.ambientColor ?? from.skyColor).lerp(scratchTo.set(to.ambientColor ?? to.skyColor), transitionU);
+        const out = {
+          fogColor: scratchFog,
+          skyColor: scratchSky,
+          groundColor: scratchGround,
+          sunColor: scratchSun,
+          cloudColor: scratchCloud,
+          fogDensity: lerp(from.fogDensity, to.fogDensity, transitionU),
+          hemisphereIntensity: lerp(from.hemisphereIntensity, to.hemisphereIntensity, transitionU),
+          sunIntensity: lerp(from.sunIntensity, to.sunIntensity, transitionU),
+          exposure: lerp(from.exposure, to.exposure, transitionU),
+          sunDisc: lerp(from.sunDisc ?? 0, to.sunDisc ?? 0, transitionU),
+          moonDisc: lerp(from.moonDisc ?? 0, to.moonDisc ?? 0, transitionU),
+          aurora: lerp(from.aurora ?? 0, to.aurora ?? 0, transitionU),
+          auroraColor: scratchAurora,
+          horizonGlow: lerp(from.horizonGlow ?? 0, to.horizonGlow ?? 0, transitionU),
+          horizonGlowColor: scratchGlow,
+          ambientColor: scratchAmbient,
+          cloudSharpness: lerp(from.cloudSharpness ?? 0.5, to.cloudSharpness ?? 0.5, transitionU),
+          cloudDrift: lerp(from.cloudDrift ?? 1, to.cloudDrift ?? 1, transitionU),
+          starDensity: lerp(from.starDensity ?? 0, to.starDensity ?? 0, transitionU),
+          milkyWay: lerp(from.milkyWay ?? 0, to.milkyWay ?? 0, transitionU),
+        };
+        applySunDirection(out, from.sunElevation, to.sunElevation, from.sunAzimuth, to.sunAzimuth, transitionU);
+
+        if (worldSel) {
+          const viewId = roomId ? `place:${roomId}` : 'place:theater';
+          const sample = sampleWorldPresentationVisuals({
+            worldSelection: worldSel,
+            viewId,
+            semanticPresetId: transition.toPreset ?? state?.preset ?? def?.atmosphere?.preset,
+            comfort: { reducedMotion: currentTier === 'reduced' },
+          });
+          if (sample?.plan?.atmosphere) {
+            const atm = sample.plan.atmosphere;
+            if (atm.fog) {
+              if (atm.fog.fogColor) scratchFog.set(atm.fog.fogColor);
+              if (typeof atm.fog.fogDensity === 'number') out.fogDensity = atm.fog.fogDensity;
+            }
+            if (atm.lighting) {
+              if (atm.lighting.sunColor) scratchSun.set(atm.lighting.sunColor);
+              if (typeof atm.lighting.sunIntensity === 'number') out.sunIntensity = atm.lighting.sunIntensity;
+              if (atm.lighting.groundColor) scratchGround.set(atm.lighting.groundColor);
+              if (atm.lighting.ambientColor) scratchAmbient.set(atm.lighting.ambientColor);
+              if (typeof atm.lighting.hemisphereIntensity === 'number') out.hemisphereIntensity = atm.lighting.hemisphereIntensity;
+              if (typeof atm.lighting.exposure === 'number') out.exposure = atm.lighting.exposure;
+            }
+            if (atm.sky) {
+              if (atm.sky.skyColor) scratchSky.set(atm.sky.skyColor);
+              if (typeof atm.sky.sunElevation === 'number') {
+                applySunDirection(out, atm.sky.sunElevation, atm.sky.sunElevation, atm.sky.sunAzimuth, atm.sky.sunAzimuth, 0);
+              }
+            }
+          }
+        }
+        return out;
+      }
+    }
+    // The local override only stands in for a manifest-declared atmosphere
+    // (the Theater): places with preset null keep their baseline untouched.
+    let visuals = null;
+    if (worldSel) {
+      const viewId = roomId ? `place:${roomId}` : 'place:theater';
+      const sample = sampleWorldPresentationVisuals({
+        worldSelection: worldSel,
+        viewId,
+        semanticPresetId: presetId,
+        comfort: { reducedMotion: currentTier === 'reduced' },
+      });
+      visuals = sample?.visuals ?? null;
+    } else {
+      visuals = getPreset(presetId)?.visuals;
+    }
+
+    if (!visuals || !visuals.fogColor) return null;
     scratchFog.set(visuals.fogColor);
     scratchSky.set(visuals.skyColor);
     scratchGround.set(visuals.groundColor);
@@ -502,6 +591,12 @@ export function createAtmosphereController({
     return localPresetId;
   }
 
+  function setWorldSelection(fnOrObj) {
+    worldSelectionProvider = typeof fnOrObj === 'function'
+      ? fnOrObj
+      : (fnOrObj ? () => fnOrObj : null);
+  }
+
   function dispose() {
     if (disposed) return;
     deactivate();
@@ -515,6 +610,8 @@ export function createAtmosphereController({
     setQuality,
     reloadEnvironment,
     setLocalPreset,
+    setWorldSelection,
+    getWorldSelection: () => (worldSelectionProvider ? worldSelectionProvider() : null),
     dispose,
     isActive: () => active,
     get roomId() { return roomId; },

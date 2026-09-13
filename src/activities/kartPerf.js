@@ -7,9 +7,18 @@
  * Development-only / opt-in via ?debug=1 or window.__afterlightKartPerfEnabled.
  */
 
+import { estimateWorldAssetBytes } from '../worlds/assets.js';
+
 const MAX_RECORDS = 20;
 const records = [];
 let activeAttempt = null;
+
+function sanitizeDiagnosticString(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    .replace(/(?:token|auth|bearer|pass|credential|session|key)[=:\s]+[A-Za-z0-9-_.~%+/]{16,}/gi, '[REDACTED]')
+    .replace(/bearer\s+[A-Za-z0-9-_.~%+/]+/gi, 'Bearer [REDACTED]');
+}
 
 export function isPerfEnabled() {
   if (typeof globalThis !== 'undefined' && globalThis.__afterlightKartPerfEnabled !== undefined) {
@@ -62,17 +71,38 @@ export function startAttempt({
   generation = 0,
   attemptId = 1,
   route = 'cold',
+  world = null,
 } = {}) {
   if (!isPerfEnabled()) return null;
 
   const env = detectEnvironment();
   const idStr = String(attemptId);
+  const worldStateObj = typeof globalThis !== 'undefined' ? globalThis.__afterlightWorldState : null;
+  const worldSnap = worldStateObj?.snapshot?.() ?? null;
+  const worldSel = world?.selection
+    || worldSnap?.selection
+    || (worldSnap?.worldId ? { worldId: worldSnap.worldId, variantId: worldSnap.variantId ?? null } : null)
+    || null;
+  const worldRev = world?.appliedRevision ?? worldSnap?.revision ?? 1;
+  const actualHost = world?.actualHost ?? 'kart';
+  const fallback = world?.fallback ?? false;
+  const assets = world?.assets ?? [];
+  const byteEstimates = world?.byteEstimates ?? estimateWorldAssetBytes(assets);
+
   const record = {
     attemptId: idStr,
     generation,
     route, // 'cold' | 'prefetched' | 'ready' | 'suspended'
     status: 'pending', // 'pending' | 'success' | 'cancelled' | 'failed'
     error: null,
+    world: {
+      selection: worldSel ? { worldId: worldSel.worldId, variantId: worldSel.variantId || null } : null,
+      actualHost,
+      appliedRevision: worldRev,
+      fallback,
+      assets: [...assets],
+      byteEstimates,
+    },
     startTime: performance.now(),
     endTime: null,
     totalDurationMs: null,
@@ -89,6 +119,20 @@ export function startAttempt({
 
   recordMark('attempt-start', { route });
   return record;
+}
+
+export function recordWorldContext(context) {
+  if (!activeAttempt) return;
+  if (!activeAttempt.world) activeAttempt.world = {};
+  if (context?.selection) activeAttempt.world.selection = { ...context.selection };
+  if (context?.actualHost !== undefined) activeAttempt.world.actualHost = context.actualHost;
+  if (context?.appliedRevision !== undefined) activeAttempt.world.appliedRevision = context.appliedRevision;
+  if (context?.fallback !== undefined) activeAttempt.world.fallback = context.fallback;
+  if (context?.assets) {
+    activeAttempt.world.assets = [...context.assets];
+    activeAttempt.world.byteEstimates = context.byteEstimates || estimateWorldAssetBytes(context.assets);
+  }
+  if (context?.byteEstimates) activeAttempt.world.byteEstimates = context.byteEstimates;
 }
 
 export function getActiveAttempt() {
@@ -148,7 +192,7 @@ export function endAttempt(status = 'success', error = null) {
   if (!activeAttempt) return;
   const end = performance.now();
   activeAttempt.status = status;
-  activeAttempt.error = error ? String(error?.message || error) : null;
+  activeAttempt.error = error ? sanitizeDiagnosticString(String(error?.message || error)) : null;
   activeAttempt.endTime = end;
   activeAttempt.totalDurationMs = Math.max(0, end - activeAttempt.startTime);
   recordMark('attempt-end', { status, error: activeAttempt.error });
@@ -174,6 +218,7 @@ export function clearRecords() {
 export function getRecords() {
   return records.map((r) => ({
     ...r,
+    world: r.world ? { ...r.world, assets: [...(r.world.assets || [])] } : null,
     spans: { ...r.spans },
     marks: [...r.marks],
   }));
@@ -190,6 +235,7 @@ if (typeof globalThis !== 'undefined') {
     setPerfEnabled,
     startAttempt,
     endAttempt,
+    recordWorldContext,
     startSpan,
     endSpan,
     recordMark,

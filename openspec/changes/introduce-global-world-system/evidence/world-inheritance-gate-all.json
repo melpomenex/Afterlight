@@ -1,0 +1,238 @@
+{
+  "gate": "world-inheritance",
+  "change": "introduce-global-world-system",
+  "label": "all",
+  "generatedAt": "2026-09-13T16:41:30.515Z",
+  "app": "http://localhost:5274/?debug=1&room=theater",
+  "passes": 56,
+  "failures": 0,
+  "checks": {
+    "passes": [
+      {
+        "name": "contract: environment() exposes selection/host/revision/fallback/assets/bytes",
+        "detail": "{\"selection\":{\"variantId\":\"aurora\",\"worldId\":\"alpine\"},\"host\":\"self\",\"revision\":1,\"fallback\":false,\"assets\":[\"kit:alpine-conifers\",\"kit:alpine-rocks\"]}"
+      },
+      {
+        "name": "contract: theater resolves a full plan with kit assets",
+        "detail": "host=self fallback=false assets=[\"kit:alpine-conifers\",\"kit:alpine-rocks\"]"
+      },
+      {
+        "name": "contract: forced matrix 6x10 resolves with labeled estimates",
+        "detail": "60/60"
+      },
+      {
+        "name": "contract: debug payloads contain no identity tokens",
+        "detail": ""
+      },
+      {
+        "name": "contract: zero page errors",
+        "detail": ""
+      },
+      {
+        "name": "hot-switch: coastal/sunset active with assets",
+        "detail": "bg=#86563d fog=#c07d5a assets=2"
+      },
+      {
+        "name": "hot-switch: coastal renders (draws > 0)",
+        "detail": "calls=1"
+      },
+      {
+        "name": "hot-switch: rainforest/mist active with assets",
+        "detail": "bg=#576f5a fog=#7fa083 assets=2"
+      },
+      {
+        "name": "hot-switch: rainforest renders (draws > 0)",
+        "detail": "calls=1"
+      },
+      {
+        "name": "hot-switch: alpine/aurora active with assets",
+        "detail": "bg=#0c1626 fog=#16243a assets=2"
+      },
+      {
+        "name": "hot-switch: alpine renders (draws > 0)",
+        "detail": "calls=1"
+      },
+      {
+        "name": "hot-switch: desert/golden active with assets",
+        "detail": "bg=#987247 fog=#d9a469 assets=2"
+      },
+      {
+        "name": "hot-switch: desert renders (draws > 0)",
+        "detail": "calls=1"
+      },
+      {
+        "name": "hot-switch: redwood/firefly active with assets",
+        "detail": "bg=#495552 fog=#6c7c78 assets=2"
+      },
+      {
+        "name": "hot-switch: redwood renders (draws > 0)",
+        "detail": "calls=1"
+      },
+      {
+        "name": "hot-switch: cloud/sunrise active with assets",
+        "detail": "bg=#ab9080 fog=#f4ceb8 assets=2"
+      },
+      {
+        "name": "hot-switch: cloud renders (draws > 0)",
+        "detail": "calls=1"
+      },
+      {
+        "name": "hot-switch: all six World palettes are distinct",
+        "detail": "coastal:#86563d rainforest:#576f5a alpine:#0c1626 desert:#987247 redwood:#495552 cloud:#ab9080"
+      },
+      {
+        "name": "hot-switch: revision advanced across explicit selections",
+        "detail": "1 -> 7"
+      },
+      {
+        "name": "hot-switch: variant switch within a World applies",
+        "detail": "{\"variantId\":\"storm\",\"worldId\":\"cloud\"}"
+      },
+      {
+        "name": "hot-switch: exactly one WebGL canvas after five switches",
+        "detail": "canvases=1"
+      },
+      {
+        "name": "hot-switch: first-person camera mode renders the same World",
+        "detail": "mode 0 -> 3, calls=1"
+      },
+      {
+        "name": "hot-switch: zero page errors",
+        "detail": ""
+      },
+      {
+        "name": "travel: court keeps coastal/sunset selection",
+        "detail": "now coastal/sunset"
+      },
+      {
+        "name": "travel: court ambient host active",
+        "detail": "{\"active\":true,\"plan\":{\"adapterKey\":\"place:ambient\",\"assetIds\":[],\"atmosphere\":{\"lighting\":{\"ambientColor\":\"#ffab63\",\"exposure\":1.02,\"groundColor\":\"#463327\",\"hemisphereIntensity\":0.62,\"sunColor\":\"#ff8c3a\",\"sunIntensity\":2}},\"audioProfile\":\"coastal\",\"fallback\":false,\"fallbackLevel\":\"generic\",\"fallbackReason\":null,\"host\":\"self\",\"inheritedFromParent\":false,\"mode\":\"ambient\",\"selection\":{\"variantId\":\"sunset\",\"worldId\":\"coastal\"},\"slots\":[\"lighting\",\"audio\"],\"variantId\":\"sunset\",\"viewId\":\"place:court\",\"worldId\":\"coastal\"},\"roomId\":\"court\"}"
+      },
+      {
+        "name": "travel: canal keeps coastal/sunset selection",
+        "detail": "now coastal/sunset"
+      },
+      {
+        "name": "travel: canal ambient host active",
+        "detail": "{\"active\":true,\"plan\":{\"adapterKey\":\"place:ambient\",\"assetIds\":[],\"atmosphere\":{\"lighting\":{\"ambientColor\":\"#ffab63\",\"exposure\":1.02,\"groundColor\":\"#463327\",\"hemisphereIntensity\":0.62,\"sunColor\":\"#ff8c3a\",\"sunIntensity\":2}},\"audioProfile\":\"coastal\",\"fallback\":false,\"fallbackLevel\":\"generic\",\"fallbackReason\":null,\"host\":\"self\",\"inheritedFromParent\":false,\"mode\":\"ambient\",\"selection\":{\"variantId\":\"sunset\",\"worldId\":\"coastal\"},\"slots\":[\"lighting\",\"audio\"],\"variantId\":\"sunset\",\"viewId\":\"place:canal\",\"worldId\":\"coastal\"},\"roomId\":\"canal\"}"
+      },
+      {
+        "name": "travel: market keeps coastal/sunset selection",
+        "detail": "now coastal/sunset"
+      },
+      {
+        "name": "travel: market ambient host active",
+        "detail": "{\"active\":true,\"plan\":{\"adapterKey\":\"place:ambient\",\"assetIds\":[],\"atmosphere\":{\"lighting\":{\"ambientColor\":\"#ffab63\",\"exposure\":1.02,\"groundColor\":\"#463327\",\"hemisphereIntensity\":0.62,\"sunColor\":\"#ff8c3a\",\"sunIntensity\":2}},\"audioProfile\":\"coastal\",\"fallback\":false,\"fallbackLevel\":\"generic\",\"fallbackReason\":null,\"host\":\"self\",\"inheritedFromParent\":false,\"mode\":\"ambient\",\"selection\":{\"variantId\":\"sunset\",\"worldId\":\"coastal\"},\"slots\":[\"lighting\",\"audio\"],\"variantId\":\"sunset\",\"viewId\":\"place:market\",\"worldId\":\"coastal\"},\"roomId\":\"market\"}"
+      },
+      {
+        "name": "travel: theater keeps coastal/sunset selection",
+        "detail": "now coastal/sunset"
+      },
+      {
+        "name": "travel: return to theater restores the coastal environment",
+        "detail": "bg=#86563d"
+      },
+      {
+        "name": "travel: zero page errors",
+        "detail": ""
+      },
+      {
+        "name": "two-client: both clients connect",
+        "detail": "A={\"mode\":\"node\",\"open\":true,\"supports\":false} B={\"mode\":\"node\",\"open\":true,\"supports\":false}"
+      },
+      {
+        "name": "two-client: both share the same room",
+        "detail": "theater vs theater"
+      },
+      {
+        "name": "two-client: each client sees the other",
+        "detail": "A sees 1, B sees 1"
+      },
+      {
+        "name": "two-client: personal Worlds stay distinct",
+        "detail": "coastal vs rainforest"
+      },
+      {
+        "name": "two-client: shared coordinates reach the other World",
+        "detail": "[3.5,1.5]"
+      },
+      {
+        "name": "two-client: World switch does not restart membership",
+        "detail": "{\"mode\":\"node\",\"open\":true,\"supports\":false}"
+      },
+      {
+        "name": "two-client: zero page errors",
+        "detail": ""
+      },
+      {
+        "name": "storage: denied write keeps the session selection",
+        "detail": "{\"durableVariantId\":\"golden\",\"durableWorldId\":\"desert\",\"isPreview\":false,\"revision\":2,\"saved\":false,\"storageAvailable\":false,\"variantId\":\"aurora\",\"worldId\":\"alpine\"}"
+      },
+      {
+        "name": "storage: picker says the choice applies for this visit",
+        "detail": "\"Active for this visit (browser storage unavailable).\""
+      },
+      {
+        "name": "storage: session selection survives travel",
+        "detail": "{\"durableVariantId\":\"golden\",\"durableWorldId\":\"desert\",\"isPreview\":false,\"revision\":2,\"saved\":false,\"storageAvailable\":false,\"variantId\":\"aurora\",\"worldId\":\"alpine\"}"
+      },
+      {
+        "name": "storage: denied storage never throws",
+        "detail": ""
+      },
+      {
+        "name": "storage: startup with denied storage assigns a session World",
+        "detail": "{\"durableVariantId\":\"sunset\",\"durableWorldId\":\"coastal\",\"isPreview\":true,\"revision\":1,\"saved\":false,\"storageAvailable\":false,\"variantId\":\"golden\",\"worldId\":\"desert\"}"
+      },
+      {
+        "name": "storage: startup denial still resolves the requested World",
+        "detail": "{\"variantId\":\"golden\",\"worldId\":\"desert\"}"
+      },
+      {
+        "name": "storage: startup denial produces no fatal error",
+        "detail": ""
+      },
+      {
+        "name": "offline: World selection applies without the network",
+        "detail": "{\"variantId\":\"firefly\",\"worldId\":\"redwood\"}"
+      },
+      {
+        "name": "assets: blocked optional GLB/HDR still activate the World",
+        "detail": "bg-assets=2 calls=1"
+      },
+      {
+        "name": "assets: no fatal application error with blocked assets",
+        "detail": ""
+      },
+      {
+        "name": "context-loss: WEBGL_lose_context is available",
+        "detail": "true"
+      },
+      {
+        "name": "context-loss: context recovers with the same World",
+        "detail": "world=cloud rev 2->2 calls=1"
+      },
+      {
+        "name": "context-loss: environment host still active after restore",
+        "detail": "{\"host\":\"self\",\"fallback\":false}"
+      },
+      {
+        "name": "rapid: latest of four rapid choices is the applied World",
+        "detail": "{\"variantId\":\"firefly\",\"worldId\":\"redwood\"}"
+      },
+      {
+        "name": "rapid: applied palette matches the recorded final World",
+        "detail": "#495552 vs #495552"
+      },
+      {
+        "name": "rapid: no extra WebGL canvas or host leaked",
+        "detail": "canvases=1"
+      },
+      {
+        "name": "rapid: zero page errors",
+        "detail": ""
+      }
+    ],
+    "failures": []
+  }
+}

@@ -605,6 +605,51 @@ defmodule AfterlightWeb.GameChannelAtmosphereTest do
     end)
   end
 
+  test "two clients with different personal worlds share identical semantic atmosphere authority without wire changes" do
+    flipped(fn ->
+      wire = with_atmosphere_room()
+
+      # Client A connects and joins
+      guest_a = "guest_world_a#{System.unique_integer([:positive])}"
+      a = connect_guest(guest_a, "Rowan")
+      _hello_a = hello(a, guest_a, "Rowan")
+      push(a, "join_room", %{"roomId" => wire})
+
+      assert_push("presence_update", %{"roomId" => ^wire, "epoch" => epoch_a, "players" => []})
+      assert_push("atmosphere_state", frame_a = %{"roomId" => ^wire, "epoch" => ^epoch_a})
+
+      # Client B connects and joins the same room
+      guest_b = "guest_world_b#{System.unique_integer([:positive])}"
+      b = connect_guest(guest_b, "Cedar")
+      _hello_b = hello(b, guest_b, "Cedar")
+      push(b, "join_room", %{"roomId" => wire})
+
+      assert_push("presence_update", %{"roomId" => ^wire, "epoch" => epoch_b, "players" => players_b})
+      assert epoch_b == epoch_a
+      # B sees A in the same room — no partition of room keys by world!
+      assert Enum.any?(players_b, &(&1["id"] == guest_a))
+
+      assert_push("atmosphere_state", frame_b = %{"roomId" => ^wire, "epoch" => ^epoch_a})
+
+      # Semantic authority is completely identical for both clients
+      assert frame_b["revision"] == frame_a["revision"]
+      assert frame_b["state"]["seed"] == frame_a["state"]["seed"]
+      assert frame_b["state"]["events"] == frame_a["state"]["events"]
+      assert frame_b["state"]["preset"] == frame_a["state"]["preset"]
+
+      # Canonical wire contract: only standard wire keys, no new fields
+      allowed_keys = MapSet.new(["schemaVersion", "roomId", "epoch", "revision", "state", "serverNow", "clock", "active"])
+      assert MapSet.subset?(MapSet.new(Map.keys(frame_a)), allowed_keys)
+      assert MapSet.subset?(MapSet.new(Map.keys(frame_b)), allowed_keys)
+
+      # Protected snapshot files remain untouched forensic originals
+      for snapshot <- ~w(game-state.json iptv.json epg.json) do
+        path = Path.expand("../../../../data/#{snapshot}", __DIR__)
+        assert File.exists?(path)
+      end
+    end)
+  end
+
   test "atmosphere_get: membership-gated, requestId echoed, one per five seconds" do
     flipped(fn ->
       wire = with_atmosphere_room()

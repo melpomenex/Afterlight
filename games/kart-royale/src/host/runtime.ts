@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { IncrementalBatchRunner, type BatchRunResult } from '../core/IncrementalBatch';
 import { RaceState, type BatchStep, type Ctx, type System, type HostRenderPolicy } from '../types';
+import type { KartWorldPresentation } from './types';
 import { Bus } from '../core/Bus';
 import { createSettings, device, glCapabilities, type SettingsOverrides } from '../core/Settings';
 import {
@@ -87,6 +88,8 @@ export interface KartRoyaleRuntimeOptions {
     renderer: THREE.WebGLRenderer;
     viewport: { width: number; height: number };
   }) => void | Promise<void>) => Promise<void>) | null;
+  /** Optional initial World presentation (introduce-global-world-system 7.1). */
+  initialWorldPresentation?: KartWorldPresentation | null;
 }
 
 export interface KartRoyaleRuntime {
@@ -116,6 +119,10 @@ export interface KartRoyaleRuntime {
   /** Mount session listeners/HUD/audio; hosted only splits resource vs session. */
   beginSession(): void;
   endSession(): void;
+  /** Set or update the active World presentation profile (7.1). */
+  setWorldPresentation(presentation: KartWorldPresentation | null): void;
+  /** Get the current active World presentation profile (7.1). */
+  getWorldPresentation(): KartWorldPresentation | null;
   /** Resumable CPU world-build slices for background preparation (5.3). */
   prepareWorldSlice(budgetMs: number, signal?: AbortSignal | null): BatchRunResult;
   isWorldBatchesComplete(): boolean;
@@ -230,12 +237,27 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
   let worldBatchRunner: IncrementalBatchRunner | null = null;
   let worldBatchesComplete = false;
   let cheapSystemsReady = false;
+  let currentWorldPresentation: KartWorldPresentation | null = options.initialWorldPresentation ?? null;
+
+  function applyWorldPresentation(presentation: KartWorldPresentation | null): void {
+    currentWorldPresentation = presentation;
+    const worldId = presentation?.worldId ?? presentation?.atmosphereProfile ?? null;
+    (sky as unknown as { setWorldProfile?: (id: string | null) => void }).setWorldProfile?.(worldId);
+    if (presentation && 'farSceneryNode' in presentation) {
+      (scenery as unknown as { setFarScenery?: (node: THREE.Object3D | null) => void }).setFarScenery?.(
+        (presentation.farSceneryNode as THREE.Object3D | null) ?? null,
+      );
+    }
+  }
 
   function ensureCheapSystemsInited(): void {
     if (cheapSystemsReady) return;
     pipeline.init?.(ctx);
     input.init?.(ctx);
     sky.init?.(ctx);
+    if (currentWorldPresentation) {
+      applyWorldPresentation(currentWorldPresentation);
+    }
     cheapSystemsReady = true;
   }
 
@@ -661,6 +683,7 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
     } else {
       presented = true;
       try {
+        sky.reinstallShaderPatches();
         pipeline.render(ctx);
         renderFailures = 0;
         if (options.diagnostics) frameWatch.afterPresent(ctx);
@@ -872,6 +895,7 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
   }
 
   function beginSession() {
+    sky.reinstallShaderPatches();
     if (hosted) {
       // A hosted session — cold OR re-entry into a retained warm host — starts
       // presentation at the preferred rung with fresh measurement windows
@@ -890,6 +914,7 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
       hud.leaveSession();
       audio.leaveSession();
     }
+    sky.restoreShaderPatches();
   }
 
   let disposed = false;
@@ -909,6 +934,12 @@ export function createKartRoyaleRuntime(options: KartRoyaleRuntimeOptions): Kart
     ctx, systems, pipeline, race, input, audio, sky, hud, camera, drawBudget,
     boot, update, present, resize, setMuted, loopHealth, renderStats,
     beginSession, endSession,
+    setWorldPresentation(presentation: KartWorldPresentation | null) {
+      applyWorldPresentation(presentation);
+    },
+    getWorldPresentation(): KartWorldPresentation | null {
+      return currentWorldPresentation;
+    },
     prepareWorldSlice, isWorldBatchesComplete, dispose,
   };
 }

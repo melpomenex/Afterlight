@@ -545,6 +545,12 @@ export const SignalLostModule = Object.freeze({
   initialize(options) {
     return createSignalLostInstance(options);
   },
+  worldSupport: {
+    mode: 'none',
+    host: 'parent',
+    slots: [],
+    adapterKey: null,
+  },
 });
 
 registerActivityModule('signal-lost', SignalLostModule);

@@ -85,6 +85,9 @@ import {
   SUN_LIGHT_COLOR,
   buildSkyFragmentShader,
   hazeGlsl,
+  getKartAtmosphereProfile,
+  KART_WORLD_ATMOSPHERE_PROFILES,
+  type KartWorldAtmosphereProfile,
 } from './Atmosphere';
 import { TUNNEL_T0, TUNNEL_T1 } from '../world/TrackLayout';
 import { runHostedGpuWork } from '../host/graphicsWork';
@@ -868,9 +871,28 @@ const RIM_POWER = 3.0;
  * place on the FAR cascade's outer edge (nothing catches that one) and on the
  * single-cascade path used below Quality.High.
  */
-const SHADOW_BORDER_FADE = 0.96;
-
 let _originalChunks: Record<string, string> | null = null;
+let _patchesInstalled = false;
+let _activeSkyInstance: Sky | null = null;
+let _cachedVolume: InteriorVolume | null = null;
+
+export function restoreShaderPatches(): void {
+  if (_originalChunks !== null && _patchesInstalled) {
+    const chunks = THREE.ShaderChunk as unknown as Record<string, string>;
+    for (const name of PATCHED_CHUNKS) {
+      if (_originalChunks[name] !== undefined) {
+        chunks[name] = _originalChunks[name];
+      }
+    }
+    _patchesInstalled = false;
+  }
+}
+
+export function reinstallShaderPatches(): void {
+  if (_activeSkyInstance) {
+    _activeSkyInstance.reinstallShaderPatches();
+  }
+}
 
 function glslFloat(x: number): string {
   return Number.isFinite(x) ? x.toFixed(7) : '0.0';
@@ -1629,6 +1651,8 @@ export class Sky implements System {
   private envRT: THREE.WebGLRenderTarget | null = null;
   private cascades: Cascade[] = [];
   private frame = 0;
+  private ctx: Ctx | null = null;
+  private currentProfile: KartWorldAtmosphereProfile = KART_WORLD_ATMOSPHERE_PROFILES.coastal;
 
   // light-space basis, matching DirectionalLightShadow's own lookAt convention
   private readonly axisX = new THREE.Vector3();
@@ -1636,6 +1660,7 @@ export class Sky implements System {
   private readonly axisZ = new THREE.Vector3();
 
   async init(ctx: Ctx): Promise<void> {
+    this.ctx = ctx;
     // The render pipeline is constructed before us, so whatever exposure it
     // settled on is what the calibration should solve against.
     const exposure = ctx.renderer?.toneMappingExposure || 1.05;
@@ -1676,6 +1701,10 @@ export class Sky implements System {
     // The post stack has no reference to this object otherwise; `ctx.sun` alone
     // is not enough to place a light-shaft origin on screen.
     (ctx as any).sky = this;
+
+    if (this.currentProfile && this.currentProfile.id !== 'coastal') {
+      this.setWorldProfile(this.currentProfile);
+    }
   }
 
   // -- construction -----------------------------------------------------------
@@ -1684,7 +1713,9 @@ export class Sky implements System {
    * Install the ShaderChunk overrides. Idempotent, and it snapshots the stock
    * chunks the first time so `dispose` can put them back.
    */
-  private installShaderPatches(volume: InteriorVolume | null): void {
+  installShaderPatches(volume: InteriorVolume | null): void {
+    _activeSkyInstance = this;
+    if (volume !== null) _cachedVolume = volume;
     const chunks = THREE.ShaderChunk as unknown as Record<string, string>;
     if (_originalChunks === null) {
       _originalChunks = {};
@@ -1695,7 +1726,7 @@ export class Sky implements System {
     const fog = fogChunks(this.model, stock.fog_pars_fragment);
     for (const name of Object.keys(fog)) chunks[name] = fog[name];
 
-    chunks.common = commonChunk(stock.common, volume);
+    chunks.common = commonChunk(stock.common, volume ?? _cachedVolume);
     chunks.envmap_physical_pars_fragment =
       envDiffuseChunk(stock.envmap_physical_pars_fragment, DIFFUSE_ENV_INTENSITY);
     chunks.shadowmap_pars_fragment =
@@ -1704,6 +1735,78 @@ export class Sky implements System {
     chunks.lights_fragment_begin =
       interiorLightsChunk(cascadeLightsChunk(stock.lights_fragment_begin));
     chunks.lights_fragment_maps = indirectMapsChunk(stock.lights_fragment_maps);
+    _patchesInstalled = true;
+  }
+
+  reinstallShaderPatches(): void {
+    if (!_patchesInstalled) {
+      this.installShaderPatches(_cachedVolume);
+    }
+  }
+
+  restoreShaderPatches(): void {
+    restoreShaderPatches();
+  }
+
+  /**
+   * Set or update the active World profile for Kart Royale (7.2).
+   * Restrained to bounded compatible atmosphere, light, and fog values
+   * without touching track, collision, checkpoint, or RNG signatures.
+   */
+  setWorldProfile(profileIdOrPresentation: string | KartWorldAtmosphereProfile | null): void {
+    let profile: KartWorldAtmosphereProfile;
+    if (typeof profileIdOrPresentation === 'string') {
+      profile = getKartAtmosphereProfile(profileIdOrPresentation);
+    } else if (profileIdOrPresentation && typeof profileIdOrPresentation === 'object') {
+      const p = profileIdOrPresentation as Record<string, unknown>;
+      profile = (typeof p.sunLightColor === 'number')
+        ? (p as unknown as KartWorldAtmosphereProfile)
+        : getKartAtmosphereProfile((p.worldId as string) ?? (p.id as string) ?? (p.atmosphereProfile as string));
+    } else {
+      profile = KART_WORLD_ATMOSPHERE_PROFILES.coastal;
+    }
+    this.currentProfile = profile;
+
+    // 1. Update sun and cascades
+    if (this.sun) {
+      this.sun.color.setHex(profile.sunLightColor);
+      this.sun.intensity = (this.specs[0]?.intensity ?? 8.0) * (profile.sunIntensityScale ?? 1.0);
+    }
+    if (this.sunFar) {
+      this.sunFar.color.setHex(profile.sunLightColor);
+    }
+    for (let i = 0; i < this.cascades.length; i++) {
+      this.cascades[i].light.color.setHex(profile.sunLightColor);
+      if (i === 0) {
+        this.cascades[i].light.intensity = (this.specs[0]?.intensity ?? 8.0) * (profile.sunIntensityScale ?? 1.0);
+      }
+    }
+
+    // 2. Update fills and bounces
+    if (this.skyFill) {
+      this.skyFill.color.setHex(profile.skyFillColor);
+      this.skyFill.intensity = SKY_FILL_INTENSITY * (profile.skyFillIntensityScale ?? 1.0);
+    }
+    if (this.bounce) {
+      this.bounce.color.setHex(profile.groundBounceColor);
+      this.bounce.intensity = BOUNCE_INTENSITY * (profile.bounceIntensityScale ?? 1.0);
+    }
+    if (this.lateralBounce) {
+      this.lateralBounce.color.setHex(profile.groundBounceColor);
+      this.lateralBounce.intensity = LATERAL_BOUNCE_INTENSITY * (profile.bounceIntensityScale ?? 1.0);
+    }
+    if (this.probe) {
+      this.probe.intensity = PROBE_INTENSITY * (profile.skyFillIntensityScale ?? 1.0);
+    }
+
+    // 3. Update scene fog
+    if (this.ctx?.scene?.fog && 'color' in this.ctx.scene.fog && profile.fogColor) {
+      (this.ctx.scene.fog as THREE.FogExp2).color.setHex(profile.fogColor);
+    }
+  }
+
+  getCurrentProfile(): KartWorldAtmosphereProfile {
+    return this.currentProfile;
   }
 
   /**
@@ -2172,11 +2275,12 @@ export class Sky implements System {
   }
 
   dispose(): void {
-    if (_originalChunks !== null) {
-      const chunks = THREE.ShaderChunk as unknown as Record<string, string>;
-      for (const name of PATCHED_CHUNKS) chunks[name] = _originalChunks[name];
-      _originalChunks = null;
+    restoreShaderPatches();
+    if (_activeSkyInstance === this) {
+      _activeSkyInstance = null;
+      _cachedVolume = null;
     }
+    _originalChunks = null;
     this.dome?.parent?.remove(this.dome);
     this.envScene?.remove(this.envMesh);
     this.geometry?.dispose();

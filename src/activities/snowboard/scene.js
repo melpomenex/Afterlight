@@ -49,6 +49,68 @@ const PRESETS = {
   low: { trees: 0.6, particles: 80, shadows: false },
 };
 
+/**
+ * Six cold-climate interpretations for Summit Run (introduce-global-world-system 7.4).
+ * Bounded sky, fog, hemisphere and sun colors that preserve the canonical course,
+ * RNG seed 321, and collision terrain unchanged.
+ */
+export const SNOWBOARD_WORLD_PROFILES = Object.freeze({
+  coastal: {
+    id: 'coastal',
+    sky: '#8faec4',
+    fog: '#a6c2d4',
+    hemiSky: 0xd8ecf8,
+    hemiGround: 0x6b8299,
+    sun: 0xffe8d0,
+    sunIntensity: 3.1,
+  },
+  rainforest: {
+    id: 'rainforest',
+    sky: '#7ba096',
+    fog: '#92b2a6',
+    hemiSky: 0xd0e8e0,
+    hemiGround: 0x526e5a,
+    sun: 0xf6ecd2,
+    sunIntensity: 3.0,
+  },
+  alpine: {
+    id: 'alpine',
+    sky: '#a4cede',
+    fog: '#b6d5e0',
+    hemiSky: 0xe6f8ff,
+    hemiGround: 0x7890a6,
+    sun: 0xfff4dc,
+    sunIntensity: 3.2,
+  },
+  desert: {
+    id: 'desert',
+    sky: '#b094b8',
+    fog: '#c2a8c6',
+    hemiSky: 0xf0dbe8,
+    hemiGround: 0x8c6068,
+    sun: 0xffc8a8,
+    sunIntensity: 3.15,
+  },
+  redwood: {
+    id: 'redwood',
+    sky: '#7a969e',
+    fog: '#90aab0',
+    hemiSky: 0xd4e6ea,
+    hemiGround: 0x546b5e,
+    sun: 0xfae6c0,
+    sunIntensity: 2.95,
+  },
+  cloud: {
+    id: 'cloud',
+    sky: '#b8d6ed',
+    fog: '#ccdef2',
+    hemiSky: 0xf0f6ff,
+    hemiGround: 0x829bb5,
+    sun: 0xfff8ee,
+    sunIntensity: 3.25,
+  },
+});
+
 /** The source's seeded LCG (seed 321) — same call order, same layout. */
 function createSourceRandom(seed = 321) {
   let state = seed;
@@ -58,7 +120,13 @@ function createSourceRandom(seed = 321) {
   };
 }
 
-export async function createSnowboardScene({ courseDoc, resourceCache = null, owner = 'snowboard', quality = 'high' } = {}) {
+export async function createSnowboardScene({
+  courseDoc,
+  resourceCache = null,
+  owner = 'snowboard',
+  quality = 'high',
+  initialWorldPresentation = null,
+} = {}) {
   if (!courseDoc) throw new Error('createSnowboardScene requires the canonical course document');
   const course = loadCourse(courseDoc);
   const preset = PRESETS[quality] ?? PRESETS.high;
@@ -68,7 +136,8 @@ export async function createSnowboardScene({ courseDoc, resourceCache = null, ow
   scene.fog = new THREE.Fog(FOG_COLOR, 125, 510);
 
   // --- daylight lighting (source) --------------------------------------------
-  scene.add(new THREE.HemisphereLight(0xe6f8ff, 0x7890a6, 2.5));
+  const hemi = new THREE.HemisphereLight(0xe6f8ff, 0x7890a6, 2.5);
+  scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff4dc, 3.2);
   sun.position.set(-80, 150, 30);
   sun.castShadow = preset.shadows;
@@ -81,6 +150,51 @@ export async function createSnowboardScene({ courseDoc, resourceCache = null, ow
   sun.shadow.normalBias = 0.1;
   scene.add(sun);
   scene.add(sun.target);
+
+  // --- cosmetic far scenery and world presentation (7.4) ---------------------
+  // Kept out of the scene graph until scenery is actually attached so the
+  // functional base composition (terrain, rigs, lights) is unchanged.
+  const farSceneryRoot = new THREE.Group();
+  farSceneryRoot.name = 'farSceneryRoot';
+
+  function setFarScenery(node) {
+    while (farSceneryRoot.children.length > 0) {
+      farSceneryRoot.remove(farSceneryRoot.children[0]);
+    }
+    if (node) {
+      farSceneryRoot.add(node);
+      if (!farSceneryRoot.parent) scene.add(farSceneryRoot);
+    } else if (farSceneryRoot.parent) {
+      farSceneryRoot.removeFromParent();
+    }
+  }
+
+  let currentProfile = SNOWBOARD_WORLD_PROFILES.alpine;
+
+  function setWorldPresentation(presentation) {
+    const worldId = typeof presentation === 'string'
+      ? presentation
+      : (presentation?.worldId || presentation?.atmosphereProfile || 'alpine');
+    const profile = SNOWBOARD_WORLD_PROFILES[worldId] || SNOWBOARD_WORLD_PROFILES.alpine;
+    currentProfile = profile;
+
+    scene.background.set(profile.sky);
+    scene.fog.color.set(profile.fog);
+    hemi.color.setHex(profile.hemiSky);
+    hemi.groundColor.setHex(profile.hemiGround);
+    sun.color.setHex(profile.sun);
+    if (profile.sunIntensity !== undefined) {
+      sun.intensity = profile.sunIntensity;
+    }
+
+    if (presentation && typeof presentation === 'object' && 'farSceneryNode' in presentation) {
+      setFarScenery(presentation.farSceneryNode);
+    }
+  }
+
+  if (initialWorldPresentation) {
+    setWorldPresentation(initialWorldPresentation);
+  }
 
   // --- shared materials (source mat() cache) -----------------------------------
   const materials = new Map();
@@ -517,6 +631,11 @@ export async function createSnowboardScene({ courseDoc, resourceCache = null, ow
   function dispose() {
     for (const rig of remoteRigs.values()) disposeRig(rig);
     remoteRigs.clear();
+
+    // Safely detach far scenery without disposing borrowed external assets (7.4)
+    if (farSceneryRoot.parent) farSceneryRoot.removeFromParent();
+    while (farSceneryRoot.children.length > 0) farSceneryRoot.remove(farSceneryRoot.children[0]);
+
     // Source destroy() semantics: dispose every geometry, every material
     // (including canvas textures) — renderer-owned resources are untouched.
     scene.traverse((object) => {
@@ -539,6 +658,9 @@ export async function createSnowboardScene({ courseDoc, resourceCache = null, ow
     dispose,
     courseId: COURSE_ID,
     course,
+    setWorldPresentation,
+    setFarScenery,
+    getCurrentProfile() { return currentProfile; },
     /** Test seam: pickup meshes by id (per-rider claim visibility checks). */
     getPickupMesh(id) {
       return pickups.find((p) => p.id === id)?.mesh ?? null;

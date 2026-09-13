@@ -74,6 +74,7 @@ export function createKartRoyaleHost(options: KartRoyaleHostOptions): KartRoyale
     perfSpan: options.perfSpan,
     perfMark: options.perfMark,
     runGraphicsTransaction: options.runGraphicsTransaction ?? null,
+    initialWorldPresentation: options.initialWorldPresentation ?? null,
   });
 
   const guard = <A extends unknown[]>(fn: (...a: A) => void) =>
@@ -178,6 +179,13 @@ export function createKartRoyaleHost(options: KartRoyaleHostOptions): KartRoyale
     },
     setMuted(m) {
       runtime.setMuted(m);
+    },
+    setWorldPresentation(presentation) {
+      if (disposed || dead) return;
+      runtime.setWorldPresentation(presentation);
+    },
+    getWorldPresentation() {
+      return runtime.getWorldPresentation();
     },
     getRenderStats() {
       return runtime.renderStats();

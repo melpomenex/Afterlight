@@ -33,7 +33,30 @@ export const ZONE_PROFILES = Object.freeze({
   alcove: Object.freeze({ rain: 0.15, roof: 0.25, wind: 0.05, lowpassHz: 900 }),
 });
 
+/** Authored World ambient profiles (introduce-global-world-system D5, D8). */
+export const AMBIENCE_PROFILES = Object.freeze({
+  coastal: Object.freeze({ frequency: 380, gain: 0.5 }),
+  rainforest: Object.freeze({ frequency: 440, gain: 0.55 }),
+  alpine: Object.freeze({ frequency: 280, gain: 0.45 }),
+  desert: Object.freeze({ frequency: 320, gain: 0.4 }),
+  'desert-storm': Object.freeze({ frequency: 340, gain: 0.5 }),
+  redwood: Object.freeze({ frequency: 350, gain: 0.5 }),
+  cloud: Object.freeze({ frequency: 420, gain: 0.45 }),
+});
+
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+/** Normalize one authored ambience row (or profile name). */
+export function normalizeAmbienceProfile(profile) {
+  const base = typeof profile === 'string' ? AMBIENCE_PROFILES[profile] : profile;
+  if (!base || typeof base !== 'object' || Array.isArray(base)) return null;
+  const frequency = Number(base.frequency);
+  const gain = Number(base.gain);
+  if (![frequency, gain].every(Number.isFinite)) return null;
+  const clampedFreq = Math.min(20000, Math.max(20, frequency));
+  const clampedGain = clamp01(gain);
+  return { frequency: clampedFreq, gain: clampedGain };
+}
 
 /** Normalize one authored `audio` row (or a profile name) to clamped values.
  * Returns null when nothing usable is authored. */
@@ -75,6 +98,7 @@ export function createEnvironmentAudio({ mixer } = {}) {
   let noiseBuffer = null;
   let zone = null; // normalized current zone target
   let weatherLevel = 0;
+  let currentAmbienceProfile = null;
   const nodes = { ambience: [], weather: [] };
   const layerGains = { rain: null, roof: null, wind: null };
   let weatherFilter = null;
@@ -134,7 +158,9 @@ export function createEnvironmentAudio({ mixer } = {}) {
 
     // Ambience: the low campus drone (the old direct-to-destination loop,
     // now a bus gain so travel can stop it and P8 can duck it).
-    nodes.ambience.push(loopSource(ctx, { type: 'lowpass', frequency: 320, gainValue: 0.5, dest: ambienceBus }));
+    const baseFreq = currentAmbienceProfile?.frequency ?? 320;
+    const baseGain = currentAmbienceProfile?.gain ?? 0.5;
+    nodes.ambience.push(loopSource(ctx, { type: 'lowpass', frequency: baseFreq, gainValue: baseGain, dest: ambienceBus }));
 
     // Weather chain: three layers -> per-zone lowpass -> rain-level gain ->
     // weather bus. Summed layer gain is normalized per profile (D7).
@@ -183,6 +209,29 @@ export function createEnvironmentAudio({ mixer } = {}) {
     const ctx = context();
     if (!ctx || !weatherGain) return false;
     ramp(weatherGain.gain, ctx, weatherLevel, WEATHER_RAMP_MS / 1000);
+    return true;
+  }
+
+  /**
+   * Crossfade ambience drone to a World profile over 500ms without restarting loop.
+   */
+  function setAmbienceProfile(profileOrName) {
+    const next = normalizeAmbienceProfile(profileOrName) ?? AMBIENCE_PROFILES.coastal;
+    if (currentAmbienceProfile && currentAmbienceProfile.frequency === next.frequency && currentAmbienceProfile.gain === next.gain) {
+      return false;
+    }
+    currentAmbienceProfile = next;
+    if (!started) return false;
+    const ctx = context();
+    if (!ctx) return false;
+    for (const node of nodes.ambience) {
+      if (node.gain?.gain) {
+        ramp(node.gain.gain, ctx, next.gain, ZONE_CROSSFADE_MS / 1000);
+      }
+      if (node.filter?.frequency) {
+        ramp(node.filter.frequency, ctx, next.frequency, ZONE_CROSSFADE_MS / 1000);
+      }
+    }
     return true;
   }
 
@@ -282,10 +331,12 @@ export function createEnvironmentAudio({ mixer } = {}) {
     stop,
     dispose,
     setZone,
+    setAmbienceProfile,
     setWeather,
     thunder,
     get started() { return started; },
     get zone() { return zone; },
     get weatherLevel() { return weatherLevel; },
+    get ambienceProfile() { return currentAmbienceProfile; },
   };
 }

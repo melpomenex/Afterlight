@@ -19,6 +19,106 @@ export const SUN_COLD = new THREE.Color(0xcfe3ff);
 export const SUN_MID = new THREE.Color(0xffdcae);
 export const SUN_WARM = new THREE.Color(0xffb257);
 
+/**
+ * Six ambient World profiles for Downhill Mayhem (introduce-global-world-system 7.5).
+ * Bounded sky, fog, hemisphere, directional sun, fill, and sun-warmth curves that
+ * preserve the canonical course, simulation rules, and rider physics unchanged.
+ */
+export const DOWNHILL_WORLD_AMBIENT_PROFILES = Object.freeze({
+  coastal: Object.freeze({
+    id: 'coastal',
+    sky: 0xc8d8e6,
+    fog: 0xd0e0ea,
+    hemiSky: 0xb8d4ee,
+    hemiGround: 0x5a6868,
+    sun: 0xffe6c2,
+    sunIntensity: 2.95,
+    fill: 0x9ec0e2,
+    glow: 0xffe8c8,
+    sunCold: 0xc4dcff,
+    sunMid: 0xffdeb6,
+    sunWarm: 0xffb55e,
+  }),
+  rainforest: Object.freeze({
+    id: 'rainforest',
+    sky: 0xb4c8bc,
+    fog: 0xc2d4c8,
+    hemiSky: 0xaec8b8,
+    hemiGround: 0x485c4a,
+    sun: 0xf4e6be,
+    sunIntensity: 2.85,
+    fill: 0x98bca4,
+    glow: 0xf6e8be,
+    sunCold: 0xbedcc8,
+    sunMid: 0xf0deb4,
+    sunWarm: 0xf2aa52,
+  }),
+  alpine: Object.freeze({
+    id: 'alpine',
+    sky: 0xd8dde2,
+    fog: 0xe2cfae,
+    hemiSky: 0xbcd2ea,
+    hemiGround: 0x6b6155,
+    sun: 0xffcf94,
+    sunIntensity: 2.95,
+    fill: 0xaec8ea,
+    glow: 0xffe3b8,
+    sunCold: 0xcfe3ff,
+    sunMid: 0xffdcae,
+    sunWarm: 0xffb257,
+  }),
+  desert: Object.freeze({
+    id: 'desert',
+    sky: 0xdcc8be,
+    fog: 0xe2baa2,
+    hemiSky: 0xd0b4a4,
+    hemiGround: 0x725442,
+    sun: 0xffbe88,
+    sunIntensity: 3.1,
+    fill: 0xc89e8a,
+    glow: 0xffca94,
+    sunCold: 0xdec2b6,
+    sunMid: 0xffc690,
+    sunWarm: 0xff9a42,
+  }),
+  redwood: Object.freeze({
+    id: 'redwood',
+    sky: 0xbcc0be,
+    fog: 0xc8c2b4,
+    hemiSky: 0xaeb4b0,
+    hemiGround: 0x52463e,
+    sun: 0xfcdcb2,
+    sunIntensity: 2.9,
+    fill: 0x9eac9e,
+    glow: 0xfde0bc,
+    sunCold: 0xc4cac8,
+    sunMid: 0xfad8ae,
+    sunWarm: 0xfaaa50,
+  }),
+  cloud: Object.freeze({
+    id: 'cloud',
+    sky: 0xd0d8e8,
+    fog: 0xd8e0ee,
+    hemiSky: 0xc8daf4,
+    hemiGround: 0x606c80,
+    sun: 0xfff0dc,
+    sunIntensity: 3.05,
+    fill: 0xb8cce8,
+    glow: 0xfff2e2,
+    sunCold: 0xd4e2ff,
+    sunMid: 0xffe8ca,
+    sunWarm: 0xffc472,
+  }),
+});
+
+export function getDownhillAmbientProfile(idOrPresentation) {
+  if (!idOrPresentation) return DOWNHILL_WORLD_AMBIENT_PROFILES.alpine;
+  const id = typeof idOrPresentation === 'string'
+    ? idOrPresentation
+    : (idOrPresentation.atmosphereProfile || idOrPresentation.worldId || 'alpine');
+  return DOWNHILL_WORLD_AMBIENT_PROFILES[id] || DOWNHILL_WORLD_AMBIENT_PROFILES.alpine;
+}
+
 const SKY_TOP = '#6d87a4';
 const SKY_MID = '#a9b8c6';
 const SKY_HORIZON = '#f6d9ae';
@@ -204,16 +304,22 @@ function buildRidgeRing({ radius, height, base, seed, colorRock, colorSnow, colo
   return mesh;
 }
 
-export function createRendering({ viewport } = {}) {
+export function createRendering({ viewport, initialWorldPresentation } = {}) {
+  let currentProfile = getDownhillAmbientProfile(initialWorldPresentation);
+  const sunCold = new THREE.Color(currentProfile.sunCold);
+  const sunMid = new THREE.Color(currentProfile.sunMid);
+  const sunWarm = new THREE.Color(currentProfile.sunWarm);
+  let sunBaseIntensity = currentProfile.sunIntensity ?? 2.95;
+
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xd8dde2);
-  scene.fog = new THREE.Fog(0xe2cfae, 35, 420);
+  scene.background = new THREE.Color(currentProfile.sky);
+  scene.fog = new THREE.Fog(currentProfile.fog, 35, 420);
 
   const camera = new THREE.PerspectiveCamera(74, aspectOf(viewport), 0.3, 900);
 
-  const hemi = new THREE.HemisphereLight(0xbcd2ea, 0x6b6155, 0.95);
+  const hemi = new THREE.HemisphereLight(currentProfile.hemiSky, currentProfile.hemiGround, 0.95);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffcf94, 2.95);
+  const sun = new THREE.DirectionalLight(currentProfile.sun, sunBaseIntensity);
   const sunDir = sunDirection();
   sun.position.copy(sunDir).multiplyScalar(120);
   sun.castShadow = true;
@@ -232,7 +338,7 @@ export function createRendering({ viewport } = {}) {
 
   // Soft cool fill from behind the chase camera: stands in for snow bounce so
   // the backlit terrain never crushes to black. Never casts shadows.
-  const fill = new THREE.DirectionalLight(0xaec8ea, 0.3);
+  const fill = new THREE.DirectionalLight(currentProfile.fill, 0.3);
   fill.position.set(30, 80, 100);
   scene.add(fill);
   scene.add(fill.target);
@@ -266,7 +372,7 @@ export function createRendering({ viewport } = {}) {
     new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }),
   ) : null;
   if (glow) {
-    glow.material.color.setHex(0xffe3b8);
+    glow.material.color.setHex(currentProfile.glow);
     glow.scale.set(190, 190, 1);
     glow.frustumCulled = false;
     glow.renderOrder = -11;
@@ -289,11 +395,30 @@ export function createRendering({ viewport } = {}) {
   let disposed = false;
   const sunTargetScratch = new THREE.Vector3();
 
+  function setAmbientProfile(profileIdOrPresentation) {
+    currentProfile = getDownhillAmbientProfile(profileIdOrPresentation);
+    scene.background.set(currentProfile.sky);
+    scene.fog.color.set(currentProfile.fog);
+    hemi.color.set(currentProfile.hemiSky);
+    hemi.groundColor.set(currentProfile.hemiGround);
+    sun.color.set(currentProfile.sun);
+    sunBaseIntensity = currentProfile.sunIntensity ?? 2.95;
+    sun.intensity = sunBaseIntensity;
+    fill.color.set(currentProfile.fill);
+    if (glow && glow.material) {
+      glow.material.color.setHex(currentProfile.glow);
+    }
+    sunCold.set(currentProfile.sunCold);
+    sunMid.set(currentProfile.sunMid);
+    sunWarm.set(currentProfile.sunWarm);
+  }
+
   return {
     scene,
     camera,
     sun,
     hemi,
+    fill,
     skyDome,
     skyTex,
     glow,
@@ -313,6 +438,9 @@ export function createRendering({ viewport } = {}) {
       camera.updateProjectionMatrix();
     },
 
+    setAmbientProfile,
+    getCurrentAmbientProfile() { return currentProfile; },
+
     /** Keep the shadow frustum centred on the reference position. */
     updateShadowFocus(position) {
       sunTargetScratch.copy(position);
@@ -326,10 +454,10 @@ export function createRendering({ viewport } = {}) {
       const fAlt = clamp(alt, 0, 1);
       const cold = clamp((coldEdge - fAlt) / coldEdge, 0, 1);
       const warm = clamp((fAlt - warmEdge) / (1 - warmEdge), 0, 1);
-      sun.color.copy(SUN_MID);
-      if (cold > 0) sun.color.lerp(SUN_COLD, cold);
-      if (warm > 0) sun.color.lerp(SUN_WARM, warm);
-      sun.intensity = 3.05 + warm * 0.4 - cold * 0.2;
+      sun.color.copy(sunMid);
+      if (cold > 0) sun.color.lerp(sunCold, cold);
+      if (warm > 0) sun.color.lerp(sunWarm, warm);
+      sun.intensity = sunBaseIntensity + 0.1 + warm * 0.4 - cold * 0.2;
     },
 
     /** True when a renderer can present this scene without a GL error. */

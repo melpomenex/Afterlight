@@ -1,13 +1,58 @@
 /**
- * Registry mapping place builder keys and specialized controller keys to
- * functions. It owns renderer references only — metadata authority stays in
- * shared/placeDefinitions.js. Definitions declared in the manifest resolve
- * through here at build time, so an unknown builder key is a named error on
- * the offending definition instead of silent fallback scenery.
+ * Registry mapping place builder keys, specialized controller keys, and
+ * world presentation support to functions/metadata.
+ * Metadata authority stays in shared/placeDefinitions.js.
  */
 
 const builders = new Map();
 const controllers = new Map();
+const placeWorldSupports = new Map();
+
+export const THEATER_WORLD_SUPPORT = Object.freeze({
+  mode: 'full',
+  host: 'self',
+  slots: Object.freeze(['sky', 'distant-scenery', 'decoration', 'lighting', 'fog', 'particles', 'audio']),
+  adapterKey: 'place:theater',
+  defaultPresentationKey: null,
+});
+
+export const DEFAULT_PLACE_WORLD_SUPPORT = Object.freeze({
+  mode: 'ambient',
+  host: 'self',
+  slots: Object.freeze(['lighting', 'audio']),
+  adapterKey: 'place:ambient',
+  defaultPresentationKey: null,
+});
+
+export function normalizePlaceWorldSupport(raw = {}) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const mode = ['full', 'partial', 'ambient', 'none'].includes(source.mode) ? source.mode : 'ambient';
+  const host = ['self', 'parent'].includes(source.host) ? source.host : 'self';
+  const slots = Array.isArray(source.slots)
+    ? Object.freeze([...new Set(source.slots.filter((s) => typeof s === 'string'))])
+    : (mode === 'full' ? THEATER_WORLD_SUPPORT.slots : DEFAULT_PLACE_WORLD_SUPPORT.slots);
+  const adapterKey = typeof source.adapterKey === 'string' && source.adapterKey.length > 0
+    ? source.adapterKey
+    : (mode === 'full' ? 'place:theater' : (mode === 'none' ? null : 'place:ambient'));
+  return Object.freeze({
+    mode,
+    host,
+    slots,
+    adapterKey,
+    defaultPresentationKey: typeof source.defaultPresentationKey === 'string' ? source.defaultPresentationKey : null,
+  });
+}
+
+export function registerPlaceWorldSupport(key, support) {
+  if (typeof key !== 'string' || key.length === 0) throw new Error('Place key must be a non-empty string');
+  placeWorldSupports.set(key, normalizePlaceWorldSupport(support));
+}
+
+export function getPlaceWorldSupport(key) {
+  if (placeWorldSupports.has(key)) return placeWorldSupports.get(key);
+  if (key === 'theater') return THEATER_WORLD_SUPPORT;
+  return DEFAULT_PLACE_WORLD_SUPPORT;
+}
 
 export function registerPlaceBuilder(key, build) {
   if (typeof key !== 'string' || key.length === 0) throw new Error('Place builder keys must be non-empty strings');

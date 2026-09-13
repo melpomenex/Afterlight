@@ -94,6 +94,106 @@ export function createTerrain({
   };
 }
 
+/**
+ * Resumable batch slicer for terrain geometry generation.
+ * Permits breaking heavy terrain construction across frame boundaries while
+ * guaranteeing 100% deterministic bit-for-bit equivalence with createTerrain.
+ */
+export function createTerrainSlicer({
+  size = DEFAULT_TERRAIN_SIZE,
+  segments = 128,
+  height,
+  colorAt,
+  y = 0,
+  flatShading = false,
+  roughness = 0.94,
+  metalness = 0.02,
+  receiveShadow = true,
+  batchSize = 2048,
+} = {}) {
+  if (typeof height !== 'function') throw new Error('createTerrain requires a height(x, z) function');
+  if (typeof colorAt !== 'function') throw new Error('createTerrain requires a colorAt(ctx) function');
+
+  const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
+  geometry.rotateX(-Math.PI / 2);
+  const position = geometry.attributes.position;
+  const colors = new Float32Array(position.count * 3);
+  const color = new THREE.Color();
+  const step = size / segments;
+  const sample = { x: 0, z: 0, h: 0, slope: 0 };
+  let currentIndex = 0;
+  let done = false;
+
+  function stepSlice(maxVertices = batchSize) {
+    if (done) return true;
+    const end = Math.min(currentIndex + maxVertices, position.count);
+    for (let i = currentIndex; i < end; i++) {
+      const x = position.getX(i);
+      const z = position.getZ(i);
+      const h = height(x, z);
+      position.setY(i, h + y);
+      const hx = height(x + step, z) - height(x - step, z);
+      const hz = height(x, z + step) - height(x, z - step);
+      sample.x = x; sample.z = z; sample.h = h;
+      sample.slope = Math.hypot(hx, hz) / (2 * step + 1e-6);
+      const c = colorAt(sample);
+      if (c && c.isColor) color.copy(c);
+      else color.set(c);
+      colors[i * 3] = color.r;
+      colors[i * 3 + 1] = color.g;
+      colors[i * 3 + 2] = color.b;
+    }
+    currentIndex = end;
+    if (currentIndex >= position.count) {
+      done = true;
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      geometry.computeVertexNormals();
+      geometry.computeBoundingSphere();
+    }
+    return done;
+  }
+
+  function getResult() {
+    if (!done) {
+      while (!stepSlice(position.count));
+    }
+    const material = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness,
+      metalness,
+      flatShading,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = 'environment-terrain';
+    mesh.receiveShadow = receiveShadow;
+    mesh.castShadow = false;
+    mesh.matrixAutoUpdate = false;
+    mesh.updateMatrix();
+
+    return {
+      mesh,
+      geometry,
+      material,
+      heightAt: height,
+      dispose() {
+        geometry.dispose();
+        material.dispose();
+      },
+    };
+  }
+
+  return {
+    stepSlice,
+    getResult,
+    get progress() {
+      return position.count > 0 ? currentIndex / position.count : 1;
+    },
+    get isDone() {
+      return done;
+    },
+  };
+}
+
 /** Smooth deterministic value noise (hash-based, no textures). */
 export function hash2(x, z, seed = 0) {
   let h = (Math.imul(x | 0, 374761393) + Math.imul(z | 0, 668265263) + Math.imul(seed | 0, 2246822519)) >>> 0;

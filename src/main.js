@@ -41,6 +41,16 @@ import {
   isEnvironmentPreset,
   randomTheaterWorldPreset,
 } from '../shared/theaterEnvironments.js';
+import {
+  getWorldVariant,
+  worldForPreset,
+  WORLD_IDS,
+} from '../shared/worldDefinitions.js';
+import { resolveBootstrapWorldState } from './worlds/state.js';
+import { createAmbientPlaceManager } from './worlds/ambientPlace.js';
+import { createDestinationPrefetchScheduler } from './worlds/prefetch.js';
+import { resolveWorldPresentation } from './worlds/resolver.js';
+import { estimateWorldAssetBytes } from './worlds/assets.js';
 import { loadEnvironmentPreferences, saveEnvironmentPreferences } from './environments/quality.js';
 import { resolveRoomRequest } from './places/travelState.js';
 import { createTheaterAdapter, registerTheaterAdapter } from './places/theaterAdapter.js';
@@ -175,6 +185,10 @@ const activityView = createActivityViewLease({
     leasedBloomEnabled = bloom.enabled;
     bloom.enabled = false;
     if (theaterUI.isWatching()) theaterUI.setWatchMode(false);
+    leasedSocialAmbienceStopped = environmentAudio?.started ?? false;
+    if (leasedSocialAmbienceStopped) {
+      environmentAudio.stop();
+    }
   },
   restore: () => {
     renderPass.scene = scene;
@@ -188,10 +202,18 @@ const activityView = createActivityViewLease({
       bloom.enabled = leasedBloomEnabled;
       leasedBloomEnabled = null;
     }
+    if (leasedSocialAmbienceStopped) {
+      environmentAudio?.start?.();
+      leasedSocialAmbienceStopped = false;
+    }
+    if (currentRoomId === ROOMS.THEATER) {
+      syncTheaterEnvironment();
+    }
   },
 });
 let leasedRendererState = null;
 let leasedBloomEnabled = null;
+let leasedSocialAmbienceStopped = false;
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.25, 0.65, 1.05);
 composer.addPass(bloom);
 
@@ -241,6 +263,10 @@ const remotePlayers = new RemotePlayersManager(scene, createAvatarFor);
 // consumes them arrives with the renderer work (3.x/4.x).
 const atmosphereStateClient = createAtmosphereStateClient({ net });
 
+// Canonical personal World state owner (introduce-global-world-system)
+const worldState = resolveBootstrapWorldState();
+globalThis.__afterlightWorldState = worldState;
+
 // The one retained atmosphere presentation controller (task 3.1): captures
 // the shared fog/background/sun/hemisphere/exposure baseline on activation,
 // renders the sampled semantic state through the owned sky dome, batched
@@ -257,14 +283,15 @@ const atmosphereController = createAtmosphereController({
   // The sky backdrop reads the active camera each frame so the iso views
   // and first person both show the authored sky correctly.
   camera: () => activeCamera,
+  getWorldSelection: () => worldState.selection,
 });
 
 // --- THEATER ENVIRONMENTS (Dream Loop campaign) ---
 // The six authored worlds surrounding the one shared Orpheum. The runtime
 // builds the selected environment INSIDE the theater world group, installs
 // its atmosphere hooks and swaps geometry without rebuilding the Theater or
-// the room. Selection rides the room's atmosphere preset, so every occupant
-// shares the world; environment quality is a separate local preference.
+// the room. Selection is personal World state; environment quality is a
+// separate local preference.
 const environmentPrefs = loadEnvironmentPreferences({
   device: {
     hardwareConcurrency: typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : 8,
@@ -275,6 +302,7 @@ const environmentPrefs = loadEnvironmentPreferences({
 }).prefs;
 const theaterEnvironments = createTheaterEnvironmentRuntime({
   defaultTier: environmentPrefs.quality,
+  getWorldSelection: () => worldState.selection,
   onHooksChanged: () => {
     // The environment declared new wet families / zones / anchors: rebind
     // the active atmosphere controller's owned subsystems in place.
@@ -283,34 +311,21 @@ const theaterEnvironments = createTheaterEnvironmentRuntime({
   onError: (error) => console.error('[theater-environments]', error),
 });
 let lastEnvironmentPreset = undefined;
-// Local selection override: the environment picker applies its choice here
-// immediately (and asks the room to adopt it), so an offline session still
-// previews worlds and a round-trip never flashes the previous environment.
-let environmentOverride = null;
 // Created with the other HUD dialogs (declared early so the frame-loop sync
 // can refresh it without a temporal-dead-zone window).
 let worldSelector = null;
 const environmentSample = {};
+
 function effectiveEnvironmentPreset() {
-  if (environmentOverride) return environmentOverride;
-  const state = typeof atmosphereStateClient.getState === 'function' ? atmosphereStateClient.getState() : null;
-  return state?.preset ?? null;
+  const sel = worldState.selection;
+  const v = getWorldVariant(sel.worldId, sel.variantId);
+  return v?.preset ?? 'env-coastal-sunset';
 }
+
 function syncTheaterEnvironment() {
   if (currentRoomId !== ROOMS.THEATER) return;
-  // Accepted room state outranks a stale local pick: if the server reports a
-  // different world (another occupant switched it), the room's choice wins.
-  // The synthesized manifest fallback is NOT server truth and never clears
-  // a local pick.
-  const serverPreset = atmosphereStateClient.isSynced() ? (atmosphereStateClient.getState()?.preset ?? null) : null;
-  if (serverPreset && environmentOverride && serverPreset !== environmentOverride) {
-    environmentOverride = null;
-    atmosphereController.setLocalPreset(null);
-    atmosphereStateClient.setLocalFallback(null);
-  }
   const presetId = effectiveEnvironmentPreset();
-  // The open World dialog always reflects the room's accepted world (or the
-  // optimistic local pick): a room-driven change updates it in place.
+  // The open World dialog always reflects the personal world selection:
   if (worldSelector?.isOpen()) worldSelector.setActive(presetId);
   const def = districts.find(d => d.id === ROOMS.THEATER) ?? null;
   if (presetId === lastEnvironmentPreset && theaterEnvironments.active && !theaterEnvironments.state.failed) return;
@@ -321,18 +336,38 @@ function syncTheaterEnvironment() {
     console.error('[theater-environments] sync failed', error);
   }
 }
-/** Public (HUD/debug) environment selection: local first, room request second. */
-function selectTheaterEnvironment(presetId) {
-  environmentOverride = presetId || null;
-  lastEnvironmentPreset = undefined;
-  atmosphereController.setLocalPreset(environmentOverride);
-  atmosphereStateClient.setLocalFallback(environmentOverride);
-  syncTheaterEnvironment();
-  if (typeof net?.send === 'function') {
-    try { net.send('atmosphere_set', { preset: presetId }); } catch { /* offline: local only */ }
+
+/** Public (HUD/debug) environment selection: selects the personal World state. */
+function selectTheaterEnvironment(presetOrWorldId) {
+  let worldId = null;
+  let variantId = null;
+  const found = worldForPreset(presetOrWorldId);
+  if (found) {
+    worldId = found.worldId;
+    variantId = found.variantId;
+  } else if (WORLD_IDS.includes(presetOrWorldId)) {
+    worldId = presetOrWorldId;
+  }
+  if (worldId) {
+    worldState.select({ worldId, variantId });
   }
   return theaterEnvironments.state;
 }
+
+let ambientPlaceManager = null;
+
+worldState.subscribe(() => {
+  lastEnvironmentPreset = undefined;
+  if (currentRoomId === ROOMS.THEATER) {
+    syncTheaterEnvironment();
+  } else if (ambientPlaceManager) {
+    ambientPlaceManager.sync();
+  }
+  const sel = worldState.selection;
+  if (sel?.worldId) {
+    environmentAudio.setAmbienceProfile(sel.worldId);
+  }
+});
 
 // --- LOCAL AUDIO, SHARED EVENTS AND COMFORT (tasks 4.1–4.3) ---
 // ONE AudioContext for the whole game, created lazily on the existing Sound
@@ -341,6 +376,23 @@ function selectTheaterEnvironment(presetId) {
 // the Theater keeps its provider volume through the setMixGain seam.
 const audioMixer = createAudioMixer({});
 const environmentAudio = createEnvironmentAudio({ mixer: audioMixer });
+if (worldState.selection?.worldId) {
+  environmentAudio.setAmbienceProfile(worldState.selection.worldId);
+}
+
+ambientPlaceManager = createAmbientPlaceManager({
+  scene,
+  renderer,
+  sun,
+  hemisphere,
+  environmentAudio,
+  getWorldSelection: () => worldState.selection,
+});
+
+const destinationPrefetch = createDestinationPrefetchScheduler({
+  graphicsJobs,
+  getWorldSelection: () => worldState.selection,
+});
 
 // Comfort preferences (task 4.3): OS reduced-motion default with a local
 // override, additive storage key, session defaults when storage is
@@ -954,8 +1006,61 @@ if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
     // Theater Environment introspection (debug-only, read-only): the active
     // environment identity + counts and renderer memory/render stats used by
     // the visual loop and leak checks.
-    environment: () => theaterEnvironments.state,
+    environment: () => {
+      const envState = theaterEnvironments.state;
+      const snap = worldState.snapshot();
+      const selection = { worldId: snap.worldId, variantId: snap.variantId };
+      const currentRoomDef = districts.find(d => d.id === currentRoomId);
+      const viewId = currentRoomDef?.viewId || `place:${currentRoomId}`;
+      const plan = resolveWorldPresentation({
+        selection,
+        viewId,
+      });
+      const assets = plan?.assetIds ?? [];
+      const byteEstimate = estimateWorldAssetBytes(assets);
+      return {
+        ...envState,
+        selection,
+        actualHost: plan?.host ?? (theaterEnvironments.active ? 'theater' : 'native'),
+        appliedRevision: snap.revision,
+        fallback: plan?.fallback ?? false,
+        fallbackLevel: plan?.fallbackLevel ?? null,
+        fallbackReason: plan?.fallbackReason ?? null,
+        assets,
+        byteEstimate,
+      };
+    },
+    resolveWorldView: (worldIdOrSelection, viewId) => {
+      const selection = typeof worldIdOrSelection === 'string'
+        ? { worldId: worldIdOrSelection }
+        : (worldIdOrSelection || worldState.selection);
+      const targetView = viewId || (districts.find(d => d.id === currentRoomId)?.viewId || `place:${currentRoomId}`);
+      const plan = resolveWorldPresentation({
+        selection,
+        viewId: targetView,
+      });
+      const assets = plan?.assetIds ?? [];
+      return {
+        selection: plan.selection,
+        viewId: targetView,
+        mode: plan.mode,
+        actualHost: plan.host,
+        fallback: plan.fallback ?? false,
+        fallbackLevel: plan.fallbackLevel ?? null,
+        fallbackReason: plan.fallbackReason ?? null,
+        assets,
+        byteEstimate: estimateWorldAssetBytes(assets),
+      };
+    },
     setEnvironment: (presetId) => selectTheaterEnvironment(presetId),
+    world: () => worldState.snapshot(),
+    ambientPlace: () => ({
+      active: ambientPlaceManager?.isActive ?? false,
+      roomId: ambientPlaceManager?.activeRoomId ?? null,
+      plan: ambientPlaceManager?.currentPlan ?? null,
+    }),
+    destinationPrefetch: () => destinationPrefetch,
+    setWorld: ({ worldId, variantId, persist }) => worldState.select({ worldId, variantId, persist }),
     renderStats: () => ({
       calls: renderer.info.render.calls,
       triangles: renderer.info.render.triangles,
@@ -1003,6 +1108,14 @@ if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
       net.sendMovement(player.position.x, player.position.z, player.rotation.y, false, false);
       return [player.position.x, player.position.z];
     },
+    // Dev/test travel (behind ?debug=1 only): requests the standard place
+    // transition so automated gates can move between destinations without
+    // simulating a gate walk. Never a player feature.
+    travel: (roomId) => {
+      setRoom(roomId);
+      return currentRoomId;
+    },
+    cameraMode: () => cameraMode,
     project: (x, z) => {
       const v = new THREE.Vector3(x, 0, z).project(activeCamera);
       return [((v.x + 1) / 2) * innerWidth, ((1 - v.y) / 2) * innerHeight];
@@ -1087,8 +1200,7 @@ function presentDestination(res) {
     $('map-label').textContent = '• ' + res.def.subtitle;
     $('map-path').setAttribute('d', mapPaths[res.roomId] || mapPaths.court);
     $('world').setAttribute('aria-label', `${res.def.name} — ${res.def.description}`);
-    // The World picker belongs to the one room that has environment variants.
-    $('btn-world').hidden = res.roomId !== ROOMS.THEATER;
+    $('btn-world').hidden = false;
     toast(res.def.name, res.def.description, 'ARRIVED IN DISTRICT');
   } else {
     scene.fog.color.set('#54645d');
@@ -1101,7 +1213,7 @@ function presentDestination(res) {
     $('map-label').textContent = "• MARKET COURT 01";
     $('map-path').setAttribute('d', mapPaths.market);
     $('world').setAttribute('aria-label', 'The Market Court — a quiet square where the city paths meet');
-    $('btn-world').hidden = true;
+    $('btn-world').hidden = false;
     toast("The Market Court", "A quiet square where the city's paths meet.");
   }
 }
@@ -1163,7 +1275,6 @@ const placeRuntime = createPlaceRuntime({
         // zones and emitter anchors bind on the first frame.
         if (seam.roomId === ROOMS.THEATER) {
           lastEnvironmentPreset = undefined;
-          atmosphereController.setLocalPreset(environmentOverride);
           try {
             theaterEnvironments.sync({
               presetId: effectiveEnvironmentPreset(),
@@ -1174,6 +1285,8 @@ const placeRuntime = createPlaceRuntime({
           } catch (error) {
             console.error('[theater-environments] activation sync failed', error);
           }
+        } else if (ambientPlaceManager) {
+          ambientPlaceManager.activate(seam);
         }
         atmosphereController.activate(seam);
         // Audio + comfort ride the same activation generation (tasks 4.1/4.3):
@@ -1186,7 +1299,11 @@ const placeRuntime = createPlaceRuntime({
         controller?.activate?.(seam);
       },
       deactivate: () => {
+        if (ambientPlaceManager) {
+          ambientPlaceManager.deactivate();
+        }
         activityRuntime.deactivate();
+        activityView.revoke('travel');
         atmosphereController.deactivate();
         atmosphereStateClient.deactivate();
         // Place exit: loops stop/disconnect synchronously (well inside the
@@ -1276,21 +1393,6 @@ function setRoom(roomId) {
 const initialRoomParam = new URLSearchParams(window.location.search).get('room');
 let initialRoom = ROOMS.THEATER;
 if (initialRoomParam) initialRoom = initialRoomParam;
-
-const initialPresetParam = urlParams.get('preset');
-const initialWorldParam = urlParams.get('world');
-let initialWorldPreset = null;
-if (initialPresetParam && isEnvironmentPreset(initialPresetParam)) {
-  initialWorldPreset = initialPresetParam;
-} else if (initialWorldParam && THEATER_ENVIRONMENT_IDS.includes(initialWorldParam)) {
-  initialWorldPreset = getTheaterVariant(initialWorldParam)?.preset ?? null;
-} else {
-  initialWorldPreset = randomTheaterWorldPreset();
-}
-
-environmentOverride = initialWorldPreset;
-atmosphereController.setLocalPreset(environmentOverride);
-atmosphereStateClient.setLocalFallback(environmentOverride);
 
 setRoom(initialRoom);
 
@@ -1595,7 +1697,27 @@ function interact() {
   if (nearest?.type === 'activity') {
     const actId = nearest.activityId ?? nearest.id;
     if (actId === 'orpheum-kart-royale') {
-      startKartAttempt({ generation: activityRuntime.activeGeneration ?? 0, attemptId: Date.now(), route: 'cold' });
+      // Debug-only instrumentation: record which World presentation the
+      // attempt resolved to (selection, host, fallback, assets and labeled
+      // byte estimates) alongside the existing timing spans.
+      const kartPlan = resolveWorldPresentation({
+        selection: worldState.selection,
+        viewId: 'activity:kart-royale',
+      });
+      const kartAssets = kartPlan?.assetIds ?? [];
+      startKartAttempt({
+        generation: activityRuntime.activeGeneration ?? 0,
+        attemptId: Date.now(),
+        route: 'cold',
+        world: {
+          selection: worldState.selection,
+          appliedRevision: worldState.snapshot().revision,
+          actualHost: kartPlan?.host ?? null,
+          fallback: kartPlan?.fallback ?? false,
+          assets: kartAssets,
+          byteEstimates: estimateWorldAssetBytes(kartAssets),
+        },
+      });
       startKartSpan('interaction');
     }
     const entry = activityRuntime.enterActivity(nearest);
@@ -1688,6 +1810,7 @@ const placeSelector = createPlaceSelector({
   net,
   getDestinations: placeDestinations,
   onTravel: (roomId) => setRoom(roomId),
+  onIntent: (roomId) => destinationPrefetch?.declareIntent({ placeId: roomId }),
   onOpen: () => {
     paused = true;
     keys.clear();
@@ -1718,18 +1841,22 @@ $('btn-travel').onclick = openDistricts;
 worldSelector = createWorldSelector({
   dialog: $('world-dialog'),
   container: $('world-list'),
+  statusElement: $('world-status'),
   getActivePreset: () => effectiveEnvironmentPreset(),
+  getState: () => worldState.snapshot(),
   onSelect: (presetId) => selectTheaterEnvironment(presetId),
   onOpen: () => {
     paused = true;
     keys.clear();
     clearJumpMomentum();
+    activityRuntime.neutralizeInput?.();
     if (pointerLock.locked) pointerLock.exit();
   },
   onClose: () => {
     paused = false;
     keys.clear();
     clearJumpMomentum();
+    activityRuntime.neutralizeInput?.();
   },
   createEl: (tag) => document.createElement(tag),
 });
@@ -1739,6 +1866,13 @@ $('btn-world').onclick = () => {
 };
 $('close-world').onclick = () => worldSelector.close();
 $('world-dialog').addEventListener('cancel', (e) => { e.preventDefault(); worldSelector.close(); });
+const settingsWorldBtn = $('settings-world-button');
+if (settingsWorldBtn) {
+  settingsWorldBtn.onclick = () => {
+    $('settings-dialog').close();
+    worldSelector.open();
+  };
+}
 
 // Records & verified leaderboards (P2): local bests are machine-local and
 // honestly labeled; verified records come only from the server's referee.
@@ -1807,6 +1941,7 @@ function toggleSettings() {
   paused = !paused;
   keys.clear();
   clearJumpMomentum();
+  activityRuntime.neutralizeInput?.();
   if (paused) {
     if (pointerLock.locked) pointerLock.exit();
     $('settings-dialog').showModal();

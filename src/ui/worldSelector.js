@@ -32,8 +32,12 @@ export function createWorldSelector({
   dialog,
   // Element that receives the world cards.
   container,
+  // Optional status/feedback container for preview / session-only messaging.
+  statusElement = null,
   // () => string | null: the atmosphere preset the room currently reports.
   getActivePreset,
+  // () => object | null: optional getter for worldState snapshot
+  getState = null,
   // (presetId) => void: the optimistic local pick + room request.
   onSelect,
   // Lifecycle hooks owned by main.js: pause gameplay / hand it back.
@@ -52,6 +56,33 @@ export function createWorldSelector({
   let openState = false;
   // presetId -> variant button, rebuilt once per open so focus is stable.
   const buttons = new Map();
+
+  function updateStatus() {
+    if (!statusElement) return;
+    const state = typeof getState === 'function' ? getState() : null;
+    if (!state) {
+      statusElement.textContent = '';
+      if (typeof statusElement.setAttribute === 'function') statusElement.setAttribute('hidden', '');
+      statusElement.hidden = true;
+      return;
+    }
+    if (state.isPreview) {
+      statusElement.textContent = 'Previewing from link for this visit. Choose any variant to save it in this browser.';
+      if (typeof statusElement.setAttribute === 'function') statusElement.setAttribute('data-state', 'preview');
+      if (typeof statusElement.removeAttribute === 'function') statusElement.removeAttribute('hidden');
+      statusElement.hidden = false;
+    } else if (state.saved === false || state.storageAvailable === false) {
+      statusElement.textContent = 'Active for this visit (browser storage unavailable).';
+      if (typeof statusElement.setAttribute === 'function') statusElement.setAttribute('data-state', 'session');
+      if (typeof statusElement.removeAttribute === 'function') statusElement.removeAttribute('hidden');
+      statusElement.hidden = false;
+    } else {
+      statusElement.textContent = 'Saved in this browser. Follows you across places and games.';
+      if (typeof statusElement.setAttribute === 'function') statusElement.setAttribute('data-state', 'saved');
+      if (typeof statusElement.removeAttribute === 'function') statusElement.removeAttribute('hidden');
+      statusElement.hidden = false;
+    }
+  }
 
   function build() {
     container.textContent = '';
@@ -110,6 +141,7 @@ export function createWorldSelector({
   function select(presetId) {
     setActive(presetId);
     onSelect(presetId);
+    updateStatus();
   }
 
   function setActive(presetId) {
@@ -119,6 +151,7 @@ export function createWorldSelector({
       if (active) button.classList.add('active');
       else button.classList.remove('active');
     }
+    updateStatus();
   }
 
   function open() {
@@ -127,6 +160,7 @@ export function createWorldSelector({
     build();
     const activePreset = getActivePreset();
     setActive(activePreset);
+    updateStatus();
     if (typeof onOpen === 'function') onOpen();
     dialog.showModal();
     const active = buttons.get(activePreset);
@@ -145,6 +179,7 @@ export function createWorldSelector({
     close,
     select,
     setActive,
+    updateStatus,
     isOpen: () => openState,
     /** The preset the dialog currently highlights (for tests/tools). */
     activePreset: () => {

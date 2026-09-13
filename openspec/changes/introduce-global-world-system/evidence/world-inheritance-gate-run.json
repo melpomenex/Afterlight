@@ -1,0 +1,42 @@
+{
+  "gate": "world-inheritance",
+  "change": "introduce-global-world-system",
+  "label": "run",
+  "generatedAt": "2026-09-13T16:38:08.124Z",
+  "app": "http://localhost:5173/?debug=1&room=theater",
+  "passes": 7,
+  "failures": 0,
+  "checks": {
+    "passes": [
+      {
+        "name": "context-loss: WEBGL_lose_context is available",
+        "detail": "true"
+      },
+      {
+        "name": "context-loss: context recovers with the same World",
+        "detail": "world=cloud rev 2->2 calls=1"
+      },
+      {
+        "name": "context-loss: environment host still active after restore",
+        "detail": "{\"host\":\"self\",\"fallback\":false}"
+      },
+      {
+        "name": "rapid: latest of four rapid choices is the applied World",
+        "detail": "{\"variantId\":\"firefly\",\"worldId\":\"redwood\"}"
+      },
+      {
+        "name": "rapid: applied palette matches the recorded final World",
+        "detail": "#495552 vs #495552"
+      },
+      {
+        "name": "rapid: no extra WebGL canvas or host leaked",
+        "detail": "canvases=1"
+      },
+      {
+        "name": "rapid: zero page errors",
+        "detail": ""
+      }
+    ],
+    "failures": []
+  }
+}

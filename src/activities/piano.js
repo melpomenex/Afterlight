@@ -185,6 +185,12 @@ export function createPianoInstance({
 export const PianoModule = {
   initialize: createPianoInstance,
   createInstance: createPianoInstance,
+  worldSupport: {
+    mode: 'full',
+    host: 'parent',
+    slots: [],
+    adapterKey: null,
+  },
 };
 
 registerActivityModule('piano', PianoModule);

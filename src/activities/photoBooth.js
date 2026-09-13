@@ -156,6 +156,12 @@ export function createPhotoBoothInstance({
 export const PhotoBoothModule = {
   initialize: createPhotoBoothInstance,
   createInstance: createPhotoBoothInstance,
+  worldSupport: {
+    mode: 'full',
+    host: 'parent',
+    slots: [],
+    adapterKey: null,
+  },
 };
 
 registerActivityModule('photo-booth', PhotoBoothModule);

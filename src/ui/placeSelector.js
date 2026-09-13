@@ -54,6 +54,8 @@ export function createPlaceSelector({
   getDestinations,
   // (roomId) => void: close has already run when this fires.
   onTravel,
+  // (roomId) => void: fires on hover or focus to signal travel intent.
+  onIntent = null,
   // Lifecycle hooks owned by main.js: pause gameplay / hand it back.
   onOpen = null,
   onClose = null,
@@ -237,6 +239,8 @@ export function createPlaceSelector({
     button.append(weather);
 
     button.onclick = () => { close(); onTravel(destination.roomId); };
+    button.addEventListener('pointerenter', () => { onIntent?.(destination.roomId); });
+    button.addEventListener('focus', () => { onIntent?.(destination.roomId); });
     return { button, countEl: count, activityEl: activity, weatherEl: weather };
   }
 

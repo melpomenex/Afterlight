@@ -563,6 +563,12 @@ export const PongModule = Object.freeze({
   initialize(options) {
     return createPongInstance(options);
   },
+  worldSupport: {
+    mode: 'none',
+    host: 'parent',
+    slots: [],
+    adapterKey: null,
+  },
 });
 
 // Auto-register Pong module with the client activity registry
