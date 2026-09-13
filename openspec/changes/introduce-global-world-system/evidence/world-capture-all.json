@@ -1,7 +1,7 @@
 {
   "label": "all",
   "app": "http://localhost:5273/?debug=1&room=theater",
-  "generatedAt": "2026-09-13T19:07:19.110Z",
+  "generatedAt": "2026-09-13T20:41:29.380Z",
   "shots": [
     {
       "file": "openspec/changes/introduce-global-world-system/evidence/screenshots/all-dialog-places-narrow.png",

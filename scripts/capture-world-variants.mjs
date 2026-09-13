@@ -278,44 +278,34 @@ async function enterActivity(s, { x, z, liveScript, tries = 8 }) {
   await sleep(400);
   await js(s, `return window.__afterlight.tp(${x}, ${z});`);
   await sleep(700);
-  let state = 'idle';
-  for (let attempt = 1; attempt <= tries && state === 'idle'; attempt++) {
-    await tap(s, 'KeyE', 90);
-    for (let i = 0; i < 10; i++) {
-      state = await js(s, `return window.__afterlight.participation();`);
-      if (state !== 'idle') break;
+
+  // Keep pressing E whenever the seat is idle until the game is actually
+  // live: the cabinet can still be in a previous session's disconnect grace,
+  // which grants then revokes the seat, so one press is not enough.
+  let lastDiag = null;
+  for (let attempt = 1; attempt <= tries; attempt++) {
+    const state = await js(s, `return window.__afterlight.participation();`);
+    if (state === 'idle') {
+      await tap(s, 'KeyE', 90);
+      await sleep(2000);
+    }
+    try {
+      await waitFor(s, liveScript, 20000, 'activity live');
+      await sleep(1500);
+      return 'live';
+    } catch {
       const toast = await js(s, `return (document.getElementById('toast-body')?.textContent || '');`).catch(() => '');
-      if (/full/i.test(toast)) {
-        await sleep(9000);
-        break;
-      }
-      await sleep(1800);
+      lastDiag = await js(s, `return {
+        toast: (document.getElementById('toast-body')?.textContent || ''),
+        participation: window.__afterlight.participation(),
+        racing: document.body.classList.contains('kr-racing'),
+        errors: (window.__gateLogs || []).slice(-5).join(' || '),
+      };`).catch(() => null);
+      if (/full/i.test(toast)) await sleep(6000);
+      else await sleep(2000);
     }
   }
-  if (state === 'idle') {
-    const diag = await js(s, `return {
-      prompt: (document.getElementById('action-title')?.textContent || '') + ' || ' + (document.getElementById('action-sub')?.textContent || ''),
-      toast: (document.getElementById('toast-body')?.textContent || ''),
-      pos: window.__afterlight.player(),
-      camera: window.__afterlight.cameraMode(),
-      watching: document.body.classList.contains('theater-watching'),
-      participation: window.__afterlight.participation(),
-    };`).catch(() => null);
-    throw new Error(`E at the cabinet did not start participation: ${JSON.stringify(diag)}`);
-  }
-  try {
-    await waitFor(s, liveScript, 300000, 'activity live');
-  } catch (err) {
-    const diag = await js(s, `return {
-      toast: (document.getElementById('toast-body')?.textContent || ''),
-      participation: window.__afterlight.participation(),
-      racing: document.body.classList.contains('kr-racing'),
-      errors: (window.__gateLogs || []).slice(-5).join(' || '),
-    };`).catch(() => null);
-    throw new Error(`${err.message}; diag=${JSON.stringify(diag)}`);
-  }
-  await sleep(1500);
-  return state;
+  throw new Error(`activity never reached live; last=${JSON.stringify(lastDiag)}`);
 }
 
 async function captureAdapterWorlds(s, { game, selectionScript }) {
