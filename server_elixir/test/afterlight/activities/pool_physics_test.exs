@@ -272,4 +272,101 @@ defmodule Afterlight.Activities.PoolPhysicsTest do
       assert cue["wy"] == 0.0
     end
   end
+
+  # convincing-billiards-audio: additive presentation metadata. These cases
+  # mirror tests/pool-physics.test.js op-for-op — the two engines must stamp
+  # identical event identity (shot/step/t), positions and pre-impact speeds.
+  describe "presentation metadata (convincing-billiards-audio)" do
+    defp meta_ball(id, x, z, vx \\ 0.0, vz \\ 0.0) do
+      %{"id" => id, "x" => x, "z" => z, "vx" => vx, "vz" => vz, "wx" => 0.0, "wz" => 0.0, "wy" => 0.0, "state" => "in_play"}
+    end
+
+    test "strike stamps monotonic shot identity and shot clock" do
+      table = %{
+        "balls" => %{"0" => meta_ball(0, -0.6, 0.0), "1" => meta_ball(1, 0.6, 0.0)},
+        "settled" => true,
+        "events" => [],
+        "tick" => 0
+      }
+
+      shot1 = Physics.strike_cue_ball(table, 0.0, 3.0, 0.0, 0.0)
+      assert shot1["shot"] == 1
+      assert shot1["shotTime"] == 0.0
+      shot2 = Physics.strike_cue_ball(shot1, 0.0, 3.0, 0.0, 0.0)
+      assert shot2["shot"] == 2
+    end
+
+    test "collision events carry shot/step/t identity and contact midpoint" do
+      table =
+        %{
+          "balls" => %{"0" => meta_ball(0, -0.3, 0.0), "1" => meta_ball(1, 0.0, 0.0)},
+          "settled" => true,
+          "events" => [],
+          "tick" => 4
+        }
+        |> Physics.strike_cue_ball(0.0, 2.0, 0.0, 0.0)
+
+      {collision, _final} =
+        Enum.reduce_while(1..30, {nil, table}, fn _i, {found, acc} ->
+          {next, events} = Physics.step(acc, 1.0 / 60.0)
+          hit = Enum.find(events, fn e -> e["type"] == "ball_collision" end)
+          if hit, do: {:halt, {hit, next}}, else: {:cont, {found, next}}
+        end)
+
+      assert collision != nil
+      assert collision["shot"] == 1
+      assert collision["step"] != nil and collision["step"] > 4
+      assert is_number(collision["t"]) and collision["t"] >= 0
+      assert abs(collision["x"]) < 0.2 and abs(collision["z"]) < 0.2
+      assert collision["speed"] > 0
+    end
+
+    test "rail events carry pre-impact normal speed and clamped contact position" do
+      table = %{
+        "balls" => %{"0" => meta_ball(0, 1.08, 0.0, 1.5, 0.0)},
+        "settled" => false,
+        "events" => [],
+        "tick" => 0,
+        "shot" => 7,
+        "shotTime" => 0.25
+      }
+
+      {rail, final} =
+        Enum.reduce_while(1..10, {nil, table}, fn _i, {found, acc} ->
+          {next, events} = Physics.step(acc, 1.0 / 60.0)
+          hit = Enum.find(events, fn e -> e["type"] == "rail_collision" end)
+          if hit, do: {:halt, {hit, next}}, else: {:cont, {found, next}}
+        end)
+
+      assert rail != nil
+      assert rail["rail"] == "foot"
+      assert_in_delta rail["speed"], 1.5, 0.05
+      assert_in_delta rail["x"], 1.12 - 0.0285, 1.0e-9
+      assert rail["shot"] == 7
+      assert rail["step"] == final["tick"] || rail["step"] == final["tick"] - 1
+    end
+
+    test "pocket events carry pocket center position and capture speed" do
+      table = %{
+        "balls" => %{"0" => meta_ball(0, 1.05, 0.5, 1.2, 0.4)},
+        "settled" => false,
+        "events" => [],
+        "tick" => 0
+      }
+
+      {pocket, _final} =
+        Enum.reduce_while(1..30, {nil, table}, fn _i, {found, acc} ->
+          {next, events} = Physics.step(acc, 1.0 / 60.0)
+          hit = Enum.find(events, fn e -> e["type"] == "pocketed" end)
+          if hit, do: {:halt, {hit, next}}, else: {:cont, {found, next}}
+        end)
+
+      assert pocket != nil
+      assert pocket["pocketId"] == "corner_br"
+      assert pocket["x"] == 1.12
+      assert pocket["z"] == 0.56
+      assert is_number(pocket["speed"]) and pocket["speed"] >= 0
+      assert is_number(pocket["t"])
+    end
+  end
 end

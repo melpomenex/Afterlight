@@ -214,3 +214,105 @@ test('pool physics: settling detection zeroes micro-velocities', () => {
   assert.equal(table.balls['0'].wz, 0.0);
   assert.equal(table.balls['0'].wy, 0.0);
 });
+
+// convincing-billiards-audio: additive presentation metadata. These cases are
+// mirrored op-for-op in server_elixir/test/afterlight/activities/pool_physics_test.exs
+// — the two engines must stamp identical event identity (shot/step/t),
+// positions and pre-impact speeds.
+
+function metaBall(id, x, z, vx = 0, vz = 0) {
+  return { id, x, z, vx, vz, wx: 0.0, wz: 0.0, wy: 0.0, state: 'in_play' };
+}
+
+test('pool physics: strike stamps monotonic shot identity and shot clock', () => {
+  const table = {
+    balls: { '0': metaBall(0, -0.6, 0), '1': metaBall(1, 0.6, 0) },
+    settled: true,
+    events: [],
+    tick: 0,
+  };
+
+  const shot1 = strikeCueBall(table, 0, 3, 0, 0);
+  assert.equal(shot1.shot, 1);
+  assert.equal(shot1.shotTime, 0.0);
+  const shot2 = strikeCueBall(shot1, 0, 3, 0, 0);
+  assert.equal(shot2.shot, 2, 'shot identity increments per strike');
+});
+
+test('pool physics: collision events carry shot/step/t identity and contact midpoint', () => {
+  let table = strikeCueBall(
+    {
+      balls: { '0': metaBall(0, -0.3, 0, 0, 0), '1': metaBall(1, 0.0, 0) },
+      settled: true,
+      events: [],
+      tick: 4,
+    },
+    0,
+    2.0,
+    0,
+    0,
+  );
+
+  let collision = null;
+  for (let i = 0; i < 30 && !collision; i++) {
+    const res = step(table, 1 / 60);
+    table = res.state;
+    collision = res.events.find((e) => e.type === 'ball_collision') || null;
+  }
+
+  assert.ok(collision, 'head-on shot must collide');
+  assert.equal(collision.shot, 1, 'collision carries the strike identity');
+  assert.equal(collision.step, table.tick, 'collision step is the step tick that produced it');
+  assert.ok(Number.isFinite(collision.t) && collision.t >= 0, 'collision t is a finite shot time');
+  assert.ok(Math.abs(collision.x) < 0.2 && Math.abs(collision.z) < 0.2, 'contact midpoint is on the table');
+  assert.ok(collision.speed > 0, 'closing speed is present');
+});
+
+test('pool physics: rail events carry pre-impact normal speed and clamped contact position', () => {
+  let table = {
+    balls: { '0': metaBall(0, 1.08, 0.0, 1.5, 0) },
+    settled: false,
+    events: [],
+    tick: 0,
+    shot: 7,
+    shotTime: 0.25,
+  };
+
+  let rail = null;
+  for (let i = 0; i < 10 && !rail; i++) {
+    const res = step(table, 1 / 60);
+    table = res.state;
+    rail = res.events.find((e) => e.type === 'rail_collision') || null;
+  }
+
+  assert.ok(rail, 'ball heading into the foot cushion must bounce');
+  assert.equal(rail.rail, 'foot');
+  assert.ok(Math.abs(rail.speed - 1.5) < 0.05, `pre-impact speed preserved (got ${rail.speed})`);
+  assert.ok(Math.abs(rail.x - (HALF_LENGTH - BALL_RADIUS)) < 1e-9, 'contact x is the clamped cushion plane');
+  assert.equal(rail.shot, 7, 'legacy-extended state keeps its shot id');
+  assert.equal(rail.step, table.tick);
+});
+
+test('pool physics: pocket events carry pocket center position and capture speed', () => {
+  let table = {
+    balls: { '0': metaBall(0, 1.05, 0.5, 1.2, 0.4) },
+    settled: false,
+    events: [],
+    tick: 0,
+  };
+
+  let pocket = null;
+  for (let i = 0; i < 30 && !pocket; i++) {
+    const res = step(table, 1 / 60);
+    table = res.state;
+    pocket = res.events.find((e) => e.type === 'pocketed') || null;
+  }
+
+  assert.ok(pocket, 'ball entering the corner must be captured');
+  assert.equal(pocket.pocketId, 'corner_br');
+  const cornerBr = POCKETS.find((p) => p.id === 'corner_br');
+  assert.equal(pocket.x, cornerBr.x, 'position falls back to the pocket center');
+  assert.equal(pocket.z, cornerBr.z);
+  assert.ok(Number.isFinite(pocket.speed) && pocket.speed >= 0, 'capture speed present');
+  assert.ok(Number.isFinite(pocket.t), 'pocket t is stamped');
+});

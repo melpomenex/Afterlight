@@ -178,21 +178,37 @@ defmodule Afterlight.Activities.Pool.Physics do
           "wy" => wy
       }
 
-      %{
-        state
-        | "balls" => Map.put(balls, "0", updated_cue),
-          "settled" => false,
-          "events" => []
-      }
+      # Presentation metadata (convincing-billiards-audio): monotonic shot
+      # identity plus the shot-local simulation clock, mirrored op-for-op
+      # with shared/pool/physics.js. Map.put (not |) — the keys are additive
+      # and may be absent on legacy states.
+      shot = (if is_integer(state["shot"]), do: state["shot"], else: 0) + 1
+
+      state
+      |> Map.put("balls", Map.put(balls, "0", updated_cue))
+      |> Map.put("settled", false)
+      |> Map.put("events", [])
+      |> Map.put("shot", shot)
+      |> Map.put("shotTime", 0.0)
     end
   end
 
   @doc """
   Steps the pool physics by delta_sec (typically 1/60s = 0.01667s).
   Returns `{updated_state, step_events}`.
+
+  Events carry additive presentation metadata (convincing-billiards-audio):
+  `"shot"` (monotonic strike identity, nil on legacy states), `"step"` (this
+  step's tick) and `"t"` (seconds since the strike, substep-resolved), plus
+  impact positions and pre-impact speeds. Mirrored op-for-op with
+  shared/pool/physics.js; physical calculations are unchanged.
   """
   def step(state, delta_sec \\ 0.016667) do
     balls = state["balls"]
+
+    shot = if is_integer(state["shot"]), do: state["shot"], else: nil
+    base_shot_time = if is_number(state["shotTime"]), do: state["shotTime"], else: 0.0
+    new_tick = state["tick"] + 1
 
     # Check if any ball is currently moving
     active_balls = Enum.filter(balls, fn {_id, b} -> b["state"] == "in_play" end)
@@ -214,7 +230,7 @@ defmodule Afterlight.Activities.Pool.Physics do
         state
         | "balls" => settled_balls,
           "settled" => true,
-          "tick" => state["tick"] + 1,
+          "tick" => new_tick,
           "events" => []
       }
 
@@ -227,8 +243,9 @@ defmodule Afterlight.Activities.Pool.Physics do
 
       # Execute substeps
       {final_balls, accumulated_events} =
-        Enum.reduce(1..substeps, {balls, []}, fn _sub, {curr_balls, evts} ->
-          substep_step(curr_balls, dt_sub, evts)
+        Enum.reduce(1..substeps, {balls, []}, fn sub, {curr_balls, evts} ->
+          stamp = %{"shot" => shot, "step" => new_tick, "t" => base_shot_time + sub * dt_sub}
+          substep_step(curr_balls, dt_sub, evts, stamp)
         end)
 
       # Check settling after substeps
@@ -250,20 +267,20 @@ defmodule Afterlight.Activities.Pool.Physics do
           final_balls
         end
 
-      updated_state = %{
+      updated_state =
         state
-        | "balls" => updated_balls,
-          "settled" => is_settled,
-          "tick" => state["tick"] + 1,
-          "events" => accumulated_events
-      }
+        |> Map.put("balls", updated_balls)
+        |> Map.put("settled", is_settled)
+        |> Map.put("tick", new_tick)
+        |> Map.put("shotTime", base_shot_time + delta_sec)
+        |> Map.put("events", accumulated_events)
 
       {updated_state, accumulated_events}
     end
   end
 
   # Performs a single substep (motion, friction, pockets, cushions, ball-ball collisions)
-  defp substep_step(balls, dt, events) do
+  defp substep_step(balls, dt, events, stamp) do
     # 1. Apply friction (sliding vs rolling) & advance linear positions
     {moved_balls, _} =
       Enum.reduce(balls, {%{}, events}, fn {id, b}, {acc_balls, acc_evts} ->
@@ -293,11 +310,18 @@ defmodule Afterlight.Activities.Pool.Physics do
                   "wy" => 0.0
               }
 
-              evt = %{
-                "type" => "pocketed",
-                "ballId" => b["id"],
-                "pocketId" => pocket_id
-              }
+              pocket = Enum.find(@pockets, fn p -> p["id"] == pocket_id end)
+
+              evt =
+                %{
+                  "type" => "pocketed",
+                  "ballId" => b["id"],
+                  "pocketId" => pocket_id,
+                  "speed" => :math.sqrt(b["vx"] * b["vx"] + b["vz"] * b["vz"]),
+                  "x" => if(pocket, do: pocket["x"], else: b["x"]),
+                  "z" => if(pocket, do: pocket["z"], else: b["z"])
+                }
+                |> Map.merge(stamp)
 
               {Map.put(acc_balls, id, pocketed_b), [evt | p_evts]}
 
@@ -314,13 +338,14 @@ defmodule Afterlight.Activities.Pool.Physics do
           {Map.put(acc_balls, id, b), r_evts}
         else
           {b_after, maybe_rail} = resolve_cushions(b)
-          acc_r = if maybe_rail, do: [maybe_rail | r_evts], else: r_evts
+          acc_r = if maybe_rail, do: [Map.merge(maybe_rail, stamp) | r_evts], else: r_evts
           {Map.put(acc_balls, id, b_after), acc_r}
         end
       end)
 
     # 4. Resolve ball-ball collisions
     {final_balls, collision_evts} = resolve_ball_collisions(cushion_balls)
+    collision_evts = Enum.map(collision_evts, &Map.merge(&1, stamp))
 
     new_events = events ++ pocket_evts ++ rail_evts ++ collision_evts
     {final_balls, new_events}
@@ -451,19 +476,21 @@ defmodule Afterlight.Activities.Pool.Physics do
         cond do
           x < min_x and vx < 0 ->
             # Head cushion bounce
+            pre_speed = abs(vx)
             deflect_z = wy * @cushion_spin_factor * abs(vx)
             new_vx = -vx * @rail_restitution
             new_vz = vz + deflect_z
             {%{b | "x" => min_x, "vx" => new_vx, "vz" => new_vz, "wy" => wy * 0.7},
-             %{"type" => "rail_collision", "ballId" => b["id"], "rail" => "head"}}
+             %{"type" => "rail_collision", "ballId" => b["id"], "rail" => "head", "speed" => pre_speed, "x" => min_x, "z" => z}}
 
           x > max_x and vx > 0 ->
             # Foot cushion bounce
+            pre_speed = abs(vx)
             deflect_z = -wy * @cushion_spin_factor * abs(vx)
             new_vx = -vx * @rail_restitution
             new_vz = vz + deflect_z
             {%{b | "x" => max_x, "vx" => new_vx, "vz" => new_vz, "wy" => wy * 0.7},
-             %{"type" => "rail_collision", "ballId" => b["id"], "rail" => "foot"}}
+             %{"type" => "rail_collision", "ballId" => b["id"], "rail" => "foot", "speed" => pre_speed, "x" => max_x, "z" => z}}
 
           true ->
             {b, nil}
@@ -477,18 +504,36 @@ defmodule Afterlight.Activities.Pool.Physics do
 
       cond do
         z1 < min_z and vz1 < 0 ->
+          pre_speed = abs(vz1)
           deflect_x = -wy1 * @cushion_spin_factor * abs(vz1)
           new_vz = -vz1 * @rail_restitution
           new_vx = vx1 + deflect_x
           {%{b1 | "z" => min_z, "vz" => new_vz, "vx" => new_vx, "wy" => wy1 * 0.7},
-           evt_x || %{"type" => "rail_collision", "ballId" => b["id"], "rail" => "left"}}
+           evt_x ||
+             %{
+               "type" => "rail_collision",
+               "ballId" => b["id"],
+               "rail" => "left",
+               "speed" => pre_speed,
+               "x" => b1["x"],
+               "z" => min_z
+             }}
 
         z1 > max_z and vz1 > 0 ->
+          pre_speed = abs(vz1)
           deflect_x = wy1 * @cushion_spin_factor * abs(vz1)
           new_vz = -vz1 * @rail_restitution
           new_vx = vx1 + deflect_x
           {%{b1 | "z" => max_z, "vz" => new_vz, "vx" => new_vx, "wy" => wy1 * 0.7},
-           evt_x || %{"type" => "rail_collision", "ballId" => b["id"], "rail" => "right"}}
+           evt_x ||
+             %{
+               "type" => "rail_collision",
+               "ballId" => b["id"],
+               "rail" => "right",
+               "speed" => pre_speed,
+               "x" => b1["x"],
+               "z" => max_z
+             }}
 
         true ->
           {b1, evt_x}
@@ -547,7 +592,9 @@ defmodule Afterlight.Activities.Pool.Physics do
               "type" => "ball_collision",
               "ballA" => ba["id"],
               "ballB" => bb["id"],
-              "speed" => abs(rel_v_norm)
+              "speed" => abs(rel_v_norm),
+              "x" => (ba["x"] + bb["x"]) / 2,
+              "z" => (ba["z"] + bb["z"]) / 2
             }
 
             acc_updated =

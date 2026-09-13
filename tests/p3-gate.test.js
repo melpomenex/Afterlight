@@ -179,68 +179,70 @@ test('3. P3 Gate: camera modes (standing, cue, overhead) and reduced-motion supp
   assert.equal(poolCam.active, false);
 });
 
-test('4. P3 Gate: positional audio and collision event deduplication', () => {
-  let createdNodes = 0;
+test('4. P3 Gate: positional audio through the shared bus and collision event deduplication', async () => {
+  // convincing-billiards-audio replaced the oscillator stand-ins with the
+  // sample engine: output exists ONLY through the shared mixer effects bus,
+  // and duplicate contacts are deduplicated by shot-scoped identity (not
+  // wall-clock pair cooldowns).
+  let sourceNodes = 0;
   const mockAudioContext = {
     currentTime: 1.0,
     state: 'running',
     sampleRate: 44100,
-    destination: {},
-    createGain: () => {
-      createdNodes++;
+    decodeAudioData: () => Promise.resolve({ duration: 0.2 }),
+    createGain: () => ({ gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, setTargetAtTime() {}, cancelScheduledValues() {} }, connect() {}, disconnect() {} }),
+    createStereoPanner: () => ({ pan: { value: 0, setValueAtTime() {}, setTargetAtTime() {} }, connect() {}, disconnect() {} }),
+    createDynamicsCompressor: () => ({ threshold: { value: 0 }, knee: { value: 0 }, ratio: { value: 0 }, attack: { value: 0 }, release: { value: 0 }, connect() {}, disconnect() {} }),
+    createBufferSource: () => {
+      sourceNodes += 1;
       return {
-        gain: {
-          value: 1,
-          setValueAtTime() {},
-          exponentialRampToValueAtTime() {},
-        },
-        connect() {},
+        buffer: null, loop: false, started: false, onended: null,
+        playbackRate: { value: 1, setTargetAtTime() {} },
+        connect() {}, disconnect() {}, start() { this.started = true; }, stop() {},
       };
     },
-    createOscillator: () => {
-      createdNodes++;
-      return {
-        type: 'sine',
-        frequency: {
-          setValueAtTime() {},
-          exponentialRampToValueAtTime() {},
-        },
-        connect() {},
-        start() {},
-        stop() {},
-      };
-    },
+    createOscillator: () => ({ type: 'sine', frequency: { setValueAtTime() {}, linearRampToValueAtTime() {} }, connect() {}, start() {}, stop() {}, onended: null }),
   };
+
+  const fetchImpl = async (url) => ({ ok: true, arrayBuffer: async () => ({}) });
 
   const audio = createPoolAudio({
     audioMixer: { context: mockAudioContext, buses: { effects: {} } },
     getPlayer: () => ({ position: { x: -8.6, y: 0, z: -4.5 } }), // Player at table
     tablePosition: [-8.6, 0, -4.5],
+    fetchImpl,
   });
+  audio.activate();
+  audio.updateMovement({ physics: { balls: {} } });
+  await new Promise((r) => setTimeout(r, 10));
+  audio.updateMovement({ physics: { balls: {} } });
 
-  // 1. Play cue strike
-  audio.playCueStrike(0.8);
-  assert.ok(createdNodes >= 2, 'cue strike created audio nodes');
+  // 1. Shooter's cue strike presents through the shared graph
+  audio.scopeShot({ shot: 1, status: 'aiming' });
+  assert.equal(audio.localCueStrike(0.8), true, 'cue strike played');
 
-  // 2. Play ball hit and verify deduplication
-  const countBefore = createdNodes;
-  audio.playBallHit(1, 2, 1.5);
-  assert.ok(createdNodes > countBefore, 'ball hit played');
+  audio.scopeShot({ shot: 1, status: 'shooting' });
 
-  // Rapid immediate re-collision of the same pair (< 45ms) should be deduplicated
-  const countAfterFirst = createdNodes;
-  audio.playBallHit(1, 2, 1.4);
-  assert.equal(createdNodes, countAfterFirst, 'second rapid collision for same pair was deduplicated');
+  // 2. A presented contact, then its duplicate copy: heard once
+  const ev = { type: 'ball_collision', ballA: 1, ballB: 2, speed: 1.5, x: 0, z: 0, shot: 1, t: 0.1 };
+  assert.equal(audio.presentPredicted([ev]), 1, 'first contact plays');
+  const sourcesAfterFirst = sourceNodes;
+  assert.equal(audio.presentAuthoritative([{ ...ev, speed: 1.4 }]), 0,
+    'the reconciled copy of the same contact is deduplicated');
+  assert.equal(sourceNodes, sourcesAfterFirst, 'no extra voice for the duplicate');
 
-  // Collision with different pair is allowed
-  audio.playBallHit(2, 3, 1.0);
-  assert.ok(createdNodes > countAfterFirst, 'collision for different pair was played');
+  // Collision with a different pair is allowed
+  assert.equal(audio.presentAuthoritative([
+    { type: 'ball_collision', ballA: 2, ballB: 3, speed: 1.0, x: 0, z: 0, shot: 1, t: 0.4 },
+  ]), 1, 'collision for a different pair is played');
 
-  // 3. Play rail bounce and pocket drop
-  audio.playRailBounce(1.2);
-  audio.playPocketDrop();
-  audio.playFoulTone();
-  assert.ok(createdNodes >= 10);
+  // 3. Rail and pocket contacts present through their families
+  const presented = audio.presentPredicted([
+    { type: 'rail_collision', ballId: 0, rail: 'head', speed: 1.2, shot: 1, t: 0.6 },
+    { type: 'pocketed', ballId: 4, pocketId: 'corner_br', speed: 2, shot: 1, t: 0.8 },
+  ]);
+  assert.equal(presented, 2, 'rail and pocket contacts play');
+  audio.playFoulTone(); // restrained synth feedback still works
 });
 
 test('5. P3 Gate: live Orpheum coexistence, spectator area, and 100% unobstructed screen sightlines', () => {

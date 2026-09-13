@@ -1,0 +1,38 @@
+{
+  "label": "final",
+  "app": "http://localhost:5273/?room=theater&debug=1",
+  "at": "2026-09-13T18:46:50.281Z",
+  "passes": [
+    "p1: transport connected",
+    "p1: stepped out of cinema view",
+    "p1: sound toggle flipped on",
+    "p1: E near the table participates at the billiards table",
+    "p1: palette fetched (17 files, 200s)",
+    "p1: soft shot fired",
+    "p1: soft shot plays exactly one cue strike",
+    "p1: soft shot produces ball contacts",
+    "p1: cloth movement loop played",
+    "p1: no console errors",
+    "p2: 24-voice max-density break stays unclipped",
+    "p2: break render is audible (not crushed to silence)",
+    "p2: listenable offline evidence saved",
+    "p2: transport connected (distinct identity)",
+    "p3: break stroke fired (seated player)",
+    "p3: third stroke fired (seated player)",
+    "p1: hard break is denser than the soft shot",
+    "p3: spectator hears the strokes",
+    "p3: spectator hears exactly one witness cue (first stroke baselines, second is witnessed)",
+    "p3: shooter hears one cue per stroke",
+    "p4: effects volume 0 still presents but rides a zero effects bus",
+    "p4: sound-denied load stays silent (no transient voices)",
+    "p4: gameplay works without audio",
+    "p4: later enable loads the palette and only then sounds",
+    "p4: travel subject fired a stroke",
+    "p4: returning to the table reuses cached buffers (no re-fetch)"
+  ],
+  "failures": [
+    "p1: transient voices released after settle",
+    "p4: travel stops table audio quickly (≤2 s, spec 200 ms target)",
+    "gate crashed"
+  ]
+}

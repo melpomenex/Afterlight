@@ -49,12 +49,21 @@ export function createPoolInstance({
     world.group.add(tableScene.group);
   }
 
-  // 2. Positional Audio
+  // 2. Positional Audio (convincing-billiards-audio): the sample engine owns
+  // normalization/reconciliation internally; this instance feeds it the four
+  // ingestion paths (prediction steps, snapshots, activity events, the local
+  // cue animation) and stays a presentation layer over the sim. The runtime
+  // hands the mixer over as a lazy accessor — resolve it once like the other
+  // hosted activities do.
+  const mixer = typeof audioMixer === 'function' ? audioMixer() : audioMixer;
   const audio = createPoolAudio({
-    audioMixer,
+    audioMixer: mixer,
     getPlayer,
     tablePosition: pos,
+    tableRotationY: rotY,
+    getActiveCamera,
   });
+  audio.activate();
 
   // 3. Camera Controller
   const camera = createPoolCamera({
@@ -75,6 +84,9 @@ export function createPoolInstance({
   let mySlot = 0;
   let seq = 1;
   let strokeAnim = null;
+  // First snapshot after activation baselines audio (join/reconnect) instead
+  // of replaying the snapshot's historical events.
+  let hasBaselineSnapshot = false;
 
   // Initial balls placement
   tableScene.updateBalls(simState, 1.0);
@@ -265,11 +277,15 @@ export function createPoolInstance({
       if (ballsMoving) {
         const { state: nextSim, events } = rulesStep(simState, Math.min(delta, 0.05));
         simState = nextSim;
-        audio.playEvents(events);
+        audio.presentPredicted(events);
         tableScene.updateBalls(simState, 0.85);
       } else {
         tableScene.updateBalls(simState, 1.0);
       }
+
+      // Cloth movement follows the visible balls every frame (fades to
+      // silence after settling) and opportunistically loads the palette.
+      audio.updateMovement(simState);
 
       // Update aiming guides and cue position
       const balls = simState?.physics?.balls || {};
@@ -287,7 +303,7 @@ export function createPoolInstance({
 
         if (!strokeAnim.impactFired && strokeOffset >= pullBack0) {
           strokeAnim.impactFired = true;
-          audio.playCueStrike(strokeAnim.power);
+          audio.localCueStrike(strokeAnim.power);
         }
 
         tableScene.updateAimGuides({ visible: false });
@@ -365,33 +381,43 @@ export function createPoolInstance({
       if (sim && (sim.physics || sim.turn != null || Number.isInteger(sim.turn))) {
         // Shots start on the server. Accept moving snapshots too, then
         // advance their physics between updates in the frame loop.
+        const firstSnapshot = !hasBaselineSnapshot;
+        hasBaselineSnapshot = true;
+        const authoritativeEvents = Array.isArray(sim.physics?.events) ? sim.physics.events : [];
+        const cueBall = sim.physics?.balls?.['0'];
+        const cueBallSpeed = cueBall
+          ? Math.sqrt((cueBall.vx || 0) ** 2 + (cueBall.vz || 0) ** 2)
+          : null;
+
+        // Reconciliation scope follows the AUTHORITATIVE status only; the
+        // local prediction may resolve a shot early and must not clear the
+        // shot's contact history mid-flight.
+        audio.scopeShot({ shot: sim.physics?.shot ?? null, status: sim.status ?? null });
+        if (firstSnapshot) {
+          // Joining (or reconnecting): watermark the snapshot's historical
+          // events and the in-progress cue instead of replaying them.
+          audio.baselineAuthoritative(authoritativeEvents);
+        } else {
+          audio.presentAuthoritative(authoritativeEvents);
+        }
+        audio.observedSim({
+          status: sim.status ?? null,
+          shot: sim.physics?.shot ?? null,
+          cueBallSpeed,
+        });
+
         simState = sim;
         tableScene.updateBalls(simState, 0.9);
-
-        // Play events from snapshot if present
-        if (Array.isArray(sim.physics?.events)) {
-          audio.playEvents(sim.physics.events);
-        }
       }
     },
 
     /**
-     * Accepts server activity event.
+     * Accepts server activity event. (Phoenix broadcasts only match-level
+     * events for pool today; contact types stay supported for compat.)
      */
     acceptEvent(frame) {
       if (!frame) return;
-      const ev = frame.payload || frame.event;
-      if (!ev) return;
-
-      if (ev.type === 'foul') {
-        audio.playFoulTone();
-      } else if (ev.type === 'ball_collision') {
-        audio.playBallHit(ev.ballA, ev.ballB, ev.relativeSpeed || 1.0);
-      } else if (ev.type === 'rail_collision') {
-        audio.playRailBounce(ev.speed || 1.0);
-      } else if (ev.type === 'pocket') {
-        audio.playPocketDrop();
-      }
+      audio.presentActivityEvent(frame);
     },
 
     /**
@@ -413,6 +439,9 @@ export function createPoolInstance({
      */
     acceptError(frame) {
       strokeAnim = null;
+      // A refused stroke clears its pending cue claim (pre-impact refusal
+      // stays silent; a post-impact refusal cannot undo played sound).
+      audio.cancelPendingCue();
       controller.acceptError?.(frame);
     },
 
@@ -424,6 +453,7 @@ export function createPoolInstance({
       activeParticipant = false;
       controller.deactivate();
       camera.deactivate();
+      audio.dispose();
       tableScene.dispose();
       if (tableScene.group.parent) {
         tableScene.group.parent.remove(tableScene.group);
@@ -437,6 +467,12 @@ const PoolModule = {
   // Critical HUD/touch regions the floating player must avoid (D5).
   mediaPolicy: {
     reservedSelectors: ['.pool-hud-top', '.pool-hud-bottom'],
+  },
+  worldSupport: {
+    mode: 'full',
+    host: 'parent',
+    slots: [],
+    adapterKey: null,
   },
 };
 

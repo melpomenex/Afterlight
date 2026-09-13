@@ -186,12 +186,23 @@ export function strikeCueBall(state, angle, speed, spinX = 0.0, spinY = 0.0) {
     },
     settled: false,
     events: [],
+    // Presentation metadata (convincing-billiards-audio): a monotonic shot
+    // identity plus the shot-local simulation clock carried through events.
+    shot: (Number.isInteger(state.shot) ? state.shot : 0) + 1,
+    shotTime: 0.0,
   };
 }
 
 /**
  * Steps the pool physics by deltaSec.
  * Returns { state, events }.
+ *
+ * Every emitted event carries additive presentation metadata
+ * (convincing-billiards-audio): `shot` (monotonic strike identity, null on
+ * legacy states), `step` (this step's tick) and `t` (seconds since the
+ * strike, substep-resolved). Impact positions and pre-impact speeds ride
+ * along so the audio presentation can place and scale contacts; physical
+ * calculations are unchanged.
  */
 export function step(state, deltaSec = 0.016667) {
   const balls = state.balls;
@@ -199,6 +210,10 @@ export function step(state, deltaSec = 0.016667) {
 
   const maxV = maxLinearSpeed(activeBalls);
   const maxW = maxAngularSpeed(activeBalls);
+
+  const shot = Number.isInteger(state.shot) ? state.shot : null;
+  const baseShotTime = Number.isFinite(state.shotTime) ? state.shotTime : 0.0;
+  const newTick = state.tick + 1;
 
   if (maxV < SETTLE_LINEAR_THRESHOLD && maxW < SETTLE_ANGULAR_THRESHOLD) {
     const settledBalls = {};
@@ -214,7 +229,7 @@ export function step(state, deltaSec = 0.016667) {
       ...state,
       balls: settledBalls,
       settled: true,
-      tick: state.tick + 1,
+      tick: newTick,
       events: [],
     };
     return { state: updatedState, events: [] };
@@ -228,7 +243,8 @@ export function step(state, deltaSec = 0.016667) {
   let accumulatedEvents = [];
 
   for (let s = 0; s < substeps; s++) {
-    const res = substepStep(currentBalls, dtSub, accumulatedEvents);
+    const stamp = { shot, step: newTick, t: baseShotTime + (s + 1) * dtSub };
+    const res = substepStep(currentBalls, dtSub, accumulatedEvents, stamp);
     currentBalls = res.balls;
     accumulatedEvents = res.events;
   }
@@ -254,14 +270,15 @@ export function step(state, deltaSec = 0.016667) {
     ...state,
     balls: updatedBalls,
     settled: isSettled,
-    tick: state.tick + 1,
+    tick: newTick,
+    shotTime: baseShotTime + deltaSec,
     events: accumulatedEvents,
   };
 
   return { state: updatedState, events: accumulatedEvents };
 }
 
-function substepStep(balls, dt, events) {
+function substepStep(balls, dt, events, stamp) {
   // 1. Friction & integration
   const movedBalls = {};
   for (const [id, b] of Object.entries(balls)) {
@@ -281,6 +298,7 @@ function substepStep(balls, dt, events) {
     } else {
       const pocketId = checkPockets(b);
       if (pocketId) {
+        const pocket = POCKETS.find((p) => p.id === pocketId);
         pocketedBalls[id] = {
           ...b,
           state: 'pocketed',
@@ -294,6 +312,10 @@ function substepStep(balls, dt, events) {
           type: 'pocketed',
           ballId: b.id,
           pocketId,
+          speed: Math.sqrt(b.vx * b.vx + b.vz * b.vz),
+          x: pocket ? pocket.x : b.x,
+          z: pocket ? pocket.z : b.z,
+          ...stamp,
         });
       } else {
         pocketedBalls[id] = b;
@@ -309,13 +331,16 @@ function substepStep(balls, dt, events) {
       cushionBalls[id] = b;
     } else {
       const { ball: bAfter, event: railEvt } = resolveCushions(b);
-      if (railEvt) railEvents.push(railEvt);
+      if (railEvt) railEvents.push({ ...railEvt, ...stamp });
       cushionBalls[id] = bAfter;
     }
   }
 
   // 4. Ball-ball collisions
   const { balls: finalBalls, events: collisionEvents } = resolveBallCollisions(cushionBalls);
+  for (const evt of collisionEvents) {
+    Object.assign(evt, stamp);
+  }
 
   const newEvents = events.concat(pocketEvents, railEvents, collisionEvents);
   return { balls: finalBalls, events: newEvents };
@@ -438,36 +463,40 @@ function resolveCushions(b) {
 
   // X rail bounces (head / foot)
   if (x < minX && vx < 0) {
+    const preSpeed = Math.abs(vx);
     const deflectZ = wy * CUSHION_SPIN_FACTOR * Math.abs(vx);
     vx = -vx * RAIL_RESTITUTION;
     vz = vz + deflectZ;
     x = minX;
     wy = wy * 0.7;
-    railEvt = { type: 'rail_collision', ballId: b.id, rail: 'head' };
+    railEvt = { type: 'rail_collision', ballId: b.id, rail: 'head', speed: preSpeed, x, z };
   } else if (x > maxX && vx > 0) {
+    const preSpeed = Math.abs(vx);
     const deflectZ = -wy * CUSHION_SPIN_FACTOR * Math.abs(vx);
     vx = -vx * RAIL_RESTITUTION;
     vz = vz + deflectZ;
     x = maxX;
     wy = wy * 0.7;
-    railEvt = { type: 'rail_collision', ballId: b.id, rail: 'foot' };
+    railEvt = { type: 'rail_collision', ballId: b.id, rail: 'foot', speed: preSpeed, x, z };
   }
 
   // Z rail bounces (left / right)
   if (z < minZ && vz < 0) {
+    const preSpeed = Math.abs(vz);
     const deflectX = -wy * CUSHION_SPIN_FACTOR * Math.abs(vz);
     vz = -vz * RAIL_RESTITUTION;
     vx = vx + deflectX;
     z = minZ;
     wy = wy * 0.7;
-    railEvt = railEvt || { type: 'rail_collision', ballId: b.id, rail: 'left' };
+    railEvt = railEvt || { type: 'rail_collision', ballId: b.id, rail: 'left', speed: preSpeed, x, z };
   } else if (z > maxZ && vz > 0) {
+    const preSpeed = Math.abs(vz);
     const deflectX = wy * CUSHION_SPIN_FACTOR * Math.abs(vz);
     vz = -vz * RAIL_RESTITUTION;
     vx = vx + deflectX;
     z = maxZ;
     wy = wy * 0.7;
-    railEvt = railEvt || { type: 'rail_collision', ballId: b.id, rail: 'right' };
+    railEvt = railEvt || { type: 'rail_collision', ballId: b.id, rail: 'right', speed: preSpeed, x, z };
   }
 
   return {
@@ -552,6 +581,8 @@ function resolveBallCollisions(balls) {
           ballA: ba.id,
           ballB: bb.id,
           speed: Math.abs(relVNorm),
+          x: (ba.x + bb.x) / 2,
+          z: (ba.z + bb.z) / 2,
         });
       }
     }
