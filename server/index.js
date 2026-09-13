@@ -6,6 +6,7 @@ import { MSG_TYPES, ROOMS, WEATHER, parse, serialize } from '../shared/protocol.
 import { parseHelloRt, buildWelcomeRt } from '../shared/realtime/negotiation.js';
 import { sanitizeNickname, resolveDuplicateNickname } from '../shared/identity.js';
 import { ensureAvatar } from './avatars.js';
+import { normalizeAvatarId } from '../shared/avatarDefinitions.js';
 import { Storage } from './storage.js';
 import { initBaselineProbe } from './baselineProbe.js';
 import { WorldManager } from './world.js';
@@ -749,6 +750,24 @@ export function createServer(customStorage = null, options = {}) {
         const clean = sanitizeNickname(msg.nickname);
         player.nickname = clean;
         storage.savePlayer(player);
+        world.updatePlayer(playerId, { nickname: clean });
+        session.send({
+          type: MSG_TYPES.WELCOME,
+          player,
+          weather: currentWeather,
+          theater: theater.snapshot(),
+          iptv: iptv.snapshot(),
+        });
+        return;
+      }
+
+      if (msg.type === MSG_TYPES.SET_AVATAR) {
+        const avatarId = normalizeAvatarId(msg.avatar);
+        if (avatarId) {
+          player.avatar = avatarId;
+          storage.savePlayer(player);
+          world.updatePlayer(playerId, { avatar: avatarId });
+        }
         session.send({
           type: MSG_TYPES.WELCOME,
           player,

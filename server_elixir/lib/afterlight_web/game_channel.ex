@@ -1436,15 +1436,20 @@ defmodule AfterlightWeb.GameChannel do
     end
   end
 
-  defp relay_welcome(%{"player" => %{"id" => guest_id, "nickname" => nickname}} = fields, socket)
+  defp relay_welcome(%{"player" => %{"id" => guest_id, "nickname" => nickname} = player} = fields, socket)
        when guest_id == socket.assigns.guest_id do
     # Accounts stay Node's until P4; the welcome carries the sanitized
     # nickname — propagate it to the room runtime so rosters and emotes
     # read live (mid-session rename requirement).
     socket = assign(socket, :nickname, nickname)
+    avatar = Map.get(player, "avatar")
+    socket = assign(socket, :avatar, avatar)
 
     if Router.world_phx?() do
       World.update_nickname(socket.assigns[:world_room][:wire_id], guest_id, nickname)
+      if avatar do
+        World.update_avatar(socket.assigns[:world_room][:wire_id], guest_id, avatar)
+      end
     end
 
     socket =

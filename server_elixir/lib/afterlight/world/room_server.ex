@@ -129,6 +129,11 @@ defmodule Afterlight.World.RoomServer do
     GenServer.cast(room_pid, {:update_nickname, player_id, nickname})
   end
 
+  @doc "Avatar refresh (cast) so rosters read live and presence_update is broadcast."
+  def update_avatar(room_pid, player_id, avatar) do
+    GenServer.cast(room_pid, {:update_avatar, player_id, avatar})
+  end
+
   @doc "Live membership check for a specific connection (the durable-command gate)."
   def member?(room_pid, player_id, conn_ref) do
     GenServer.call(room_pid, {:member?, player_id, conn_ref})
@@ -589,6 +594,27 @@ defmodule Afterlight.World.RoomServer do
         # (Node reads session.player.nickname live), so a rename is
         # visible to later joiners without a broadcast.
         {:noreply, put_member(state, Map.put(member, :nickname, nickname))}
+    end
+  end
+
+  def handle_cast({:update_avatar, player_id, avatar}, state) do
+    case Map.get(state.members, player_id) do
+      nil ->
+        {:noreply, state}
+
+      member ->
+        updated = Map.put(member, :avatar, avatar)
+        state = put_member(state, updated)
+        frame = Frames.join_roster([updated], frame_epoch(state))
+
+        Enum.each(state.order, fn pid_id ->
+          if pid_id != player_id do
+            other = Map.get(state.members, pid_id)
+            if other, do: send_frame(state.room.wire_id, other.channel_pid, frame)
+          end
+        end)
+
+        {:noreply, state}
     end
   end
 

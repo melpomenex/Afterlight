@@ -93,6 +93,29 @@ export class WorldManager {
     });
   }
 
+  updatePlayer(playerId, updates = {}) {
+    const session = this.clients.get(playerId);
+    if (!session) return;
+    if (updates.nickname !== undefined) session.player.nickname = updates.nickname;
+    if (updates.avatar !== undefined) session.player.avatar = updates.avatar;
+
+    if (session.currentRoom) {
+      this.broadcastToRoom(session.currentRoom, {
+        type: MSG_TYPES.PRESENCE_UPDATE,
+        players: [{
+          id: session.player.id,
+          nickname: session.player.nickname,
+          avatar: session.player.avatar || null,
+          x: session.x,
+          z: session.z,
+          rotY: session.rotY,
+          walking: session.walking,
+          sitting: !!session.sitting,
+        }],
+      });
+    }
+  }
+
   updateMovement(playerId, pose) {
     const session = this.clients.get(playerId);
     if (!session) return;

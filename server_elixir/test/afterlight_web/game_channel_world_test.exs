@@ -459,6 +459,31 @@ defmodule AfterlightWeb.GameChannelWorldTest do
     end)
   end
 
+  test "set_avatar relays to Node and propagates to room runtime" do
+    flipped(fn ->
+      guest = "guest_avatar#{System.unique_integer([:positive])}"
+      socket = connect_guest(guest, "Player")
+      _hello_frame = hello(socket, guest, "Player")
+      assert_receive {:fake_upstream_started, up, _headers}, 1_000
+      push(socket, "join_room", %{"roomId" => "market"})
+      assert_push("presence_update", %{"players" => []})
+      assert_receive {:fake_frame, ^up, _join_json}, 1_000
+
+      # set_avatar relays to Node
+      push(socket, "set_avatar", %{"avatar" => "moon-head"})
+      assert_receive {:fake_frame, ^up, avatar_json}, 1_000
+      assert Jason.decode!(avatar_json) == %{"type" => "set_avatar", "avatar" => "moon-head"}
+
+      # Node's re-sent welcome propagates avatar to room
+      GatewayTest.FakeCore.inject_frame(up, %{
+        "type" => "welcome",
+        "player" => %{"id" => guest, "nickname" => "Player", "avatar" => "moon-head"}
+      })
+
+      assert_push("welcome", %{"player" => %{"avatar" => "moon-head"}})
+    end)
+  end
+
   test "room crash closes the transport with a retryable reason (rejoin resnapshots)" do
     flipped(fn ->
       guest = "guest_crash#{System.unique_integer([:positive])}"

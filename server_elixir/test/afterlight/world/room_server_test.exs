@@ -266,6 +266,22 @@ defmodule Afterlight.World.RoomServerTest do
     refute_receive {:recorded, :a, %{"type" => "emote_broadcast", "emote" => "floss"}}, 200
   end
 
+  test "update_avatar updates member avatar and broadcasts presence_update to others in room", %{room: room} do
+    pid = start_room!(room)
+    a = WorldTestHelper.recorder!(self(), :a)
+    b = WorldTestHelper.recorder!(self(), :b)
+
+    RoomServer.join(pid, attrs(a, "guest_a", "Guest A", :ca, pose()))
+    RoomServer.join(pid, attrs(b, "guest_b", "Guest B", :cb, pose()))
+    _ = recorded_frames(:a)
+    _ = recorded_frames(:b)
+
+    RoomServer.update_avatar(pid, "guest_b", "neon-jellyfish")
+    frame = wait_for(:a, &(&1["type"] == "presence_update"))
+    assert frame["type"] == "presence_update"
+    assert Enum.any?(frame["players"], &(&1["id"] == "guest_b" and &1["avatar"] == "neon-jellyfish"))
+  end
+
   test "empty room retires after the grace period and rejoins fresh" do
     # Distinct wire id: the rejoined room lives under the app tree and
     # would collide with later tests' "market" children.

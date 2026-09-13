@@ -129,6 +129,22 @@ defmodule Afterlight.World do
   end
 
   @doc """
+  Avatar refresh (after a successful `set_avatar`) so roster entries,
+  later joins' rosters, and presence updates read live.
+  """
+  @spec update_avatar(String.t() | nil, String.t(), String.t() | nil) :: :ok
+  def update_avatar(nil, _player_id, _avatar), do: :ok
+
+  def update_avatar(wire_room_id, player_id, avatar) do
+    with {:ok, room} <- Rooms.resolve(wire_room_id),
+         [{pid, _}] <- Registry.lookup(registry(), {RoomServer, room.wire_id}) do
+      RoomServer.update_avatar(pid, player_id, avatar)
+    end
+
+    :ok
+  end
+
+  @doc """
   Live membership check for a specific connection. While the world domain
   is routed to the runtime, the gateway refuses durable domain commands
   for a transport whose membership is not live (crash window) rather than

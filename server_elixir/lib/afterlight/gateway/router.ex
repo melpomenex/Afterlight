@@ -42,7 +42,7 @@ defmodule Afterlight.Gateway.Router do
   )
 
   @node_relay_types ~w(
-    hello set_nickname
+    hello set_nickname set_avatar
     join_room movement emote chat_send
     theater_queue theater_control theater_channel theater_playlist_resolve
     iptv_list_get iptv_list_remove epg_lookup

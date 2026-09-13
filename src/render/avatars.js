@@ -250,13 +250,15 @@ export class RemotePlayersManager {
         entry.avatarId = data.avatar;
         entry.avatar.userData.setAvatar?.(data.avatar);
       }
-      entry.targetX = data.x;
-      entry.targetZ = data.z;
-      entry.targetRotY = data.rotY;
-      entry.walking = !!data.walking;
-      entry.sitting = !!data.sitting;
-      if (!!data.airborne && !entry.airborne) entry.hopT = 0; // rising edge: fresh hop
-      entry.airborne = !!data.airborne;
+      if (data.x !== undefined) entry.targetX = data.x;
+      if (data.z !== undefined) entry.targetZ = data.z;
+      if (data.rotY !== undefined) entry.targetRotY = data.rotY;
+      if (data.walking !== undefined) entry.walking = !!data.walking;
+      if (data.sitting !== undefined) entry.sitting = !!data.sitting;
+      if (data.airborne !== undefined) {
+        if (!!data.airborne && !entry.airborne) entry.hopT = 0; // rising edge: fresh hop
+        entry.airborne = !!data.airborne;
+      }
       if (data.nickname && data.nickname !== entry.avatar.userData.nickname) {
         entry.avatar.userData.updateNickname(data.nickname);
       }
