@@ -27,6 +27,7 @@ import {
   ZONE_PROFILES,
   ZONE_CROSSFADE_MS,
 } from '../src/audio/environmentAudio.js';
+import { THEATER_ENVIRONMENTS } from '../shared/theaterEnvironments.js';
 
 // --- fake AudioContext --------------------------------------------------------
 
@@ -422,5 +423,25 @@ test('zone profiles: authored rows normalize with clamps; exposure picks fallbac
   assert.equal(zoneProfileFor(null, 0.4), ZONE_PROFILES.roof, 'sheltered without an authored row uses the roof profile');
   const authored = zoneProfileFor({ audio: { rain: 0.15, roof: 0.85, wind: 0.1, lowpassHz: 900 } }, 1);
   assert.deepEqual(authored, { rain: 0.15, roof: 0.85, wind: 0.1, lowpassHz: 900 }, 'authored zone rows win over exposure');
+});
+
+test('every Theater environment variant authors a usable ambience row', () => {
+  // The environment runtime hands the active variant's `audio` row to
+  // setZone: each of the 18 rows must normalize to clamped four-value profile
+  // (the `ambience` label is reserved, never passed through as a value), and
+  // the six worlds must not all collapse to one identical mix.
+  const signatures = new Set();
+  for (const environment of Object.values(THEATER_ENVIRONMENTS)) {
+    for (const row of Object.values(environment.variants)) {
+      const profile = normalizeZoneProfile(row.audio);
+      assert.ok(profile, `${row.preset} must normalize to a usable audio profile`);
+      for (const key of ['rain', 'roof', 'wind']) {
+        assert.ok(profile[key] >= 0 && profile[key] <= 1, `${row.preset}: ${key} is clamped`);
+      }
+      assert.ok(profile.lowpassHz >= 80 && profile.lowpassHz <= 20000, `${row.preset}: lowpass is bounded`);
+      signatures.add(JSON.stringify(profile));
+    }
+  }
+  assert.equal(signatures.size, 18, 'each environment variant has a distinct ambient mix');
 });
 

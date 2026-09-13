@@ -49,6 +49,7 @@ export function createAtmosphereController({
   hemisphere = null,
   stateClient,
   world = null, // () => the active world (read every update; never cached)
+  camera = null, // () => the active camera (read every update; never cached)
   tier = 'normal',
   // Test seams: inject failing factories to prove failed activation.
   skyFactory = createSky,
@@ -68,6 +69,10 @@ export function createAtmosphereController({
   let roomId = null;
   let generation = null;
   let def = null;
+  // Local preset override (Theater environment picker / debug preview): used
+  // only when the room's semantic state has no accepted snapshot, so an
+  // offline or pre-snapshot client can still render the chosen world.
+  let localPresetId = null;
 
   // Baseline presentation, captured at activation and restored exactly.
   let baseline = null;
@@ -90,6 +95,61 @@ export function createAtmosphereController({
   const scratchCloud = new THREE.Color();
   const scratchFrom = new THREE.Color();
   const scratchTo = new THREE.Color();
+  // Extended Environment-campaign presentation (sun path, aurora, horizon
+  // glow): optional fields legacy presets never author.
+  const scratchSunDir = new THREE.Vector3();
+  const scratchAurora = new THREE.Color();
+  const scratchGlow = new THREE.Color();
+  const scratchAmbient = new THREE.Color();
+  // Camera-aware sky backdrop: retained basis vectors and one view record.
+  const cameraRight = new THREE.Vector3();
+  const cameraUp = new THREE.Vector3();
+  const cameraForward = new THREE.Vector3();
+  const cameraView = {
+    mode: 'iso',
+    forward: [0, 0, -1],
+    right: [1, 0, 0],
+    up: [0, 1, 0],
+    spread: [0.62, 0.62],
+    azimuth: 0,
+    azimuthSpread: 0.62,
+    elevationRange: [-1.4, 0.6],
+  };
+
+  /**
+   * Update the retained view record from the active camera. Isometric
+   * (orthographic) views use the painted-backdrop mapping; first person
+   * (perspective) uses the real camera basis so pitch/yaw move the sky.
+   */
+  function sampleCameraView() {
+    const cam = typeof camera === 'function' ? camera() : camera;
+    if (!cam) return cameraView;
+    cam.updateMatrixWorld?.();
+    const e = cam.matrixWorld.elements;
+    cameraRight.set(e[0], e[1], e[2]).normalize();
+    cameraUp.set(e[4], e[5], e[6]).normalize();
+    cameraForward.set(-e[8], -e[9], -e[10]).normalize();
+    cameraView.right[0] = cameraRight.x; cameraView.right[1] = cameraRight.y; cameraView.right[2] = cameraRight.z;
+    cameraView.up[0] = cameraUp.x; cameraView.up[1] = cameraUp.y; cameraView.up[2] = cameraUp.z;
+    cameraView.forward[0] = cameraForward.x; cameraView.forward[1] = cameraForward.y; cameraView.forward[2] = cameraForward.z;
+    if (cam.isPerspectiveCamera) {
+      cameraView.mode = 'perspective';
+      const half = Math.tan((cam.fov * Math.PI) / 360);
+      cameraView.spread[0] = half * (cam.aspect || 1.79);
+      cameraView.spread[1] = half;
+    } else {
+      cameraView.mode = 'iso';
+      cameraView.azimuth = Math.atan2(cameraForward.z, cameraForward.x);
+      cameraView.azimuthSpread = 0.62;
+      cameraView.elevationRange[0] = -1.4;
+      cameraView.elevationRange[1] = 0.6;
+    }
+    return cameraView;
+  }
+  const EXTENDED_VISUAL_DEFAULTS = Object.freeze({
+    sunDisc: 0, moonDisc: 0, aurora: 0, horizonGlow: 0,
+    cloudSharpness: 0.5, cloudDrift: 1, starDensity: 0, milkyWay: 0,
+  });
 
   const stats = { frames: 0, updates: 0, skippedFrames: 0, activations: 0, failedActivations: 0 };
 
@@ -100,6 +160,7 @@ export function createAtmosphereController({
       background: scene.background?.isColor ? scene.background.getHex() : null,
       sunColor: sun.color.getHex(),
       sunIntensity: sun.intensity,
+      sunPosition: sun.position?.toArray ? sun.position.toArray() : null,
       hemiSky: hemisphere?.color ? hemisphere.color.getHex() : null,
       hemiGround: hemisphere?.groundColor ? hemisphere.groundColor.getHex() : null,
       hemiIntensity: hemisphere ? hemisphere.intensity : null,
@@ -115,6 +176,7 @@ export function createAtmosphereController({
     if (baseline.background !== null) scene.background.setHex(baseline.background);
     sun.color.setHex(baseline.sunColor);
     sun.intensity = baseline.sunIntensity;
+    if (baseline.sunPosition && sun.position?.fromArray) sun.position.fromArray(baseline.sunPosition);
     if (hemisphere) {
       if (baseline.hemiSky !== null) hemisphere.color.setHex(baseline.hemiSky);
       if (baseline.hemiGround !== null) hemisphere.groundColor.setHex(baseline.hemiGround);
@@ -232,7 +294,10 @@ export function createAtmosphereController({
         scratchGround.set(from.groundColor).lerp(scratchTo.set(to.groundColor), transitionU);
         scratchSun.set(from.sunColor).lerp(scratchTo.set(to.sunColor), transitionU);
         scratchCloud.set(from.skyColor).lerp(scratchTo.set(to.fogColor), transitionU);
-        return {
+        scratchAurora.set(from.auroraColor ?? '#4be0a6').lerp(scratchTo.set(to.auroraColor ?? '#4be0a6'), transitionU);
+        scratchGlow.set(from.horizonGlowColor ?? '#ffb46a').lerp(scratchTo.set(to.horizonGlowColor ?? '#ffb46a'), transitionU);
+        scratchAmbient.set(from.ambientColor ?? from.skyColor).lerp(scratchTo.set(to.ambientColor ?? to.skyColor), transitionU);
+        const out = {
           fogColor: scratchFog,
           skyColor: scratchSky,
           groundColor: scratchGround,
@@ -242,10 +307,26 @@ export function createAtmosphereController({
           hemisphereIntensity: lerp(from.hemisphereIntensity, to.hemisphereIntensity, transitionU),
           sunIntensity: lerp(from.sunIntensity, to.sunIntensity, transitionU),
           exposure: lerp(from.exposure, to.exposure, transitionU),
+          sunDisc: lerp(from.sunDisc ?? 0, to.sunDisc ?? 0, transitionU),
+          moonDisc: lerp(from.moonDisc ?? 0, to.moonDisc ?? 0, transitionU),
+          aurora: lerp(from.aurora ?? 0, to.aurora ?? 0, transitionU),
+          auroraColor: scratchAurora,
+          horizonGlow: lerp(from.horizonGlow ?? 0, to.horizonGlow ?? 0, transitionU),
+          horizonGlowColor: scratchGlow,
+          ambientColor: scratchAmbient,
+          cloudSharpness: lerp(from.cloudSharpness ?? 0.5, to.cloudSharpness ?? 0.5, transitionU),
+          cloudDrift: lerp(from.cloudDrift ?? 1, to.cloudDrift ?? 1, transitionU),
+          starDensity: lerp(from.starDensity ?? 0, to.starDensity ?? 0, transitionU),
+          milkyWay: lerp(from.milkyWay ?? 0, to.milkyWay ?? 0, transitionU),
         };
+        applySunDirection(out, from.sunElevation, to.sunElevation, from.sunAzimuth, to.sunAzimuth, transitionU);
+        return out;
       }
     }
-    const presetId = state?.preset ?? def?.atmosphere?.preset ?? null;
+    // The local override only stands in for a manifest-declared atmosphere
+    // (the Theater): places with preset null keep their baseline untouched.
+    const declaredPreset = def?.atmosphere?.preset ?? null;
+    const presetId = state?.preset ?? (declaredPreset ? (localPresetId ?? declaredPreset) : null);
     const visuals = getPreset(presetId)?.visuals;
     if (!visuals) return null;
     scratchFog.set(visuals.fogColor);
@@ -253,7 +334,7 @@ export function createAtmosphereController({
     scratchGround.set(visuals.groundColor);
     scratchSun.set(visuals.sunColor);
     scratchCloud.set(visuals.skyColor).lerp(scratchFog, 0.5);
-    return {
+    const out = {
       fogColor: scratchFog,
       skyColor: scratchSky,
       groundColor: scratchGround,
@@ -263,7 +344,31 @@ export function createAtmosphereController({
       hemisphereIntensity: visuals.hemisphereIntensity,
       sunIntensity: visuals.sunIntensity,
       exposure: visuals.exposure,
+      sunDisc: visuals.sunDisc ?? 0,
+      moonDisc: visuals.moonDisc ?? 0,
+      aurora: visuals.aurora ?? 0,
+      auroraColor: scratchAurora.set(visuals.auroraColor ?? '#4be0a6'),
+      horizonGlow: visuals.horizonGlow ?? 0,
+      horizonGlowColor: scratchGlow.set(visuals.horizonGlowColor ?? '#ffb46a'),
+      ambientColor: visuals.ambientColor ? scratchAmbient.set(visuals.ambientColor) : null,
+      cloudSharpness: visuals.cloudSharpness ?? 0.5,
+      cloudDrift: visuals.cloudDrift ?? 1,
+      starDensity: visuals.starDensity ?? 0,
+      milkyWay: visuals.milkyWay ?? 0,
     };
+    applySunDirection(out, visuals.sunElevation, visuals.sunElevation, visuals.sunAzimuth, visuals.sunAzimuth, 0);
+    return out;
+  }
+
+  /** Sun direction for the sky disc and shadow light: only authored
+   * elev/azimuth move the shared directional light; legacy presets keep
+   * their exact original sun transform. */
+  function applySunDirection(out, fromEl, toEl, fromAz, toAz, u) {
+    if (!Number.isFinite(fromEl) && !Number.isFinite(toEl)) return;
+    const el = lerp(Number.isFinite(fromEl) ? fromEl : toEl, Number.isFinite(toEl) ? toEl : fromEl, u);
+    const az = lerp(Number.isFinite(fromAz) ? fromAz : (toAz ?? 0.5), Number.isFinite(toAz) ? toAz : (fromAz ?? 0.5), u);
+    const ce = Math.cos(el);
+    out.sunDir = scratchSunDir.set(ce * Math.cos(az), Math.max(0.04, Math.sin(el)), ce * Math.sin(az)).normalize();
   }
 
   /**
@@ -293,11 +398,15 @@ export function createAtmosphereController({
       sun.color.copy(visuals.sunColor);
       sun.intensity = visuals.sunIntensity;
       if (hemisphere) {
-        hemisphere.color.copy(visuals.skyColor);
+        hemisphere.color.copy(visuals.ambientColor ?? visuals.skyColor);
         hemisphere.groundColor.copy(visuals.groundColor);
         hemisphere.intensity = visuals.hemisphereIntensity;
       }
       if (typeof renderer.toneMappingExposure === 'number') renderer.toneMappingExposure = visuals.exposure;
+      // Authored sun paths move the shared directional light so shadows,
+      // snow/ground response and the sky disc agree. Legacy presets never
+      // author one and keep their original transform.
+      if (visuals.sunDir && sun.position) sun.position.copy(visuals.sunDir).multiplyScalar(46);
       sky.setState({
         topColor: visuals.skyColor,
         horizonColor: visuals.fogColor,
@@ -305,7 +414,20 @@ export function createAtmosphereController({
         cloudOpacity: sampleOut.cloud ?? 0,
         phase: sampleOut.timePhase ?? 0,
         timeMs: sampleOut.serverNow ?? 0,
+        sunDir: visuals.sunDir,
+        sunColor: visuals.sunColor,
+        sunDisc: visuals.sunDisc,
+        moonDisc: visuals.moonDisc,
+        aurora: visuals.aurora,
+        auroraColor: visuals.auroraColor,
+        horizonGlow: visuals.horizonGlow,
+        horizonGlowColor: visuals.horizonGlowColor,
+        cloudSharpness: visuals.cloudSharpness,
+        cloudDrift: visuals.cloudDrift,
+        starDensity: visuals.starDensity,
+        milkyWay: visuals.milkyWay,
       });
+      if (typeof sky.setCamera === 'function') sky.setCamera(sampleCameraView());
     }
 
     precipitation?.update({
@@ -318,6 +440,41 @@ export function createAtmosphereController({
     surfaces?.apply(sampleOut.wetness ?? 0);
     placeEffects?.update(sampleOut, { reduceMotion: currentTier === 'reduced' });
     stats.updates += 1;
+    return true;
+  }
+
+  /**
+   * Re-read the active world's environment hooks and rebuild the subsystems
+   * that consume them (precipitation zones/anchors, wet material families,
+   * place effects). Used when the Theater Environment system swaps the
+   * surrounding world without a place travel; the presentation baseline,
+   * room binding and generation are untouched.
+   */
+  function reloadEnvironment() {
+    if (!active || disposed) return false;
+    const worldObj = typeof world === 'function' ? world() : null;
+    const environment = worldObj?.environment ?? activeEnvironment ?? {};
+    activeEnvironment = environment;
+    const zones = normalizeZones(environment.zones);
+    if (precipitation) { precipitation.dispose(); group.remove(precipitation.object3D); precipitation = null; }
+    if (surfaces) { surfaces.dispose(); group.remove(surfaces.object3D); surfaces = null; }
+    if (placeEffects) { placeEffects.dispose(); placeEffects = null; }
+    precipitation = precipitationFactory({
+      bounds: def?.bounds ?? undefined,
+      zones,
+      anchors: environment.emitterAnchors ?? [],
+      tier: currentTier,
+      seed: Number.isFinite(def?.seed) ? def.seed >>> 0 : 0,
+    });
+    group.add(precipitation.object3D);
+    surfaces = surfacesFactory({
+      world: worldObj ?? null,
+      tier: currentTier,
+      seed: Number.isFinite(def?.seed) ? def.seed >>> 0 : 0,
+    });
+    group.add(surfaces.object3D);
+    placeEffects = createPlaceEffects({ environment, tier: currentTier, seed: def?.seed });
+    if (placeEffects.group.children.length) group.add(placeEffects.group);
     return true;
   }
 
@@ -339,6 +496,12 @@ export function createAtmosphereController({
     return true;
   }
 
+  /** Local fallback preset (no-op when the room state supplies one). */
+  function setLocalPreset(presetId) {
+    localPresetId = typeof presetId === 'string' && presetId.length > 0 ? presetId : null;
+    return localPresetId;
+  }
+
   function dispose() {
     if (disposed) return;
     deactivate();
@@ -350,6 +513,8 @@ export function createAtmosphereController({
     deactivate,
     update,
     setQuality,
+    reloadEnvironment,
+    setLocalPreset,
     dispose,
     isActive: () => active,
     get roomId() { return roomId; },

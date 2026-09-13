@@ -1,4 +1,5 @@
 import { SOCIAL_ATMOSPHERE_PRESETS } from './socialAtmospherePresets.js';
+import { environmentVariantEntries } from './theaterEnvironments.js';
 /**
  * Authored atmosphere presets (add-atmosphere-weather-system D1): plain,
  * deep-frozen data, free of Three.js/DOM/network imports so Node tests, the
@@ -58,6 +59,11 @@ function definePreset(preset) {
 
 export const ATMOSPHERE_PRESETS = Object.freeze({
   ...Object.fromEntries(Object.entries(SOCIAL_ATMOSPHERE_PRESETS).map(([id, row]) => [id, definePreset(row)])),
+  // Theater Environment variants (shared/theaterEnvironments.js): the room's
+  // authoritative atmosphere preset selects the surrounding world for every
+  // occupant. Semantic fields travel the wire; visuals/features/audio are
+  // looked up locally by id.
+  ...Object.fromEntries(environmentVariantEntries().map(({ row }) => [row.preset, definePreset(row)])),
   // Calm baseline: dry stone, clear sky, no events.
   clear: definePreset({
     weather: 'fixed',

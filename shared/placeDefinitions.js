@@ -1,4 +1,5 @@
 import { SOCIAL_PLACE_OVERRIDES, DESERT_CAMP_DEFINITION } from './socialPlaceDefinitions.js';
+import { environmentVariantEntries } from './theaterEnvironments.js';
 /**
  * Pure place metadata for every Afterlight destination: display identity,
  * stable ids, deterministic seeds, bounds, spawns, declared exits, minimap
@@ -991,6 +992,14 @@ const LEGACY_SEEDS = Object.freeze({
   theater: 592,
 });
 
+// The Theater Environment campaign: the ONE Orpheum room may adopt any of the
+// six authored worlds (18 atmosphere presets), so the room-authoritative
+// `atmosphere_set` op has an explicit allow-list. Every other place keeps a
+// fixed preset and refuses sets.
+export const THEATER_ENVIRONMENT_PRESETS = Object.freeze(
+  environmentVariantEntries().map(({ row }) => row.preset),
+);
+
 // Minimap schematics for the legacy districts (moved from main.js so the
 // manifest stays the single source); market and personal garden keep their
 // bespoke entries where they are rendered.
@@ -1051,7 +1060,14 @@ function defineLegacyPlace(display) {
     shell: 'legacy-urban',
     builderKey: display.id,
     minimapPath: LEGACY_MINIMAP_PATHS[display.id],
-    atmosphere: { preset: null, weatherMode: 'fixed', timeMode: 'fixed' },
+    // The Orpheum's atmosphere preset selects its surrounding environment
+    // (Theater Environment campaign): one shared room, six authored worlds.
+    // The allow-list is the 18 environment presets the room may adopt through
+    // `atmosphere_set`; every other legacy place keeps its baseline
+    // presentation and never accepts a set.
+    atmosphere: theater
+      ? { preset: 'env-coastal-sunset', weatherMode: 'fixed', timeMode: 'fixed', presets: THEATER_ENVIRONMENT_PRESETS }
+      : { preset: null, weatherMode: 'fixed', timeMode: 'fixed' },
     capabilities: theater
       ? { seating: true, sharedMedia: true, conferencing: false }
       : { seating: false, sharedMedia: false, conferencing: false },
@@ -1147,6 +1163,10 @@ export function validatePlaceDefinition(def, { knownIds = null } = {}) {
   }
 
   at(typeof def.minimapPath === 'string' && def.minimapPath.length > 0, 'minimapPath must be a non-empty SVG path string');
+  if (def.cameraZoom != null) {
+    at(Number.isFinite(def.cameraZoom) && def.cameraZoom >= 14 && def.cameraZoom <= 40,
+      'cameraZoom must be a finite number between 14 and 40 when present');
+  }
   at(PLACE_SHELLS.includes(def.shell), `shell must be one of ${PLACE_SHELLS.join(', ')}`);
   at(typeof def.builderKey === 'string' && def.builderKey.length > 0, 'builderKey must be a non-empty string (registry resolves it to a function)');
 

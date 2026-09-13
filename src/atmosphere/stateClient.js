@@ -80,6 +80,9 @@ export function createAtmosphereStateClient({
   let activeRoomId = null;
   let activeGeneration = null;
   let fallbackPresetId = null;
+  // The place's manifest preset, kept so a local override can be released
+  // back to it (Theater environment picker previewing offline).
+  let declaredFallbackPresetId = null;
 
   // --- accepted semantic state ---
   let accepted = null; // the last VALID full frame (envelope included)
@@ -130,7 +133,8 @@ export function createAtmosphereStateClient({
   function activate({ roomId, generation, def } = {}) {
     if (typeof roomId !== 'string' || roomId.length === 0) return;
     const preset = def?.atmosphere?.preset;
-    fallbackPresetId = typeof preset === 'string' ? preset : null;
+    declaredFallbackPresetId = typeof preset === 'string' ? preset : null;
+    fallbackPresetId = declaredFallbackPresetId;
 
     if (activeRoomId !== roomId || !state) {
       // A fresh place starts from its deterministic fallback, marked
@@ -372,6 +376,22 @@ export function createAtmosphereStateClient({
     return state;
   }
 
+  /**
+   * Local environment preview: while no authoritative snapshot has been
+   * accepted, render the chosen preset's deterministic defaults instead of
+   * the manifest fallback. Passing null restores the manifest preset. No
+   * effect once synced — the room's state always wins.
+   */
+  function setLocalFallback(presetId) {
+    fallbackPresetId = (typeof presetId === 'string' && presetId.length > 0)
+      ? presetId
+      : declaredFallbackPresetId;
+    if (!synced && fallbackPresetId) {
+      state = defaultAtmosphereState(fallbackPresetId, { seed: 0, now: serverNow() }) ?? state;
+    }
+    return fallbackPresetId;
+  }
+
   return {
     activate,
     deactivate,
@@ -383,6 +403,10 @@ export function createAtmosphereStateClient({
     isActive,
     status,
     getState,
+    setLocalFallback,
+    // True only once a room-authoritative snapshot was accepted; false while
+    // rendering the deterministic manifest fallback.
+    isSynced: () => synced,
     serverNow,
   };
 }

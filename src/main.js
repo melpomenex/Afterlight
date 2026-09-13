@@ -20,6 +20,7 @@ import { TheaterScreenUI } from './ui/theaterScreen.js';
 import { createAppFullscreen } from './ui/appFullscreen.js';
 import { createPointerLockBridge } from './ui/pointerLockBridge.js';
 import { createPlaceSelector } from './ui/placeSelector.js';
+import { createWorldSelector } from './ui/worldSelector.js';
 import { createUpdatePrompt } from './ui/updatePrompt.js';
 import { createLeaderboardDialog } from './ui/leaderboard.js';
 import { initChallenges } from './ui/challenges.js';
@@ -32,6 +33,9 @@ import { FP_MODE, nextCameraMode, moveBasis, classifyDrag, applyLookDelta } from
 import { readMouseLookPreference, writeMouseLookPreference } from './ui/mouseLookPreference.js';
 import { createJumpState, resetJump, stepJump, moveSpeedFor, HOP_CAP_RATIO } from './jump.js';
 import { createPlaceRuntime } from './places/runtime.js';
+import { createTheaterEnvironmentRuntime } from './environments/index.js';
+import { getTheaterVariant } from '../shared/theaterEnvironments.js';
+import { loadEnvironmentPreferences, saveEnvironmentPreferences } from './environments/quality.js';
 import { resolveRoomRequest } from './places/travelState.js';
 import { createTheaterAdapter, registerTheaterAdapter } from './places/theaterAdapter.js';
 import { createActivityRuntime } from './activities/runtime.js';
@@ -121,7 +125,9 @@ const camera = new THREE.OrthographicCamera();
 // through `activeCamera`, assigned by setCameraMode().
 const EYE_HEIGHT = 1.55;
 const SEATED_EYE_HEIGHT = 1.05;
-const fpCamera = new THREE.PerspectiveCamera(58, 1, 0.1, 150);
+// Far planes cover the Theater environments' distant scenery (peaks, island
+// silhouettes, cloud decks) without any rendering cost in orthographic mode.
+const fpCamera = new THREE.PerspectiveCamera(58, 1, 0.1, 420);
 const cameraSeam = createCameraSeam({ initialMode: 0 });
 let activeCamera = camera;
 let cameraMode = 0;
@@ -242,7 +248,85 @@ const atmosphereController = createAtmosphereController({
   hemisphere,
   stateClient: atmosphereStateClient,
   world: () => currentWorld,
+  // The sky backdrop reads the active camera each frame so the iso views
+  // and first person both show the authored sky correctly.
+  camera: () => activeCamera,
 });
+
+// --- THEATER ENVIRONMENTS (Dream Loop campaign) ---
+// The six authored worlds surrounding the one shared Orpheum. The runtime
+// builds the selected environment INSIDE the theater world group, installs
+// its atmosphere hooks and swaps geometry without rebuilding the Theater or
+// the room. Selection rides the room's atmosphere preset, so every occupant
+// shares the world; environment quality is a separate local preference.
+const environmentPrefs = loadEnvironmentPreferences({
+  device: {
+    hardwareConcurrency: typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : 8,
+    maxTouchPoints: typeof navigator !== 'undefined' ? navigator.maxTouchPoints : 0,
+    innerWidth: typeof innerWidth === 'number' ? innerWidth : 1920,
+    deviceMemory: typeof navigator !== 'undefined' ? navigator.deviceMemory : 8,
+  },
+}).prefs;
+const theaterEnvironments = createTheaterEnvironmentRuntime({
+  defaultTier: environmentPrefs.quality,
+  onHooksChanged: () => {
+    // The environment declared new wet families / zones / anchors: rebind
+    // the active atmosphere controller's owned subsystems in place.
+    if (atmosphereController.isActive()) atmosphereController.reloadEnvironment();
+  },
+  onError: (error) => console.error('[theater-environments]', error),
+});
+let lastEnvironmentPreset = undefined;
+// Local selection override: the environment picker applies its choice here
+// immediately (and asks the room to adopt it), so an offline session still
+// previews worlds and a round-trip never flashes the previous environment.
+let environmentOverride = null;
+// Created with the other HUD dialogs (declared early so the frame-loop sync
+// can refresh it without a temporal-dead-zone window).
+let worldSelector = null;
+const environmentSample = {};
+function effectiveEnvironmentPreset() {
+  if (environmentOverride) return environmentOverride;
+  const state = typeof atmosphereStateClient.getState === 'function' ? atmosphereStateClient.getState() : null;
+  return state?.preset ?? null;
+}
+function syncTheaterEnvironment() {
+  if (currentRoomId !== ROOMS.THEATER) return;
+  // Accepted room state outranks a stale local pick: if the server reports a
+  // different world (another occupant switched it), the room's choice wins.
+  // The synthesized manifest fallback is NOT server truth and never clears
+  // a local pick.
+  const serverPreset = atmosphereStateClient.isSynced() ? (atmosphereStateClient.getState()?.preset ?? null) : null;
+  if (serverPreset && environmentOverride && serverPreset !== environmentOverride) {
+    environmentOverride = null;
+    atmosphereController.setLocalPreset(null);
+    atmosphereStateClient.setLocalFallback(null);
+  }
+  const presetId = effectiveEnvironmentPreset();
+  // The open World dialog always reflects the room's accepted world (or the
+  // optimistic local pick): a room-driven change updates it in place.
+  if (worldSelector?.isOpen()) worldSelector.setActive(presetId);
+  const def = districts.find(d => d.id === ROOMS.THEATER) ?? null;
+  if (presetId === lastEnvironmentPreset && theaterEnvironments.active && !theaterEnvironments.state.failed) return;
+  lastEnvironmentPreset = presetId;
+  try {
+    theaterEnvironments.sync({ presetId, def, world: currentWorld, tier: environmentPrefs.quality });
+  } catch (error) {
+    console.error('[theater-environments] sync failed', error);
+  }
+}
+/** Public (HUD/debug) environment selection: local first, room request second. */
+function selectTheaterEnvironment(presetId) {
+  environmentOverride = presetId || null;
+  lastEnvironmentPreset = undefined;
+  atmosphereController.setLocalPreset(environmentOverride);
+  atmosphereStateClient.setLocalFallback(environmentOverride);
+  syncTheaterEnvironment();
+  if (typeof net?.send === 'function') {
+    try { net.send('atmosphere_set', { preset: presetId }); } catch { /* offline: local only */ }
+  }
+  return theaterEnvironments.state;
+}
 
 // --- LOCAL AUDIO, SHARED EVENTS AND COMFORT (tasks 4.1–4.3) ---
 // ONE AudioContext for the whole game, created lazily on the existing Sound
@@ -313,6 +397,20 @@ function updateEnvironmentAudio() {
   atmosphereStateClient.sample(audioSample);
   if (audioSample.active !== true) return;
   environmentAudio.setWeather(audioSample.rain ?? 0);
+  // The Theater's active environment authors the ambience mix per variant
+  // (rain/roof/wind/lowpass): its row replaces the exposure-based zone
+  // fallback so each world has its own sound. Every other place keeps the
+  // authored zone profiles.
+  if (currentRoomId === ROOMS.THEATER) {
+    const environment = theaterEnvironments.state;
+    const row = environment?.environmentId
+      ? getTheaterVariant(environment.environmentId, environment.variantId)
+      : null;
+    if (row?.audio) {
+      environmentAudio.setZone(row.audio);
+      return;
+    }
+  }
   const cls = classifyExposure(activeZones, player.position.x, player.position.z, exposureSample);
   const zone = cls.zoneId ? activeZonesById.get(cls.zoneId) : null;
   environmentAudio.setZone(zoneProfileFor(zone, cls.exposure));
@@ -823,6 +921,40 @@ if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
     // Read-only theater ownership handle for browser gates (identity checks
     // only; never mutates playback). See scripts/floating-media-gate-browser.mjs.
     theater: () => theaterUI,
+    // Theater Environment introspection (debug-only, read-only): the active
+    // environment identity + counts and renderer memory/render stats used by
+    // the visual loop and leak checks.
+    environment: () => theaterEnvironments.state,
+    setEnvironment: (presetId) => selectTheaterEnvironment(presetId),
+    renderStats: () => ({
+      calls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+      geometries: renderer.info.memory.geometries,
+      textures: renderer.info.memory.textures,
+      programs: renderer.info.programs?.length ?? null,
+    }),
+    // Read-only atmosphere probe for the visual loop: the values the shared
+    // controller actually applied to the scene this frame.
+    sceneInfo: () => ({
+      fog: scene.fog?.color ? `#${scene.fog.color.getHexString()}` : null,
+      fogDensity: typeof scene.fog?.density === 'number' ? scene.fog.density : null,
+      background: scene.background?.isColor ? `#${scene.background.getHexString()}` : null,
+      exposure: renderer.toneMappingExposure,
+      sun: `#${sun.color.getHexString()}`,
+      sunIntensity: sun.intensity,
+      hemiIntensity: hemisphere.intensity,
+      hemiSky: `#${hemisphere.color.getHexString()}`,
+      hemiGround: `#${hemisphere.groundColor.getHexString()}`,
+      atmosphereActive: atmosphereController.isActive(),
+    }),
+    // The client's semantic atmosphere: which preset it currently holds and
+    // whether a room snapshot has been accepted (offline previews are not
+    // "synced"). Debug-only, read-only.
+    atmosphere: () => ({
+      synced: atmosphereStateClient.isSynced(),
+      status: atmosphereStateClient.status(),
+      preset: atmosphereStateClient.getState()?.preset ?? null,
+    }),
     floatingMediaEnabled: () => !floatingMediaRollback,
     // Pointer-lock contract hooks (5.4): the harnesses call the explicit
     // request from inside a real canvas gesture; nothing is automatic.
@@ -840,6 +972,10 @@ if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
       const v = new THREE.Vector3(x, 0, z).project(activeCamera);
       return [((v.x + 1) / 2) * innerWidth, ((1 - v.y) / 2) * innerHeight];
     },
+    project3: (x, y, z) => {
+      const v = new THREE.Vector3(Number(x) || 0, Number(y) || 0, Number(z) || 0).project(activeCamera);
+      return [((v.x + 1) / 2) * innerWidth, ((1 - v.y) / 2) * innerHeight];
+    },
     // Screen-space pick used by visual-verification tooling to identify which
     // mesh is rendering at a pixel (read-only; no gameplay effect).
     pick: (sx, sy) => {
@@ -848,6 +984,7 @@ if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
       raycaster.setFromCamera(ndc, activeCamera);
       return raycaster.intersectObjects(scene.children, true).slice(0, 5).map(hit => ({
         d: +hit.distance.toFixed(2),
+        point: hit.point.toArray().map(v => +v.toFixed(2)),
         type: hit.object.type,
         geo: hit.object.geometry?.type ?? null,
         pos: hit.object.position.toArray().map(v => +v.toFixed(2)),
@@ -903,6 +1040,11 @@ function presentDestination(res) {
     scene.fog.color.set(res.def.color);
     scene.background.set(res.def.color).multiplyScalar(0.45);
     sun.color.set(res.def.sun);
+    // Authored framing: places may widen the orbit so their surroundings
+    // read. The wheel keeps overriding within its existing bounds, and
+    // places without a value keep the historical default.
+    const desiredZoom = Number.isFinite(res.def.cameraZoom) ? res.def.cameraZoom : 24;
+    if (desiredZoom !== zoom) { zoom = desiredZoom; resize(); }
 
     // HUD headers + the canvas accessible name travel with the place.
     $('location-title').textContent = res.def.name;
@@ -910,17 +1052,21 @@ function presentDestination(res) {
     $('map-label').textContent = '• ' + res.def.subtitle;
     $('map-path').setAttribute('d', mapPaths[res.roomId] || mapPaths.court);
     $('world').setAttribute('aria-label', `${res.def.name} — ${res.def.description}`);
+    // The World picker belongs to the one room that has environment variants.
+    $('btn-world').hidden = res.roomId !== ROOMS.THEATER;
     toast(res.def.name, res.def.description, 'ARRIVED IN DISTRICT');
   } else {
     scene.fog.color.set('#54645d');
     scene.background.set('#222d2a');
     sun.color.set('#ffe0a5');
+    if (zoom !== 24) { zoom = 24; resize(); }
 
     $('location-title').textContent = "The Market Court";
     $('district-tag').textContent = "MARKET SOCIAL DISTRICT / 01";
     $('map-label').textContent = "• MARKET COURT 01";
     $('map-path').setAttribute('d', mapPaths.market);
     $('world').setAttribute('aria-label', 'The Market Court — a quiet square where the city paths meet');
+    $('btn-world').hidden = true;
     toast("The Market Court", "A quiet square where the city's paths meet.");
   }
 }
@@ -977,6 +1123,23 @@ const placeRuntime = createPlaceRuntime({
     return {
       activate: (seam) => {
         atmosphereStateClient.activate(seam);
+        // Theater environments install their geometry + atmosphere hooks
+        // BEFORE the controller activates, so wet material families, shelter
+        // zones and emitter anchors bind on the first frame.
+        if (seam.roomId === ROOMS.THEATER) {
+          lastEnvironmentPreset = undefined;
+          atmosphereController.setLocalPreset(environmentOverride);
+          try {
+            theaterEnvironments.sync({
+              presetId: (typeof atmosphereStateClient.getState === 'function' ? atmosphereStateClient.getState()?.preset : null) ?? null,
+              def: seam.def,
+              world: seam.world ?? currentWorld,
+              tier: environmentPrefs.quality,
+            });
+          } catch (error) {
+            console.error('[theater-environments] activation sync failed', error);
+          }
+        }
         atmosphereController.activate(seam);
         // Audio + comfort ride the same activation generation (tasks 4.1/4.3):
         // retained loops start (silently before the Sound gesture), zone rows
@@ -1490,6 +1653,32 @@ function openDistricts() {
 
 $('btn-travel').onclick = openDistricts;
 
+// World selector (Theater Environment campaign): one Orpheum room, six
+// authored worlds. The dialog renders the shared manifest; selecting applies
+// the preset locally at once and asks the room to adopt it, and the accepted
+// atmosphere snapshot keeps every occupant in sync (syncTheaterEnvironment
+// refreshes the open dialog from that state).
+worldSelector = createWorldSelector({
+  dialog: $('world-dialog'),
+  container: $('world-list'),
+  getActivePreset: () => effectiveEnvironmentPreset(),
+  onSelect: (presetId) => selectTheaterEnvironment(presetId),
+  onOpen: () => {
+    paused = true;
+    keys.clear();
+    clearJumpMomentum();
+  },
+  onClose: () => {
+    paused = false;
+    keys.clear();
+    clearJumpMomentum();
+  },
+  createEl: (tag) => document.createElement(tag),
+});
+$('btn-world').onclick = () => worldSelector.open();
+$('close-world').onclick = () => worldSelector.close();
+$('world-dialog').addEventListener('cancel', (e) => { e.preventDefault(); worldSelector.close(); });
+
 // Records & verified leaderboards (P2): local bests are machine-local and
 // honestly labeled; verified records come only from the server's referee.
 const leaderboardDialog = createLeaderboardDialog({
@@ -1878,7 +2067,7 @@ function resize() {
   camera.top = zoom / 2;
   camera.bottom = -zoom / 2;
   camera.near = 0.1;
-  camera.far = 150;
+  camera.far = 420;
   camera.updateProjectionMatrix();
   fpCamera.aspect = aspect;
   fpCamera.updateProjectionMatrix();
@@ -2045,6 +2234,18 @@ function frame(now) {
     // samples the room's semantic state at the anchored server time and
     // costs nothing while inactive or while the world is hidden.
     atmosphereController.update(dt * 1000);
+
+    // Theater environment: resolve the room's selected world from the
+    // semantic atmosphere preset (swapping geometry only when it changed),
+    // then animate the active environment's water/particles/vegetation. It
+    // costs nothing while another place is active.
+    if (currentRoomId === ROOMS.THEATER) {
+      syncTheaterEnvironment();
+      atmosphereStateClient.sample(environmentSample);
+      environmentSample.world = currentWorld;
+      environmentSample.atmosphereActive = currentWorld?.group?.visible !== false;
+      theaterEnvironments.update(t, dt, environmentSample);
+    }
 
     // Active activities update on the same frame loop: costs zero when
     // inactive or when the place declares no activities.

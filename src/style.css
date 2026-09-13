@@ -324,7 +324,8 @@ kbd {
 }
 
 /* --- PLACES SELECTOR (T / TRAVEL) --- */
-#district-dialog {
+#district-dialog,
+#world-dialog {
   width: min(600px, calc(100vw - 32px));
   max-width: 600px;
   max-height: 85vh;
@@ -336,16 +337,19 @@ kbd {
   padding: 22px 24px;
   box-shadow: 0 20px 90px rgba(0, 0, 0, 0.7);
 }
-#district-dialog::backdrop {
+#district-dialog::backdrop,
+#world-dialog::backdrop {
   background: rgba(7, 19, 16, 0.75);
   backdrop-filter: blur(5px);
 }
-#district-dialog h2 {
+#district-dialog h2,
+#world-dialog h2 {
   font-size: 24px;
   margin: 8px 0 4px;
   color: #f0e6cf;
 }
-#district-dialog p.dialog-sub {
+#district-dialog p.dialog-sub,
+#world-dialog p.dialog-sub {
   font-size: 12px;
   color: #adc0b8;
   margin-bottom: 16px;
@@ -354,6 +358,62 @@ kbd {
   max-height: 54vh;
   overflow-y: auto;
   padding-right: 6px;
+}
+
+/* Theater Environment campaign: the six worlds around the ONE Orpheum.
+   Variant buttons reuse the translucent-panel language; the room-accepted
+   world is marked with aria-pressed plus the .active class. */
+#world-list {
+  max-height: 54vh;
+  overflow-y: auto;
+  padding-right: 6px;
+  display: grid;
+  gap: 10px;
+}
+.world-card {
+  border: 1px solid #3e514d;
+  border-radius: 3px 3px 12px 3px;
+  padding: 10px 12px;
+  background: #1b2f30;
+}
+.world-card h3 { margin: 2px 0; font-size: 17px; color: #f0e6cf; }
+.world-card .world-subtitle { margin: 0 0 6px; color: #c4b582; letter-spacing: 0.08em; }
+.world-card .world-description { margin: 0 0 10px; color: #adc0b8; font-size: 12px; }
+.world-variants { display: flex; flex-wrap: wrap; gap: 6px; }
+.world-variant {
+  font: inherit;
+  font-size: 11px;
+  color: #d6ddcf;
+  background: #22383a;
+  border: 1px solid #3e514d;
+  border-radius: 3px 3px 10px 3px;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+.world-variant:hover { border-color: #6f8a80; }
+.world-variant.active,
+.world-variant[aria-pressed="true"] {
+  border-color: #c4b582;
+  color: #f0e6cf;
+  background: #2d4642;
+}
+.world-variant:focus-visible,
+#close-world:focus-visible {
+  outline: 2px solid #bbded5;
+  outline-offset: 2px;
+}
+#close-world {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #b8a87c;
+  color: #182827;
+  font-weight: 600;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
 }
 .place-group { margin: 0 0 14px; }
 .place-group-label {
