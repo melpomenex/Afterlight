@@ -101,6 +101,7 @@ The shared places are the game's identity. The legacy districts keep their own q
 | <kbd>Space</kbd> | Jump — hold it to bunny hop: chained hops keep your momentum and build speed (up to ~1.5× run) as long as the chain lasts. Obstacles still block mid-air. |
 | <kbd>E</kbd> | Contextual interact with the nearest gate, seat, arcade table, landmark, or field note |
 | <kbd>T</kbd> / **Travel** | Open the **Places** selector — featured destinations first, every legacy area retained under "Legacy areas"; live occupancy counts where the server can answer ("—" means unknown) |
+| **World** | In The Orpheum: open the **World** picker — six authored environments around the same theater, each with three variants; anyone in the room may choose and every occupant follows |
 | **Records** | Open the arcade **Records** dialog: your machine-local bests for each Orpheum cabinet plus the server-verified leaderboard, per rules version. Local bests are labeled **Pending** until the arcade's own referee records them — and **Unrecorded** if recording failed — so the board never claims a score it cannot back. **Profile** shows games, wins, streaks and bests keyed to your identity (renames keep the record; guests are this-browser only). Walkovers are not counted. |
 | **Tournament** | Open the Orpheum pool tournament board (also press <kbd>E</kbd> at the chalkboard by the west lounge table). Room-local four or eight players, single elimination. Check in within 60 seconds; labeled walkovers never count as played matches. No prizes, coins or XP. |
 | **Pool table** | Move the pointer across the cloth to aim; press-drag and release to set power and shoot. <kbd>A</kbd>/<kbd>D</kbd> fine-tune aim, hold/release <kbd>F</kbd> to charge/shoot, and <kbd>C</kbd> cycles cue, standing, and overhead views. <kbd>Space</kbd> is inactive while playing pool. Click the cue-ball widget for spin/English. |
@@ -216,6 +217,10 @@ Travel between districts seamlessly via physical east/west gateway conduits, or 
 At the far east end of the line sits **The Orpheum** (`theater`), a grand old cinema where everyone in the room watches one shared screen — and where every player wakes up. What plays there plays for **everyone at once**: one player queues a film or flips an IPTV channel and the whole auditorium sees it.
 
 The auditorium has rounded burgundy seats with padded headrests, armrests and cup holders, carpeted aisles, acoustic wall panels and speakers. At the back, a walnut concession counter holds a glass popcorn warmer and soda fountain. These furnishings are scenery; seat and projector controls work as before.
+
+### Six worlds around the stage
+
+The Orpheum's surroundings are the room's shared world, not a private display setting. Press **◈ World** in the footer (shown in The Orpheum) to open the picker: **Coastal Dusk**, **Rainforest Canopy**, **Alpine Aurora**, **Desert Oasis**, **Ancient Redwood Forest**, and **Cloud Garden** — each with three authored variants (sunset, storm, bioluminescent midnight, morning mist, snowfall, starry night…). Anyone in the room may choose; the accepted world is the room's atmosphere state, so every occupant follows around the same theater — the building, seats, screen, arcade and seating never move or reset, and your own pick previews immediately even while offline. Ambience follows the chosen world (rain, wind, shelter, lowpass), ducking under shared media and calls as always. Design/authoring reference: `docs/theater-environments.md`.
 
 ### The arcade wall
 
