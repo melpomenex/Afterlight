@@ -463,6 +463,11 @@ export class NetworkClient {
     this.send(MSG_TYPES.SET_NICKNAME, { nickname: this.nickname });
   }
 
+  setAvatar(avatarId) {
+    if (!avatarId) return;
+    this.send(MSG_TYPES.SET_AVATAR, { avatar: avatarId });
+  }
+
   joinRoom(roomId) {
     // Remember the room so it is sent once the socket opens and re-sent
     // automatically after any reconnect.

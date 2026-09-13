@@ -138,6 +138,7 @@ export const MSG_TYPES = {
   // Client -> Server
   HELLO: 'hello',
   SET_NICKNAME: 'set_nickname',
+  SET_AVATAR: 'set_avatar',
   JOIN_ROOM: 'join_room',
   MOVEMENT: 'movement',
   THEATER_QUEUE: 'theater_queue',
