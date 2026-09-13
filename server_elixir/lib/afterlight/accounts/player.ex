@@ -60,6 +60,11 @@ defmodule Afterlight.Accounts.Player do
       allow_nil? true
       public? true
     end
+
+    attribute :avatar, :string do
+      allow_nil? true
+      public? true
+    end
   end
 
   relationships do
@@ -72,7 +77,7 @@ defmodule Afterlight.Accounts.Player do
     defaults [:read]
 
     create :stub do
-      accept [:id, :nickname, :last_seen]
+      accept [:id, :nickname, :last_seen, :avatar]
     end
 
     create :import_upsert do
@@ -81,7 +86,8 @@ defmodule Afterlight.Accounts.Player do
         :nickname,
         :current_room,
         :last_seen,
-        :shadow
+        :shadow,
+        :avatar
       ]
 
       accept [
@@ -89,7 +95,8 @@ defmodule Afterlight.Accounts.Player do
         :nickname,
         :current_room,
         :last_seen,
-        :shadow
+        :shadow,
+        :avatar
       ]
     end
 
@@ -105,6 +112,11 @@ defmodule Afterlight.Accounts.Player do
 
     update :touch_last_seen do
       accept [:last_seen]
+      require_atomic? false
+    end
+
+    update :set_avatar do
+      accept [:avatar]
       require_atomic? false
     end
   end
@@ -131,7 +143,7 @@ defmodule Afterlight.Accounts.Player do
       authorize_if expr(id == ^actor(:player_id))
     end
 
-    policy action([:set_nickname, :touch_last_seen]) do
+    policy action([:set_nickname, :touch_last_seen, :set_avatar]) do
       forbid_if always()
     end
   end

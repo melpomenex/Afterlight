@@ -308,6 +308,7 @@ defmodule Afterlight.World.RoomServer do
             |> Map.put(:monitor, monitor_member(attrs.channel_pid))
             |> Map.put(:nickname, attrs.nickname)
             |> Map.put(:pose, attrs.pose)
+            |> Map.put(:avatar, Map.get(attrs, :avatar, Map.get(member, :avatar)))
 
           state = put_member(state, member)
           {state, roster_frame(state, player_id)}
@@ -320,6 +321,7 @@ defmodule Afterlight.World.RoomServer do
             monitor: monitor_member(attrs.channel_pid),
             nickname: attrs.nickname,
             pose: attrs.pose,
+            avatar: Map.get(attrs, :avatar),
             joined_seq: next_seq(state)
           }
 

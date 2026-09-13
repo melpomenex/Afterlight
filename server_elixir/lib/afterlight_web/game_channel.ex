@@ -402,7 +402,15 @@ defmodule AfterlightWeb.GameChannel do
               socket
           end
 
-        case World.join(room.wire_id, guest_id, conn, self(), socket.assigns[:nickname], socket.assigns[:world_pose]) do
+        case World.join(
+               room.wire_id,
+               guest_id,
+               conn,
+               self(),
+               socket.assigns[:nickname],
+               socket.assigns[:world_pose],
+               socket.assigns[:avatar]
+             ) do
           {:ok, room_pid, roster} ->
             duration_ms = System.monotonic_time(:millisecond) - started
 
@@ -667,6 +675,8 @@ defmodule AfterlightWeb.GameChannel do
       |> maybe_assign_rt(payload)
 
     welcome = Welcome.compose(guest_id, nickname, socket.assigns[:rt])
+    avatar = get_in(welcome, ["player", "avatar"])
+    socket = assign(socket, :avatar, avatar)
     push(socket, "welcome", welcome)
 
     socket =

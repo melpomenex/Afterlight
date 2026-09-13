@@ -97,6 +97,8 @@ export function wireRealtime({
             if (entitySession) return;
             remotePlayers.setPlayer({
               id: j.guestId ?? j.id,
+              nickname: j.nickname,
+              avatar: j.avatar,
               x: j.x,
               z: j.z,
               rotY: j.yaw,

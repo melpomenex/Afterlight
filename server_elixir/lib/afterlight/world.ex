@@ -44,9 +44,9 @@ defmodule Afterlight.World do
   to the joiner BEFORE forwarding `join_room` to the Node shadow session
   (design D6 ordering).
   """
-  @spec join(String.t(), String.t(), term, pid, String.t() | nil, Movement.pose() | nil) ::
+  @spec join(String.t(), String.t(), term, pid, String.t() | nil, Movement.pose() | nil, String.t() | nil) ::
           {:ok, pid, %{String.t() => term}} | {:error, term}
-  def join(wire_room_id, player_id, conn_ref, channel_pid, nickname, pose \\ nil) do
+  def join(wire_room_id, player_id, conn_ref, channel_pid, nickname, pose \\ nil, avatar \\ nil) do
     with {:ok, room} <- Rooms.resolve(wire_room_id),
          {:ok, pid} <- ensure_room(room) do
       attrs = %{
@@ -54,7 +54,8 @@ defmodule Afterlight.World do
         conn_ref: conn_ref,
         channel_pid: channel_pid,
         nickname: nickname,
-        pose: pose || default_pose()
+        pose: pose || default_pose(),
+        avatar: avatar
       }
 
       case RoomServer.join(pid, attrs) do

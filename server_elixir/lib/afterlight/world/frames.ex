@@ -95,10 +95,16 @@ defmodule Afterlight.World.Frames do
 
   # Join-shape entry: adds the nickname and omits airborne.
   defp roster_entry(member) do
-    member
-    |> flush_entry()
-    |> Map.delete(:airborne)
-    |> Map.put(:nickname, member.nickname)
+    entry =
+      member
+      |> flush_entry()
+      |> Map.delete(:airborne)
+      |> Map.put(:nickname, member.nickname)
+
+    case Map.get(member, :avatar) do
+      nil -> entry
+      avatar -> Map.put(entry, :avatar, avatar)
+    end
   end
 
   defp encoder do

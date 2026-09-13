@@ -118,8 +118,15 @@ defmodule Afterlight.Realtime.Encoders.JSON do
       "sitting" => e.sitting
     }
 
-    if Map.has_key?(e, :nickname) and e.nickname != nil do
-      Map.put(base, "nickname", e.nickname)
+    base =
+      if Map.has_key?(e, :nickname) and e.nickname != nil do
+        Map.put(base, "nickname", e.nickname)
+      else
+        base
+      end
+
+    if Map.has_key?(e, :avatar) and e.avatar != nil do
+      Map.put(base, "avatar", e.avatar)
     else
       base
     end

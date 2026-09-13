@@ -5,6 +5,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { MSG_TYPES, ROOMS, WEATHER, parse, serialize } from '../shared/protocol.js';
 import { parseHelloRt, buildWelcomeRt } from '../shared/realtime/negotiation.js';
 import { sanitizeNickname, resolveDuplicateNickname } from '../shared/identity.js';
+import { ensureAvatar } from './avatars.js';
 import { Storage } from './storage.js';
 import { initBaselineProbe } from './baselineProbe.js';
 import { WorldManager } from './world.js';
@@ -700,6 +701,7 @@ export function createServer(customStorage = null, options = {}) {
           player.lastSeen = Date.now();
         }
 
+        ensureAvatar(player);
         storage.savePlayer(player);
 
         const clientSession = {

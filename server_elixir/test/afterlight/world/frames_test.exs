@@ -12,7 +12,7 @@ defmodule Afterlight.World.FramesTest do
   alias Afterlight.World.Frames
 
   defp member(id, nickname, opts \\ []) do
-    %{
+    base = %{
       player_id: id,
       conn_ref: make_ref(),
       channel_pid: nil,
@@ -25,6 +25,11 @@ defmodule Afterlight.World.FramesTest do
         ),
       joined_seq: 0
     }
+
+    case Keyword.get(opts, :avatar) do
+      nil -> base
+      avatar -> Map.put(base, :avatar, avatar)
+    end
   end
 
   test "flush shape is exactly the catalog roster shape" do
@@ -128,5 +133,19 @@ defmodule Afterlight.World.FramesTest do
 
     # The built frame itself stays untouched (non-mutating tag).
     refute Map.has_key?(frame, "roomId")
+  end
+
+  test "avatar is included in join_roster and presence_join when present" do
+    m = member("guest_c", "Moonwalker", avatar: "moon-head")
+
+    join_frame = Frames.presence_join(m)
+    assert join_frame["player"]["avatar"] == "moon-head"
+
+    roster_frame = Frames.join_roster([m])
+    assert hd(roster_frame["players"])["avatar"] == "moon-head"
+
+    # Periodic flush does NOT include avatar (flush shape is compact)
+    flush_frame = Frames.flush([m])
+    refute Map.has_key?(hd(flush_frame["players"]), "avatar")
   end
 end

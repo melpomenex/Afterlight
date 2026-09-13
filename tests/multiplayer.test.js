@@ -80,10 +80,12 @@ test('multiplayer server presence, room partitioning, and movement', async () =>
   try {
     clientA = await createClient('guest_A', 'QuietLantern');
     assert.equal(clientA.player.nickname, 'QuietLantern');
+    assert.ok(clientA.player.avatar, 'Client A receives assigned avatar');
 
     // 2. Client B joins
     clientB = await createClient('guest_B', 'SignalKeeper');
     assert.equal(clientB.player.nickname, 'SignalKeeper');
+    assert.ok(clientB.player.avatar, 'Client B receives assigned avatar');
 
     // Allow a moment for presence messages
     await new Promise(r => setTimeout(r, 150));
@@ -91,6 +93,7 @@ test('multiplayer server presence, room partitioning, and movement', async () =>
     // Client A should see Client B's join
     const bJoinMsg = clientA.messages.find(m => m.type === MSG_TYPES.PRESENCE_JOIN && m.player.id === 'guest_B');
     assert.ok(bJoinMsg, 'Client A received presence_join for Client B');
+    assert.equal(bJoinMsg.player.avatar, clientB.player.avatar, 'presence_join carries avatar');
 
   // 3. Client A moves
   clientA.ws.send(serialize({
@@ -109,6 +112,7 @@ test('multiplayer server presence, room partitioning, and movement', async () =>
   const pA = movementMsg.players.find(p => p.id === 'guest_A');
   assert.equal(pA.x, 4.5);
   assert.equal(pA.z, -2.0);
+  assert.equal(pA.avatar, undefined, 'movement flush does not carry avatar');
 
   // 4. Client A travels to a retained public district room
   clientA.ws.send(serialize({

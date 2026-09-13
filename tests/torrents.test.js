@@ -574,7 +574,7 @@ test('GET /api/theater/torrent streams ranged bytes over HTTP with a valid grant
   fs.writeFileSync(fixture, '0123456789ab'); // exactly the metadata length (12)
   const torrents = fakeTorrentManager(path.join(dir, 'data'), fixture);
   await torrents.resolve(MAGNET); // someone picked this file before the request
-  const { server } = createServer(new Storage(path.join(dir, 'state.json')), {
+  const { server, close } = createServer(new Storage(path.join(dir, 'state.json')), {
     dataDir: path.join(dir, 'data'),
     torrents,
     grantsRequired: true,
@@ -618,7 +618,7 @@ test('GET /api/theater/torrent streams ranged bytes over HTTP with a valid grant
     assert.equal(head.status, 200);
     assert.equal(head.headers.get('content-length'), '12');
   } finally {
-    await new Promise((resolve) => server.close(resolve));
+    close();
   }
 });
 
@@ -628,7 +628,7 @@ test('torrent stream refusals log bounded categories and never the token', async
   fs.writeFileSync(fixture, '0123456789ab');
   const torrents = fakeTorrentManager(path.join(dir, 'data'), fixture);
   await torrents.resolve(MAGNET);
-  const { server } = createServer(new Storage(path.join(dir, 'state.json')), {
+  const { server, close } = createServer(new Storage(path.join(dir, 'state.json')), {
     dataDir: path.join(dir, 'data'),
     torrents,
     grantsRequired: true,
@@ -661,7 +661,7 @@ test('torrent stream refusals log bounded categories and never the token', async
     );
   } finally {
     console.warn = origWarn;
-    await new Promise((resolve) => server.close(resolve));
+    close();
   }
 
   const log = lines.join('\n');
@@ -683,7 +683,7 @@ test('loopback dev may stream without grants when explicitly configured', async 
   fs.writeFileSync(fixture, '0123456789ab');
   const torrents = fakeTorrentManager(path.join(dir, 'data'), fixture);
   await torrents.resolve(MAGNET);
-  const { server } = createServer(new Storage(path.join(dir, 'state.json')), {
+  const { server, close } = createServer(new Storage(path.join(dir, 'state.json')), {
     dataDir: path.join(dir, 'data'),
     torrents,
     grantsRequired: false,
@@ -696,7 +696,7 @@ test('loopback dev may stream without grants when explicitly configured', async 
     assert.equal(res.status, 200);
     assert.equal(await res.text(), '0123456789ab');
   } finally {
-    await new Promise((resolve) => server.close(resolve));
+    close();
   }
 });
 

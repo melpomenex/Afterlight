@@ -9,12 +9,17 @@ defmodule Afterlight.Accounts.Normalize do
   def player(other), do: other
 
   def to_legacy_player(player) do
-    %{
+    base = %{
       "id" => player.id,
       "nickname" => player.nickname,
       "currentRoom" => player.current_room,
       "lastSeen" => player.last_seen
     }
+
+    case Map.get(player, :avatar) do
+      nil -> base
+      avatar -> Map.put(base, "avatar", avatar)
+    end
   end
 
   defp stringify_keys(map) when is_map(map) do

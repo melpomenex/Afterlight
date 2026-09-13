@@ -58,6 +58,7 @@ export class WorldManager {
         player: {
           id: session.player.id,
           nickname: session.player.nickname,
+          avatar: session.player.avatar || null,
           x: session.x,
           z: session.z,
           rotY: session.rotY,
@@ -76,6 +77,7 @@ export class WorldManager {
         existingPlayers.push({
           id: other.player.id,
           nickname: other.player.nickname,
+          avatar: other.player.avatar || null,
           x: other.x,
           z: other.z,
           rotY: other.rotY,
