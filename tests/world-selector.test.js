@@ -11,6 +11,8 @@ import { createWorldSelector, worldSelectionForPreset } from '../src/ui/worldSel
 import {
   THEATER_ENVIRONMENTS,
   THEATER_ENVIRONMENT_IDS,
+  THEATER_WORLD_DEFAULT_PRESETS,
+  randomTheaterWorldPreset,
   environmentVariantPreset,
 } from '../shared/theaterEnvironments.js';
 
@@ -184,3 +186,25 @@ test('the preset reverse lookup covers every authored variant and refuses unknow
   assert.equal(worldSelectionForPreset('env-nope'), null);
   assert.equal(worldSelectionForPreset(null), null);
 });
+
+test('THEATER_WORLD_DEFAULT_PRESETS contains the signature preset for each world in the World list', () => {
+  assert.equal(THEATER_WORLD_DEFAULT_PRESETS.length, 6);
+  assert.deepEqual([...THEATER_WORLD_DEFAULT_PRESETS], [
+    'env-coastal-sunset',
+    'env-rainforest-mist',
+    'env-alpine-aurora',
+    'env-desert-golden',
+    'env-redwood-firefly',
+    'env-cloud-sunrise',
+  ]);
+});
+
+test('randomTheaterWorldPreset chooses uniformly from the 6 World presets', () => {
+  assert.equal(randomTheaterWorldPreset(() => 0.0), 'env-coastal-sunset');
+  assert.equal(randomTheaterWorldPreset(() => 0.17), 'env-rainforest-mist');
+  assert.equal(randomTheaterWorldPreset(() => 0.35), 'env-alpine-aurora');
+  assert.equal(randomTheaterWorldPreset(() => 0.52), 'env-desert-golden');
+  assert.equal(randomTheaterWorldPreset(() => 0.7), 'env-redwood-firefly');
+  assert.equal(randomTheaterWorldPreset(() => 0.99), 'env-cloud-sunrise');
+});
+

@@ -516,6 +516,20 @@ export const THEATER_ENVIRONMENTS = freeze({
 
 export const THEATER_ENVIRONMENT_IDS = Object.freeze(Object.keys(THEATER_ENVIRONMENTS));
 
+/** The signature/default atmosphere preset for each authored world in the World list. */
+export const THEATER_WORLD_DEFAULT_PRESETS = Object.freeze(
+  THEATER_ENVIRONMENT_IDS.map((id) => THEATER_ENVIRONMENTS[id].variants[THEATER_ENVIRONMENTS[id].defaultVariant].preset),
+);
+
+/**
+ * Randomly chooses an atmosphere preset from the World list (using its signature/default variant).
+ * @param {() => number} [rng=Math.random]
+ */
+export function randomTheaterWorldPreset(rng = Math.random) {
+  const index = Math.floor(rng() * THEATER_WORLD_DEFAULT_PRESETS.length);
+  return THEATER_WORLD_DEFAULT_PRESETS[index];
+}
+
 export function getTheaterEnvironment(id) {
   return Object.prototype.hasOwnProperty.call(THEATER_ENVIRONMENTS, id) ? THEATER_ENVIRONMENTS[id] : null;
 }
