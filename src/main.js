@@ -425,7 +425,13 @@ import('./realtime/wire.js').then(({ wireRealtime }) => {
   rtWire = wireRealtime({ net, remotePlayers, guestId: net.guestId, scene });
 }).catch(() => { /* module unavailable: legacy path */ });
 
-const ui = new UIManager(net);
+const ui = new UIManager(net, {
+  onAvatarChange: (id) => {
+    if (!urlParams.get('avatar')) {
+      player.userData.setAvatar?.(id);
+    }
+  },
+});
 
 // Town chat: panel + input. While the input holds focus the game must not
 // react to typing, so focus changes clear any held movement keys.
