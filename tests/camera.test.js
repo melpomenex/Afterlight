@@ -90,3 +90,44 @@ test('look delta: absurd per-event spikes are clamped, not applied raw', () => {
 test('look delta: zero movement leaves the view untouched', () => {
   assert.deepEqual(applyLookDelta(0.42, -0.1, 0, 0), { yaw: 0.42, pitch: -0.1 });
 });
+
+test('look delta: relative motion integrates continuously without boundary', () => {
+  // Simulating successive relative movementX/movementY events from pointer lock
+  let state = { yaw: 0, pitch: 0 };
+  const movements = [
+    { mx: 15, my: -10 },
+    { mx: 20, my: -5 },
+    { mx: -5, my: 12 },
+    { mx: 30, my: -8 },
+  ];
+  let totalMx = 0;
+  let totalMy = 0;
+  for (const { mx, my } of movements) {
+    state = applyLookDelta(state.yaw, state.pitch, mx, my);
+    totalMx += mx;
+    totalMy += my;
+  }
+  assert.ok(near(state.yaw, -totalMx * LOOK_SENS_YAW));
+  assert.ok(near(state.pitch, -totalMy * LOOK_SENS_PITCH));
+});
+
+test('pointer gesture: relative motion travel accumulates into a drag', () => {
+  // When pointer-locked, clientX/Y do not change; accumulated travel classifies drag
+  let travel = 0;
+  let dragging = false;
+  // Sub-threshold movement: 3px then 2px = 5px (still below DRAG_THRESHOLD_PX = 6)
+  travel += 3;
+  dragging = classifyDrag(0, 0, travel, 0, dragging);
+  assert.equal(dragging, false, '5px travel remains a tap/click');
+  travel += 2;
+  dragging = classifyDrag(0, 0, travel, 0, dragging);
+  assert.equal(dragging, false, '5px travel remains a tap/click');
+  // Reaching and exceeding threshold: 5 + 2 = 7px
+  travel += 2;
+  dragging = classifyDrag(0, 0, travel, 0, dragging);
+  assert.equal(dragging, true, '7px travel promotes to look-drag');
+  // Once dragging, it stays dragging even if travel delta is zero
+  dragging = classifyDrag(0, 0, travel, 0, dragging);
+  assert.equal(dragging, true);
+});
+

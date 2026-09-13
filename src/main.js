@@ -433,6 +433,7 @@ const chatPanel = new ChatPanel(net, {
     if (typing) {
       keys.clear();
       clearJumpMomentum();
+      if (pointerLock.locked) pointerLock.exit();
     }
   },
 });
@@ -454,10 +455,24 @@ theaterUI.requestMasterSound = () => {
   $('sound').click();
   return !muted;
 };
-// Pointer-lock integration contract (5.4): no shipped game uses lock today;
-// this bridge only ever acts on an explicit canvas gesture and never on
-// automatic presentation changes.
-const pointerLock = createPointerLockBridge({ getCanvas: () => renderer.domElement });
+// Pointer-lock integration: first-person view locks the pointer and hides the
+// cursor when mouse look is active, freeing movement from screen boundaries.
+const pointerLock = createPointerLockBridge({
+  getCanvas: () => renderer.domElement,
+  onChange: (locked) => {
+    if (cameraMode === FP_MODE) {
+      if (locked) {
+        renderer.domElement.style.cursor = 'none';
+      } else {
+        renderer.domElement.style.cursor = mouseLookEnabled ? '' : 'grab';
+        hoverLast = null;
+      }
+    } else {
+      renderer.domElement.style.cursor = '';
+      hoverLast = null;
+    }
+  },
+});
 
 // Conferencing: opt-in audio/video/screen call panel (P8)
 const callClient = new CallClient(net);
@@ -466,6 +481,7 @@ const callPanel = new CallPanel(callClient, {
     if (focusing) {
       keys.clear();
       clearJumpMomentum();
+      if (pointerLock.locked) pointerLock.exit();
     }
   },
   onDuckingChange: (duckingRatio) => {
@@ -1637,6 +1653,7 @@ const placeSelector = createPlaceSelector({
     paused = true;
     keys.clear();
     clearJumpMomentum();
+    if (pointerLock.locked) pointerLock.exit();
   },
   onClose: () => {
     paused = false;
@@ -1648,6 +1665,7 @@ const placeSelector = createPlaceSelector({
 });
 
 function openDistricts() {
+  if (pointerLock.locked) pointerLock.exit();
   placeSelector.open();
 }
 
@@ -1667,6 +1685,7 @@ worldSelector = createWorldSelector({
     paused = true;
     keys.clear();
     clearJumpMomentum();
+    if (pointerLock.locked) pointerLock.exit();
   },
   onClose: () => {
     paused = false;
@@ -1675,7 +1694,10 @@ worldSelector = createWorldSelector({
   },
   createEl: (tag) => document.createElement(tag),
 });
-$('btn-world').onclick = () => worldSelector.open();
+$('btn-world').onclick = () => {
+  if (pointerLock.locked) pointerLock.exit();
+  worldSelector.open();
+};
 $('close-world').onclick = () => worldSelector.close();
 $('world-dialog').addEventListener('cancel', (e) => { e.preventDefault(); worldSelector.close(); });
 
@@ -1689,6 +1711,7 @@ const leaderboardDialog = createLeaderboardDialog({
     paused = true;
     keys.clear();
     clearJumpMomentum();
+    if (pointerLock.locked) pointerLock.exit();
   },
   onClose: () => {
     paused = false;
@@ -1696,7 +1719,10 @@ const leaderboardDialog = createLeaderboardDialog({
     clearJumpMomentum();
   },
 });
-$('btn-records').onclick = () => leaderboardDialog.open();
+$('btn-records').onclick = () => {
+  if (pointerLock.locked) pointerLock.exit();
+  leaderboardDialog.open();
+};
 
 // Terminal run results (P2): a finished arcade run updates the local best
 // (marked pending), and the server's recording status relabels it verified
@@ -1720,6 +1746,7 @@ emoteWheel = createEmoteWheel({
   onOpen: () => {
     keys.clear(); clearJumpMomentum(); target = null; marker.visible = false; press = null;
     theaterUI.setWatchMode(false);
+    if (pointerLock.locked) pointerLock.exit();
   },
   onChoose: id => {
     startEmote(player, id);
@@ -1727,16 +1754,24 @@ emoteWheel = createEmoteWheel({
     toast(EMOTES.find(e => e.id === id).label, 'Move to finish your emote.', 'EMOTE');
   },
 });
-$('btn-emote').onclick = () => emoteWheel.open();
-$('btn-edit-nick').onclick = () => ui.openProfile();
+$('btn-emote').onclick = () => {
+  if (pointerLock.locked) pointerLock.exit();
+  emoteWheel.open();
+};
+$('btn-edit-nick').onclick = () => {
+  if (pointerLock.locked) pointerLock.exit();
+  ui.openProfile();
+};
 
 // Settings & Pause
 function toggleSettings() {
   paused = !paused;
   keys.clear();
   clearJumpMomentum();
-  if (paused) $('settings-dialog').showModal();
-  else {
+  if (paused) {
+    if (pointerLock.locked) pointerLock.exit();
+    $('settings-dialog').showModal();
+  } else {
     $('settings-dialog').close();
     // Resuming seeks the atmosphere to CURRENT server state and silently
     // drops events that started or expired while paused (task 2.2 D3); the
@@ -1781,7 +1816,19 @@ function setCameraMode(mode) {
   // The player's own avatar stays out of view in first person; everything
   // else (Kiln, remote players, scenery) renders normally.
   player.visible = cameraMode !== FP_MODE;
-  renderer.domElement.style.cursor = cameraMode === FP_MODE ? 'grab' : '';
+  if (cameraMode === FP_MODE) {
+    renderer.domElement.style.cursor = mouseLookEnabled ? 'none' : 'grab';
+    if (mouseLookEnabled) {
+      pointerLock.requestFromGesture();
+    } else if (pointerLock.locked) {
+      pointerLock.exit();
+    }
+  } else {
+    renderer.domElement.style.cursor = '';
+    if (pointerLock.locked) {
+      pointerLock.exit();
+    }
+  }
 }
 
 function setActivityCamera(customCamera) {
@@ -1810,6 +1857,15 @@ $('atmosphere').onchange = () => { particles.visible = $('atmosphere').checked; 
   mouseLookCheckbox.onchange = () => {
     mouseLookEnabled = mouseLookCheckbox.checked;
     writeMouseLookPreference(mouseLookEnabled);
+    if (cameraMode === FP_MODE) {
+      if (mouseLookEnabled) {
+        renderer.domElement.style.cursor = 'none';
+        pointerLock.requestFromGesture();
+      } else {
+        renderer.domElement.style.cursor = 'grab';
+        if (pointerLock.locked) pointerLock.exit();
+      }
+    }
   };
 }
 
@@ -1883,6 +1939,7 @@ window.addEventListener('keydown', (e) => {
   // preventDefault keeps the g from typing into the dialog's freshly focused URL input.
   if (e.code === 'KeyG' && currentRoomId === ROOMS.THEATER && !document.querySelector('dialog[open]')) {
     e.preventDefault();
+    if (pointerLock.locked) pointerLock.exit();
     theaterUI.openControls();
   }
   if (e.code === 'KeyC') $('camera').click();
@@ -1968,8 +2025,17 @@ document.addEventListener('focusin', (e) => {
 
 renderer.domElement.addEventListener('pointerdown', (e) => {
   if (paused || emoteWheel?.isOpen) return;
-  press = { x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, dragging: false };
-  renderer.domElement.setPointerCapture(e.pointerId);
+  const isMouse = e.pointerType === 'mouse';
+  if (cameraMode === FP_MODE && mouseLookEnabled && isMouse && !pointerLock.locked) {
+    renderer.domElement.style.cursor = 'none';
+    pointerLock.requestFromGesture();
+  }
+  press = { x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, travel: 0, dragging: false };
+  if (!pointerLock.locked) {
+    try {
+      renderer.domElement.setPointerCapture(e.pointerId);
+    } catch {}
+  }
 });
 
 renderer.domElement.addEventListener('pointermove', (e) => {
@@ -1979,24 +2045,40 @@ renderer.domElement.addEventListener('pointermove', (e) => {
   // Hover does not exist for touch, so touch never takes this path.
   const isMouse = e.pointerType === 'mouse';
   if (isMouse) {
-    const hdx = hoverLast ? e.clientX - hoverLast.x : 0;
-    const hdy = hoverLast ? e.clientY - hoverLast.y : 0;
+    const hdx = pointerLock.locked
+      ? (e.movementX ?? 0)
+      : (hoverLast ? e.clientX - hoverLast.x : 0);
+    const hdy = pointerLock.locked
+      ? (e.movementY ?? 0)
+      : (hoverLast ? e.clientY - hoverLast.y : 0);
     hoverLast = { x: e.clientX, y: e.clientY };
     if (mouseLookEnabled && cameraMode === FP_MODE && !paused && !emoteWheel?.isOpen) {
       ({ yaw: fpYaw, pitch: fpPitch } = applyLookDelta(fpYaw, fpPitch, hdx, hdy));
     }
   }
   if (!press || paused) return;
-  const dx = e.clientX - press.lastX;
-  const dy = e.clientY - press.lastY;
-  press.lastX = e.clientX;
-  press.lastY = e.clientY;
-  press.dragging = classifyDrag(press.x, press.y, e.clientX, e.clientY, press.dragging);
-  // Drag-to-look: the fallback when mouse look is off, and touch's path in
-  // both modes. With mouse look on, a held mouse drag is already covered by
-  // the hover path, so applying it here again would double the turn.
-  if (press.dragging && cameraMode === FP_MODE && !(mouseLookEnabled && isMouse)) {
-    ({ yaw: fpYaw, pitch: fpPitch } = applyLookDelta(fpYaw, fpPitch, dx, dy));
+  if (pointerLock.locked) {
+    const mx = e.movementX ?? 0;
+    const my = e.movementY ?? 0;
+    press.travel = (press.travel || 0) + Math.hypot(mx, my);
+    if (classifyDrag(0, 0, press.travel, 0, press.dragging)) {
+      press.dragging = true;
+    }
+    if (press.dragging && cameraMode === FP_MODE && !mouseLookEnabled) {
+      ({ yaw: fpYaw, pitch: fpPitch } = applyLookDelta(fpYaw, fpPitch, mx, my));
+    }
+  } else {
+    const dx = e.clientX - press.lastX;
+    const dy = e.clientY - press.lastY;
+    press.lastX = e.clientX;
+    press.lastY = e.clientY;
+    press.dragging = classifyDrag(press.x, press.y, e.clientX, e.clientY, press.dragging);
+    // Drag-to-look: the fallback when mouse look is off, and touch's path in
+    // both modes. With mouse look on, a held mouse drag is already covered by
+    // the hover path, so applying it here again would double the turn.
+    if (press.dragging && cameraMode === FP_MODE && !(mouseLookEnabled && isMouse)) {
+      ({ yaw: fpYaw, pitch: fpPitch } = applyLookDelta(fpYaw, fpPitch, dx, dy));
+    }
   }
 });
 
@@ -2010,7 +2092,10 @@ function endPress(e) {
   if (!started || paused || started.dragging) return; // a look-drag never walks
   if (seats.current) standUp();
   else if (theaterUI.isWatching()) theaterUI.setWatchMode(false); // tap-to-walk leaves cinema view
-  ray.setFromCamera(new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), activeCamera);
+  const ndc = (pointerLock.locked && cameraMode === FP_MODE)
+    ? new THREE.Vector2(0, 0)
+    : new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  ray.setFromCamera(ndc, activeCamera);
   if (ray.ray.intersectPlane(plane, hit)) {
     const clamped = clampClickTarget(currentBounds, hit.x, hit.z);
     target = new THREE.Vector3(clamped.x, 0, clamped.z);
