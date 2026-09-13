@@ -658,6 +658,181 @@
       "currentRoom": "market",
       "lastSeen": 1788737526375,
       "materials": {}
+    },
+    "probe-agent-1": {
+      "id": "probe-agent-1",
+      "nickname": "PROBE",
+      "currentRoom": "market",
+      "lastSeen": 1789314284000,
+      "avatar": "alien-tourist"
+    },
+    "probe_a2": {
+      "id": "probe_a2",
+      "nickname": "probe_a2",
+      "currentRoom": "market",
+      "lastSeen": 1789317292179,
+      "avatar": "moon-head"
+    },
+    "probe_b2": {
+      "id": "probe_b2",
+      "nickname": "probe_b2",
+      "currentRoom": "market",
+      "lastSeen": 1789317296173,
+      "avatar": "sentient-street-lamp"
+    },
+    "guest_nispefi1c_mu01cvxt": {
+      "id": "guest_nispefi1c_mu01cvxt",
+      "nickname": "AutumnalLattice34",
+      "currentRoom": "market",
+      "lastSeen": 1789317366464,
+      "avatar": "sentient-street-lamp"
+    },
+    "guest_va3790hfy_mu01d4t9": {
+      "id": "guest_va3790hfy_mu01d4t9",
+      "nickname": "BrightBeacon99",
+      "currentRoom": "market",
+      "lastSeen": 1789317378594,
+      "avatar": "garden-gnome"
+    },
+    "guest_jqhf7r86d_mu01fqgf": {
+      "id": "guest_jqhf7r86d_mu01fqgf",
+      "nickname": "AutumnalCompass95",
+      "currentRoom": "market",
+      "lastSeen": 1789317499683,
+      "avatar": "sentient-street-lamp"
+    },
+    "guest_ukt4vs42g_mu01g4gy": {
+      "id": "guest_ukt4vs42g_mu01g4gy",
+      "nickname": "CinderSignal46",
+      "currentRoom": "market",
+      "lastSeen": 1789317516975,
+      "avatar": "low-poly-knight"
+    },
+    "guest_t0g8a77sa_mu01ge0i": {
+      "id": "guest_t0g8a77sa_mu01ge0i",
+      "nickname": "BrightConduit94",
+      "currentRoom": "market",
+      "lastSeen": 1789317530139,
+      "avatar": "traffic-cone-guy"
+    },
+    "guest_3tgw4yi82_mu01gz1d": {
+      "id": "guest_3tgw4yi82_mu01gz1d",
+      "nickname": "AmberSprocket76",
+      "currentRoom": "market",
+      "lastSeen": 1789317557689,
+      "avatar": "crt-head"
+    },
+    "guest_hd3k4bxwe_mu01hhay": {
+      "id": "guest_hd3k4bxwe_mu01hhay",
+      "nickname": "RainyWhistle90",
+      "currentRoom": "market",
+      "lastSeen": 1789317581764,
+      "avatar": "skeleton-tourist"
+    },
+    "guest_69sufk45p_mu01hth4": {
+      "id": "guest_69sufk45p_mu01hth4",
+      "nickname": "SilverCog61",
+      "currentRoom": "market",
+      "lastSeen": 1789317598135,
+      "avatar": "walking-mushroom"
+    },
+    "guest_m8n8myfkc_mu01i7kz": {
+      "id": "guest_m8n8myfkc_mu01i7kz",
+      "nickname": "BrightRelay99",
+      "currentRoom": "market",
+      "lastSeen": 1789317614167,
+      "avatar": "garden-gnome"
+    },
+    "guest_apbd9dg2m": {
+      "id": "guest_apbd9dg2m",
+      "nickname": "SilverAnvil60",
+      "currentRoom": "market",
+      "lastSeen": 1789317626209,
+      "avatar": "astronaut-fishbowl"
+    },
+    "guest_xmnco24jr_mu01io2f": {
+      "id": "guest_xmnco24jr_mu01io2f",
+      "nickname": "EmberTram66",
+      "currentRoom": "market",
+      "lastSeen": 1789317635727,
+      "avatar": "walking-mushroom"
+    },
+    "guest_ndks0x66z_mu01iytp": {
+      "id": "guest_ndks0x66z_mu01iytp",
+      "nickname": "BrightAnvil27",
+      "currentRoom": "market",
+      "lastSeen": 1789317649549,
+      "avatar": "tiny-kaiju"
+    },
+    "guest_qccs6xkx8_mu01j61h": {
+      "id": "guest_qccs6xkx8_mu01j61h",
+      "nickname": "GoldenTram95",
+      "currentRoom": "market",
+      "lastSeen": 1789317659619,
+      "avatar": "eyeball-creature"
+    },
+    "guest_iybopj39z_mu01jizf": {
+      "id": "guest_iybopj39z_mu01jizf",
+      "nickname": "HollowWhistle16",
+      "currentRoom": "market",
+      "lastSeen": 1789317676455,
+      "avatar": "origami-person"
+    },
+    "guest_ljrlqh9xo_mu01mgsh": {
+      "id": "guest_ljrlqh9xo_mu01mgsh",
+      "nickname": "CinderConduit72",
+      "currentRoom": "market",
+      "lastSeen": 1789318070628,
+      "avatar": "black-hole"
+    },
+    "guest_py3cgaoek_mu01st6l": {
+      "id": "guest_py3cgaoek_mu01st6l",
+      "nickname": "GleamingLantern57",
+      "currentRoom": "market",
+      "lastSeen": 1789318169693,
+      "avatar": "alien-tourist"
+    },
+    "guest_lyr81j5w6_mu01uf91": {
+      "id": "guest_lyr81j5w6_mu01uf91",
+      "nickname": "RustPrism99",
+      "currentRoom": "market",
+      "lastSeen": 1789318184688,
+      "avatar": "eyeball-creature"
+    },
+    "guest_ptfb43dnt_mu01urwy": {
+      "id": "guest_ptfb43dnt_mu01urwy",
+      "nickname": "RainyConduit17",
+      "currentRoom": "market",
+      "lastSeen": 1789318201548,
+      "avatar": "walking-mushroom"
+    },
+    "guest_bz145b7vd_mu01wh73": {
+      "id": "guest_bz145b7vd_mu01wh73",
+      "nickname": "CopperBellows97",
+      "currentRoom": "market",
+      "lastSeen": 1789318285765,
+      "avatar": "crt-head"
+    },
+    "guest_pg6zut7t6_mu01x3mb": {
+      "id": "guest_pg6zut7t6_mu01x3mb",
+      "nickname": "AutumnalTram19",
+      "currentRoom": "market",
+      "lastSeen": 1789318309785,
+      "avatar": "disco-ball-head"
+    },
+    "guest_7oe6o02cg_mu01zeq0": {
+      "id": "guest_7oe6o02cg_mu01zeq0",
+      "nickname": "SilverWhistle99",
+      "currentRoom": "market",
+      "lastSeen": 1789318418441,
+      "avatar": "moon-head"
+    },
+    "guest_2khp4l8qo_mu0228nx": {
+      "id": "guest_2khp4l8qo_mu0228nx",
+      "nickname": "GoldenRelay76",
+      "currentRoom": "market",
+      "lastSeen": 1789318551154,
+      "avatar": "garden-gnome"
     }
   },
   "gardens": {
