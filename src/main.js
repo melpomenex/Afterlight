@@ -35,7 +35,12 @@ import { readMouseLookPreference, writeMouseLookPreference } from './ui/mouseLoo
 import { createJumpState, resetJump, stepJump, moveSpeedFor, HOP_CAP_RATIO } from './jump.js';
 import { createPlaceRuntime } from './places/runtime.js';
 import { createTheaterEnvironmentRuntime } from './environments/index.js';
-import { getTheaterVariant } from '../shared/theaterEnvironments.js';
+import {
+  getTheaterVariant,
+  THEATER_ENVIRONMENT_IDS,
+  isEnvironmentPreset,
+  randomTheaterWorldPreset,
+} from '../shared/theaterEnvironments.js';
 import { loadEnvironmentPreferences, saveEnvironmentPreferences } from './environments/quality.js';
 import { resolveRoomRequest } from './places/travelState.js';
 import { createTheaterAdapter, registerTheaterAdapter } from './places/theaterAdapter.js';
@@ -1161,7 +1166,7 @@ const placeRuntime = createPlaceRuntime({
           atmosphereController.setLocalPreset(environmentOverride);
           try {
             theaterEnvironments.sync({
-              presetId: (typeof atmosphereStateClient.getState === 'function' ? atmosphereStateClient.getState()?.preset : null) ?? null,
+              presetId: effectiveEnvironmentPreset(),
               def: seam.def,
               world: seam.world ?? currentWorld,
               tier: environmentPrefs.quality,
@@ -1265,11 +1270,28 @@ function setRoom(roomId) {
 }
 
 // New visitors wake up in The Orpheum, in cinema view — the shared screen
-// is the city's living room. ?room=<id> (e.g. ?room=market, ?room=theater)
-// overrides for deep links.
+// is the city's living room. Users are served a randomly chosen World upon entry
+// from the World list (Coastal Dusk, Rainforest Canopy, Alpine Aurora, Desert Oasis,
+// Ancient Redwood Forest, Cloud Garden). ?world=<id> or ?preset=<id> overrides for deep links.
 const initialRoomParam = new URLSearchParams(window.location.search).get('room');
 let initialRoom = ROOMS.THEATER;
 if (initialRoomParam) initialRoom = initialRoomParam;
+
+const initialPresetParam = urlParams.get('preset');
+const initialWorldParam = urlParams.get('world');
+let initialWorldPreset = null;
+if (initialPresetParam && isEnvironmentPreset(initialPresetParam)) {
+  initialWorldPreset = initialPresetParam;
+} else if (initialWorldParam && THEATER_ENVIRONMENT_IDS.includes(initialWorldParam)) {
+  initialWorldPreset = getTheaterVariant(initialWorldParam)?.preset ?? null;
+} else {
+  initialWorldPreset = randomTheaterWorldPreset();
+}
+
+environmentOverride = initialWorldPreset;
+atmosphereController.setLocalPreset(environmentOverride);
+atmosphereStateClient.setLocalFallback(environmentOverride);
+
 setRoom(initialRoom);
 
 // --- NETWORK PACKET HANDLERS ---
