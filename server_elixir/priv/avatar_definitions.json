@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "id": "moon-head",
+      "name": "Moon Head",
+      "rig": "humanoid",
+      "rarity": "common",
+      "weight": 10
+    },
+    {
+      "id": "traffic-cone-guy",
+      "name": "Traffic Cone Guy",
+      "rig": "humanoid",
+      "rarity": "common",
+      "weight": 10
+    },
+    {
+      "id": "skeleton-tourist",
+      "name": "Skeleton Tourist",
+      "rig": "humanoid",
+      "rarity": "common",
+      "weight": 10
+    },
+    {
+      "id": "alien-tourist",
+      "name": "Alien Tourist",
+      "rig": "humanoid",
+      "rarity": "common",
+      "weight": 10
+    },
+    {
+      "id": "disco-ball-head",
+      "name": "Disco Ball Head",
+      "rig": "humanoid",
+      "rarity": "uncommon",
+      "weight": 5
+    },
+    {
+      "id": "low-poly-knight",
+      "name": "Low-Poly Knight",
+      "rig": "humanoid",
+      "rarity": "common",
+      "weight": 10
+    },
+    {
+      "id": "crt-head",
+      "name": "CRT Head",
+      "rig": "humanoid",
+      "rarity": "common",
+      "weight": 10
+    },
+    {
+      "id": "cassette-punk",
+      "name": "Cassette Punk",
+      "rig": "humanoid",
+      "rarity": "uncommon",
+      "weight": 5
+    },
+    {
+      "id": "walking-mushroom",
+      "name": "Walking Mushroom",
+      "rig": "humanoid",
+      "rarity": "common",
+      "weight": 10
+    },
+    {
+      "id": "garden-gnome",
+      "name": "Garden Gnome",
+      "rig": "humanoid",
+      "rarity": "common",
+      "weight": 10
+    },
+    {
+      "id": "old-computer",
+      "name": "Old Computer",
+      "rig": "humanoid",
+      "rarity": "uncommon",
+      "weight": 5
+    },
+    {
+      "id": "eyeball-creature",
+      "name": "Eyeball Creature",
+      "rig": "humanoid",
+      "rarity": "uncommon",
+      "weight": 5
+    },
+    {
+      "id": "deep-sea-diver",
+      "name": "Deep-Sea Diver",
+      "rig": "humanoid-heavy",
+      "rarity": "uncommon",
+      "weight": 5
+    },
+    {
+      "id": "porcelain-doll",
+      "name": "Porcelain Doll",
+      "rig": "humanoid",
+      "rarity": "rare",
+      "weight": 2
+    },
+    {
+      "id": "cloud-person",
+      "name": "Cloud Person",
+      "rig": "humanoid",
+      "rarity": "uncommon",
+      "weight": 5
+    },
+    {
+      "id": "tiny-kaiju",
+      "name": "Tiny Kaiju",
+      "rig": "humanoid",
+      "rarity": "common",
+      "weight": 10
+    },
+    {
+      "id": "sentient-street-lamp",
+      "name": "Sentient Street Lamp",
+      "rig": "humanoid-heavy",
+      "rarity": "uncommon",
+      "weight": 5
+    },
+    {
+      "id": "vending-machine",
+      "name": "Vending Machine",
+      "rig": "humanoid-heavy",
+      "rarity": "uncommon",
+      "weight": 5
+    },
+    {
+      "id": "neon-jellyfish",
+      "name": "Neon Jellyfish",
+      "rig": "floating",
+      "rarity": "rare",
+      "weight": 2
+    },
+    {
+      "id": "living-arcade-cabinet",
+      "name": "Living Arcade Cabinet",
+      "rig": "humanoid-heavy",
+      "rarity": "uncommon",
+      "weight": 5
+    },
+    {
+      "id": "astronaut-fishbowl",
+      "name": "Astronaut Fishbowl",
+      "rig": "humanoid",
+      "rarity": "uncommon",
+      "weight": 5
+    },
+    {
+      "id": "origami-person",
+      "name": "Origami Person",
+      "rig": "humanoid",
+      "rarity": "uncommon",
+      "weight": 5
+    },
+    {
+      "id": "black-hole",
+      "name": "Black Hole",
+      "rig": "floating",
+      "rarity": "rare",
+      "weight": 2
+    },
+    {
+      "id": "rubber-duck-mech",
+      "name": "Rubber Duck Mech",
+      "rig": "humanoid-heavy",
+      "rarity": "rare",
+      "weight": 2
+    }
+  ]
+}
