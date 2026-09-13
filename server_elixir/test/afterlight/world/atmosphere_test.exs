@@ -90,6 +90,41 @@ defmodule Afterlight.World.AtmospherePureTest do
     assert Atmosphere.allowed_presets_for(nil) == []
   end
 
+  test "theater_world_presets contains the 6 signature presets corresponding to the World list" do
+    assert Atmosphere.theater_world_presets() == ~w(
+      env-coastal-sunset
+      env-rainforest-mist
+      env-alpine-aurora
+      env-desert-golden
+      env-redwood-firefly
+      env-cloud-sunrise
+    )
+  end
+
+  test "Atmosphere.init(\"theater\") serves a random World from the World list or pins with config" do
+    theater = Afterlight.World.PlaceDefinitions.get("theater")
+
+    Application.put_env(
+      :afterlight,
+      :world,
+      Keyword.put(world_cfg(), :place_entries, [theater])
+    )
+
+    atmo = Atmosphere.init("theater")
+    assert atmo.preset["id"] in Atmosphere.theater_world_presets()
+
+    Application.put_env(
+      :afterlight,
+      :world,
+      world_cfg()
+      |> Keyword.put(:place_entries, [theater])
+      |> Keyword.put(:theater_atmosphere_preset, "env-desert-golden")
+    )
+
+    pinned_atmo = Atmosphere.init("theater")
+    assert pinned_atmo.preset["id"] == "env-desert-golden"
+  end
+
   test "set_preset adopts an allowed preset as a full replacement and refuses everything else" do
     entry =
       put_in(atmosphere_entry("probe-env", "env-coastal-sunset"), ["atmosphere", "presets"], [

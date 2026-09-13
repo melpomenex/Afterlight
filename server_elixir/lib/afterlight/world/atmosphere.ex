@@ -143,16 +143,71 @@ defmodule Afterlight.World.Atmosphere do
 
   def allowed_presets_for(_other), do: []
 
+  # Six signature world presets corresponding to the World list (Theater Environment campaign).
+  # Users entering an empty theater are served a randomly chosen one from this list.
+  @theater_world_presets ~w(
+    env-coastal-sunset
+    env-rainforest-mist
+    env-alpine-aurora
+    env-desert-golden
+    env-redwood-firefly
+    env-cloud-sunrise
+  )
+
+  @doc "The six signature world presets corresponding to the World list."
+  @spec theater_world_presets() :: [String.t(), ...]
+  def theater_world_presets, do: @theater_world_presets
+
+  @doc "Randomly chooses one preset from the six World list signature presets."
+  @spec random_theater_world_preset() :: String.t()
+  def random_theater_world_preset do
+    Enum.random(@theater_world_presets)
+  end
+
   ## Lifecycle
 
   @doc """
-  Initial atmosphere for a room: resolves the configuration once. No epoch
-  is claimed and no events exist until an owned admission adopts the room —
-  an un-owned room generates and emits nothing.
+  Initial atmosphere for a room: resolves the configuration once. For the
+  shared theater, users are served a random World from the World list upon
+  entry unless pinned by `:theater_atmosphere_preset` (tests/deployment).
+  No epoch is claimed and no events exist until an owned admission adopts the
+  room — an un-owned room generates and emits nothing.
   """
   @spec init(String.t()) :: t()
   def init(room_id) do
-    preset = config_for(room_id)
+    entries =
+      case World.config(:place_entries) do
+        entries when is_list(entries) -> entries
+        _ -> PlaceDefinitions.all()
+      end
+
+    entry = Enum.find(entries, &(&1["id"] == room_id))
+
+    preset =
+      cond do
+        entry == nil ->
+          nil
+
+        room_id == "theater" ->
+          preset_id =
+            case World.config(:theater_atmosphere_preset) do
+              pinned when is_binary(pinned) -> pinned
+              _ -> random_theater_world_preset()
+            end
+
+          preset = Map.get(PlaceDefinitions.presets(), preset_id)
+
+          with %{"weather" => weather} <- preset,
+               true <- weather in @supported_weather,
+               time_mode when time_mode in @supported_time <- get_in(entry, ["atmosphere", "timeMode"]) do
+            preset
+          else
+            _ -> nil
+          end
+
+        true ->
+          config_for(room_id)
+      end
 
     %__MODULE__{
       room: room_id,

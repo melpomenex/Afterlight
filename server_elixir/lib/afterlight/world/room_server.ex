@@ -319,6 +319,8 @@ defmodule Afterlight.World.RoomServer do
           {state, roster_frame(state, player_id)}
 
         true ->
+          state = maybe_refresh_empty_theater_atmosphere(state)
+
           member = %{
             player_id: player_id,
             conn_ref: conn_ref,
@@ -860,4 +862,29 @@ defmodule Afterlight.World.RoomServer do
   end
 
   defp telemetry(event, measurements, metadata), do: :telemetry.execute(event, measurements, metadata)
+
+  defp maybe_refresh_empty_theater_atmosphere(
+         %{
+           room: %{wire_id: "theater"},
+           members: members,
+           empty_since: empty_since,
+           atmosphere: %{preset: preset}
+         } = state
+       )
+       when members == %{} and empty_since != nil and preset != nil do
+    next_preset =
+      case World.config(:theater_atmosphere_preset) do
+        pinned when is_binary(pinned) -> pinned
+        _ -> Atmosphere.random_theater_world_preset()
+      end
+
+    now = System.system_time(:millisecond)
+
+    case Atmosphere.set_preset(state.atmosphere, next_preset, frame_epoch(state), now) do
+      {:ok, atmosphere, _frame} -> %{state | atmosphere: atmosphere}
+      _ -> state
+    end
+  end
+
+  defp maybe_refresh_empty_theater_atmosphere(state), do: state
 end
