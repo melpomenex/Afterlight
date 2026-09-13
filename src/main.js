@@ -7,6 +7,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import './style.css';
 import { NetworkClient } from './net/client.js';
 import { createPlayerAvatar, createKilnCompanion, RemotePlayersManager, startEmote, stopEmote, updateEmote } from './render/avatars.js';
+import { createAvatarFor } from './avatars/presenter.js';
 import { buildMarketWorld } from './world/marketWorld.js';
 import { districts, buildDistrict, readExploration } from './districts.js';
 import { getPlaceActivities, getPlaceDefinition } from '../shared/placeDefinitions.js';
@@ -227,7 +228,7 @@ scene.add(particles);
 
 // --- NETWORK & UI INITIALIZATION ---
 const net = new NetworkClient();
-const remotePlayers = new RemotePlayersManager(scene);
+const remotePlayers = new RemotePlayersManager(scene, createAvatarFor);
 
 // Room atmosphere state client (task 2.2): ONE instance on the shared
 // connection, routed only to the current place generation. It holds the
@@ -491,7 +492,9 @@ const callPanel = new CallPanel(callClient, {
 });
 
 // Local player avatar & Kiln companion
-const player = createPlayerAvatar(net.guestId, net.nickname);
+const urlParams = new URLSearchParams(window.location.search);
+const initialAvatar = urlParams.get('avatar') || null;
+const player = createAvatarFor(net.guestId, net.nickname, initialAvatar);
 player.position.set(0, 0, 3);
 scene.add(player);
 
@@ -972,6 +975,11 @@ if (Array.from(new URLSearchParams(location.search).keys()).includes('debug')) {
       preset: atmosphereStateClient.getState()?.preset ?? null,
     }),
     floatingMediaEnabled: () => !floatingMediaRollback,
+    avatar: () => player.userData.avatarId ?? null,
+    setAvatar: (id) => player.userData.setAvatar?.(id),
+    remotePlayers: () => remotePlayers,
+    setRemotePlayer: (p) => remotePlayers.setPlayer(p),
+    removeRemotePlayer: (id) => remotePlayers.removePlayer(id),
     // Pointer-lock contract hooks (5.4): the harnesses call the explicit
     // request from inside a real canvas gesture; nothing is automatic.
     pointerLock: () => pointerLock,
@@ -1265,6 +1273,9 @@ net.on(MSG_TYPES.WELCOME, (msg) => {
   if (msg.player) {
     ui.updatePlayerHUD(msg.player);
     player.userData.updateNickname(msg.player.nickname);
+    if (msg.player.avatar && !urlParams.get('avatar')) {
+      player.userData.setAvatar?.(msg.player.avatar);
+    }
   }
   if (msg.weather) updateWeatherDisplay(msg.weather);
   if (msg.theater) theaterUI.applyState(msg.theater, msg.serverNow || Date.now());
@@ -2268,6 +2279,7 @@ function frame(now) {
     }
 
     updateEmote(player, dt);
+    player.userData.update?.(t, dt);
 
     // Footstep cadence follows run/walk; idle, seated, or airborne is silent.
     if (moved && !jumpState.airborne) {

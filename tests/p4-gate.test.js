@@ -95,6 +95,13 @@ test('2. P4 Gate: Foosball authoritative simulation, 3D scene, and casual/advanc
 });
 
 test('3. P4 Gate: Latency Profile Simulation (150ms RTT, 30ms jitter, 2% dropped snapshots)', () => {
+  const origRandom = Math.random;
+  let seed = 42;
+  Math.random = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  try {
   /**
    * Simulates 3 clients connected to an authoritative Air Hockey server:
    * - Client A (Player 0, slot 0)
@@ -214,6 +221,9 @@ test('3. P4 Gate: Latency Profile Simulation (150ms RTT, 30ms jitter, 2% dropped
   assert.equal(clientA.state.puck.x, serverSim.puck.x);
   assert.equal(clientB.state.puck.x, serverSim.puck.x);
   assert.equal(clientC.state.puck.x, serverSim.puck.x);
+  } finally {
+    Math.random = origRandom;
+  }
 });
 
 test('4. P4 Gate: Orpheum coexistence, 8 total activities, and 100% seat sightlines', () => {

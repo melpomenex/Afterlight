@@ -23,6 +23,11 @@ function getMat(color, roughness = 0.7, metalness = 0.15) {
 }
 
 export function createNicknameSprite(nickname) {
+  if (typeof document === 'undefined') {
+    const sprite = new THREE.Sprite();
+    sprite.position.set(0, 2.3, 0);
+    return sprite;
+  }
   const canvas = document.createElement('canvas');
   canvas.width = 256;
   canvas.height = 64;
@@ -55,7 +60,7 @@ export function createNicknameSprite(nickname) {
   return sprite;
 }
 
-export function createPlayerAvatar(playerId, nickname = 'Visitor') {
+export function createPlayerAvatar(playerId, nickname = 'Visitor', avatarId = null) {
   const group = new THREE.Group();
   const palette = generatePlayerPalette(playerId);
 
@@ -190,6 +195,7 @@ export function createPlayerAvatar(playerId, nickname = 'Visitor') {
   group.userData = {
     playerId,
     nickname,
+    avatarId: avatarId || null,
     legs,
     arms,
     rig,
@@ -202,27 +208,34 @@ export function createPlayerAvatar(playerId, nickname = 'Visitor') {
       group.userData.nameSprite = newSprite;
       group.userData.nickname = newName;
     },
+    setAvatar(newAvatarId) {
+      group.userData.avatarId = newAvatarId || null;
+    },
   };
 
   return group;
 }
 
 export class RemotePlayersManager {
-  constructor(scene) {
+  constructor(scene, avatarFactory = null) {
     this.scene = scene;
-    this.players = new Map(); // id -> { avatar, targetX, targetZ, targetRotY, walking }
+    this.avatarFactory = avatarFactory;
+    this.players = new Map(); // id -> { avatar, avatarId, targetX, targetZ, targetRotY, walking }
   }
 
   setPlayer(data) {
     if (!data || !data.id) return;
     let entry = this.players.get(data.id);
     if (!entry) {
-      const avatar = createPlayerAvatar(data.id, data.nickname || 'Visitor');
+      const avatar = this.avatarFactory
+        ? this.avatarFactory(data.id, data.nickname || 'Visitor', data.avatar || null)
+        : createPlayerAvatar(data.id, data.nickname || 'Visitor', data.avatar || null);
       avatar.position.set(data.x ?? 0, 0, data.z ?? 0);
       avatar.rotation.y = data.rotY ?? 0;
       this.scene.add(avatar);
       entry = {
         avatar,
+        avatarId: data.avatar || null,
         targetX: data.x ?? 0,
         targetZ: data.z ?? 0,
         targetRotY: data.rotY ?? 0,
@@ -233,6 +246,10 @@ export class RemotePlayersManager {
       };
       this.players.set(data.id, entry);
     } else {
+      if (data.avatar && data.avatar !== entry.avatarId) {
+        entry.avatarId = data.avatar;
+        entry.avatar.userData.setAvatar?.(data.avatar);
+      }
       entry.targetX = data.x;
       entry.targetZ = data.z;
       entry.targetRotY = data.rotY;
@@ -304,6 +321,7 @@ export class RemotePlayersManager {
         });
       }
       updateEmote(avatar, dt);
+      avatar.userData.update?.(time, dt);
     }
   }
 }
