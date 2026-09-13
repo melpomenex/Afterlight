@@ -551,13 +551,63 @@ defmodule AfterlightWeb.GameChannel do
     end
   end
 
+  # Environment selection (Theater Environment campaign): the atmosphere
+  # preset is a shared room property, so any live member may adopt an allowed
+  # preset. Membership-gated and rate-limited; the room owner validates the
+  # id against the room's projection allow-list, persists it and broadcasts
+  # one full-replacement `atmosphere_state` to every member (no ack frame of
+  # its own — the authoritative snapshot is the reply). Unknown preset ids
+  # and rooms without an allow-list are rejected with a stable message.
+  defp handle_world("atmosphere_set", payload, socket) do
+    preset_id = payload["preset"]
+
+    cond do
+      not valid_preset_id?(preset_id) ->
+        push(socket, "error", %{"message" => "atmosphere_set_invalid"})
+        {:noreply, socket}
+
+      not live_member?(socket) ->
+        reject_command("atmosphere_set", :room_unavailable, socket)
+        {:noreply, socket}
+
+      true ->
+        case RateLimit.check(RateLimit.table(), {:atmosphere_set, socket.assigns.guest_id}, atmosphere_set_rate_limit()) do
+          :ok ->
+            case Atmosphere.set_for(room_wire(socket), preset_id) do
+              {:ok, _frame} ->
+                {:noreply, socket}
+
+              {:error, reason} ->
+                push(socket, "error", %{"message" => "atmosphere_set_rejected", "reason" => Atom.to_string(reason)})
+                {:noreply, socket}
+
+              :unavailable ->
+                push(socket, "atmosphere_unavailable", %{"roomId" => room_wire(socket)})
+                {:noreply, socket}
+            end
+
+          {:limited, _retry_after_ms} ->
+            push(socket, "error", %{"message" => "rate_limited"})
+            {:noreply, socket}
+        end
+    end
+  end
+
   defp handle_world(_type, _payload, socket), do: {:noreply, socket}
 
   defp valid_request_id?(id) when is_binary(id), do: byte_size(id) in 1..64
   defp valid_request_id?(_other), do: false
 
+  # Adoptable atmosphere preset ids are short kebab-case keys.
+  defp valid_preset_id?(id) when is_binary(id), do: byte_size(id) in 1..64
+  defp valid_preset_id?(_other), do: false
+
   defp atmosphere_rate_limit do
     Afterlight.Gateway.config(:atmosphere_rate_limit, [limit: 1, window_ms: 5_000])
+  end
+
+  defp atmosphere_set_rate_limit do
+    Afterlight.Gateway.config(:atmosphere_set_rate_limit, [limit: 2, window_ms: 5_000])
   end
 
   defp place_directory_rate_limit do

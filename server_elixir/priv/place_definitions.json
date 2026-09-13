@@ -1160,9 +1160,29 @@
         "maxZ": 10.3
       },
       "atmosphere": {
-        "preset": null,
+        "preset": "env-coastal-sunset",
         "weatherMode": "fixed",
-        "timeMode": "fixed"
+        "timeMode": "fixed",
+        "presets": [
+          "env-coastal-sunset",
+          "env-coastal-storm",
+          "env-coastal-midnight",
+          "env-rainforest-mist",
+          "env-rainforest-afternoon",
+          "env-rainforest-thunderstorm",
+          "env-alpine-aurora",
+          "env-alpine-morning",
+          "env-alpine-snowfall",
+          "env-desert-golden",
+          "env-desert-sandstorm",
+          "env-desert-night",
+          "env-redwood-firefly",
+          "env-redwood-fog",
+          "env-redwood-sunshafts",
+          "env-cloud-sunrise",
+          "env-cloud-day",
+          "env-cloud-storm"
+        ]
       },
       "activities": [
         {
@@ -1998,6 +2018,309 @@
           }
         ]
       }
+    },
+    {
+      "id": "env-coastal-sunset",
+      "weather": "fixed",
+      "intensity": 0.25,
+      "wind": [
+        0.24,
+        0.06
+      ],
+      "rain": 0,
+      "wetness": 0.22,
+      "events": {
+        "lightning": null,
+        "meteor": null
+      },
+      "schedule": null
+    },
+    {
+      "id": "env-coastal-storm",
+      "weather": "fixed",
+      "intensity": 1,
+      "wind": [
+        -0.72,
+        0.38
+      ],
+      "rain": 1,
+      "wetness": 1,
+      "events": {
+        "lightning": {
+          "minMs": 45000,
+          "maxMs": 90000
+        },
+        "meteor": null
+      },
+      "schedule": null
+    },
+    {
+      "id": "env-coastal-midnight",
+      "weather": "fixed",
+      "intensity": 0.15,
+      "wind": [
+        0.14,
+        0.04
+      ],
+      "rain": 0,
+      "wetness": 0.4,
+      "events": {
+        "lightning": null,
+        "meteor": {
+          "minMs": 35000,
+          "maxMs": 70000
+        }
+      },
+      "schedule": null
+    },
+    {
+      "id": "env-rainforest-mist",
+      "weather": "fixed",
+      "intensity": 0.2,
+      "wind": [
+        0.08,
+        0.03
+      ],
+      "rain": 0.08,
+      "wetness": 0.85,
+      "events": {
+        "lightning": null,
+        "meteor": null
+      },
+      "schedule": null
+    },
+    {
+      "id": "env-rainforest-afternoon",
+      "weather": "fixed",
+      "intensity": 0.55,
+      "wind": [
+        0.18,
+        0.05
+      ],
+      "rain": 0.62,
+      "wetness": 1,
+      "events": {
+        "lightning": null,
+        "meteor": null
+      },
+      "schedule": null
+    },
+    {
+      "id": "env-rainforest-thunderstorm",
+      "weather": "fixed",
+      "intensity": 1,
+      "wind": [
+        -0.6,
+        0.3
+      ],
+      "rain": 1,
+      "wetness": 1,
+      "events": {
+        "lightning": {
+          "minMs": 45000,
+          "maxMs": 90000
+        },
+        "meteor": {
+          "minMs": 35000,
+          "maxMs": 70000
+        }
+      },
+      "schedule": null
+    },
+    {
+      "id": "env-alpine-aurora",
+      "weather": "fixed",
+      "intensity": 0.2,
+      "wind": [
+        0.16,
+        -0.05
+      ],
+      "rain": 0,
+      "wetness": 0,
+      "events": {
+        "lightning": null,
+        "meteor": null
+      },
+      "schedule": null
+    },
+    {
+      "id": "env-alpine-morning",
+      "weather": "fixed",
+      "intensity": 0.1,
+      "wind": [
+        0.12,
+        -0.03
+      ],
+      "rain": 0,
+      "wetness": 0,
+      "events": {
+        "lightning": null,
+        "meteor": null
+      },
+      "schedule": null
+    },
+    {
+      "id": "env-alpine-snowfall",
+      "weather": "fixed",
+      "intensity": 0.55,
+      "wind": [
+        -0.4,
+        0.2
+      ],
+      "rain": 0,
+      "wetness": 0,
+      "events": {
+        "lightning": null,
+        "meteor": null
+      },
+      "schedule": null
+    },
+    {
+      "id": "env-desert-golden",
+      "weather": "fixed",
+      "intensity": 0.15,
+      "wind": [
+        0.22,
+        -0.08
+      ],
+      "rain": 0,
+      "wetness": 0,
+      "events": {
+        "lightning": null,
+        "meteor": null
+      },
+      "schedule": null
+    },
+    {
+      "id": "env-desert-sandstorm",
+      "weather": "fixed",
+      "intensity": 0.9,
+      "wind": [
+        -0.85,
+        0.4
+      ],
+      "rain": 0,
+      "wetness": 0,
+      "events": {
+        "lightning": null,
+        "meteor": null
+      },
+      "schedule": null
+    },
+    {
+      "id": "env-desert-night",
+      "weather": "fixed",
+      "intensity": 0.1,
+      "wind": [
+        0.1,
+        -0.03
+      ],
+      "rain": 0,
+      "wetness": 0,
+      "events": {
+        "lightning": null,
+        "meteor": {
+          "minMs": 35000,
+          "maxMs": 70000
+        }
+      },
+      "schedule": null
+    },
+    {
+      "id": "env-redwood-firefly",
+      "weather": "fixed",
+      "intensity": 0.12,
+      "wind": [
+        0.06,
+        0.02
+      ],
+      "rain": 0,
+      "wetness": 0.35,
+      "events": {
+        "lightning": null,
+        "meteor": null
+      },
+      "schedule": null
+    },
+    {
+      "id": "env-redwood-fog",
+      "weather": "fixed",
+      "intensity": 0.18,
+      "wind": [
+        0.05,
+        0.02
+      ],
+      "rain": 0.04,
+      "wetness": 0.8,
+      "events": {
+        "lightning": null,
+        "meteor": null
+      },
+      "schedule": null
+    },
+    {
+      "id": "env-redwood-sunshafts",
+      "weather": "fixed",
+      "intensity": 0.15,
+      "wind": [
+        0.1,
+        0.03
+      ],
+      "rain": 0,
+      "wetness": 0.25,
+      "events": {
+        "lightning": null,
+        "meteor": null
+      },
+      "schedule": null
+    },
+    {
+      "id": "env-cloud-sunrise",
+      "weather": "fixed",
+      "intensity": 0.18,
+      "wind": [
+        0.28,
+        0.08
+      ],
+      "rain": 0,
+      "wetness": 0.5,
+      "events": {
+        "lightning": null,
+        "meteor": null
+      },
+      "schedule": null
+    },
+    {
+      "id": "env-cloud-day",
+      "weather": "fixed",
+      "intensity": 0.22,
+      "wind": [
+        0.32,
+        0.1
+      ],
+      "rain": 0,
+      "wetness": 0.3,
+      "events": {
+        "lightning": null,
+        "meteor": null
+      },
+      "schedule": null
+    },
+    {
+      "id": "env-cloud-storm",
+      "weather": "fixed",
+      "intensity": 0.6,
+      "wind": [
+        -0.5,
+        0.25
+      ],
+      "rain": 0.25,
+      "wetness": 0.9,
+      "events": {
+        "lightning": null,
+        "meteor": null
+      },
+      "schedule": null
     },
     {
       "id": "clear",

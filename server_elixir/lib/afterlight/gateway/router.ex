@@ -31,7 +31,7 @@ defmodule Afterlight.Gateway.Router do
 
   @specialty_types ~w(torrent_resolve)
 
-  @world_types ~w(join_room movement emote place_directory_get atmosphere_get)
+  @world_types ~w(join_room movement emote place_directory_get atmosphere_get atmosphere_set)
   @chat_types ~w(chat_send)
   @catalog_types ~w(iptv_list_get iptv_list_remove epg_lookup)
   @theater_types ~w(theater_queue theater_control theater_channel theater_playlist_resolve)
@@ -80,6 +80,10 @@ defmodule Afterlight.Gateway.Router do
   defp default_disposition("place_directory_get"), do: if(world_phx?(), do: :phoenix, else: :unrouted)
 
   defp default_disposition("atmosphere_get"), do: if(world_phx?(), do: :phoenix, else: :unrouted)
+
+  # Environment selection writes the same room-authoritative atmosphere state;
+  # Phoenix-only like the read, never a Node relay type.
+  defp default_disposition("atmosphere_set"), do: if(world_phx?(), do: :phoenix, else: :unrouted)
 
   defp default_disposition(type) when type in @activity_types,
     do: if(world_phx?(), do: :phoenix, else: :unrouted)

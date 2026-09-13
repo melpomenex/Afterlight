@@ -38,7 +38,18 @@ test('projected entries carry only the whitelisted plain fields, in canonical ke
   for (const [index, entry] of projectPlaceDefinitions().entries.entries()) {
     assert.deepEqual(Object.keys(entry), ['id', 'public', 'kind', 'bounds', 'atmosphere', 'activities']);
     assert.deepEqual(Object.keys(entry.bounds), ['minX', 'maxX', 'minZ', 'maxZ']);
-    assert.deepEqual(Object.keys(entry.atmosphere), ['preset', 'weatherMode', 'timeMode']);
+    // The optional `presets` allow-list (Theater environments) rides last and
+    // only the rooms that adopt environment presets carry it.
+    const atmosphereKeys = Object.keys(entry.atmosphere);
+    assert.deepEqual(atmosphereKeys.slice(0, 3), ['preset', 'weatherMode', 'timeMode']);
+    if (atmosphereKeys.length > 3) {
+      assert.deepEqual(atmosphereKeys, ['preset', 'weatherMode', 'timeMode', 'presets']);
+      assert.equal(entry.id, 'theater', 'only the Theater adopts environment presets');
+      assert.ok(Array.isArray(entry.atmosphere.presets) && entry.atmosphere.presets.length > 0);
+      for (const presetId of entry.atmosphere.presets) {
+        assert.ok(ATMOSPHERE_PRESET_IDS.includes(presetId), `${presetId} is a committed preset`);
+      }
+    }
     assert.ok(Array.isArray(entry.activities));
     assert.equal(entry.public, true);
     assert.deepEqual(entry.bounds, {

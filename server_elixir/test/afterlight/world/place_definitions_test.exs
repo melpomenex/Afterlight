@@ -26,7 +26,26 @@ defmodule Afterlight.World.PlaceDefinitionsTest do
       assert theater["public"] == true
       assert theater["kind"] == "venue"
       assert theater["bounds"] == %{"minX" => -11.3, "maxX" => 11.3, "minZ" => -9.5, "maxZ" => 10.3}
-      assert theater["atmosphere"] == %{"preset" => nil, "weatherMode" => "fixed", "timeMode" => "fixed"}
+
+      # The Theater Environment campaign: the venue spawns in Coastal Dusk and
+      # carries the explicit 18-preset allow-list `atmosphere_set` validates
+      # against. Every other place keeps a fixed preset.
+      assert theater["atmosphere"]["preset"] == "env-coastal-sunset"
+      assert theater["atmosphere"]["weatherMode"] == "fixed"
+      assert theater["atmosphere"]["timeMode"] == "fixed"
+
+      assert theater["atmosphere"]["presets"] == ~w(
+        env-coastal-sunset env-coastal-storm env-coastal-midnight
+        env-rainforest-mist env-rainforest-afternoon env-rainforest-thunderstorm
+        env-alpine-aurora env-alpine-morning env-alpine-snowfall
+        env-desert-golden env-desert-sandstorm env-desert-night
+        env-redwood-firefly env-redwood-fog env-redwood-sunshafts
+        env-cloud-sunrise env-cloud-day env-cloud-storm
+      )
+
+      for entry <- entries, entry["id"] != "theater" do
+        refute Map.has_key?(entry["atmosphere"], "presets"), "only the Theater adopts environment presets"
+      end
     end
 
     test "every entry is public and carries only the whitelisted fields" do
@@ -173,8 +192,19 @@ defmodule Afterlight.World.PlaceDefinitionsTest do
   describe "the optional atmosphere preset table" do
     test "the committed projection ships the semantic presets the JS registry froze" do
       presets = PlaceDefinitions.presets()
+
       assert MapSet.new(Map.keys(presets)) ==
-               MapSet.new(~w(clear rain storm dry-heat diurnal-rain rain-night desert-night rooftop-cycle))
+               MapSet.new(
+                 ~w(clear rain storm dry-heat diurnal-rain rain-night desert-night rooftop-cycle)
+                 ++ ~w(
+                   env-coastal-sunset env-coastal-storm env-coastal-midnight
+                   env-rainforest-mist env-rainforest-afternoon env-rainforest-thunderstorm
+                   env-alpine-aurora env-alpine-morning env-alpine-snowfall
+                   env-desert-golden env-desert-sandstorm env-desert-night
+                   env-redwood-firefly env-redwood-fog env-redwood-sunshafts
+                   env-cloud-sunrise env-cloud-day env-cloud-storm
+                 )
+               )
 
       rain = presets["rain"]
       assert rain["weather"] == "fixed"

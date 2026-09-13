@@ -70,6 +70,60 @@ defmodule Afterlight.World.AtmospherePureTest do
     assert Atmosphere.config_for("probe-accel") == nil, "reserved clocks fail closed until the projection can express them"
   end
 
+  test "the adoptable-preset allow-list comes from the projection and is empty for fixed rooms" do
+    entry =
+      put_in(atmosphere_entry("probe-env", "env-coastal-sunset"), ["atmosphere", "presets"], [
+        "env-coastal-sunset",
+        "env-alpine-aurora",
+        42
+      ])
+
+    Application.put_env(
+      :afterlight,
+      :world,
+      Keyword.put(world_cfg(), :place_entries, [entry, atmosphere_entry("probe-rain", "rain")])
+    )
+
+    assert Atmosphere.allowed_presets_for("probe-env") == ["env-coastal-sunset", "env-alpine-aurora"]
+    assert Atmosphere.allowed_presets_for("probe-rain") == []
+    assert Atmosphere.allowed_presets_for("probe-unknown") == []
+    assert Atmosphere.allowed_presets_for(nil) == []
+  end
+
+  test "set_preset adopts an allowed preset as a full replacement and refuses everything else" do
+    entry =
+      put_in(atmosphere_entry("probe-env", "env-coastal-sunset"), ["atmosphere", "presets"], [
+        "env-coastal-sunset",
+        "env-coastal-storm"
+      ])
+
+    Application.put_env(:afterlight, :world, Keyword.put(world_cfg(), :place_entries, [entry]))
+    now = System.system_time(:millisecond)
+    atmosphere = Atmosphere.init("probe-env")
+
+    # Un-owned rooms never adopt; ids outside the allow-list are refused even
+    # when they are valid committed presets.
+    assert Atmosphere.set_preset(atmosphere, "env-coastal-storm", 0, now) == {:error, :unavailable}
+    assert Atmosphere.set_preset(atmosphere, "env-alpine-aurora", 7, now) == {:error, :preset_not_allowed}
+    assert Atmosphere.set_preset(atmosphere, "not-a-preset", 7, now) == {:error, :preset_not_allowed}
+    assert Atmosphere.set_preset(atmosphere, nil, 7, now) == {:error, :preset_not_allowed}
+
+    assert {:ok, next, frame} = Atmosphere.set_preset(atmosphere, "env-coastal-storm", 7, now)
+    assert frame["epoch"] == 7
+    assert frame["revision"] == 2, "a set is one revision over the adopted window"
+    assert frame["state"]["preset"] == "env-coastal-storm"
+    assert frame["state"]["mode"] == "fixed"
+    assert frame["state"]["intensity"] == 1.0
+    assert frame["state"]["startedAt"] == now
+    assert frame["state"]["events"] != [], "the new policy rebuilds its event window"
+    assert Enum.all?(frame["state"]["events"], &String.starts_with?(&1["id"], "7:2:"))
+    assert_envelope_valid(frame, now)
+
+    assert {:ok, _next2, frame2} = Atmosphere.set_preset(next, "env-coastal-sunset", 7, now)
+    assert frame2["revision"] == 3, "revision stays monotonic within the epoch"
+    assert frame2["state"]["preset"] == "env-coastal-sunset"
+  end
+
   test "an un-owned room (epoch 0) never presents atmosphere state" do
     atmosphere = Atmosphere.init("probe-rain")
     assert Atmosphere.snapshot(atmosphere, 0, System.system_time(:millisecond)) == :unavailable
@@ -431,6 +485,34 @@ defmodule AfterlightWeb.GameChannelAtmosphereTest do
     wire
   end
 
+  # A Theater-style room: fixed default preset plus the explicit adoptable
+  # allow-list the environment campaign projects.
+  defp with_environment_room do
+    wire = "probe-channel-env-#{System.unique_integer([:positive])}"
+    world = Application.get_env(:afterlight, :world, [])
+
+    Application.put_env(
+      :afterlight,
+      :world,
+      Keyword.put(world, :place_entries, [
+        %{
+          "id" => wire,
+          "public" => true,
+          "kind" => "venue",
+          "bounds" => %{"minX" => -11.3, "maxX" => 11.3, "minZ" => -9.5, "maxZ" => 10.3},
+          "atmosphere" => %{
+            "preset" => "env-coastal-sunset",
+            "weatherMode" => "fixed",
+            "timeMode" => "fixed",
+            "presets" => ["env-coastal-sunset", "env-coastal-storm"]
+          }
+        }
+      ])
+    )
+
+    wire
+  end
+
   defp connect_guest(guest_id, nickname) do
     {:ok, %{token: token}} = Afterlight.Gateway.Auth.issue(guest_id, nickname)
     assert {:ok, socket} = connect(AfterlightWeb.UserSocket, %{"token" => token})
@@ -514,6 +596,75 @@ defmodule AfterlightWeb.GameChannelAtmosphereTest do
       # An invalid requestId never reaches the limiter or the room.
       push(socket, "atmosphere_get", %{"requestId" => String.duplicate("x", 65)})
       assert_push("error", %{"message" => "atmosphere_request_invalid"})
+    end)
+  end
+
+  test "atmosphere_set: any live member adopts an allowed environment and the room broadcasts it" do
+    flipped(fn ->
+      wire = with_environment_room()
+
+      guest_a = "guest_atmo_set_a#{System.unique_integer([:positive])}"
+      a = connect_guest(guest_a, "Alder")
+      _hello = hello(a, guest_a, "Alder")
+      push(a, "join_room", %{"roomId" => wire})
+      assert_push("presence_update", %{"roomId" => ^wire, "epoch" => epoch})
+      frame_a = receive_atmosphere(&(&1["state"]["preset"] == "env-coastal-sunset"))
+      assert frame_a["roomId"] == wire and frame_a["epoch"] == epoch
+      initial_revision = frame_a["revision"]
+
+      guest_b = "guest_atmo_set_b#{System.unique_integer([:positive])}"
+      b = connect_guest(guest_b, "Birch")
+      _hello = hello(b, guest_b, "Birch")
+      push(b, "join_room", %{"roomId" => wire})
+      assert_push("presence_update", %{"roomId" => ^wire})
+      _frame_b = receive_atmosphere(&(&1["state"]["preset"] == "env-coastal-sunset"))
+
+      # A (not the host — there is no host) adopts the storm world; every
+      # member receives the authoritative full replacement.
+      push(a, "atmosphere_set", %{"preset" => "env-coastal-storm"})
+
+      frame_set_a = receive_atmosphere(&(&1["state"]["preset"] == "env-coastal-storm"))
+      assert frame_set_a["roomId"] == wire and frame_set_a["epoch"] == epoch
+      assert frame_set_a["revision"] == initial_revision + 1
+      assert frame_set_a["state"]["events"] != []
+
+      frame_set_b = receive_atmosphere(&(&1["state"]["preset"] == "env-coastal-storm"))
+      assert frame_set_b["revision"] == frame_set_a["revision"]
+      assert frame_set_b["state"] == frame_set_a["state"], "one window shared by the whole room"
+
+      # Ids outside the room allow-list, even valid committed presets, are refused.
+      push(a, "atmosphere_set", %{"preset" => "rain"})
+      assert_push("error", %{"message" => "atmosphere_set_rejected", "reason" => "preset_not_allowed"})
+
+      # The limiter allows two sets per five seconds; rejected sets count too,
+      # while malformed payloads never reach it.
+      push(b, "atmosphere_set", %{"preset" => "env-alpine-aurora"})
+      assert_push("error", %{"message" => "atmosphere_set_rejected", "reason" => "preset_not_allowed"})
+      push(b, "atmosphere_set", %{"preset" => "not-a-preset"})
+      assert_push("error", %{"message" => "atmosphere_set_rejected", "reason" => "preset_not_allowed"})
+      push(b, "atmosphere_set", %{"preset" => "env-coastal-sunset"})
+      assert_push("error", %{"message" => "rate_limited"})
+      push(b, "atmosphere_set", %{"preset" => ""})
+      assert_push("error", %{"message" => "atmosphere_set_invalid"})
+    end)
+  end
+
+  test "atmosphere_set is gated like the read: members only, allow-list only" do
+    flipped(fn ->
+      # Not a live member: refused before any room is touched.
+      guest = "guest_atmo_set_gate#{System.unique_integer([:positive])}"
+      socket = connect_guest(guest, "Wren")
+      _hello = hello(socket, guest, "Wren")
+      push(socket, "atmosphere_set", %{"preset" => "env-coastal-storm"})
+      assert_push("error", %{"message" => "room_unavailable"})
+
+      # A fixed-atmosphere room (no allow-list) rejects every set.
+      wire = with_atmosphere_room()
+      push(socket, "join_room", %{"roomId" => wire})
+      assert_push("presence_update", %{"roomId" => ^wire})
+      assert_push("atmosphere_state", %{})
+      push(socket, "atmosphere_set", %{"preset" => "env-coastal-storm"})
+      assert_push("error", %{"message" => "atmosphere_set_rejected", "reason" => "preset_not_allowed"})
     end)
   end
 
@@ -604,6 +755,18 @@ defmodule AfterlightWeb.GameChannelAtmosphereTest do
         flunk("unexpected push #{inspect(event)}: #{inspect(payload)}")
     after
       timeout -> :ok
+    end
+  end
+
+  # Receives the next atmosphere_state frame matching `pred`, skipping roster
+  # pushes and the room's first-tick repair snapshot (which always fires once
+  # per room with the same semantics as the join frame).
+  defp receive_atmosphere(pred, timeout \\ 2_000) do
+    receive do
+      %Phoenix.Socket.Message{event: "atmosphere_state", payload: frame} ->
+        if pred.(frame), do: frame, else: receive_atmosphere(pred, timeout)
+    after
+      timeout -> flunk("no atmosphere_state frame matched")
     end
   end
 

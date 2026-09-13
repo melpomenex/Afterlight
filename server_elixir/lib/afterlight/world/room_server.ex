@@ -167,6 +167,15 @@ defmodule Afterlight.World.RoomServer do
   """
   def atmosphere_snapshot(room_pid), do: GenServer.call(room_pid, :atmosphere_snapshot)
 
+  @doc """
+  Adopt an allowed atmosphere preset for this room (`atmosphere_set`). The
+  owner validates the id against the room's projection allow-list, persists
+  the full replacement and pushes one `atmosphere_state` snapshot to every
+  member. Returns `{:ok, frame}` or `{:error, reason}`; `:unavailable` for an
+  un-owned room. One `GenServer.call` per request — never per tick.
+  """
+  def atmosphere_set(room_pid, preset_id), do: GenServer.call(room_pid, {:atmosphere_set, preset_id})
+
   @doc "Fan out a flat domain frame to every live member."
   def broadcast_frame(room_pid, frame) when is_map(frame) do
     GenServer.cast(room_pid, {:broadcast_frame, frame})
@@ -389,6 +398,27 @@ defmodule Afterlight.World.RoomServer do
     now = System.system_time(:millisecond)
     atmosphere = Atmosphere.adopt(state.atmosphere, frame_epoch(state), now)
     {:reply, Atmosphere.snapshot(atmosphere, frame_epoch(state), now), %{state | atmosphere: atmosphere}}
+  end
+
+  def handle_call({:atmosphere_set, preset_id}, _from, state) do
+    # Environment adoption (Theater Environment campaign): the room owner is
+    # the only writer, validation lives in Atmosphere.set_preset/4 and the
+    # resulting full-replacement snapshot is broadcast to every member. The
+    # local override is optimistic on the client; this frame is what makes
+    # the choice authoritative for the whole room.
+    now = System.system_time(:millisecond)
+
+    case Atmosphere.set_preset(state.atmosphere, preset_id, frame_epoch(state), now) do
+      {:ok, atmosphere, frame} ->
+        Enum.each(members_in_order(state), fn member ->
+          send_frame(state.room.wire_id, member.channel_pid, frame)
+        end)
+
+        {:reply, {:ok, frame}, %{state | atmosphere: atmosphere}}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
   end
 
   def handle_call({:install_lease, %Lease.Handle{} = handle}, _from, %{lease: %Lease.Handle{} = held} = state)

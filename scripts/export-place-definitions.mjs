@@ -78,12 +78,28 @@ export function projectPlace(definition) {
     at(Object.prototype.hasOwnProperty.call(ATMOSPHERE_PRESETS, atmosphere.preset), `atmosphere.preset "${atmosphere.preset}" is not a known preset`);
   }
 
+  // Optional room adoptable-preset allow-list (Theater environments): every
+  // entry must exist in the committed preset registry, so an `atmosphere_set`
+  // can never name an unprojected world.
+  const allowedPresets = atmosphere.presets;
+  if (allowedPresets !== undefined) {
+    at(Array.isArray(allowedPresets) && allowedPresets.length > 0, 'atmosphere.presets must be a non-empty array when present');
+    for (const presetId of allowedPresets) {
+      at(Object.prototype.hasOwnProperty.call(ATMOSPHERE_PRESETS, presetId), `atmosphere.presets entry "${presetId}" is not a known preset`);
+    }
+  }
+
   return {
     id: definition.id,
     public: true,
     kind: definition.kind,
     bounds: { minX: b.minX, maxX: b.maxX, minZ: b.minZ, maxZ: b.maxZ },
-    atmosphere: { preset: atmosphere.preset, weatherMode: atmosphere.weatherMode, timeMode: atmosphere.timeMode },
+    atmosphere: {
+      preset: atmosphere.preset,
+      weatherMode: atmosphere.weatherMode,
+      timeMode: atmosphere.timeMode,
+      ...(allowedPresets !== undefined ? { presets: [...allowedPresets] } : {}),
+    },
     activities: projectActivities(definition.activities, b),
   };
 }

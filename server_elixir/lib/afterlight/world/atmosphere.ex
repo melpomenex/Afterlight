@@ -119,6 +119,30 @@ defmodule Afterlight.World.Atmosphere do
 
   def config_for(_other), do: nil
 
+  @doc """
+  The atmosphere preset ids a room may adopt through `atmosphere_set`, from
+  the projection's optional per-entry `atmosphere.presets` allow-list. Empty
+  for rooms whose preset is fixed (every place except the Theater's six
+  authored environments) and for unknown/private rooms.
+  """
+  @spec allowed_presets_for(term) :: [String.t()]
+  def allowed_presets_for(room_id) when is_binary(room_id) do
+    entries =
+      case World.config(:place_entries) do
+        entries when is_list(entries) -> entries
+        _ -> PlaceDefinitions.all()
+      end
+
+    entry = Enum.find(entries, &(&1["id"] == room_id))
+
+    case entry && get_in(entry, ["atmosphere", "presets"]) do
+      presets when is_list(presets) -> Enum.filter(presets, &is_binary/1)
+      _ -> []
+    end
+  end
+
+  def allowed_presets_for(_other), do: []
+
   ## Lifecycle
 
   @doc """
@@ -215,6 +239,27 @@ defmodule Afterlight.World.Atmosphere do
 
   def snapshot_for(_other), do: :unavailable
 
+  @doc """
+  Adopt an allowed preset for a live wire room (the GameChannel
+  `atmosphere_set` path): resolves the room's owner and asks it to change the
+  atmosphere in one owner call. `:unavailable` for unknown rooms and rooms
+  without a live owner; `{:error, reason}` when the owner rejects the id.
+  """
+  @spec set_for(String.t() | nil, term) ::
+          {:ok, %{String.t() => term}} | {:error, atom()} | :unavailable
+  def set_for(wire_room_id, preset_id)
+
+  def set_for(wire_room_id, preset_id) when is_binary(wire_room_id) do
+    with {:ok, room} <- Rooms.resolve(wire_room_id),
+         [{pid, _}] <- Registry.lookup(Afterlight.World.Registry, {RoomServer, room.wire_id}) do
+      RoomServer.atmosphere_set(pid, preset_id)
+    else
+      _ -> :unavailable
+    end
+  end
+
+  def set_for(_other, _preset_id), do: :unavailable
+
   ## Tick (the RoomServer's existing 100 ms timer — O(1) deadline checks)
 
   @doc """
@@ -290,6 +335,58 @@ defmodule Afterlight.World.Atmosphere do
   end
 
   defp owned?(epoch), do: is_integer(epoch) and epoch >= 1
+
+  @doc """
+  Adopt an allowed preset for the room (`atmosphere_set`). The requested id
+  must be on the room's projection allow-list and present in the committed
+  preset table with a supported weather mode; the change is a full
+  replacement: `mode` follows the new preset, `revision` bumps so clients
+  treat the snapshot as authoritative, the event window is rebuilt for the
+  new policy and `started_at` resets. The room seed and held epoch are
+  unchanged. Returns `{:ok, atmosphere, frame}` for the owner to persist and
+  broadcast, or `{:error, reason}` — never a partial change.
+  """
+  @spec set_preset(t(), term, non_neg_integer(), integer()) ::
+          {:ok, t(), %{String.t() => term}} | {:error, atom()}
+  def set_preset(%__MODULE__{} = atmosphere, preset_id, epoch, now) when is_integer(epoch) do
+    atmosphere = ensure_epoch(atmosphere, epoch, now)
+
+    cond do
+      not owned?(epoch) ->
+        {:error, :unavailable}
+
+      not is_binary(preset_id) or preset_id not in allowed_presets_for(atmosphere.room) ->
+        {:error, :preset_not_allowed}
+
+      true ->
+        case Map.get(PlaceDefinitions.presets(), preset_id) do
+          %{"weather" => weather} = preset when weather in @supported_weather ->
+            next =
+              atmosphere
+              |> Map.merge(%{
+                preset: preset,
+                mode: weather,
+                revision: max(atmosphere.revision, 0) + 1,
+                events: [],
+                next_slot: 0,
+                last_kind_at: %{},
+                next_resupply_at: nil,
+                last_emit_at: now,
+                started_at: now
+              })
+              # The replacement window IS the new revision (bump? false): its
+              # stable ids carry the revision that introduced it.
+              |> resupply(now, false)
+
+            {:ok, next, build_frame(next, epoch, now, nil)}
+
+          _other ->
+            {:error, :unsupported_preset}
+        end
+    end
+  end
+
+  def set_preset(_atmosphere, _preset_id, _epoch, _now), do: {:error, :unavailable}
 
   # Cheap deadline work: drop fully expired windows (the client's late
   # tolerance is mirrored), then top the future window back up at most once
