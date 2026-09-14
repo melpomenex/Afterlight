@@ -698,11 +698,18 @@ export function createKartRoyaleController({
     // (add-kart-royale-loading-indicator); failure toasts remain.
     perfSpan('admission', 'start');
     if (!mine()) {
-      participation()?.join?.(activityDef, { role: 'play' });
+      try {
+        participation()?.join?.(activityDef, { role: 'play' });
+      } catch {}
     }
-    if (coldPreparationEnabled) {
-      void createAndBootHost();
-    }
+    // The host boots from update() once the seat lands (isParticipating) —
+    // the same choreography as Downhill Mayhem. Booting during the PENDING
+    // join meant any cold-boot hiccup (import, PMREM bake, view lease)
+    // funneled into exit('load-failed') → participation.leave() while the
+    // join was still 'joining', which the UI reports as "Activity join
+    // cancelled" and ejects the player from a seat the server accepted.
+    // Background preparation still warms assets while approaching; only the
+    // entry-time boot moved.
     return true;
   }
 

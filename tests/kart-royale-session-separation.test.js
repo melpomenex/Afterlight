@@ -43,9 +43,15 @@ test('hosted audio defers gesture listeners until enterSession', async () => {
   assert.match(audio, /private mountSession\(\)/);
 });
 
-test('controller runs cold boot concurrently with admission join', async () => {
+test('controller boots only after the admission seat lands, never during the pending join', async () => {
   const src = await readFile(join(root, 'src/activities/kart-royale/controller.js'), 'utf8');
-  assert.match(src, /if \(coldPreparationEnabled\) \{\s*void createAndBootHost\(\)/);
+  // The host boot starts from update() once isParticipating — the same
+  // choreography as Downhill Mayhem. Booting during the pending join turned
+  // any cold-boot hiccup into participation.leave() while still 'joining'
+  // ("Activity join cancelled"). See kart-royale-controller.test.js for the
+  // behavioral regression test with the cold path enabled.
+  assert.doesNotMatch(src, /if \(coldPreparationEnabled\) \{\s*void createAndBootHost\(\)/);
+  assert.match(src, /isParticipating[\s\S]{0,400}createAndBootHost\(\)/);
   assert.match(src, /participation\(\)\?\.join/);
 });
 

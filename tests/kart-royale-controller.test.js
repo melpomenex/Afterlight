@@ -84,10 +84,11 @@ function installBrowserStubs() {
   };
 }
 
-function makeSeams({ notifyPresentationTerminal = null, onBootPhase = null, notifyPresentationLive = null } = {}) {
+function makeSeams({ notifyPresentationTerminal = null, onBootPhase = null, notifyPresentationLive = null, runGraphicsTransaction = null } = {}) {
   const state = {
     joined: null,
     participating: false,
+    joining: false,
     currentActivity: null,
   };
   const acquisitions = [];
@@ -99,10 +100,10 @@ function makeSeams({ notifyPresentationTerminal = null, onBootPhase = null, noti
   }
   const participation = () => ({
     get isParticipating() { return state.participating; },
-    get isJoining() { return false; },
+    get isJoining() { return state.joining; },
     get currentActivity() { return state.currentActivity; },
     join: (def, opts) => { state.joined = { def, opts }; },
-    leave: () => { state.participating = false; state.currentActivity = null; },
+    leave: () => { state.participating = false; state.joining = false; state.currentActivity = null; },
   });
   const controller = createKartRoyaleController({
     activityDef: KART_ROYALE_ACTIVITY_DEFINITION,
@@ -119,6 +120,7 @@ function makeSeams({ notifyPresentationTerminal = null, onBootPhase = null, noti
     notifyPresentationTerminal,
     onBootPhase,
     notifyPresentationLive,
+    runGraphicsTransaction,
   });
   return { controller, state, acquisitions, releases, toasts, participation };
 }
@@ -131,6 +133,62 @@ test('beginParticipation joins the session with role play', async () => {
     assert.equal(ok, true);
     assert.equal(state.joined.def.id, 'orpheum-kart-royale');
     assert.equal(state.joined.opts.role, 'play');
+    controller.dispose();
+  } finally {
+    stubs.restore();
+  }
+});
+
+test('no boot is attempted while the join is still pending — a cold-boot hiccup cannot cancel the join', async () => {
+  // Regression (arcade availability follow-up): with frame-bound graphics
+  // transactions available, entry used to cold-boot the hosted game DURING
+  // the pending join; any boot failure funneled into participation.leave()
+  // while still 'joining', which the UI reports as "Activity join cancelled"
+  // and ejects the player from a seat the server had accepted. The host now
+  // boots only from update() once the seat lands, exactly like Downhill
+  // Mayhem — this test pins that choreography with the cold path enabled.
+  const stubs = installBrowserStubs();
+  try {
+    const terminals = [];
+    const { controller, state, toasts } = makeSeams({
+      runGraphicsTransaction: async (fn) => fn(),
+      notifyPresentationTerminal: (reason) => terminals.push(reason),
+    });
+    await controller.beginParticipation();
+
+    // Still joining: the server has not answered yet. Many ticks pass.
+    state.joining = true;
+    state.currentActivity = KART_ROYALE_ACTIVITY_DEFINITION;
+    for (let i = 0; i < 6; i++) {
+      await new Promise((r) => setTimeout(r, 25));
+      controller.update(i / 60, 1 / 60);
+    }
+
+    // No load was attempted during the pending join: no failure toast, no
+    // terminal load-failed notification, and the join was never left.
+    assert.deepEqual(
+      toasts.filter((t) => /failed|start/i.test(t.title)),
+      [],
+      'no boot failure while joining',
+    );
+    assert.ok(!terminals.includes('load-failed'), 'no load-failed terminal during the pending join');
+    assert.equal(state.currentActivity?.id, 'orpheum-kart-royale', 'join not cancelled');
+
+    // Seat lands: the boot starts now (and fails honestly in Node, where the
+    // TS host import cannot resolve — the load-failure path is covered
+    // separately below).
+    state.joining = false;
+    state.participating = true;
+    controller.update(1, 1 / 60);
+    for (let i = 0; i < 6; i++) {
+      await new Promise((r) => setTimeout(r, 25));
+      controller.update(2 + i / 60, 1 / 60);
+    }
+    assert.equal(
+      toasts.filter((t) => /failed/i.test(t.title)).length,
+      1,
+      'the boot attempt happens after the seat lands',
+    );
     controller.dispose();
   } finally {
     stubs.restore();
