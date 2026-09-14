@@ -1457,6 +1457,8 @@ net.on(MSG_TYPES.ACTIVITY_STATE, (msg) => activityRuntime.acceptSnapshot(msg));
 net.on(MSG_TYPES.ACTIVITY_EVENT, (msg) => activityRuntime.acceptEvent(msg));
 net.on(MSG_TYPES.ACTIVITY_RESULT, (msg) => activityRuntime.acceptResult(msg));
 net.on(MSG_TYPES.ACTIVITY_ERROR, (msg) => activityRuntime.acceptError(msg));
+// Join-time closed-game snapshot: gated cabinets present as coming soon.
+net.on(MSG_TYPES.ACTIVITY_AVAILABILITY, (msg) => activityRuntime.acceptAvailability(msg));
 
 net.on(MSG_TYPES.WEATHER_UPDATE, (msg) => {
   updateWeatherDisplay(msg.weather);
@@ -1696,6 +1698,16 @@ function interact() {
   // from the first instant and a rejection releases it again.
   if (nearest?.type === 'activity') {
     const actId = nearest.activityId ?? nearest.id;
+
+    // Server-marked closed (admission-gated game this server declined to
+    // open): honest coming-soon feedback instead of a doomed join the
+    // server is guaranteed to reject.
+    const closedInfo = activityRuntime.closedActivityInfo(nearest.activityDef || nearest);
+    if (closedInfo) {
+      toast(closedInfo.title, 'Not open on this server yet — check back soon.');
+      return;
+    }
+
     if (actId === 'orpheum-kart-royale') {
       // Debug-only instrumentation: record which World presentation the
       // attempt resolved to (selection, host, fallback, assets and labeled
@@ -2570,9 +2582,20 @@ function frame(now) {
       $('action-sub').textContent = 'Watching activity · Press E to stop';
       $('interact').style.borderColor = '#c6b47a99';
     } else if (nearest) {
-      $('action-title').textContent = nearest.title;
-      $('action-sub').textContent = nearest.sub;
-      $('interact').style.borderColor = '#c6b47a99';
+      // A cabinet the server marked closed presents as coming soon, not as
+      // a playable machine (the join would be rejected with an error).
+      const closedInfo = nearest.type === 'activity'
+        ? activityRuntime.closedActivityInfo(nearest.activityDef || nearest)
+        : null;
+      if (closedInfo) {
+        $('action-title').textContent = closedInfo.title;
+        $('action-sub').textContent = closedInfo.sub;
+        $('interact').style.borderColor = '#9faa9240';
+      } else {
+        $('action-title').textContent = nearest.title;
+        $('action-sub').textContent = nearest.sub;
+        $('interact').style.borderColor = '#c6b47a99';
+      }
     } else {
       const distDef = districts.find(d => d.id === currentRoomId);
       if (distDef) {

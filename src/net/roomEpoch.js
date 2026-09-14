@@ -29,6 +29,9 @@ const ROOM_SCOPED_TYPES = new Set([
   'activity_event',
   'activity_result',
   'activity_error',
+  // Join-time closed-game snapshots are room-tagged the same way: a queued
+  // old-room availability frame must never mark the new room's cabinets.
+  'activity_availability',
 ]);
 
 /**

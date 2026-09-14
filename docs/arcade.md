@@ -92,6 +92,43 @@ cabinet: Object.freeze({
 5. Run `npm test`; `tests/arcade-cabinet.test.js` proves the new machine's row fit
    (gate/spawn/seat clearance) and skin validity.
 
+## Availability gating (server-authoritative, honestly presented)
+
+Some arcade games are **admission-gated**: their sessions stay closed until an
+operator opts in through the runtime environment. Today those are the two
+server-authoritative racers — Summit Run (`AFTERLIGHT_SNOWBOARD_ENABLED`) and
+Downhill Mayhem (`AFTERLIGHT_DOWNHILL_MAYHEM_ENABLED`). Both default ON in Mix
+dev and in `deploy/docker-compose.yml` (override with `0`/`false`).
+
+The gate lives in ONE canonical registry,
+`server_elixir/lib/afterlight/activities/availability.ex`
+(`Afterlight.Activities.Availability`): one entry per gated game — activity
+type, display title, `enabled?/0` predicate. It feeds three consumers, so they
+can never drift apart again:
+
+1. **Session admission** (`Activities.start_session/6`): a closed game fails
+   with the typed `race_unavailable` error and never starts a session. Do not
+   re-add per-game clauses there.
+2. **Error naming** (`GameChannel`): the rejection message names the actual
+   game — "Downhill Mayhem isn't open on this server" — from the activity's
+   title. (It previously hardcoded "Summit Run" for every closed race.)
+3. **The join-time availability handshake**: every world join pushes one
+   additive `activity_availability` frame
+   (`{ roomId, closed: [{ id, type, title }] }`) listing the gated games this
+   server has closed. Clients store it
+   (`src/activities/availability.js`, pure) and present those cabinets as
+   **"Coming soon · not open on this server"** in the interaction card instead
+   of advertising a machine the server is guaranteed to reject. Pressing E on a
+   closed cabinet explains itself; no join is sent. The frame is presentation
+   only — the server remains the admission authority, and old servers/clients
+   that never exchange it keep working exactly as before.
+
+Adding a gated game = one entry in the Availability registry (plus its env
+flag wiring in `config/runtime.exs` and, for production, the compose default).
+`tests/activity-availability.test.js` and
+`server_elixir/test/afterlight/activities/availability_test.exs` pin the
+contract, including that every gated type matches a real declared activity.
+
 ## How games use the cabinet
 
 Game modules call one function; the factory does everything else:

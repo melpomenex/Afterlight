@@ -81,14 +81,14 @@ defmodule Afterlight.Activities do
           is_nil(act_def) ->
             {:error, :activity_not_found}
 
-          # Disabled-by-default admission gate (4.5): unsupported/disabled
-          # types fail closed with a typed error, never a partial session.
-          Map.get(act_def, "type") == Afterlight.Activities.Snowboard.SessionPolicy.activity_type() and
-              not Afterlight.Activities.Snowboard.enabled?() ->
-            {:error, :race_unavailable}
-
-          Map.get(act_def, "type") == Afterlight.Activities.DownhillMayhem.SessionPolicy.activity_type() and
-              not Afterlight.Activities.DownhillMayhem.enabled?() ->
+          # Disabled-by-default admission gates live in ONE canonical
+          # registry (Afterlight.Activities.Availability): unsupported or
+          # opted-out types fail closed with a typed error, never a partial
+          # session. Per-game clauses must not be re-added here.
+          match?(
+            {:error, :race_unavailable},
+            Afterlight.Activities.Availability.check(Map.get(act_def, "type"))
+          ) ->
             {:error, :race_unavailable}
 
           true ->

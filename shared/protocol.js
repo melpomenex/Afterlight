@@ -132,6 +132,10 @@
  *   - activity_result (S→C): { version, roomId, roomEpoch, activityId, sessionId,
  *     revision, serverNow, result }
  *   - activity_error (S→C): { version?, roomId?, activityId?, requestId?, error, message }
+ *   - activity_availability (S→C): { roomId, closed: [{ id, type, title }] } —
+ *     additive join-time snapshot of admission-gated games this server has
+ *     closed; clients present those cabinets as coming soon. Presentation
+ *     only: the server stays authoritative for admission.
  */
 
 export const MSG_TYPES = {
@@ -197,6 +201,7 @@ export const MSG_TYPES = {
   ACTIVITY_EVENT: 'activity_event',
   ACTIVITY_RESULT: 'activity_result',
   ACTIVITY_ERROR: 'activity_error',
+  ACTIVITY_AVAILABILITY: 'activity_availability',
 
   // Room-local pool tournaments (phase 6 social layer)
   TOURNAMENT_ENROLL: 'tournament_enroll',

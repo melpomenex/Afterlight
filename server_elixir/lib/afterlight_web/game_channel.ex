@@ -436,6 +436,7 @@ defmodule AfterlightWeb.GameChannel do
               socket
               |> assign(world_room: room, world_room_pid: room_pid)
               |> replace_world_monitor(room_pid)
+              |> maybe_push_activity_availability(room)
               |> maybe_subscribe_theater_playlist_fetch(room)
               |> maybe_push_theater_join_snapshots(room)
               |> maybe_push_atmosphere_join_snapshot(room)
@@ -871,6 +872,42 @@ defmodule AfterlightWeb.GameChannel do
     |> Enum.any?(&(&1["id"] == act_id and &1["type"] == "snowboard-race"))
   end
 
+  # Server-authoritative availability snapshot: one additive push per world
+  # join so clients never advertise a cabinet this server is guaranteed to
+  # reject (disabled-by-default gated games). Presentation only — the
+  # activity handlers above remain the authority for admission.
+  defp maybe_push_activity_availability(socket, room) do
+    closed =
+      room.wire_id
+      |> Afterlight.World.PlaceDefinitions.activities()
+      |> Afterlight.Activities.Availability.closed_activities()
+
+    push(socket, "activity_availability", %{
+      "roomId" => room.wire_id,
+      "closed" => closed
+    })
+
+    socket
+  end
+
+  # Name the game that is actually closed: the gated-game registry owns the
+  # mapping from activity type to display title (a closed Downhill Mayhem
+  # cabinet must not claim to be Summit Run).
+  defp race_unavailable_message(room_key, act_id) do
+    act =
+      room_key
+      |> Afterlight.World.PlaceDefinitions.activities()
+      |> Enum.find(&(&1["id"] == act_id))
+
+    title =
+      case act do
+        %{"title" => title} when is_binary(title) and title != "" -> title
+        other -> Afterlight.Activities.Availability.title(other && other["type"]) || "This game"
+      end
+
+    "#{title} isn't open on this server"
+  end
+
   # Activity frames are room-scoped on the client (roomEpoch filter +
   # activity runtime): every push carries the room wire id.
   defp room_key_of(socket) do
@@ -1171,7 +1208,7 @@ defmodule AfterlightWeb.GameChannel do
 
                   {:error, :race_unavailable} ->
                     push_activity_error(socket, room_key, "race_unavailable",
-                      "Summit Run isn't open on this server", req_id, act_id)
+                      race_unavailable_message(room_key, act_id), req_id, act_id)
 
                     {:noreply, socket}
 

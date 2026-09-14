@@ -17,6 +17,12 @@ import { getActivityModule, hasActivityModule } from './registry.js';
 import { getPlaceActivities } from '../../shared/placeDefinitions.js';
 import { createParticipationController } from './participation.js';
 import { createMediaPresentationLease, MEDIA_LEASE_PHASE } from './mediaPresentation.js';
+import {
+  EMPTY_ACTIVITY_AVAILABILITY,
+  normalizeActivityAvailability,
+  isActivityClosed as isActivityClosedState,
+  closedActivityLabel,
+} from './availability.js';
 
 export function createActivityRuntime({
   net = null,
@@ -53,6 +59,9 @@ export function createActivityRuntime({
   const activityDefs = new Map();
   const errors = new Map();
   let theaterIdlePrefetchScheduled = false;
+  // Server-authoritative closed-game snapshot for the active room (see
+  // src/activities/availability.js): presentation only, never permission.
+  let availability = EMPTY_ACTIVITY_AVAILABILITY;
 
   // One generation/attempt-fenced presentation lease per runtime. The league
   // owns no DOM: main.js bridges enter/exit/replace to the theater UI.
@@ -203,6 +212,7 @@ export function createActivityRuntime({
       activeRoomId = roomId;
       activeGeneration = typeof generation === 'number' ? generation : activeGeneration + 1;
       errors.clear();
+      availability = EMPTY_ACTIVITY_AVAILABILITY;
 
       // Read activities from manifest definition or lookup
       const activities = def?.activities || (roomId ? getPlaceActivities(roomId) : []) || [];
@@ -296,6 +306,7 @@ export function createActivityRuntime({
       active = false;
       activeRoomId = null;
       theaterIdlePrefetchScheduled = false;
+      availability = EMPTY_ACTIVITY_AVAILABILITY;
 
       for (const [id, instance] of instances) {
         try {
@@ -403,6 +414,37 @@ export function createActivityRuntime({
         }
       }
       return handled;
+    },
+
+    /**
+     * Accept a server `activity_availability` snapshot for the active room.
+     * Frames for other rooms are ignored; an absent snapshot (old server)
+     * keeps every cabinet playable.
+     * @param {object} frame `{ roomId, closed: [...] }`
+     */
+    acceptAvailability(frame) {
+      if (!active) return false;
+      availability = normalizeActivityAvailability(frame, { roomId: activeRoomId });
+      return true;
+    },
+
+    /**
+     * True when the server marked this activity closed (coming soon).
+     * Presentation gating only: the server remains the admission authority.
+     * @param {object} activityDef
+     */
+    isActivityClosed(activityDef) {
+      return active && isActivityClosedState(availability, activityDef);
+    },
+
+    /**
+     * Player-facing label for a closed activity, or null when open.
+     * @param {object} activityDef
+     */
+    closedActivityInfo(activityDef) {
+      if (!this.isActivityClosed(activityDef)) return null;
+      const row = activityDef?.id ? availability.closedById.get(activityDef.id) : null;
+      return closedActivityLabel(row, activityDef);
     },
 
     /**
