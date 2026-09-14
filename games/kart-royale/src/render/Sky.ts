@@ -876,6 +876,27 @@ let _patchesInstalled = false;
 let _activeSkyInstance: Sky | null = null;
 let _cachedVolume: InteriorVolume | null = null;
 
+/**
+ * Section header every Kart Royale chunk override is appended under. Stripping
+ * from its FIRST occurrence removes a previously installed patch tail, making
+ * installation idempotent BY CONTENT — not just by this module's install flag.
+ *
+ * Why the flag is not enough: any path that installs over already-patched
+ * chunks (a second Sky snapshotting while another host's patches are live, a
+ * future second copy of this module in the bundle) silently doubles the
+ * definitions, and every lit material in the page then fails to compile with
+ * `krInterior : redefinition` / `function already has a body` — the host
+ * world's materials included, because these chunks are process-global.
+ */
+const KR_PATCH_MARKER = '// --- Kart Royale';
+
+/** Exported for tests: the content-idempotence primitive for chunk installs. */
+export function stripKartSection(chunk: string): string {
+  const at = chunk.indexOf(KR_PATCH_MARKER);
+  if (at === -1) return chunk;
+  return chunk.slice(0, at).replace(/[\s\n]+$/, '\n');
+}
+
 export function restoreShaderPatches(): void {
   if (_originalChunks !== null && _patchesInstalled) {
     const chunks = THREE.ShaderChunk as unknown as Record<string, string>;
@@ -1045,6 +1066,9 @@ ${hazeGlsl(model, 'krFogHaze')}
  */
 function commonChunk(original: string, volume: InteriorVolume | null): string {
   const F = glslFloat;
+  // Idempotent by content: never append a second copy of the section, no
+  // matter what state the incoming chunk string is in.
+  original = stripKartSection(original);
   let body = '\treturn 0.0;';
 
   if (volume !== null && volume.segments.length > 0) {
@@ -1719,7 +1743,10 @@ export class Sky implements System {
     const chunks = THREE.ShaderChunk as unknown as Record<string, string>;
     if (_originalChunks === null) {
       _originalChunks = {};
-      for (const name of PATCHED_CHUNKS) _originalChunks[name] = chunks[name];
+      // The snapshot must be PRISTINE stock: if it were taken while another
+      // host's patch tail was live, every later install would derive from the
+      // patched text and double the definitions. Strip defensively.
+      for (const name of PATCHED_CHUNKS) _originalChunks[name] = stripKartSection(chunks[name]);
     }
     const stock = _originalChunks;
 

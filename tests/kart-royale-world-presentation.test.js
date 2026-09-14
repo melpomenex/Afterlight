@@ -113,6 +113,73 @@ test('Task 7.3: Sky.ts scopes ShaderChunks via restoreShaderPatches and reinstal
   assert.ok(runtimeSrc.includes('sky.restoreShaderPatches()'), 'Shader patches restored on session end');
 });
 
+test('kr* chunk installation is idempotent by content — a double install cannot double the definitions', async () => {
+  // Regression (kart production failure): every lit material in the page
+  // failed to compile with `krInterior : redefinition` / `function already
+  // has a body` because the Kart Royale section of <common> was appended on
+  // top of an already-patched chunk. The snapshot and commonChunk() now
+  // strip any existing section before deriving, so every doubling vector
+  // (second Sky snapshotting under live patches, future module copy)
+  // converges to a single section.
+  //
+  // The real Sky.ts is TypeScript; load the REAL source through esbuild
+  // (three external, local modules bundled) so the test exercises the
+  // shipped strip implementation, not a reimplementation.
+  const { build } = await import('esbuild');
+  const { rmSync, mkdirSync } = await import('node:fs');
+  const { resolve } = await import('node:path');
+  const { pathToFileURL } = await import('node:url');
+  // Inside the repo so Node can resolve the externalized 'three' import.
+  const outDir = 'node_modules/.afterlight-tests';
+  const outFile = resolve(`${outDir}/sky-strip-${process.pid}.mjs`);
+  mkdirSync(outDir, { recursive: true });
+  try {
+    await build({
+      entryPoints: ['games/kart-royale/src/render/Sky.ts'],
+      bundle: true,
+      format: 'esm',
+      platform: 'node',
+      external: ['three'],
+      outfile: outFile,
+      logLevel: 'silent',
+    });
+    const { stripKartSection } = await import(pathToFileURL(outFile).href);
+
+    const stock = THREE.ShaderChunk.common;
+    assert.ok(!stock.includes('// --- Kart Royale'), 'precondition: pristine three <common>');
+    // The strip normalizes the chunk tail to a single newline; compare like
+    // for like.
+    const tail = (s) => s.replace(/\s+$/, '') + '\n';
+
+    const section = '\n// --- Kart Royale: scene-wide lighting state ---\nfloat krInterior = 0.0;\n';
+    const patched = stock + section;
+
+    // Pristine stock passes through untouched.
+    assert.equal(stripKartSection(stock), stock);
+
+    // A patched chunk strips back to pristine stock (restore-equivalent).
+    assert.equal(tail(stripKartSection(patched)), tail(stock));
+
+    // A DOUBLED chunk (the exact production corruption) also collapses to
+    // pristine stock — the invariant installShaderPatches now relies on.
+    const doubled = stock + section + section;
+    assert.equal(tail(stripKartSection(doubled)), tail(stock));
+  } finally {
+    try { rmSync(outFile, { force: true }); } catch {}
+  }
+
+  // The source wires the strip into both the snapshot and commonChunk().
+  const skySrc = readFileSync('games/kart-royale/src/render/Sky.ts', 'utf8');
+  assert.ok(
+    skySrc.includes('_originalChunks[name] = stripKartSection(chunks[name])'),
+    'snapshot capture strips any live patch tail',
+  );
+  assert.ok(
+    skySrc.includes('original = stripKartSection(original)'),
+    'commonChunk strips before appending',
+  );
+});
+
 test('Task 7.1: World presentation change does NOT invalidate selection readiness or race state', () => {
   const mockSky = {
     profile: null,
