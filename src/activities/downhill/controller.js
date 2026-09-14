@@ -1383,7 +1383,9 @@ export function createDownhillController({
     hadAdmission = false;
     offerState = null;
     if (shouldLeave) {
-      try { participation()?.leave?.(); } catch {}
+      // A transport-loss leave stays quiet: the connection toast explains
+      // why, and "Left Downhill Mayhem" would misattribute it to the player.
+      try { participation()?.leave?.(reason === 'disconnect' ? { silent: true } : undefined); } catch {}
     }
     if (viewHeld && releaseView) {
       releaseView(attempt.token, reason);

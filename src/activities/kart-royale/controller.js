@@ -628,7 +628,10 @@ export function createKartRoyaleController({
     pendingActivation = false;
     if (mine() || exiting || hadAdmission) {
       try {
-        participation()?.leave?.();
+        // A transport-loss leave stays quiet: the connection toast already
+        // explains why, and "Left Kart Royale" would misattribute the exit
+        // to the player.
+        participation()?.leave?.(reason === 'disconnect' ? { silent: true } : undefined);
       } catch {}
     }
     exiting = false;

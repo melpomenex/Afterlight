@@ -261,8 +261,12 @@ export function createParticipationController({
 
     /**
      * Cancel a pending join.
+     * @param {{ silent?: boolean }} [opts] silent suppresses the toast — used
+     *   when the cancel is a side effect of a transport loss, where the
+     *   connection toast already explains the cause and "join cancelled"
+     *   would mislead.
      */
-    cancelJoin() {
+    cancelJoin({ silent = false } = {}) {
       if (state !== 'joining') return false;
 
       const activityId = currentActivity?.id;
@@ -278,17 +282,21 @@ export function createParticipationController({
         });
       } catch {}
 
-      toast?.('Cancelled', 'Activity join cancelled.', 'ACTIVITY');
+      if (!silent) {
+        toast?.('Cancelled', 'Activity join cancelled.', 'ACTIVITY');
+      }
       onStateChange?.('idle', { reason: 'cancel', previousActivity: act });
       return true;
     },
 
     /**
      * Leave the activity immediately with safe dismount.
+     * @param {{ silent?: boolean }} [opts] silent suppresses the toast for
+     *   transport-loss leaves (see cancelJoin).
      */
-    leave() {
+    leave(opts = {}) {
       if (state === 'idle') return false;
-      if (state === 'joining') return this.cancelJoin();
+      if (state === 'joining') return this.cancelJoin(opts);
 
       const wasParticipating = state === 'participating';
       const actId = currentActivity?.id;
@@ -321,7 +329,9 @@ export function createParticipationController({
         clearMovement?.();
       } catch {}
 
-      toast?.('Left Activity', `Left ${actTitle}.`, 'ACTIVITY');
+      if (!opts.silent) {
+        toast?.('Left Activity', `Left ${actTitle}.`, 'ACTIVITY');
+      }
       onStateChange?.('idle', { reason: 'leave', previousActivity: act });
       return true;
     },

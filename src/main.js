@@ -1417,6 +1417,14 @@ net.on(MSG_TYPES.WELCOME, (msg) => {
 net.onDisconnect(() => {
   placeRuntime.markNetworkOffline();
   atmosphereEvents.cancelAll(); // shared one-shots stop with the connection (task 4.2)
+  if (net.superseded) {
+    // Terminal close (design D8): a newer connection for this identity (the
+    // game opened in another tab or window of the same browser) won the
+    // duplicate-connect race. This tab will NOT reconnect on its own — say
+    // so, instead of promising a reconnect that never comes.
+    toast('Opened in Another Tab', 'This game was opened in another tab or window, so this one is now offline. Reload this tab to play here instead.', 'OFFLINE');
+    return;
+  }
   toast('Connection Lost', 'The connection dropped — this place still renders, but shared actions wait for the server. It reconnects on its own, or pick a place to retry.', 'OFFLINE');
 });
 

@@ -229,6 +229,52 @@ test('createParticipationController manages complete join -> participate -> leav
   assert.equal(movementCleared, true);
 });
 
+test('silent leave/cancel suppress the toast but still send the protocol leave (transport loss)', () => {
+  const toasts = [];
+  const sentMessages = [];
+  const net = {
+    sendActivityJoin: (payload) => sentMessages.push(['join', payload]),
+    sendActivityLeave: (payload) => sentMessages.push(['leave', payload]),
+    sendActivityReady: (payload) => sentMessages.push(['ready', payload]),
+  };
+  const activityDef = { id: 'orpheum-kart-royale', title: 'Kart Royale', type: 'kart-royale' };
+
+  const controller = createParticipationController({
+    net,
+    toast: (title, body, tag) => toasts.push({ title, body, tag }),
+    getRoomId: () => 'theater',
+    worldFacts: () => ({
+      bounds: { minX: -10, maxX: 10, minZ: -10, maxZ: 10 },
+      obstacles: [],
+      isWalkable: () => true,
+      spawn: [-8, 0],
+    }),
+    applyAnchor: () => {},
+    applyDismount: () => {},
+  });
+
+  // Seated, then the transport dies (superseded by another tab): the
+  // controller exits with a silent leave so the connection toast — not a
+  // misleading "Left Kart Royale" — explains what happened.
+  controller.join(activityDef, { role: 'player' });
+  controller.handleResult({ activityId: activityDef.id, status: 'seated', role: 'player', slot: 0 });
+  toasts.length = 0;
+
+  const left = controller.leave({ silent: true });
+  assert.equal(left, true);
+  assert.equal(controller.state, 'idle');
+  assert.deepEqual(sentMessages.at(-1), ['leave', { roomId: 'theater', activityId: activityDef.id }]);
+  assert.deepEqual(toasts, [], 'transport-loss leave stays quiet');
+
+  // Same contract for a cancel while the join is still pending.
+  controller.join(activityDef, { role: 'player' });
+  toasts.length = 0;
+  const cancelled = controller.cancelJoin({ silent: true });
+  assert.equal(cancelled, true);
+  assert.equal(controller.state, 'idle');
+  assert.deepEqual(toasts, [], 'transport-loss cancel stays quiet');
+});
+
 test('cancelJoin cancels a pending join request cleanly', () => {
   const sentMessages = [];
   const net = {
