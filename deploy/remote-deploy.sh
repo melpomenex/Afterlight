@@ -24,6 +24,14 @@ run_rsync() {
   local -a rsync_args=(-az --delete
     --exclude node_modules --exclude server_elixir/deps --exclude server_elixir/_build
     --exclude .git --exclude dist --exclude benchmarks --exclude serviceradar
+    # deploy/.env exists only on the VM (gitignored secrets). Without this
+    # exclude, --delete removes it EVERY deploy, the env-regen step mints a
+    # fresh POSTGRES_PASSWORD (and rotates SECRET_KEY_BASE etc.), and the
+    # stack runs with a broken DB until the ALTER USER heal lands — the
+    # recurring invalid_password storm that killed activity sessions
+    # mid-join. Preserve it: AGENTS.md "do not delete or overwrite
+    # deploy/.env on the VM".
+    --exclude deploy/.env --exclude .env
     "$ROOT/" "$HOST:$REMOTE_DIR/")
   if [[ -n "${DEPLOY_PASS:-}" ]]; then
     sshpass -p "$DEPLOY_PASS" rsync "${rsync_args[@]}"
