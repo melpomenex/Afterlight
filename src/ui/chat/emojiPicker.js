@@ -43,22 +43,40 @@ export class EmojiPicker {
   // --- Public API -----------------------------------------------------------
 
   open(anchorEl = null) {
+    this.anchorEl = anchorEl;
     this.isOpen = true;
     this.root.hidden = false;
+    this.root.classList.add('open');
     this.recents = this.#loadRecents();
     this.searchInput.value = '';
     this.activeCategory = this.recents.length > 0 ? 'recent' : 'smileys';
     this.#renderContent();
     this.searchInput.focus();
+
+    setTimeout(() => {
+      if (typeof document !== 'undefined' && document.addEventListener) {
+        document.addEventListener('pointerdown', this.#handleOutsidePointer, { capture: true });
+      }
+    }, 0);
   }
 
   close() {
     if (!this.isOpen) return;
     this.isOpen = false;
     this.root.hidden = true;
+    this.root.classList.remove('open');
     this.focusedIndex = -1;
+    if (typeof document !== 'undefined' && document.removeEventListener) {
+      document.removeEventListener('pointerdown', this.#handleOutsidePointer, { capture: true });
+    }
     this.onClose?.();
   }
+
+  #handleOutsidePointer = (e) => {
+    if (!this.isOpen) return;
+    if (this.root.contains(e.target) || this.anchorEl?.contains(e.target)) return;
+    this.close();
+  };
 
   toggle(anchorEl = null) {
     if (this.isOpen) this.close();

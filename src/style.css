@@ -1740,6 +1740,14 @@ details.place-group > summary.place-group-label:focus-visible,
   overflow-y: auto;
   z-index: 60;
   padding: 4px 0;
+  display: none;
+}
+.chat-autocomplete-popover.open,
+.chat-autocomplete-popover:not([hidden]) {
+  display: block;
+}
+.chat-autocomplete-popover[hidden] {
+  display: none !important;
 }
 .chat-autocomplete-item {
   display: flex;
@@ -1774,7 +1782,7 @@ details.place-group > summary.place-group-label:focus-visible,
 .chat-emoji-picker {
   position: absolute;
   bottom: 48px;
-  right: 8px;
+  left: 8px;
   width: min(320px, calc(100% - 16px));
   max-height: 340px;
   background: #142223fa;
@@ -1782,10 +1790,17 @@ details.place-group > summary.place-group-label:focus-visible,
   border-radius: 6px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(14px);
-  display: flex;
+  display: none;
   flex-direction: column;
   z-index: 60;
   overflow: hidden;
+}
+.chat-emoji-picker.open,
+.chat-emoji-picker:not([hidden]) {
+  display: flex;
+}
+.chat-emoji-picker[hidden] {
+  display: none !important;
 }
 .chat-emoji-header {
   padding: 8px;

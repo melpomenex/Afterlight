@@ -76,6 +76,7 @@ export class ChatAutocomplete {
     this.selectedIndex = 0;
     this.isOpen = true;
     this.root.hidden = false;
+    this.root.classList.add('open');
     this.#render();
   }
 
@@ -83,6 +84,7 @@ export class ChatAutocomplete {
     if (!this.isOpen && this.root.hidden) return;
     this.isOpen = false;
     this.root.hidden = true;
+    this.root.classList.remove('open');
     this.activeTrigger = null;
     this.items = [];
     this.selectedIndex = 0;

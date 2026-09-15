@@ -224,7 +224,6 @@ export class ChatPanel {
     if (!this.input) return;
     this.input.disabled = !connected;
     this.sendBtn.disabled = !connected;
-    if (this.emojiToggle) this.emojiToggle.disabled = !connected;
 
     this.input.placeholder = connected
       ? 'Say hello… (: for emoji, @ for mention, Esc to release)'
