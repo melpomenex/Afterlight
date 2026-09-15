@@ -143,7 +143,7 @@ test('kr* chunk installation is idempotent by content — a double install canno
       outfile: outFile,
       logLevel: 'silent',
     });
-    const { stripKartSection } = await import(pathToFileURL(outFile).href);
+    const { stripKartSection, Sky, restoreShaderPatches } = await import(pathToFileURL(outFile).href);
 
     const stock = THREE.ShaderChunk.common;
     assert.ok(!stock.includes('// --- Kart Royale'), 'precondition: pristine three <common>');
@@ -164,6 +164,26 @@ test('kr* chunk installation is idempotent by content — a double install canno
     // pristine stock — the invariant installShaderPatches now relies on.
     const doubled = stock + section + section;
     assert.equal(tail(stripKartSection(doubled)), tail(stock));
+
+    // Exercise real startup shader generation, not just source text or strip.
+    // This catches missing interpolation constants before Vite ships them.
+    const originalChunks = { ...THREE.ShaderChunk };
+    const sky = new Sky();
+    // GPU geometry/PMREM are exercised in the browser; use real init math here.
+    for (const method of ['buildDome', 'buildFog', 'buildLights', 'buildEnvironment']) {
+      sky[method] = () => {};
+    }
+    try {
+      await sky.init({ renderer: { toneMappingExposure: 1.05 },
+        settings: { shadows: true, quality: 3 }, sunDirection: new THREE.Vector3() });
+      assert.match(THREE.ShaderChunk.shadowmap_pars_fragment, /0\.9600000/);
+      sky.installShaderPatches(null);
+      assert.equal(THREE.ShaderChunk.common.split('// --- Kart Royale').length, 2);
+      restoreShaderPatches();
+      assert.equal(THREE.ShaderChunk.common, stock);
+    } finally {
+      Object.assign(THREE.ShaderChunk, originalChunks);
+    }
   } finally {
     try { rmSync(outFile, { force: true }); } catch {}
   }

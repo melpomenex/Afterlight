@@ -370,6 +370,7 @@ export function createKartRoyaleController({
           perfSpan: (name, action, meta) => perfSpan(name, action, meta),
           perfMark: (phase, data) => perfMark(phase, data),
           onFatal: (title, detail) => {
+            console.error('[KartRoyale] host fatal:', title, detail);
             pushToast(title || 'Kart Royale Stopped', String(detail || 'The game could not continue.'));
             exit('fatal');
           },
@@ -628,10 +629,10 @@ export function createKartRoyaleController({
     pendingActivation = false;
     if (mine() || exiting || hadAdmission) {
       try {
-        // A transport-loss leave stays quiet: the connection toast already
-        // explains why, and "Left Kart Royale" would misattribute the exit
-        // to the player.
-        participation()?.leave?.(reason === 'disconnect' ? { silent: true } : undefined);
+        // Preserve the failure/connection toast during automatic cleanup;
+        // "Left Kart Royale" would hide the cause and imply a player exit.
+        participation()?.leave?.(['disconnect', 'fatal', 'load-failed', 'frame-error', 'context-lost'].includes(reason)
+          ? { silent: true } : undefined);
       } catch {}
     }
     exiting = false;

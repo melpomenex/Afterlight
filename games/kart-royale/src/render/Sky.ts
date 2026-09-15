@@ -649,6 +649,9 @@ const FAR_CONST_BIAS = 0.22;
  */
 const SLOPE_BIAS_TAN_MAX = 9.0;
 
+/** Fade the outer 4% of the far/single shadow map into unshadowed light. */
+const SHADOW_BORDER_FADE = 0.96;
+
 const UP = new THREE.Vector3(0, 1, 0);
 
 /**
