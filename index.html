@@ -102,16 +102,21 @@
     <div id="chat-resize" class="chat-resize" role="separator" tabindex="0"
          aria-label="Resize chat panel — drag, arrow keys adjust, double-click resets"
          title="Drag to resize the town channel"></div>
-    <button id="chat-toggle" class="chat-toggle" aria-expanded="true" aria-controls="chat-log">
-      <span class="micro">TOWN CHANNEL <span class="chat-channel">#afterlight</span></span>
-      <span class="chat-toggle-right">
+    <div class="chat-header">
+      <button id="chat-toggle" class="chat-toggle" aria-expanded="true" aria-controls="chat-log">
+        <span class="micro">TOWN CHANNEL <span class="chat-channel">#afterlight</span></span>
+      </button>
+      <div class="chat-header-actions">
+        <button type="button" id="chat-settings-btn" class="chat-header-btn" aria-label="Chat appearance settings" title="Chat appearance settings">⚙</button>
         <span id="chat-unread" class="chat-unread" hidden aria-label="unread messages"></span>
-        <span class="chat-chevron" aria-hidden="true">▾</span>
-      </span>
-    </button>
+        <span id="chat-collapse-indicator" class="chat-chevron" aria-hidden="true">▾</span>
+      </div>
+    </div>
     <div id="chat-log" class="chat-log" role="log" aria-label="Town channel messages" aria-live="polite"></div>
+    <button type="button" id="chat-jump-pill" class="chat-jump-pill" hidden aria-label="Jump to latest messages">↓ <span id="chat-jump-count">0</span> new messages</button>
     <form id="chat-form" class="chat-form">
       <label class="visually-hidden" for="chat-input">Message the town channel</label>
+      <button type="button" id="chat-emoji-toggle" class="chat-composer-btn" aria-label="Insert emoji" title="Insert emoji" disabled>🙂</button>
       <input id="chat-input" type="text" maxlength="600" autocomplete="off" spellcheck="false"
              placeholder="Say hello… (Enter to chat, Esc to release)" disabled>
       <button type="submit" id="chat-send" class="chat-send" aria-label="Send message" disabled>➤</button>

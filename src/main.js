@@ -501,6 +501,12 @@ const chatPanel = new ChatPanel(net, {
     }
   },
 });
+if (worldState.selection?.worldId) {
+  chatPanel.setWorld(worldState.selection.worldId);
+}
+worldState.subscribe(() => {
+  chatPanel.setWorld(worldState.selection?.worldId);
+});
 
 // Theater screen overlay: anchors shared playback to the in-world screen,
 // self-registers THEATER_STATE, and owns its own DOM (overlay, modals, and
