@@ -168,7 +168,7 @@ export function createEnvironmentAudio({ mixer } = {}) {
     weatherFilter.type = 'lowpass';
     weatherFilter.frequency.value = ZONE_PROFILES.exposed.lowpassHz;
     weatherGain = ctx.createGain();
-    weatherGain.gain.value = weatherLevel;
+    weatherGain.gain.value = (mixer.preference('ambience') === 0) ? 0 : weatherLevel;
     weatherFilter.connect(weatherGain).connect(weatherBus);
 
     layerGains.rain = loopSource(ctx, { type: 'bandpass', frequency: 1900, gainValue: 0, dest: weatherFilter });
@@ -208,7 +208,8 @@ export function createEnvironmentAudio({ mixer } = {}) {
     if (!started) return false;
     const ctx = context();
     if (!ctx || !weatherGain) return false;
-    ramp(weatherGain.gain, ctx, weatherLevel, WEATHER_RAMP_MS / 1000);
+    const effectiveLevel = (mixer.preference('ambience') === 0) ? 0 : weatherLevel;
+    ramp(weatherGain.gain, ctx, effectiveLevel, WEATHER_RAMP_MS / 1000);
     return true;
   }
 
@@ -243,7 +244,7 @@ export function createEnvironmentAudio({ mixer } = {}) {
    */
   function thunder({ delayMs = 0, intensity = 0.6 } = {}) {
     const ctx = context();
-    if (disposed || !ctx || !mixer.buses.weather) return null;
+    if (disposed || !ctx || !mixer.buses.weather || mixer.preference('ambience') === 0) return null;
     const delay = Math.max(0, Number(delayMs) || 0) / 1000;
     const peak = 0.12 + clamp01(Number(intensity) || 0) * 0.5;
     const duration = 2.4;

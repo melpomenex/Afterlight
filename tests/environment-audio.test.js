@@ -551,4 +551,35 @@ test('environment audio: mute, media and voice gains remain local and unaffected
   assert.equal(mixer.isSoundEnabled(), true, 'sound enabled preserved');
 });
 
+test('ambient sound off: silences weather bus and environment audio so no background noise leaks', () => {
+  const { env, mixer, ctx } = createReadyEnvironment();
+  env.start();
+  assert.equal(mixer.buses.weather.gain.value, DEFAULT_AUDIO_PREFS.weather);
+
+  // When user turns off ambient sound (ambience = 0):
+  mixer.setPreference('ambience', 0);
+  assert.equal(mixer.buses.ambience.gain.value, 0, 'ambience bus muted');
+  assert.equal(mixer.buses.weather.gain.value, 0, 'weather bus muted when ambience is 0');
+
+  // Setting weather while ambience is 0 keeps weather bus at 0
+  mixer.setPreference('weather', 0.5);
+  assert.equal(mixer.preference('weather'), 0.5, 'weather preference stored');
+  assert.equal(mixer.buses.weather.gain.value, 0, 'weather bus remains muted while ambience is 0');
+
+  // Weather level ramps in environment audio stay at 0 while ambience is 0
+  env.setWeather(0.8);
+  const chains = weatherLayerChains(ctx, mixer);
+  const weatherGain = chains[0].dest.connections[0];
+  assert.ok(weatherGain.gain.rampsTo(0), 'weatherGain ramps to 0 when ambience preference is 0');
+
+  // Thunder does not schedule when ambience is 0
+  assert.equal(env.thunder({ delayMs: 100 }), null, 'thunder returns null when ambience is 0');
+
+  // Raising ambience restores the weather bus to its stored preference
+  mixer.setPreference('ambience', 0.4);
+  assert.equal(mixer.buses.ambience.gain.value, 0.4);
+  assert.equal(mixer.buses.weather.gain.value, 0.5, 'weather bus restored to preference');
+});
+
+
 

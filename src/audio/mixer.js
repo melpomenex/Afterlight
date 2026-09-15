@@ -147,7 +147,7 @@ export function createAudioMixer({
     ambience.connect(environment);
 
     const weather = context.createGain();
-    weather.gain.value = prefs.weather;
+    weather.gain.value = prefs.ambience === 0 ? 0 : prefs.weather;
     weather.connect(environment);
 
     const effects = context.createGain();
@@ -213,8 +213,13 @@ export function createAudioMixer({
     const v = clamp01(Number(value));
     if (!Number.isFinite(v)) return prefs[name];
     prefs[name] = v;
-    if (name === 'ambience') applyBusGain(buses.ambience, v);
-    if (name === 'weather') applyBusGain(buses.weather, v);
+    if (name === 'ambience') {
+      applyBusGain(buses.ambience, v);
+      applyBusGain(buses.weather, v === 0 ? 0 : prefs.weather);
+    }
+    if (name === 'weather') {
+      applyBusGain(buses.weather, prefs.ambience === 0 ? 0 : v);
+    }
     if (name === 'effects') applyBusGain(buses.effects, v);
     // Persist best-effort; storage failure keeps the choice session-only.
     if (storage && typeof storage.setItem === 'function') {

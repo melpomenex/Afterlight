@@ -454,7 +454,8 @@ function cacheZoneAudio(seam) {
 function updateEnvironmentAudio() {
   atmosphereStateClient.sample(audioSample);
   if (audioSample.active !== true) return;
-  environmentAudio.setWeather(audioSample.rain ?? 0);
+  const rainLevel = ($('atmosphere') && !$('atmosphere').checked) ? 0 : (audioSample.rain ?? 0);
+  environmentAudio.setWeather(rainLevel);
   // The Theater's active environment authors the ambience mix per variant
   // (rain/roof/wind/lowpass): its row replaces the exposure-based zone
   // fallback so each world has its own sound. Every other place keeps the
@@ -1658,13 +1659,25 @@ function bindAudioVolume(inputId, labelId, prefName) {
   const input = $(inputId);
   const label = $(labelId);
   if (!input || !label) return;
-  const pct = Math.round(audioMixer.preference(prefName) * 100);
+  const initialPref = (prefName === 'weather' && audioMixer.preference('ambience') === 0)
+    ? 0
+    : audioMixer.preference(prefName);
+  const pct = Math.round(initialPref * 100);
   input.value = String(pct);
   label.textContent = `${pct}%`;
   input.addEventListener('input', () => {
     const value = Number(input.value) / 100;
     label.textContent = `${input.value}%`;
     audioMixer.setPreference(prefName, value);
+    if (prefName === 'ambience' && value === 0) {
+      const weatherInput = $('weather-volume');
+      const weatherLabel = $('weather-value');
+      if (weatherInput && weatherLabel) {
+        weatherInput.value = '0';
+        weatherLabel.textContent = '0%';
+        audioMixer.setPreference('weather', 0);
+      }
+    }
   });
 }
 bindAudioVolume('ambience-volume', 'ambience-value', 'ambience');
@@ -2047,7 +2060,10 @@ $('quality').onchange = () => {
   renderer.setPixelRatio(Math.min(devicePixelRatio, Number($('quality').value)));
   resize();
 };
-$('atmosphere').onchange = () => { particles.visible = $('atmosphere').checked; };
+$('atmosphere').onchange = () => {
+  particles.visible = $('atmosphere').checked;
+  updateEnvironmentAudio();
+};
 
 // Mouse look toggle: flips the look input immediately (no dialog close
 // needed) and persists; a storage failure keeps the choice session-local.
