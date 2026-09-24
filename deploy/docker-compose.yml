@@ -35,8 +35,7 @@ services:
       - nodedata:/app/data
     ports:
       - "127.0.0.1:3001:3001"
-      - "127.0.0.1:6667:6667"
-      - "127.0.0.1:6667:6667"
+      - "${AFTERLIGHT_IRC_BIND_IP:-127.0.0.1}:6667:6667"
     depends_on:
       postgres:
         condition: service_healthy

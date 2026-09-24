@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
-# Remote deploy for Afterlight (Phoenix + Node sidecar + Postgres) on remote VM.
+# Remote deploy for Afterlight (Phoenix + Node sidecar + Postgres) on remote host.
 #
 # Usage (from repo root):
-#   bash deploy/remote-deploy.sh
+#   AFTERLIGHT_DEPLOY_HOST=user@host bash deploy/remote-deploy.sh
 #
-# Optional overrides:
-#   DEPLOY_HOST=<DEPLOY_USER>@<DEPLOY_HOST>   # default
-#   DEPLOY_PASS='…'                      # password auth via sshpass (omit when SSH key works)
+# Configuration via environment variables:
+#   AFTERLIGHT_DEPLOY_HOST=user@host     # Deployment SSH target (e.g. user@example.com)
+#   DEPLOY_HOST=user@host                # Fallback alias for AFTERLIGHT_DEPLOY_HOST
+#   AFTERLIGHT_DEPLOY_USER=user          # User on deployment host (default: parsed from HOST)
+#   DEPLOY_PASS='…'                      # Optional password auth via sshpass (omit when SSH key works)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-HOST="${DEPLOY_HOST:-<DEPLOY_USER>@<DEPLOY_HOST>}"
+HOST="${AFTERLIGHT_DEPLOY_HOST:-${DEPLOY_HOST:-}}"
+
+if [[ -z "$HOST" ]]; then
+  echo "error: AFTERLIGHT_DEPLOY_HOST (or DEPLOY_HOST) must be set (e.g. export AFTERLIGHT_DEPLOY_HOST=user@deploy-host)" >&2
+  exit 1
+fi
+
 REMOTE_DIR=/opt/afterlight/game
+REMOTE_USER="${AFTERLIGHT_DEPLOY_USER:-${HOST%%@*}}"
 
 run_ssh() {
   if [[ -n "${DEPLOY_PASS:-}" ]]; then
@@ -31,7 +40,7 @@ run_rsync() {
     # recurring invalid_password storm that killed activity sessions
     # mid-join. Preserve it: AGENTS.md "do not delete or overwrite
     # deploy/.env on the VM".
-    --exclude deploy/.env --exclude .env
+    --exclude deploy/.env --exclude .env --exclude .env.production
     "$ROOT/" "$HOST:$REMOTE_DIR/")
   if [[ -n "${DEPLOY_PASS:-}" ]]; then
     sshpass -p "$DEPLOY_PASS" rsync "${rsync_args[@]}"
@@ -50,7 +59,7 @@ sudo_remote() {
 
 echo "→ Syncing repo to $HOST:$REMOTE_DIR"
 run_ssh "mkdir -p $REMOTE_DIR"
-sudo_remote "mkdir -p /opt/afterlight && chown -R <DEPLOY_USER>:<DEPLOY_USER> /opt/afterlight"
+sudo_remote "mkdir -p /opt/afterlight && chown -R ${REMOTE_USER}:${REMOTE_USER} /opt/afterlight"
 run_rsync
 
 echo "→ Writing production env (if missing)"
