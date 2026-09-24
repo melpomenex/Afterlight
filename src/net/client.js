@@ -127,7 +127,7 @@ export class NetworkClient {
 
   getDefaultUrl() {
     // Deployed builds get the multiplayer server URL at build time
-    // (e.g. VITE_WS_URL=wss://example.invalid/ws); dev falls back to localhost.
+    // (e.g. VITE_WS_URL=wss://api.example.com/ws); dev falls back to localhost.
     const configured = import.meta.env?.VITE_WS_URL;
     if (configured) return configured;
     const loc = window.location;

@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { PackConsumer } from '../../src/realtime/consumer.js';
 import { createPack } from '../../src/realtime/worker/core.js';
 import { resolveFlagsFrom } from '../../src/realtime/flags.js';
@@ -58,7 +58,10 @@ function parseEnvFile(url) {
 }
 
 test('committed env defaults keep full avatars: data plane on, WebGPU proxies off', () => {
-  for (const rel of ['../../.env.production', '../../.env.development']) {
+  const prodFile = existsSync(new URL('../../.env.production', import.meta.url))
+    ? '../../.env.production'
+    : '../../.env.production.example';
+  for (const rel of [prodFile, '../../.env.development']) {
     const env = parseEnvFile(new URL(rel, import.meta.url));
     const flags = resolveFlagsFrom({ env });
     assert.equal(flags.renderer_webgpu_fastpath, false, `${rel} must not enable the rejected proxy default`);
