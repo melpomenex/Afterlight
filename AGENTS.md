@@ -97,11 +97,11 @@ The CSS requests Google Fonts with local font fallbacks. Game geometry and synth
 
 When the user says **"deploy it"** (or deploy backend/frontend/production), run the scripts below. Do not ask for hostnames, passwords, or Vercel project names unless something fails.
 
-**Prerequisites (usually already satisfied on the operator machine):**
+**Prerequisites (configured via environment variables or operator environment):**
 
-- SSH key access to `<DEPLOY_USER>@<DEPLOY_HOST>` (no password; `DEPLOY_PASS` is optional fallback for `sshpass`)
+- SSH key access to deployment host (configured via `AFTERLIGHT_DEPLOY_HOST=user@host`; no password; `DEPLOY_PASS` is optional fallback for `sshpass`)
 - `npx vercel` authenticated (`vercel whoami` should succeed)
-- Remote host has Docker Compose and Tailscale funnel
+- Remote host has Docker Compose and reverse proxy / Tailscale funnel
 
 **One command (backend then frontend):**
 
@@ -119,13 +119,13 @@ bash deploy/vercel-deploy.sh   # Vercel prod with VITE_WS_URL + VITE_TRANSPORT=p
 
 | Target | Where | Public URL |
 | --- | --- | --- |
-| Backend (Phoenix gateway + Node sidecar + Postgres) | `<DEPLOY_USER>@<DEPLOY_HOST>` → `/opt/afterlight/game/deploy` | `<PRODUCTION_BACKEND_URL>` (Tailscale funnel → Phoenix `:4000`) |
-| Frontend (static Vite build) | Vercel project `afterlight`, scope `<VERCEL_SCOPE>` | `https://game-beige-pi.vercel.app` |
+| Backend (Phoenix gateway + Node sidecar + Postgres) | `<DEPLOY_HOST>` → `/opt/afterlight/game/deploy` | `<PRODUCTION_BACKEND_URL>` (funnel / reverse proxy → Phoenix `:4000`) |
+| Frontend (static Vite build) | Vercel project `afterlight` (optional scope: `<VERCEL_SCOPE>`) | `https://game-beige-pi.vercel.app` |
 
 **What the scripts do:**
 
 1. `deploy/remote-deploy.sh` — `rsync` the repo (excludes `node_modules`, `_build`, `dist`, `.git`), preserve existing `deploy/.env` secrets on first boot only, `docker compose build && up -d`, reset Tailscale funnel to proxy `127.0.0.1:4000`.
-2. `deploy/vercel-deploy.sh` — reads the VM's Tailscale DNS name, sets `VITE_WS_URL=wss://<dns>/ws` and `VITE_TRANSPORT=phoenix` as build env, runs `npx vercel deploy --prod`.
+2. `deploy/vercel-deploy.sh` — reads the VM's Tailscale DNS name (or uses `BACKEND_URL`), sets `VITE_WS_URL=wss://<dns>/ws` and `VITE_TRANSPORT=phoenix` as build env, runs `npx vercel deploy --prod`.
 
 **Post-deploy smoke checks:**
 
@@ -143,7 +143,7 @@ curl -sfI https://game-beige-pi.vercel.app
 **Override env vars when needed:**
 
 ```sh
-DEPLOY_HOST=user@other-host bash deploy/remote-deploy.sh
+AFTERLIGHT_DEPLOY_HOST=user@other-host bash deploy/remote-deploy.sh
 BACKEND_URL=https://custom.example.com bash deploy/vercel-deploy.sh
 ```
 
