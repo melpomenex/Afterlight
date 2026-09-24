@@ -2,7 +2,7 @@
 
 - When: 2026-09-10T15:03:00.932Z
 - App: https://game-beige-pi.vercel.app/?room=theater&debug=1
-- Gateway: <PRODUCTION_BACKEND_URL>
+- Gateway: https://<GATEWAY_HOST>
 - Headed: true · autoplay strict: true · sound: on
 - Video: https://www.youtube.com/watch?v=dQw4w9WgXcQ
 - Pre-existing live item: (idle)

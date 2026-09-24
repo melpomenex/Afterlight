@@ -1,7 +1,7 @@
 {
   "label": "deployed-strict-2",
   "app": "https://game-beige-pi.vercel.app/?room=theater&debug=1",
-  "gateway": "<PRODUCTION_BACKEND_URL>",
+  "gateway": "https://<GATEWAY_HOST>",
   "headed": false,
   "autoplayStrict": true,
   "soundRequested": "on",

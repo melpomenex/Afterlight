@@ -4,7 +4,7 @@ Recorded 2026-09-10 before implementation (task 0.1/0.5).
 
 ## Revision
 
-- Repo: `melpomenex/Afterlight` (local `$(git rev-parse --show-toplevel)`)
+- Repo: `melpomenex/Afterlight`
 - Commit: `0e3ba441b36a23395aabb8501c21cc799bd33cd2`
 - Working tree: clean at inspection start (only this change's untracked planning
   directory).
